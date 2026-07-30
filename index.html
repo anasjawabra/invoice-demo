@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>智能账单管理平台 · 登录</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="bg-fx"></div>
+<div class="bg-grid"></div>
+
+<div class="lang-toggle lang-login" id="langToggle">
+  <button data-lang="zh" class="active">中文</button>
+  <button data-lang="en">English</button>
+  <button data-lang="ar">العربية</button>
+</div>
+
+<div class="login-wrap">
+  <!-- LEFT : HERO -->
+  <div class="login-hero">
+    <div class="hero-badge">
+      <svg viewBox="0 0 24 24" fill="none" width="15" height="15"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z" stroke="#8ff0e5" stroke-width="1.6"/></svg>
+      <span data-i18n="hero_badge">基于 HiAgent 多 Agent 架构 · 人机协作 (HITL)</span>
+    </div>
+    <div>
+      <h1 class="hero-title" data-i18n-html="hero_title">智能账单<br><span>多 Agent 自动化平台</span></h1>
+      <p class="hero-sub" data-i18n="hero_sub">面向部委共享服务中心，打通 Tahseel / Makin / Efa / Sanad 四源账单的摄取、验证、异常检测、审批分发、催收预测与智能分析全链路——AI 出结论，人工做决策。</p>
+    </div>
+    <div>
+      <div class="hero-stats" style="margin-bottom:22px">
+        <div class="hero-stat"><b>7</b><span data-i18n="stat_agents">协同智能体</span></div>
+        <div class="hero-stat"><b>96.4%</b><span data-i18n="stat_auto">字段自动录入率</span></div>
+        <div class="hero-stat"><b>&lt;1<small style="font-size:16px">min</small></b><span data-i18n="stat_speed">端到端处理</span></div>
+      </div>
+      <div class="hero-agents">
+        <div class="hero-chip">A0 Orchestrator</div>
+        <div class="hero-chip">A1 Ingestion</div>
+        <div class="hero-chip">A2 Verification</div>
+        <div class="hero-chip">A3 Anomaly</div>
+        <div class="hero-chip">A4 Routing</div>
+        <div class="hero-chip">A5 Forecasting</div>
+        <div class="hero-chip">A6 Analytics</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT : LOGIN CARD -->
+  <div class="login-panel">
+    <div class="login-card">
+      <div class="brand-row">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v4H4zM4 11h10v8H4zM16 11h4v8h-4z" stroke="#04211e" stroke-width="1.8" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="brand-name">INTELLIBILL<small data-i18n="brand_tagline">INTELLIBILL · AI SUITE</small></div>
+      </div>
+      <h2 data-i18n="welcome">欢迎回来 👋</h2>
+      <p class="lead" data-i18n="login_lead">登录以进入智能账单管理控制台</p>
+
+      <form id="loginForm">
+        <div class="field">
+          <label data-i18n="label_user">账号</label>
+          <div class="inp">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.4" stroke="currentColor" stroke-width="1.6"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.6"/></svg>
+            <input id="username" type="text" data-i18n-ph="placeholder_user" placeholder="请输入账号" autocomplete="username" value="demo">
+          </div>
+        </div>
+        <div class="field">
+          <label data-i18n="label_pass">密码</label>
+          <div class="inp">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="5" y="10" width="14" height="10" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 10V7a4 4 0 018 0v3" stroke="currentColor" stroke-width="1.6"/></svg>
+            <input id="password" type="password" data-i18n-ph="placeholder_pass" placeholder="请输入密码" autocomplete="current-password" value="demo123">
+          </div>
+        </div>
+        <button class="btn-primary" type="submit" id="loginBtn">
+          <span data-i18n="btn_login">进入控制台</span>
+          <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" stroke="#04211e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="login-err" id="loginErr"></div>
+      </form>
+
+      <div class="sso-row" data-i18n="or_sso">或使用部委统一身份</div>
+      <button class="btn-sso" id="ssoBtn">
+        <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M12 2l7 4v6c0 5-3.5 8-7 10-3.5-2-7-5-7-10V6l7-4z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span data-i18n="btn_sso">部委 SSO 单点登录</span>
+      </button>
+
+      <div class="demo-hint" data-i18n-html="demo_hint">
+        🔑 <b>演示账号</b>：demo / demo123　·　auditor / demo123（审计视角）<br>
+        点击「进入控制台」即可直接体验完整多 Agent 流程。
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast"></div>
+<script src="assets/js/i18n.js"></script>
+<script src="assets/js/data.js"></script>
+<script>
+  (function () {
+    var form = document.getElementById('loginForm');
+    var err = document.getElementById('loginErr');
+    var btn = document.getElementById('loginBtn');
+    var t = function (k) { return I18N.t(k); };
+
+    function applyI18n() {
+      document.title = t('login_title');
+      document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
+      document.querySelectorAll('[data-i18n-html]').forEach(function (el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
+      document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
+      document.querySelectorAll('#langToggle button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-lang') === I18N.getLang()); });
+    }
+
+    document.getElementById('langToggle').addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      var lang = b.getAttribute('data-lang');
+      if (lang === I18N.getLang()) return;
+      I18N.setLang(lang);
+      applyI18n();
+      toast(t('switched_' + lang), 'ok');
+    });
+
+    function toast(msg, type) {
+      var w = document.getElementById('toast');
+      var el = document.createElement('div');
+      el.className = 'toast ' + (type || 'ok');
+      el.innerHTML = msg;
+      w.appendChild(el);
+      setTimeout(function () { el.style.opacity = '0'; el.style.transform = 'translateX(20px)'; setTimeout(function () { el.remove(); }, 300); }, 2200);
+    }
+
+    function doLogin(u, p) {
+      var found = DEMO.CREDENTIALS.find(function (c) { return c.user === u && c.pass === p; });
+      if (!found) {
+        err.textContent = t('login_err');
+        return;
+      }
+      err.textContent = '';
+      btn.innerHTML = '<span class="spinner"></span> ' + t('logging_in');
+      sessionStorage.setItem('ib_user', JSON.stringify(found));
+      toast(t('login_success'), 'ok');
+      setTimeout(function () { window.location.href = 'app.html'; }, 900);
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      doLogin(document.getElementById('username').value.trim(), document.getElementById('password').value.trim());
+    });
+    document.getElementById('ssoBtn').addEventListener('click', function () {
+      toast(t('sso_redirect'), 'ok');
+      setTimeout(function () { doLogin('demo', 'demo123'); }, 700);
+    });
+
+    applyI18n();
+  })();
+</script>
+</body>
+</html>
