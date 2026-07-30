@@ -14,6 +14,18 @@
   try { user = JSON.parse(sessionStorage.getItem('ib_user')); } catch (e) {}
   if (!user) { window.location.href = 'index.html'; return; }
 
+  /* ---------- 机构上下文 ---------- */
+  var org = (user && user.org) || D.ORGS[0];
+  window.__IB_ORG = org;
+  function orgScale() { return (window.__IB_ORG && window.__IB_ORG.scale) || 1; }
+  function scaleVal(id, v) {
+    var s = orgScale();
+    if (s === 1) return v;
+    if (id === 'amount') return Number((v * s).toFixed(2));
+    if (id === 'processed' || id === 'anomaly' || id === 'count') return Math.round(v * s);
+    return v;
+  }
+
   /* ---------- 图标库 ---------- */
   var ICON = {
     file: '<path d="M6 3h8l4 4v14H6z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M14 3v4h4" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>',
@@ -85,6 +97,30 @@
     risk: 'nav_risk', collection: 'nav_risk',
     assistant: 'nav_hub', agents: 'nav_hub'
   };
+  /* ---------- 机构切换器 ---------- */
+  function populateOrgSwitch() {
+    var sel = document.getElementById('orgSwitch');
+    if (!sel) return;
+    var groups = { central: [], local: [] };
+    D.ORGS.forEach(function (o) { (groups[o.tier] || (groups[o.tier] = [])).push(o); });
+    sel.innerHTML = ['central', 'local'].map(function (tier) {
+      return '<optgroup label="' + t(tier === 'central' ? 'tier_central' : 'tier_local') + '">' +
+        groups[tier].map(function (o) { return '<option value="' + o.id + '">' + T(o, 'name') + '</option>'; }).join('') +
+        '</optgroup>';
+    }).join('');
+    sel.value = window.__IB_ORG.id;
+    if (!sel.__bound) {
+      sel.__bound = true;
+      sel.addEventListener('change', function () {
+        var o = D.ORGS.find(function (x) { return x.id === sel.value; }) || D.ORGS[0];
+        window.__IB_ORG = o; user.org = o;
+        try { sessionStorage.setItem('ib_user', JSON.stringify(user)); } catch (e) {}
+        toast(t('org_switched') + ' · ' + T(o, 'name'), 'ok');
+        updateTitle(); render();
+      });
+    }
+  }
+
   function refreshChrome() {
     document.querySelectorAll('.nav-item[data-route]').forEach(function (n) {
       var r = n.getAttribute('data-route');
@@ -113,6 +149,7 @@
     if (sideBrand) sideBrand.textContent = t('side_brand');
     refreshUserInfo();
     highlightLang();
+    populateOrgSwitch();
   }
 
   /* ---------- 路由 ---------- */
@@ -191,10 +228,11 @@
       var arrow = k.delta >= 0 ? '▲' : '▼';
       var target = k.target ? '<div class="k-target">' + t('kpi_target') + ' ' + k.target + '%　·　' + (k.value >= k.target ? '<span style="color:var(--green)">' + t('kpi_achieved') + '</span>' : t('kpi_not_achieved')) + '</div>' : '';
       var unit = T(k, 'unit');
+      var val = scaleVal(k.id, k.value);
       return '<div class="card kpi">' +
         '<div class="k-ico" style="background:' + rgba(COLORS[k.color], 0.14) + ';color:' + COLORS[k.color] + '">' + svg(k.icon) + '</div>' +
         '<div class="k-delta ' + deltaCls + '">' + arrow + ' ' + Math.abs(k.delta) + '%</div>' +
-        '<div class="k-val">' + money(k.value) + '<span class="u">' + unit + '</span></div>' +
+        '<div class="k-val">' + money(val) + '<span class="u">' + unit + '</span></div>' +
         '<div class="k-lab">' + T(k, 'label') + '</div>' + target +
         '</div>';
     }).join('');
@@ -202,15 +240,39 @@
     var srcHtml = D.SOURCES.map(function (s) {
       return '<div class="card src-card">' +
         '<div class="src-ico" style="background:' + rgba(COLORS[s.color], 0.15) + ';color:' + COLORS[s.color] + '">' + s.name.slice(0, 2) + '</div>' +
-        '<div><b>' + money(s.count) + '</b><div class="s-name">' + s.name + '</div><div class="s-desc">' + T(s, 'desc') + '</div></div>' +
+        '<div><b>' + money(scaleVal('count', s.count)) + '</b><div class="s-name">' + s.name + '</div><div class="s-desc">' + T(s, 'desc') + '</div></div>' +
         '</div>';
     }).join('');
 
+    var tierLabel = t(window.__IB_ORG.tier === 'central' ? 'tier_central' : 'tier_local');
+    var scopeBanner =
+      '<div class="scope-bar">' +
+        '<div class="scope-ico">' + svg('shield') + '</div>' +
+        '<div class="scope-txt"><b>' + t('org_scope') + '：' + T(window.__IB_ORG, 'name') + '</b>' +
+          '<span class="scope-tier">' + tierLabel + ' · ' + window.__IB_ORG.code + '</span>' +
+          '<div class="scope-note">' + t('org_scope_note') + '</div></div>' +
+      '</div>';
+
+    var proHtml = D.PROACTIVE.map(function (p) {
+      return '<div class="pro-item">' +
+        '<div class="pro-ico" style="background:' + rgba(COLORS[p.color], 0.14) + ';color:' + COLORS[p.color] + '">' + svg(p.icon) + '</div>' +
+        '<div class="pro-body"><div class="pro-title">' + T(p, 'title') + '</div><div class="pro-desc">' + T(p, 'desc') + '</div></div>' +
+        '<button class="btn btn-ghost pro-btn">' + T(p, 'act') + '</button>' +
+        '</div>';
+    }).join('');
+    var proPanel =
+      '<div class="card panel pro-panel" style="margin-bottom:20px">' +
+        '<div class="section-head"><div><h3>' + t('proactive_title') + '</h3><div class="p-sub">' + t('proactive_sub') + '</div></div></div>' +
+        '<div class="pro-list">' + proHtml + '</div>' +
+      '</div>';
+
     VIEW.innerHTML =
+      scopeBanner +
       '<div class="hitl-banner" style="margin-bottom:20px">' +
         '<div class="h-ico">' + svg('shield') + '</div>' +
         '<div><b>' + t('hitl_banner') + '</b>　—　' + t('hitl_desc') + '</div>' +
       '</div>' +
+      proPanel +
       '<div class="grid g-6" style="margin-bottom:20px">' + kpiHtml + '</div>' +
       '<div class="grid g-3" style="margin-bottom:20px">' +
         '<div class="card panel" style="grid-column:span 2">' +

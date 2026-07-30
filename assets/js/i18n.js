@@ -161,7 +161,18 @@
       sc_taxfail_desc: '验证合规 Agent 检出账单明细与 PO 存在部分差异，且金额超过 300 万 SAR 阈值，匹配置信度 68% < 75%，转人工复核并进入三级审批链。',
       sc_fraud_hitl: '⚠ 风险评分 82（高危）· 置信度 71% < 75%，已暂停自动流程并转人工复核。请前往「审批中心 / 风险雷达」处理。',
       sc_dup_hitl: '🔁 已拦截 1 张重复账单，为部委节省重复付款风险 1,250,000 SAR。',
-      sc_taxfail_hitl: '🧾 税务/匹配置信度 68% < 75%，已转合规人工复核，并按 300 万+ 金额分发三级审批链。'
+      sc_taxfail_hitl: '🧾 税务/匹配置信度 68% < 75%，已转合规人工复核，并按 300 万+ 金额分发三级审批链。',
+      org_label: '所属机构',
+      org_ph: '请选择所属机构',
+      tier_central: '中央级',
+      tier_local: '省市级',
+      org_scope: '数据范围',
+      org_scope_note: '当前视图已限定在所选机构，账单、审批、预算与风险数据均按机构隔离',
+      org_switched: '已切换机构视图',
+      org_login_hint: '登录后，系统仅展示该机构范围内的数据',
+      proactive_title: '主动提醒 · AI 前置洞察',
+      proactive_sub: '在你开始操作前，AI 已识别需要提前处理的事项（合同到期 / 申报窗口 / 付款与催收）',
+      pro_act: '处理'
     },
     en: {
       login_title: 'INTELLIBILL · Login',
@@ -319,7 +330,18 @@
       sc_taxfail_desc: 'Verification Agent found discrepancies between invoice items and PO. Amount > 3M SAR. Confidence 68% < 75%. Referred for manual compliance review.',
       sc_fraud_hitl: '⚠ Risk Score 82 (High) · Confidence 71% < 75%. Auto-process paused for manual review. Check Approvals/Risk Radar.',
       sc_dup_hitl: '🔁 Blocked 1 duplicate bill. Saved 1,250,000 SAR for the ministry.',
-      sc_taxfail_hitl: '🧾 Confidence 68% < 75%. Referred for manual compliance review and 3rd-level approval (3M+ SAR).'
+      sc_taxfail_hitl: '🧾 Confidence 68% < 75%. Referred for manual compliance review and 3rd-level approval (3M+ SAR).',
+      org_label: 'Organization',
+      org_ph: 'Select your organization',
+      tier_central: 'Central level',
+      tier_local: 'Provincial / Municipal',
+      org_scope: 'Data scope',
+      org_scope_note: 'This view is scoped to the selected entity — invoices, approvals, budgets and risk data are all isolated per organization.',
+      org_switched: 'Organization view switched',
+      org_login_hint: 'After login, the system shows only data within this organization.',
+      proactive_title: 'Proactive Alerts · AI Foresight',
+      proactive_sub: 'Before you start, AI has flagged what needs early action (contract expiry / filing windows / payment & collection).',
+      pro_act: 'Handle'
     },
     ar: {
       login_title: 'INTELLIBILL · تسجيل الدخول',
@@ -477,7 +499,18 @@
       sc_taxfail_desc: 'وجد وكيل التحقق اختلافات بين بنود الفاتورة وأمر الشراء. المبلغ > 3 مليون ر.س. الثقة 68٪ < 75٪. محال للمراجعة اليدوية.',
       sc_fraud_hitl: '⚠ درجة المخاطرة 82 (عالية) · الثقة 71٪ < 75٪. تم إيقاف المعالجة الآلية للمراجعة اليدوية. تحقق من رادار الموافقات/المخاطر.',
       sc_dup_hitl: '🔁 تم حظر فاتورة مكررة واحدة. وفرت 1,250,000 ريال سعودي للوزارة.',
-      sc_taxfail_hitl: '🧾 الثقة 68٪ < 75٪. محال للمراجعة اليدوية للامتثال والموافقة من المستوى الثالث (3M+ ر.س).'
+      sc_taxfail_hitl: '🧾 الثقة 68٪ < 75٪. محال للمراجعة اليدوية للامتثال والموافقة من المستوى الثالث (3M+ ر.س).',
+      org_label: 'الجهة',
+      org_ph: 'اختر جهتك',
+      tier_central: 'المستوى المركزي',
+      tier_local: 'إقليمي / بلدي',
+      org_scope: 'نطاق البيانات',
+      org_scope_note: 'هذا العرض مقصور على الجهة المختارة — الفواتير والموافقات والميزانيات وبيانات المخاطر معزولة لكل جهة.',
+      org_switched: 'تم تبديل عرض الجهة',
+      org_login_hint: 'بعد تسجيل الدخول، يعرض النظام بيانات هذه الجهة فقط.',
+      proactive_title: 'تنبيهات استباقية · استبصار الذكاء الاصطناعي',
+      proactive_sub: 'قبل أن تبدأ، حدّد الذكاء الاصطناعي ما يحتاج إجراءً مبكراً (انتهاء العقود / نوافذ الإقرار / الدفع والتحصيل).',
+      pro_act: 'معالجة'
     }
   };
 

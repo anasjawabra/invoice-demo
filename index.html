@@ -75,6 +75,14 @@
             <input id="password" type="password" data-i18n-ph="placeholder_pass" placeholder="请输入密码" autocomplete="current-password" value="demo123">
           </div>
         </div>
+        <div class="field">
+          <label data-i18n="org_label">所属机构</label>
+          <div class="inp">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M4 21V6l7-3 7 3v15" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 21h16M9 9h1m4 0h1M9 13h1m4 0h1M9 17h1m4 0h1" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <select id="orgSelect" style="flex:1;border:0;background:transparent;font:inherit;color:inherit;outline:none;cursor:pointer"></select>
+          </div>
+          <div class="org-hint" data-i18n="org_login_hint" style="font-size:12px;color:var(--muted,#7c89ad);margin-top:6px">登录后，系统仅展示该机构范围内的数据</div>
+        </div>
         <button class="btn-primary" type="submit" id="loginBtn">
           <span data-i18n="btn_login">进入控制台</span>
           <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M5 12h14M13 6l6 6-6 6" stroke="#04211e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -106,12 +114,27 @@
     var btn = document.getElementById('loginBtn');
     var t = function (k) { return I18N.t(k); };
 
+    function populateOrgs() {
+      var sel = document.getElementById('orgSelect');
+      if (!sel || !window.DEMO || !DEMO.ORGS) return;
+      var prev = sel.value;
+      var groups = { central: [], local: [] };
+      DEMO.ORGS.forEach(function (o) { (groups[o.tier] || (groups[o.tier] = [])).push(o); });
+      sel.innerHTML = ['central', 'local'].map(function (tier) {
+        return '<optgroup label="' + t(tier === 'central' ? 'tier_central' : 'tier_local') + '">' +
+          groups[tier].map(function (o) { return '<option value="' + o.id + '">' + I18N.get(o, 'name') + '</option>'; }).join('') +
+          '</optgroup>';
+      }).join('');
+      if (prev) sel.value = prev;
+    }
+
     function applyI18n() {
       document.title = t('login_title');
       document.querySelectorAll('[data-i18n]').forEach(function (el) { el.textContent = t(el.getAttribute('data-i18n')); });
       document.querySelectorAll('[data-i18n-html]').forEach(function (el) { el.innerHTML = t(el.getAttribute('data-i18n-html')); });
       document.querySelectorAll('[data-i18n-ph]').forEach(function (el) { el.setAttribute('placeholder', t(el.getAttribute('data-i18n-ph'))); });
       document.querySelectorAll('#langToggle button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-lang') === I18N.getLang()); });
+      populateOrgs();
     }
 
     document.getElementById('langToggle').addEventListener('click', function (e) {
@@ -140,6 +163,8 @@
       }
       err.textContent = '';
       btn.innerHTML = '<span class="spinner"></span> ' + t('logging_in');
+      var orgId = document.getElementById('orgSelect').value;
+      found.org = (DEMO.ORGS.find(function (o) { return o.id === orgId; })) || DEMO.ORGS[0];
       sessionStorage.setItem('ib_user', JSON.stringify(found));
       toast(t('login_success'), 'ok');
       setTimeout(function () { window.location.href = 'app.html'; }, 900);

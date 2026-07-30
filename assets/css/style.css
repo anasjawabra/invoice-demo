@@ -1027,3 +1027,33 @@ button { font-family: inherit; cursor: pointer; border: none; background: none; 
 /* Login language toggle */
 .lang-login { position: absolute; top: 26px; right: 30px; z-index: 5; }
 [dir="rtl"] .lang-login { right: auto; left: 30px; }
+
+/* ===== 机构上下文 & 主动提醒（客户反馈增补）===== */
+.org-switch{
+  height:34px;border-radius:8px;padding:0 10px;font:inherit;font-size:13px;font-weight:600;
+  border:1px solid var(--line,#e2e6ee);background:var(--card,#fff);color:var(--ink,#1c2530);
+  cursor:pointer;max-width:230px;outline:none;
+}
+.org-switch:focus{border-color:var(--primary,#26634b);box-shadow:0 0 0 3px rgba(38,99,75,.12)}
+
+.scope-bar{
+  display:flex;align-items:flex-start;gap:12px;margin-bottom:18px;padding:14px 16px;border-radius:10px;
+  background:linear-gradient(90deg,rgba(38,99,75,.10),rgba(0,90,150,.06));
+  border:1px solid rgba(38,99,75,.22);
+}
+.scope-ico{flex:0 0 34px;width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:rgba(38,99,75,.14);color:var(--primary,#26634b)}
+.scope-ico svg{width:19px;height:19px}
+.scope-txt b{font-size:14.5px;color:var(--ink,#12251d)}
+.scope-tier{display:inline-block;margin-inline-start:10px;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:rgba(0,90,150,.12);color:#005a96;vertical-align:middle}
+.scope-note{margin-top:3px;font-size:12.5px;color:var(--muted,#5c6b7a)}
+
+.pro-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:6px}
+.pro-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line,#e8ebf1);border-radius:10px;background:var(--card,#fff)}
+.pro-ico{flex:0 0 38px;width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center}
+.pro-ico svg{width:20px;height:20px}
+.pro-body{flex:1;min-width:0}
+.pro-title{font-size:14px;font-weight:700;color:var(--ink,#12251d);margin-bottom:2px}
+.pro-desc{font-size:12.5px;line-height:1.5;color:var(--muted,#5c6b7a)}
+.pro-btn{flex:0 0 auto;white-space:nowrap}
+@media(max-width:900px){.pro-list{grid-template-columns:1fr}}
+[dir="rtl"] .scope-tier{margin-inline-start:0;margin-inline-end:10px}

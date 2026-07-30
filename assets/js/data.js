@@ -14,6 +14,35 @@ window.DEMO = (function () {
     { user: 'admin', pass: 'admin', name: '系统管理员', nameEn: 'System Admin', nameAr: 'مدير النظام', role: '平台管理员', roleEn: 'Platform Admin', roleAr: 'مدير المنصة', avatar: 'AD' }
   ];
 
+  /* ---------- 机构上下文（登录后数据按机构隔离）---------- */
+  const ORGS = [
+    { id: 'mof-hq',   tier: 'central', name: '财政部 · 本部（合并视图）',   nameEn: 'Ministry of Finance · HQ (Consolidated)', nameAr: 'وزارة المالية · المقر (موحّد)',            scale: 1.00, code: 'MOF-HQ' },
+    { id: 'gen-office', tier: 'central', name: '部长办公厅',                 nameEn: "Minister's General Office",                nameAr: 'المكتب العام للوزير',                     scale: 0.16, code: 'GEN-OFF' },
+    { id: 'riyadh',   tier: 'local',   name: '利雅得市政厅',               nameEn: 'Riyadh Municipality',                       nameAr: 'أمانة منطقة الرياض',                      scale: 0.42, code: 'RUH-MUN' },
+    { id: 'makkah',   tier: 'local',   name: '麦加省财政厅',               nameEn: 'Makkah Regional Finance',                   nameAr: 'المالية بمنطقة مكة المكرمة',              scale: 0.28, code: 'MAK-FIN' },
+    { id: 'eastern',  tier: 'local',   name: '东部省共享服务中心',         nameEn: 'Eastern Province Shared Service Center',    nameAr: 'مركز الخدمات المشتركة بالمنطقة الشرقية',  scale: 0.19, code: 'EP-SSC' }
+  ];
+
+  /* ---------- 主动提醒（前置洞察，UC-05/UC-06，AI 在用户操作前预警）---------- */
+  const PROACTIVE = [
+    { icon: 'clock', color: 'orange',
+      title: 'ZATCA 增值税申报临近', titleEn: 'ZATCA VAT filing due soon', titleAr: 'اقتراب موعد إقرار ضريبة القيمة المضافة',
+      desc: '6 月税期增值税申报将于 3 天后（8 月 1 日）截止，尚有 82 张进项发票待归集。', descEn: 'The June VAT return is due in 3 days (Aug 1); 82 input invoices are still pending consolidation.', descAr: 'إقرار ضريبة القيمة المضافة لشهر يونيو مستحق خلال 3 أيام (1 أغسطس)؛ 82 فاتورة مدخلات بانتظار التجميع.',
+      act: '一键归集进项', actEn: 'Consolidate inputs', actAr: 'تجميع المدخلات' },
+    { icon: 'coins', color: 'blue',
+      title: '5 张账单 48 小时内到期付款', titleEn: '5 invoices due for payment within 48h', titleAr: '5 فواتير مستحقة الدفع خلال 48 ساعة',
+      desc: '合计 4.62M SAR 的 5 张已批账单将在 48 小时内到期，及时付款可享 2% 早付折扣。', descEn: '5 approved invoices totaling 4.62M SAR fall due within 48h; paying on time captures a 2% early-payment discount.', descAr: '5 فواتير معتمدة بإجمالي 4.62 مليون ر.س تستحق خلال 48 ساعة؛ السداد في الوقت المحدد يوفر خصم دفع مبكر 2٪.',
+      act: '安排付款', actEn: 'Schedule payment', actAr: 'جدولة الدفع' },
+    { icon: 'warn', color: 'red',
+      title: '高延迟风险账款需介入', titleEn: 'High delay-risk receivable needs action', titleAr: 'ذمة مدينة عالية مخاطر التأخير',
+      desc: 'Coastal 物流账款逾期 61 天，AI 预测回收概率仅 21%，建议催收经理立即介入。', descEn: 'Coastal Logistics is 61 days overdue; AI predicts only 21% recovery probability — collection manager should intervene now.', descAr: 'ساحلية للخدمات اللوجستية متأخرة 61 يوماً؛ يتوقع الذكاء الاصطناعي احتمال تحصيل 21٪ فقط — يوصى بتدخل مدير التحصيل فوراً.',
+      act: '发起催收', actEn: 'Start collection', actAr: 'بدء التحصيل' },
+    { icon: 'file', color: 'teal',
+      title: '框架合同即将到期', titleEn: 'Framework contract nearing expiry', titleAr: 'اقتراب انتهاء العقد الإطاري',
+      desc: 'PO-88231 框架合同 15 天后到期，AI 建议提前准备续接账单批次与新一轮预算冻结。', descEn: 'Framework contract PO-88231 expires in 15 days; AI recommends preparing the continuation invoice batch and a new budget hold in advance.', descAr: 'ينتهي العقد الإطاري PO-88231 خلال 15 يوماً؛ يوصي الذكاء الاصطناعي بإعداد دفعة الفواتير التكميلية وحجز ميزانية جديد مسبقاً.',
+      act: '准备续接', actEn: 'Prepare renewal', actAr: 'تحضير التجديد' }
+  ];
+
   /* ---------- 6 大核心 KPI（管理层看板 UC-06）---------- */
   const KPIS = [
     { id: 'processed', label: '本月已处理账单', labelEn: 'Invoices Processed', labelAr: 'الفواتير المعالجة', value: 12480, unit: '张', unitEn: '', unitAr: '', delta: +18.2, icon: 'file', color: 'teal' },
@@ -113,22 +142,22 @@ window.DEMO = (function () {
   /* ---------- 审批待办（HITL）---------- */
   const APPROVALS = [
     { id: 'INV-2026-0727', entity: 'Aramco 后勤供应', entityEn: 'Aramco Logistics Supply', entityAr: 'أرامكو للإمداد اللوجستي', amount: 3180000, currency: 'SAR',
-      chain: '账单专员 → 财务经理 → 中心主任', chainEn: 'Invoice Clerk → Finance Manager → Center Director', chainAr: 'موظف الفواتير ← المدير المالي ← مدير المركز',
+      chain: '账单专员 → 财务经理 → 预算与财务 → 采购复核 → 中心主任 → CFO', chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance → Procurement Review → Center Director → CFO', chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مراجعة المشتريات ← مدير المركز ← الرئيس المالي',
       assignee: '李芳军', assigneeEn: 'Li Fangjun', assigneeAr: 'لي فانغجون',
       priority: '高', priorityEn: 'High', priorityAr: 'عالية', priorityKey: 'high', sla: '4 小时', slaEn: '4 hours', slaAr: '4 ساعات',
-      reason: '金额 > 300 万 SAR，触发三级审批链', reasonEn: 'Amount > 3M SAR, triggers 3-level approval chain', reasonAr: 'المبلغ > 3 مليون ر.س، يطلق سلسلة موافقة من 3 مستويات',
+      reason: '金额 > 300 万 SAR，触发六级审批链；且评估已超时 8h，自动升级至中心主任', reasonEn: 'Amount > 3M SAR triggers the 6-level chain; evaluation also overran SLA by 8h, auto-escalated to Center Director', reasonAr: 'المبلغ > 3 مليون ر.س يطلق سلسلة من 6 مستويات؛ كما تجاوز التقييم SLA بـ 8 ساعات، وتم التصعيد تلقائياً لمدير المركز',
       match: '部分匹配', matchEn: 'Partial Match', matchAr: 'تطابق جزئي', risk: 46 },
     { id: 'INV-2026-0724', entity: 'Bahri 海运物流', entityEn: 'Bahri Maritime Logistics', entityAr: 'البحري للخدمات اللوجستية البحرية', amount: 2260000, currency: 'SAR',
-      chain: '账单专员 → 财务经理', chainEn: 'Invoice Clerk → Finance Manager', chainAr: 'موظف الفواتير ← المدير المالي',
+      chain: '账单专员 → 财务经理 → 预算与财务 → 中心主任', chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance → Center Director', chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مدير المركز',
       assignee: '李芳军', assigneeEn: 'Li Fangjun', assigneeAr: 'لي فانغجون',
       priority: '中', priorityEn: 'Medium', priorityAr: 'متوسطة', priorityKey: 'mid', sla: '8 小时', slaEn: '8 hours', slaAr: '8 ساعات',
-      reason: '金额 100~300 万 SAR，触发二级审批链', reasonEn: 'Amount 1-3M SAR, triggers 2-level approval chain', reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من مستويين',
+      reason: '金额 100~300 万 SAR，触发四级审批链', reasonEn: 'Amount 1-3M SAR, triggers 4-level approval chain', reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من 4 مستويات',
       match: '完全匹配', matchEn: 'Full Match', matchAr: 'تطابق كامل', risk: 33 },
     { id: 'INV-2026-0731', entity: 'Al-Rajhi 建设集团', entityEn: 'Al-Rajhi Construction Group', entityAr: 'مجموعة الراجحي للإنشاءات', amount: 1250000, currency: 'SAR',
-      chain: '账单专员 → 财务经理', chainEn: 'Invoice Clerk → Finance Manager', chainAr: 'موظف الفواتير ← المدير المالي',
+      chain: '账单专员 → 财务经理 → 预算与财务', chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance', chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية',
       assignee: '李芳军', assigneeEn: 'Li Fangjun', assigneeAr: 'لي فانغجون',
       priority: '中', priorityEn: 'Medium', priorityAr: 'متوسطة', priorityKey: 'mid', sla: '8 小时', slaEn: '8 hours', slaAr: '8 ساعات',
-      reason: '金额 100~300 万 SAR，触发二级审批链', reasonEn: 'Amount 1-3M SAR, triggers 2-level approval chain', reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من مستويين',
+      reason: '金额 100~300 万 SAR，触发三级审批链', reasonEn: 'Amount 1-3M SAR, triggers 3-level approval chain', reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من 3 مستويات',
       match: '完全匹配', matchEn: 'Full Match', matchAr: 'تطابق كامل', risk: 12 }
   ];
 
@@ -229,7 +258,7 @@ window.DEMO = (function () {
   }
 
   return {
-    CREDENTIALS, KPIS, AGENTS, PIPELINE, SOURCES, INVOICES, STATUS, PENALTY_STATUS,
+    CREDENTIALS, ORGS, PROACTIVE, KPIS, AGENTS, PIPELINE, SOURCES, INVOICES, STATUS, PENALTY_STATUS,
     APPROVALS, RISKS, COLLECTIONS, TREND, QA, DEFAULT_ANSWER, fmtMoney
   };
 })();
