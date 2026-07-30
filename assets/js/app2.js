@@ -44,7 +44,16 @@
 
     var up = document.getElementById('uploader');
     up.addEventListener('click', function () { document.getElementById('fileInput').click(); });
-    document.getElementById('fileInput').addEventListener('change', function () { runPipeline('normal'); });
+    document.getElementById('fileInput').addEventListener('change', function () {
+      var f = this.files && this.files[0];
+      var name = f ? f.name.toLowerCase() : '';
+      var tag = 'normal';
+      if (name.indexOf('fraud') > -1 || name.indexOf('neom') > -1) tag = 'fraud';
+      else if (name.indexOf('duplicate') > -1 || name.indexOf('dup') > -1 || name.indexOf('gulf') > -1) tag = 'dup';
+      else if (name.indexOf('taxfail') > -1 || name.indexOf('tax') > -1 || name.indexOf('aramco') > -1) tag = 'taxfail';
+      else if (name.indexOf('normal') > -1 || name.indexOf('alrajhi') > -1) tag = 'normal';
+      runPipeline(tag, f ? f.name : null);
+    });
     document.querySelectorAll('.sample-chip').forEach(function (c) {
       c.addEventListener('click', function () { runPipeline(c.getAttribute('data-tag')); });
     });
@@ -141,7 +150,7 @@
 
   function scOut(tag) { return (SC_OUT[lang()] || SC_OUT.en)[tag]; }
 
-  function runPipeline(tag) {
+  function runPipeline(tag, fileName) {
     var meta = SC_META[tag];
     var out = scOut(tag);
     var steps = Array.prototype.slice.call(document.querySelectorAll('#pipe .pipe-step'));
@@ -152,6 +161,10 @@
       s.querySelector('[data-role=out]').innerHTML = '';
       s.querySelector('[data-role=s]').style.display = 'none';
     });
+    if (fileName) {
+      var scLabel = { normal: t('sample_normal'), fraud: t('sample_fraud'), dup: t('sample_dup'), taxfail: t('sample_taxfail') }[tag] || tag;
+      toast(fileName + ' → ' + scLabel, meta.color === 'green' ? 'ok' : 'warn');
+    }
     toast(t('proc_toast_start'), 'ok');
 
     var lastStep = meta.stop != null ? meta.stop : steps.length;
