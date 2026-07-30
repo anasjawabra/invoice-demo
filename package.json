@@ -5,7 +5,7 @@
   "description": "INTELLIBILL - Intelligent Invoice Management demo (static site)",
   "scripts": {
     "build": "echo \"No build step needed for this static site.\"",
-    "start": "serve -s . -l 3000"
+    "start": "serve . -l 3000"
   },
   "dependencies": {
     "serve": "^14.2.1"
