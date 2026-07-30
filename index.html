@@ -167,7 +167,7 @@
       found.org = (DEMO.ORGS.find(function (o) { return o.id === orgId; })) || DEMO.ORGS[0];
       sessionStorage.setItem('ib_user', JSON.stringify(found));
       toast(t('login_success'), 'ok');
-      setTimeout(function () { window.location.href = 'app.html'; }, 900);
+      setTimeout(function () { window.location.href = 'console.html'; }, 900);
     }
 
     form.addEventListener('submit', function (e) {
