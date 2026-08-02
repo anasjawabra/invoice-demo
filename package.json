@@ -1,14 +1,26 @@
 {
   "name": "invoice-demo",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "INTELLIBILL - Intelligent Invoice Management demo (static site)",
+  "type": "module",
+  "description": "INTELLIBILL - Intelligent Invoice Management Demo (React + Vite)",
   "scripts": {
-    "build": "echo \"No build step needed for this static site.\"",
-    "start": "serve . -l 3000"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "serve dist -l 3000"
   },
   "dependencies": {
-    "serve": "^14.2.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0",
+    "chart.js": "^4.4.4",
+    "react-chartjs-2": "^5.2.0",
+    "serve": "^14.2.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.2"
   },
   "engines": {
     "node": ">=18"
