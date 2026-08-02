@@ -1,28 +1,59 @@
 :root {
-  --bg: #060d1b;
-  --surface: #0c1527;
-  --card: #111d33;
-  --line: rgba(255,255,255,0.07);
+  /* ==========================================================
+     GOV-SA (Saudi Government Design System) — LIGHT theme tokens
+     ========================================================== */
 
-  --teal: #17c9b8;
-  --indigo: #6d8bff;
-  --gold: #f5b445;
-  --green: #35d07f;
-  --red: #ff6a6a;
-  --orange: #ff9f43;
-  --purple: #b48bff;
-  --blue: #4aa8ff;
+  /* Brand */
+  --primary: #26634B;    /* government green */
+  --primary-2: #225B45;  /* green hover */
+  --secondary: #005A96;  /* blue */
+  --success: #006604;
+  --warning: #FFC107;
+  --danger: #AF0818;
 
-  --txt: #e8edf8;
-  --txt-dim: #9aa8c7;
-  --txt-mute: #5c6b8a;
+  /* Text */
+  --heading: #000000;
+  --txt: #323232;
+  --txt-dim: #4A4A4A;
+  --txt-mute: #6B7280;
 
-  --radius: 16px;
-  --radius-sm: 12px;
-  --radius-pill: 999px;
+  /* Surfaces / backgrounds */
+  --bg-0: #F5F6FA;   /* page background */
+  --bg-1: #FFFFFF;   /* surface */
+  --bg-2: #FFFFFF;
+  --panel: #FFFFFF;
+  --panel-solid: #FFFFFF;
 
-  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
-  --shadow-soft: 0 10px 26px rgba(0, 0, 0, 0.25);
+  /* Aliases consumed by global.css (previously dark var names) */
+  --bg: #F5F6FA;
+  --surface: #FFFFFF;
+  --card: #FFFFFF;
 
-  --font: 'Basis Grotesque Arabic Pro', sans-serif;
+  /* Lines / borders */
+  --line: #EAEAEA;
+  --line-strong: #D9D9D9;
+
+  /* Elevation */
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.05);
+
+  /* Legacy color aliases used across markup / inline styles / JS */
+  --teal: var(--primary);
+  --teal-2: #1F523D;
+  --indigo: var(--secondary);
+  --gold: var(--warning);
+  --green: var(--success);
+  --red: var(--danger);
+  --orange: #C88700;
+  --purple: #6B57A6;
+  --blue: var(--secondary);
+  --grey: #8B93A1;
+
+  /* Geometry */
+  --radius: 8px;        /* cards / panels */
+  --radius-sm: 6px;     /* inputs */
+  --radius-pill: 3rem;  /* buttons */
+
+  /* Keep the client font (both Latin + Arabic) */
+  --font: 'Basis Grotesque Arabic Pro', 'Noto Naskh Arabic', -apple-system, 'Segoe UI', sans-serif;
 }

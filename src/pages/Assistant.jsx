@@ -46,12 +46,12 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale,
       plugins: {
-        legend: { rtl: isRtl, labels: { color: '#9aa8c7', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { rtl: isRtl }
+        legend: { rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#9aa8c7' }, grid: { color: 'rgba(255,255,255,0.06)' } },
-        y: { ticks: { color: '#9aa8c7' }, grid: { color: 'rgba(255,255,255,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
   }, [isRtl, lang]);
@@ -62,8 +62,8 @@ function InlineChart({ type }) {
       datasets: [
         {
           data: SOURCES.map((s) => s.count),
-          backgroundColor: ['rgba(23,201,184,0.65)', 'rgba(109,139,255,0.65)', 'rgba(53,208,127,0.65)', 'rgba(245,180,69,0.65)'],
-          borderColor: ['rgba(23,201,184,1)', 'rgba(109,139,255,1)', 'rgba(53,208,127,1)', 'rgba(245,180,69,1)'],
+          backgroundColor: ['rgba(38, 99, 75,0.65)', 'rgba(0, 90, 150,0.65)', 'rgba(0, 102, 4,0.65)', 'rgba(255, 193, 7,0.65)'],
+          borderColor: ['rgba(38, 99, 75,1)', 'rgba(0, 90, 150,1)', 'rgba(0, 102, 4,1)', 'rgba(255, 193, 7,1)'],
           borderWidth: 1
         }
       ]
@@ -73,8 +73,8 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale: lang === 'ar' ? 'ar' : lang === 'zh' ? 'zh-CN' : 'en-US',
       plugins: {
-        legend: { position: 'bottom', rtl: isRtl, labels: { color: '#9aa8c7', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { rtl: isRtl }
+        legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       }
     };
     return (
@@ -91,8 +91,8 @@ function InlineChart({ type }) {
         {
           label: t('chart_automation'),
           data: TREND.automation,
-          borderColor: 'rgba(109, 139, 255, 0.95)',
-          backgroundColor: 'rgba(109, 139, 255, 0.12)',
+          borderColor: 'rgba(0, 90, 150, 0.95)',
+          backgroundColor: 'rgba(0, 90, 150, 0.12)',
           tension: 0.35,
           pointRadius: 2,
           fill: true
@@ -103,7 +103,7 @@ function InlineChart({ type }) {
       ...common,
       scales: {
         x: { ...common.scales.x, reverse: isRtl },
-        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: '#9aa8c7', callback: (v) => `${v}%` } }
+        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
       }
     };
     return (
@@ -120,8 +120,8 @@ function InlineChart({ type }) {
       {
         label: t('chart_recovery'),
         data: TREND.recovery,
-        borderColor: 'rgba(53, 208, 127, 0.95)',
-        backgroundColor: 'rgba(53, 208, 127, 0.10)',
+        borderColor: 'rgba(0, 102, 4, 0.95)',
+        backgroundColor: 'rgba(0, 102, 4, 0.10)',
         tension: 0.35,
         pointRadius: 2,
         fill: true
@@ -132,7 +132,7 @@ function InlineChart({ type }) {
     ...common,
     scales: {
       x: { ...common.scales.x, reverse: isRtl },
-      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: '#9aa8c7', callback: (v) => `${v}%` } }
+      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
     }
   };
 

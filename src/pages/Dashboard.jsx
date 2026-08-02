@@ -62,25 +62,23 @@ export default function Dashboard() {
         legend: {
           rtl: isRtl,
           labels: {
-            color: '#9aa8c7',
+            color: '#4A4A4A',
             boxWidth: 10,
             usePointStyle: true,
             pointStyle: 'circle'
           }
         },
-        tooltip: {
-          rtl: isRtl
-        }
+        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
         x: {
           reverse: isRtl,
-          ticks: { color: '#9aa8c7' },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          ticks: { color: '#4A4A4A' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
         },
         y: {
-          ticks: { color: '#9aa8c7' },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          ticks: { color: '#4A4A4A' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
         }
       }
     };
@@ -116,8 +114,8 @@ export default function Dashboard() {
           type: 'bar',
           label: t('chart_volume'),
           data: processed,
-          backgroundColor: 'rgba(23, 201, 184, 0.35)',
-          borderColor: 'rgba(23, 201, 184, 0.85)',
+          backgroundColor: 'rgba(38, 99, 75, 0.35)',
+          borderColor: 'rgba(38, 99, 75, 0.85)',
           borderWidth: 1,
           borderRadius: 8,
           yAxisID: 'y'
@@ -126,8 +124,8 @@ export default function Dashboard() {
           type: 'line',
           label: t('chart_automation'),
           data: TREND.automation,
-          borderColor: 'rgba(109, 139, 255, 0.95)',
-          backgroundColor: 'rgba(109, 139, 255, 0.12)',
+          borderColor: 'rgba(0, 90, 150, 0.95)',
+          backgroundColor: 'rgba(0, 90, 150, 0.12)',
           tension: 0.35,
           pointRadius: 2,
           yAxisID: 'y1'
@@ -150,8 +148,8 @@ export default function Dashboard() {
           position: isRtl ? 'left' : 'right',
           min: 0,
           max: 100,
-          grid: { drawOnChartArea: false, color: 'rgba(255,255,255,0.06)' },
-          ticks: { color: '#9aa8c7', callback: (v) => `${v}%` }
+          grid: { drawOnChartArea: false, color: 'rgba(0,0,0,0.06)' },
+          ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }
         }
       }
     };
@@ -162,7 +160,7 @@ export default function Dashboard() {
     const data = SOURCES.map((s) => Math.round(s.count * orgScale));
     const colors = SOURCES.map((s) => {
       const c = getComputedStyle(document.documentElement).getPropertyValue(`--${s.color}`).trim();
-      return c || '#17c9b8';
+      return c || '#26634B';
     });
 
     return {
@@ -188,9 +186,9 @@ export default function Dashboard() {
         legend: {
           position: 'bottom',
           rtl: isRtl,
-          labels: { color: '#9aa8c7', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' }
+          labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' }
         },
-        tooltip: { rtl: isRtl }
+        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       }
     };
   }, [isRtl, lang]);
@@ -202,8 +200,8 @@ export default function Dashboard() {
         {
           label: t('chart_recovery'),
           data: TREND.recovery,
-          borderColor: 'rgba(53, 208, 127, 0.95)',
-          backgroundColor: 'rgba(53, 208, 127, 0.10)',
+          borderColor: 'rgba(0, 102, 4, 0.95)',
+          backgroundColor: 'rgba(0, 102, 4, 0.10)',
           tension: 0.35,
           pointRadius: 2,
           fill: true
@@ -221,7 +219,7 @@ export default function Dashboard() {
           ...baseChartOptions.scales.y,
           min: 70,
           max: 95,
-          ticks: { color: '#9aa8c7', callback: (v) => `${v}%` }
+          ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }
         }
       }
     };

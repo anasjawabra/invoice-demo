@@ -62,8 +62,8 @@ export default function Risk() {
         {
           label: t('risk_dist'),
           data: buckets,
-          backgroundColor: ['rgba(53,208,127,0.35)', 'rgba(245,180,69,0.35)', 'rgba(255,159,67,0.35)', 'rgba(255,106,106,0.35)', 'rgba(255,106,106,0.60)'],
-          borderColor: ['rgba(53,208,127,0.95)', 'rgba(245,180,69,0.95)', 'rgba(255,159,67,0.95)', 'rgba(255,106,106,0.95)', 'rgba(255,106,106,0.95)'],
+          backgroundColor: ['rgba(0, 102, 4,0.35)', 'rgba(255, 193, 7,0.35)', 'rgba(200, 135, 0,0.35)', 'rgba(175, 8, 24,0.35)', 'rgba(175, 8, 24,0.60)'],
+          borderColor: ['rgba(0, 102, 4,0.95)', 'rgba(255, 193, 7,0.95)', 'rgba(200, 135, 0,0.95)', 'rgba(175, 8, 24,0.95)', 'rgba(175, 8, 24,0.95)'],
           borderWidth: 1,
           borderRadius: 10
         }
@@ -79,17 +79,17 @@ export default function Risk() {
       locale,
       plugins: {
         legend: { display: false, rtl: isRtl },
-        tooltip: { rtl: isRtl }
+        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
         x: {
           reverse: isRtl,
-          ticks: { color: '#9aa8c7' },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          ticks: { color: '#4A4A4A' },
+          grid: { color: 'rgba(0,0,0,0.06)' }
         },
         y: {
-          ticks: { color: '#9aa8c7', precision: 0 },
-          grid: { color: 'rgba(255,255,255,0.06)' }
+          ticks: { color: '#4A4A4A', precision: 0 },
+          grid: { color: 'rgba(0,0,0,0.06)' }
         }
       }
     };
