@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
@@ -6,14 +6,29 @@ import Typewriter from './Typewriter';
 import AgentThinking from './AgentThinking';
 import ConfidenceBar from './ConfidenceBar';
 import EvidenceList from './EvidenceList';
+import TraceBlock from './TraceBlock';
 
-function Step({ step, lang, running, done, onDone }) {
+/* ---------------------------------------------------------------- Legacy step
+   Backward-compatible renderer for the original title/detail/rows/confidence
+   step shape (kept so existing bundles that were not migrated still work). */
+function LegacyStep({ step, lang, running, done, onDone }) {
   let cls = 'ai-step';
   if (step.blocked) cls += ' ai-step--blocked';
   else if (done) cls += ' ai-step--done';
   else if (running) cls += ' ai-step--running';
 
   const detail = L(step.detail, lang);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  // Any running step with NO streaming detail auto-advances after a short beat
+  // so the timeline never stalls on the spinner.
+  const autoAdvance = running && !done && !step.blocked && !detail;
+  useEffect(() => {
+    if (!autoAdvance) return undefined;
+    const id = window.setTimeout(() => onDoneRef.current?.(), 700);
+    return () => window.clearTimeout(id);
+  }, [autoAdvance]);
 
   return (
     <div className={cls}>
@@ -53,10 +68,72 @@ function Step({ step, lang, running, done, onDone }) {
   );
 }
 
+/* ------------------------------------------------------------------ Block step
+   A typed-block step: streams its ordered `blocks[]` sequentially, then calls
+   onDone. Blocks stream via TraceBlock which guarantees each one resolves. */
+function BlockStep({ step, lang, running, done, onDone }) {
+  const blocks = step.blocks || [];
+  const [idx, setIdx] = useState(running ? 0 : blocks.length);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  // Reset streaming whenever this step becomes the active/running one.
+  useEffect(() => {
+    setIdx(running ? 0 : blocks.length);
+  }, [running, blocks.length]);
+
+  // When all blocks have streamed in, advance the drawer.
+  useEffect(() => {
+    if (running && idx >= blocks.length) {
+      const id = window.setTimeout(() => onDoneRef.current?.(), 120);
+      return () => window.clearTimeout(id);
+    }
+    return undefined;
+  }, [running, idx, blocks.length]);
+
+  let cls = 'ai-step ai-step--blocks';
+  if (step.blocked) cls += ' ai-step--blocked';
+  else if (done) cls += ' ai-step--done';
+  else if (running) cls += ' ai-step--running';
+
+  const visible = running ? Math.min(idx + 1, blocks.length) : blocks.length;
+
+  return (
+    <div className={cls}>
+      <div className="ai-step__tag">{step.agent || '•'}</div>
+      <div className="ai-step__title">
+        <span>{L(step.title, lang)}</span>
+        {step.blocked ? <span className="badge badge--red">HITL</span> : null}
+      </div>
+
+      {step.handoff ? (
+        <div className="ai-step__handoff">↳ {L(step.handoff, lang)}</div>
+      ) : null}
+
+      <div className="trace-blocks">
+        {blocks.slice(0, visible).map((b, j) => (
+          <TraceBlock
+            key={j}
+            block={b}
+            running={running && j === idx}
+            done={!running || j < idx}
+            onDone={() => setIdx((n) => (n === j ? n + 1 : n))}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Step(props) {
+  return props.step.blocks?.length ? <BlockStep {...props} /> : <LegacyStep {...props} />;
+}
+
 /**
  * AIProcessDrawer — THE core reusable "AI Analysis Process" panel.
  * Right-side slide-in (LEFT when RTL). Renders optional stat cards, a
- * sequentially-streamed reasoning timeline, and a highlighted conclusion.
+ * sequentially-streamed reasoning timeline (legacy steps OR typed-block
+ * traces), and a highlighted conclusion.
  *
  * Props:
  *  - open, onClose

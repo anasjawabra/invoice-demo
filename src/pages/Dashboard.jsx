@@ -56,7 +56,7 @@ function badgeForColor(c) {
 
 export default function Dashboard() {
   const { t, lang, T, isRtl } = useI18n();
-  const { user } = useAuth();
+  const { user, orgScoped } = useAuth();
   const nav = useNavigate();
   const [drawer, setDrawer] = useState(null);
 
@@ -255,7 +255,7 @@ export default function Dashboard() {
           <b>
             {t('org_scope')} · {T(user?.org, 'name')}
           </b>
-          <p>{t('org_scope_note')}</p>
+          <p>{orgScoped ? t('org_scope_note') : t('data_scope_consolidated')}</p>
         </div>
         <span className="badge badge--indigo">{user?.org?.code}</span>
       </div>

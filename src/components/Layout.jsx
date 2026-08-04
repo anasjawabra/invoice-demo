@@ -92,7 +92,7 @@ function Icon({ name }) {
 
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
-  const { user, logout, switchOrg } = useAuth();
+  const { user, orgScoped, logout, switchOrg } = useAuth();
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
@@ -231,22 +231,50 @@ function LayoutInner() {
               </button>
             </div>
 
-            <select
-              className="select"
-              style={{ width: 270 }}
-              value={org.id}
-              onChange={(e) => {
-                switchOrg(e.target.value);
-                toast.success(t('org_switched'));
-              }}
-              aria-label={t('org_label')}
-            >
-              {ORGS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
-                </option>
-              ))}
-            </select>
+            {orgScoped ? (
+              <select
+                className="select"
+                style={{ width: 270 }}
+                value={org.id}
+                onChange={(e) => {
+                  switchOrg(e.target.value);
+                  toast.success(t('org_switched'));
+                }}
+                aria-label={t('org_label')}
+              >
+                {ORGS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div
+                className="pill org-consolidated"
+                role="group"
+                tabIndex={0}
+                aria-label={t('data_scope_consolidated')}
+                title={t('data_scope_consolidated')}
+                style={{ maxWidth: 340, gap: 8 }}
+              >
+                <span className="badge badge--indigo">{org.code}</span>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    maxWidth: 200
+                  }}
+                >
+                  {T(org, 'name')}
+                </span>
+                <span className="badge badge--teal" style={{ whiteSpace: 'nowrap' }}>
+                  {t('all_orgs')}
+                </span>
+              </div>
+            )}
 
             <button
               type="button"
