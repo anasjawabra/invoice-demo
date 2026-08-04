@@ -43,11 +43,11 @@ export const ORGS = [
   {
     id: 'mof-hq',
     tier: 'central',
-    name: '财政部 · 本部（合并视图）',
-    nameEn: 'Ministry of Finance · HQ (Consolidated)',
-    nameAr: 'وزارة المالية · المقر (موحّد)',
+    name: '住房与城乡事务部 · 本部（合并视图）',
+    nameEn: 'MoMAH · HQ (Consolidated)',
+    nameAr: 'وزارة البلديات والإسكان · المقر (موحّد)',
     scale: 1.0,
-    code: 'MOF-HQ'
+    code: 'MOMAH-HQ'
   },
   {
     id: 'gen-office',
@@ -70,11 +70,11 @@ export const ORGS = [
   {
     id: 'makkah',
     tier: 'local',
-    name: '麦加省财政厅',
-    nameEn: 'Makkah Regional Finance',
-    nameAr: 'المالية بمنطقة مكة المكرمة',
+    name: '麦加市政厅',
+    nameEn: 'Makkah Municipality',
+    nameAr: 'أمانة منطقة مكة المكرمة',
     scale: 0.28,
-    code: 'MAK-FIN'
+    code: 'MAK-MUN'
   },
   {
     id: 'eastern',

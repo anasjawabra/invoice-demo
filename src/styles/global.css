@@ -848,6 +848,114 @@ html[dir='rtl'] .select {
   flex: 1;
 }
 
+/* ---- Org-scope toggle (iOS-style switch) + collapsible org selector ---- */
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.switch-row__label {
+  display: block;
+  font-size: 13px;
+  color: var(--txt-dim);
+  font-weight: 600;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switch {
+  position: relative;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.switch__track {
+  display: block;
+  width: 44px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: background 0.2s ease;
+}
+
+.switch__thumb {
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.switch--on .switch__track {
+  background: var(--primary);
+}
+
+.switch--on .switch__thumb {
+  transform: translateX(18px);
+}
+
+html[dir='rtl'] .switch--on .switch__thumb {
+  transform: translateX(-18px);
+}
+
+.switch:focus-visible {
+  outline: none;
+}
+
+.switch:focus-visible .switch__track {
+  box-shadow: 0 0 0 3px rgba(38, 99, 75, 0.22);
+}
+
+/* Smoothly collapse/expand the org selector using the grid-rows trick
+   (animates to intrinsic height, no fixed max-height guessing). */
+.org-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  margin-top: 0;
+  transition: grid-template-rows 0.28s ease, opacity 0.28s ease, margin-top 0.28s ease;
+}
+
+.org-collapse--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  margin-top: 12px;
+}
+
+.org-collapse__inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.org-select-label {
+  display: block;
+  font-size: 13px;
+  color: var(--txt-dim);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .org-collapse,
+  .switch__track,
+  .switch__thumb {
+    transition: none;
+  }
+}
+
 .login-err {
   min-height: 18px;
   margin-top: 10px;

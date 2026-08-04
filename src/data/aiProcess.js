@@ -220,7 +220,9 @@ const PIPE_RISK_BUNDLE = {
   steps: [
     { agent: 'A3', title: { zh: '行业价格基准比对', en: 'Industry benchmark', ar: 'المعيار القطاعي' }, detail: { zh: '同品类历史均价 352K SAR，本单 486K SAR。', en: 'Category avg 352K SAR vs this bill 486K SAR.', ar: 'متوسط الفئة 352K مقابل 486K.' }, rows: [{ label: { zh: '偏离', en: 'Deviation', ar: 'الانحراف' }, value: '+38%', tone: 'danger' }] },
     { agent: 'A3', title: { zh: '供应商历史模式', en: 'Vendor history', ar: 'تاريخ المورد' }, detail: { zh: '供应商 90 天内无历史账单，首次交易。', en: 'No invoices in 90 days; first-time vendor.', ar: 'لا فواتير خلال 90 يوماً؛ أول تعامل.' } },
-    { agent: 'A3', title: { zh: '风险评分拆解', en: 'Risk score breakdown', ar: 'تفصيل الدرجة' }, confidence: 82, confLabel: { zh: '风险评分 0-100', en: 'Risk score 0-100', ar: 'درجة 0-100' },
+    { agent: 'A3', title: { zh: '风险评分拆解', en: 'Risk score breakdown', ar: 'تفصيل الدرجة' },
+      detail: { zh: '加权合成三项因子：价格偏离 38 + 首次交易 26 + 整数金额 18 = 风险评分 82（高危）。', en: 'Weighted synthesis of three factors: price deviation 38 + first-time vendor 26 + round amount 18 = risk score 82 (high).', ar: 'تركيب مرجّح لثلاثة عوامل: انحراف السعر 38 + مورد لأول مرة 26 + مبلغ دائري 18 = درجة المخاطرة 82 (عالية).' },
+      confidence: 82, confLabel: { zh: '风险评分 0-100', en: 'Risk score 0-100', ar: 'درجة 0-100' },
       rows: [
         { label: { zh: '价格偏离 (0.45)', en: 'Price dev (0.45)', ar: 'انحراف (0.45)' }, value: '38', tone: 'danger' },
         { label: { zh: '首次交易 (0.30)', en: 'First-time (0.30)', ar: 'أول تعامل (0.30)' }, value: '26' },

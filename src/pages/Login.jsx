@@ -12,8 +12,13 @@ export default function Login() {
   const [username, setUsername] = useState('demo');
   const [password, setPassword] = useState('demo123');
   const [orgId, setOrgId] = useState(ORGS[0]?.id || 'mof-hq');
+  const [scopeByOrg, setScopeByOrg] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+
+  // The consolidated HQ org is the "all-orgs" context used when org scoping
+  // is turned off, so downstream pages still have a valid org to render.
+  const consolidatedOrgId = ORGS[0]?.id || 'mof-hq';
 
   const kpiAuto = KPIS.find((k) => k.id === 'automation');
   const kpiCycle = KPIS.find((k) => k.id === 'cycle');
@@ -27,7 +32,8 @@ export default function Login() {
     setBusy(true);
 
     setTimeout(() => {
-      const ok = login(username.trim(), password, orgId);
+      const effectiveOrgId = scopeByOrg ? orgId : consolidatedOrgId;
+      const ok = login(username.trim(), password, effectiveOrgId);
       setBusy(false);
       if (!ok) {
         setErr(t('login_err'));
@@ -118,23 +124,57 @@ export default function Login() {
 
           <form onSubmit={onSubmit}>
             <div className="field">
-              <label>{t('org_label')}</label>
-              <select className="select" value={orgId} onChange={(e) => setOrgId(e.target.value)}>
-                <option value="" disabled>
-                  {t('org_ph')}
-                </option>
-                {ORGS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
-                  </option>
-                ))}
-              </select>
-              <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                {t('org_login_hint')}
+              <div className="switch-row">
+                <label htmlFor="org-scope-switch" className="switch-row__label">
+                  {t('org_scope_toggle')}
+                </label>
+                <button
+                  id="org-scope-switch"
+                  type="button"
+                  role="switch"
+                  aria-checked={scopeByOrg}
+                  aria-label={t('org_scope_toggle')}
+                  className={`switch ${scopeByOrg ? 'switch--on' : ''}`}
+                  onClick={() => setScopeByOrg((v) => !v)}
+                >
+                  <span className="switch__track">
+                    <span className="switch__thumb" />
+                  </span>
+                </button>
               </div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
-                {t('rbac_note')}
+
+              <div className={`org-collapse ${scopeByOrg ? 'org-collapse--open' : ''}`} aria-hidden={!scopeByOrg}>
+                <div className="org-collapse__inner">
+                  <label className="org-select-label">{t('org_label')}</label>
+                  <select
+                    className="select"
+                    value={orgId}
+                    onChange={(e) => setOrgId(e.target.value)}
+                    disabled={!scopeByOrg}
+                  >
+                    <option value="" disabled>
+                      {t('org_ph')}
+                    </option>
+                    {ORGS.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                    {t('org_login_hint')}
+                  </div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                    {t('rbac_note')}
+                  </div>
+                </div>
               </div>
+
+              {!scopeByOrg ? (
+                <div className="muted org-scope-off" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+                  {t('org_scope_off_note')}
+                </div>
+              ) : null}
             </div>
 
             <div className="row">

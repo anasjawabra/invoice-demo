@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
@@ -14,6 +14,23 @@ function Step({ step, lang, running, done, onDone }) {
   else if (running) cls += ' ai-step--running';
 
   const detail = L(step.detail, lang);
+
+  // Keep a stable ref to the completion callback so the auto-advance timer
+  // below never re-fires just because the parent re-created `onDone`.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  // BUGFIX: a running step that has NO streaming `detail` text (e.g. a pure
+  // score/rows step like A3 "风险评分拆解") used to render <AgentThinking/>
+  // forever — the Typewriter never mounted, so `onDone` was never called and
+  // the timeline (and its final conclusion) stalled on the spinner. Schedule
+  // the advance ourselves after a short "thinking" beat so EVERY step resolves.
+  const autoAdvance = running && !done && !step.blocked && !detail;
+  useEffect(() => {
+    if (!autoAdvance) return undefined;
+    const id = window.setTimeout(() => onDoneRef.current?.(), 700);
+    return () => window.clearTimeout(id);
+  }, [autoAdvance]);
 
   return (
     <div className={cls}>
