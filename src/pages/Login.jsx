@@ -33,7 +33,7 @@ export default function Login() {
 
     setTimeout(() => {
       const effectiveOrgId = scopeByOrg ? orgId : consolidatedOrgId;
-      const ok = login(username.trim(), password, effectiveOrgId);
+      const ok = login(username.trim(), password, effectiveOrgId, scopeByOrg);
       setBusy(false);
       if (!ok) {
         setErr(t('login_err'));

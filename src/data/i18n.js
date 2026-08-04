@@ -180,6 +180,8 @@ export const translations = {
     org_login_hint: '登录后，系统仅展示该机构范围内的数据',
     org_scope_toggle: '按机构隔离数据',
     org_scope_off_note: '已关闭机构隔离：将以「本部合并视图」查看全部机构数据。',
+    data_scope_consolidated: '当前为合并视图，展示全部机构汇总数据',
+    all_orgs: '全部机构',
     proactive_title: '主动提醒 · AI 前置洞察',
     proactive_sub: '在你开始操作前，AI 已识别需要提前处理的事项（合同到期 / 申报窗口 / 付款与催收）',
     pro_act: '处理',
@@ -396,6 +398,8 @@ export const translations = {
     org_login_hint: 'After login, the system shows only data within this organization.',
     org_scope_toggle: 'Scope data by organization',
     org_scope_off_note: 'Org scoping is off — viewing all organizations via the consolidated HQ view.',
+    data_scope_consolidated: 'Consolidated view across all organizations',
+    all_orgs: 'All organizations',
     proactive_title: 'Proactive Alerts · AI Foresight',
     proactive_sub:
       'Before you start, AI has flagged what needs early action (contract expiry / filing windows / payment & collection).',
@@ -612,6 +616,8 @@ export const translations = {
     org_login_hint: 'بعد تسجيل الدخول، يعرض النظام بيانات هذه الجهة فقط.',
     org_scope_toggle: 'عزل البيانات حسب الجهة',
     org_scope_off_note: 'تم إيقاف العزل حسب الجهة — عرض جميع الجهات عبر العرض الموحّد للمقر.',
+    data_scope_consolidated: 'عرض موحّد يشمل جميع الجهات',
+    all_orgs: 'كل الجهات',
     proactive_title: 'تنبيهات استباقية · استبصار الذكاء الاصطناعي',
     proactive_sub:
       'قبل أن تبدأ، حدّد الذكاء الاصطناعي ما يحتاج إجراءً مبكراً (انتهاء العقود / نوافذ الإقرار / الدفع والتحصيل).',

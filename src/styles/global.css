@@ -302,6 +302,19 @@ button {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
 }
 
+/* Static consolidated-view badge shown in the topbar when org scoping is off */
+.org-consolidated {
+  min-height: 46px;
+  padding-inline: 12px;
+  border-color: var(--line-strong);
+}
+
+.org-consolidated:focus-visible {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(38, 99, 75, 0.14);
+}
+
 .content {
   padding: 24px 24px 48px;
   width: 100%;
