@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -9,8 +9,9 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
-import { useToast } from '../components/Toast';
 import { RISKS } from '../data/mock';
+import { RISK_ANALYSIS } from '../data/aiProcess';
+import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -23,7 +24,7 @@ function badgeForLevel(score) {
 
 export default function Risk() {
   const { t, lang, T, isRtl } = useI18n();
-  const toast = useToast();
+  const [drawer, setDrawer] = useState(null);
 
   const labels = useMemo(() => {
     const v = t('risk_labels');
@@ -172,8 +173,8 @@ export default function Risk() {
                 </div>
 
                 <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <button className="btn btn-sm" type="button" onClick={() => toast.info(`${r.id} · ${t('risk_action')}`)}>
-                    {t('view_all')}
+                  <button className="btn btn-ghost btn-sm" type="button" onClick={() => setDrawer(RISK_ANALYSIS[r.id])}>
+                    {t('ai_process_btn')}
                   </button>
                 </div>
               </div>
@@ -181,6 +182,8 @@ export default function Risk() {
           </div>
         </div>
       </div>
+
+      <AIProcessDrawer open={!!drawer} onClose={() => setDrawer(null)} data={drawer} />
     </div>
   );
 }

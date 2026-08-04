@@ -2,6 +2,8 @@ import React, { useMemo, useState } from 'react';
 import { useI18n } from '../context/I18nContext';
 import { useToast } from '../components/Toast';
 import { fmtMoney, APPROVALS } from '../data/mock';
+import { APPROVAL_BASIS } from '../data/aiProcess';
+import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 
 function priorityBadge(k) {
   if (k === 'high') return 'badge--red';
@@ -14,6 +16,7 @@ export default function Approvals() {
   const toast = useToast();
 
   const [items, setItems] = useState(APPROVALS);
+  const [drawer, setDrawer] = useState(null);
 
   const empty = items.length === 0;
 
@@ -74,6 +77,13 @@ export default function Approvals() {
 
             <div style={{ marginTop: 14, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <button
+                className="btn btn-ghost btn-sm"
+                type="button"
+                onClick={() => setDrawer(APPROVAL_BASIS[a.id])}
+              >
+                {t('ai_assist_btn')}
+              </button>
+              <button
                 className="btn btn-primary"
                 type="button"
                 onClick={() => {
@@ -97,6 +107,8 @@ export default function Approvals() {
           </div>
         ))}
       </div>
+
+      <AIProcessDrawer open={!!drawer} onClose={() => setDrawer(null)} data={drawer} />
     </div>
   );
 }

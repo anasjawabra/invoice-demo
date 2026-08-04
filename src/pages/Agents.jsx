@@ -1,6 +1,7 @@
 import React from 'react';
 import { useI18n } from '../context/I18nContext';
 import { AGENTS } from '../data/mock';
+import OrchestrationMap from '../components/ai/OrchestrationMap';
 
 function badgeForColor(c) {
   switch (c) {
@@ -44,6 +45,8 @@ export default function Agents() {
         </div>
         <span className="badge badge--teal">A0-A6</span>
       </div>
+
+      <OrchestrationMap />
 
       <div className="agent-grid">
         {AGENTS.map((a) => (

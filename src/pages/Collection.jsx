@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,6 +10,8 @@ import {
 import { Bar } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { fmtMoney, COLLECTIONS, KPIS, PENALTY_STATUS } from '../data/mock';
+import { FORECAST_BASIS } from '../data/aiProcess';
+import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -21,6 +23,7 @@ function badgeForDelay(k) {
 
 export default function Collection() {
   const { t, lang, T, isRtl } = useI18n();
+  const [drawer, setDrawer] = useState(null);
 
   const chartRef = useRef(null);
   useEffect(() => {
@@ -176,12 +179,19 @@ export default function Collection() {
                   <div className="muted" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6 }}>
                     {lang === 'zh' ? c.strategy : lang === 'ar' ? c.strategyAr : c.strategyEn}
                   </div>
+                  <div style={{ marginTop: 10 }}>
+                    <button className="btn btn-ghost btn-sm" type="button" onClick={() => setDrawer(FORECAST_BASIS[c.id])}>
+                      {t('ai_basis_btn')}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
       </div>
+
+      <AIProcessDrawer open={!!drawer} onClose={() => setDrawer(null)} data={drawer} />
     </div>
   );
 }
