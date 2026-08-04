@@ -1,0 +1,155 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useI18n } from '../../context/I18nContext';
+import { L } from './util';
+import Typewriter from './Typewriter';
+import AgentThinking from './AgentThinking';
+import ConfidenceBar from './ConfidenceBar';
+import EvidenceList from './EvidenceList';
+
+function Step({ step, lang, running, done, onDone }) {
+  let cls = 'ai-step';
+  if (step.blocked) cls += ' ai-step--blocked';
+  else if (done) cls += ' ai-step--done';
+  else if (running) cls += ' ai-step--running';
+
+  const detail = L(step.detail, lang);
+
+  return (
+    <div className={cls}>
+      <div className="ai-step__tag">{step.agent || '•'}</div>
+      <div className="ai-step__title">
+        <span>{L(step.title, lang)}</span>
+        {step.blocked ? <span className="badge badge--red">HITL</span> : null}
+      </div>
+
+      {step.handoff ? (
+        <div className="ai-step__handoff">↳ {L(step.handoff, lang)}</div>
+      ) : null}
+
+      <div className="ai-step__detail">
+        {running && !done ? (
+          detail ? <Typewriter text={detail} onDone={onDone} /> : <AgentThinking />
+        ) : (
+          <span>{detail}</span>
+        )}
+      </div>
+
+      {done || step.blocked ? (
+        <>
+          {step.rows?.length ? (
+            <div className="ai-step__rows">
+              <EvidenceList rows={step.rows} />
+            </div>
+          ) : null}
+          {typeof step.confidence === 'number' ? (
+            <div className="ai-step__conf">
+              <ConfidenceBar value={step.confidence} label={step.confLabel ? L(step.confLabel, lang) : null} />
+            </div>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * AIProcessDrawer — THE core reusable "AI Analysis Process" panel.
+ * Right-side slide-in (LEFT when RTL). Renders optional stat cards, a
+ * sequentially-streamed reasoning timeline, and a highlighted conclusion.
+ *
+ * Props:
+ *  - open, onClose
+ *  - data: { title, subtitle, agentTag, stats[], steps[], conclusion }
+ */
+export default function AIProcessDrawer({ open, onClose, data }) {
+  const { t, lang } = useI18n();
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (open) setActive(0);
+  }, [open, data]);
+
+  const onEsc = useCallback((e) => {
+    if (e.key === 'Escape') onClose?.();
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [open, onEsc]);
+
+  if (!open || !data) return null;
+
+  const steps = data.steps || [];
+  const stepsDone = active >= steps.length;
+  const conclusion = data.conclusion;
+  const cTone = conclusion?.tone ? ` ai-conclusion--${conclusion.tone}` : '';
+
+  return createPortal(
+    <>
+      <div className="ai-drawer-overlay" onClick={onClose} />
+      <aside className="ai-drawer" role="dialog" aria-modal="true" aria-label={L(data.title, lang) || t('ai_drawer_title')}>
+        <div className="ai-drawer__head">
+          <div style={{ minWidth: 0 }}>
+            <div className="ai-drawer__title">
+              {data.agentTag ? <span className="badge badge--teal">{data.agentTag}</span> : null}
+              <span>{L(data.title, lang) || t('ai_drawer_title')}</span>
+            </div>
+            {data.subtitle ? <div className="ai-drawer__sub">{L(data.subtitle, lang)}</div> : null}
+          </div>
+          <button type="button" className="ai-drawer__close" onClick={onClose} aria-label={t('close')}>
+            ×
+          </button>
+        </div>
+
+        <div className="ai-drawer__body">
+          {data.stats?.length ? (
+            <div className="ai-drawer__stats">
+              {data.stats.map((s, i) => (
+                <div className="ai-stat" key={i}>
+                  <b>{s.value}</b>
+                  <span>{L(s.label, lang)}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {steps.length ? (
+            <div className="ai-timeline">
+              {steps.slice(0, active + 1).map((step, i) => (
+                <Step
+                  key={i}
+                  step={step}
+                  lang={lang}
+                  running={i === active}
+                  done={i < active || step.blocked}
+                  onDone={() => setActive((a) => (a === i ? a + 1 : a))}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {stepsDone && conclusion ? (
+            <div className={`ai-conclusion${cTone}`}>
+              <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
+              <div className="ai-conclusion__text">{L(conclusion.text, lang)}</div>
+              {typeof conclusion.confidence === 'number' ? (
+                <div style={{ marginTop: 12 }}>
+                  <ConfidenceBar value={conclusion.confidence} label={t('ai_confidence')} />
+                </div>
+              ) : null}
+              {conclusion.action ? (
+                <div className="ai-conclusion__action">
+                  <b>{t('ai_recommendation')}: </b>{L(conclusion.action, lang)}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </aside>
+    </>,
+    document.body
+  );
+}

@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -14,8 +15,21 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
 import { fmtMoney, INVOICES, KPIS, PROACTIVE, SOURCES, STATUS, TREND } from '../data/mock';
+import { HITL_STATS } from '../data/aiProcess';
+import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
+
+// Closed-loop routing: KPI card → drill-down page; proactive alert → matching page.
+const KPI_ROUTE = {
+  processed: '/pipeline',
+  automation: '/agents',
+  amount: '/invoices',
+  recovery: '/collection',
+  anomaly: '/risk',
+  cycle: '/pipeline'
+};
+const ALERT_ROUTE = ['/approvals', '/approvals', '/collection', '/pipeline'];
 
 function badgeForColor(c) {
   switch (c) {
@@ -43,6 +57,8 @@ function badgeForColor(c) {
 export default function Dashboard() {
   const { t, lang, T, isRtl } = useI18n();
   const { user } = useAuth();
+  const nav = useNavigate();
+  const [drawer, setDrawer] = useState(null);
 
   const orgScale = user?.org?.scale ?? 1;
 
@@ -244,12 +260,20 @@ export default function Dashboard() {
         <span className="badge badge--indigo">{user?.org?.code}</span>
       </div>
 
-      <div className="banner banner--gold card">
+      <div
+        className="banner banner--gold card"
+        role="button"
+        tabIndex={0}
+        style={{ cursor: 'pointer' }}
+        onClick={() => setDrawer(HITL_STATS)}
+        onKeyDown={(e) => { if (e.key === 'Enter') setDrawer(HITL_STATS); }}
+        title={t('hitl_view')}
+      >
         <div>
           <b>{t('hitl_banner')}</b>
           <p>{t('hitl_desc')}</p>
         </div>
-        <span className="badge badge--gold">HITL</span>
+        <span className="badge badge--gold">{t('hitl_view')} →</span>
       </div>
 
       <div className="card card-pad">
@@ -262,7 +286,15 @@ export default function Dashboard() {
 
         <div className="grid grid-4">
           {PROACTIVE.map((p, idx) => (
-            <div className="card" style={{ padding: 14 }} key={idx}>
+            <div
+              className="card"
+              style={{ padding: 14, cursor: 'pointer' }}
+              key={idx}
+              role="button"
+              tabIndex={0}
+              onClick={() => nav(ALERT_ROUTE[idx] || '/approvals')}
+              onKeyDown={(e) => { if (e.key === 'Enter') nav(ALERT_ROUTE[idx] || '/approvals'); }}
+            >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                 <div>
                   <div style={{ fontWeight: 900, fontSize: 13 }}>{T(p, 'title')}</div>
@@ -271,7 +303,13 @@ export default function Dashboard() {
                 <span className={`badge ${badgeForColor(p.color)}`}>AI</span>
               </div>
               <div style={{ marginTop: 12 }}>
-                <button className="btn btn-sm" type="button">{t('pro_act')}</button>
+                <button
+                  className="btn btn-sm btn-ghost"
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); nav(ALERT_ROUTE[idx] || '/approvals'); }}
+                >
+                  {T(p, 'act')} →
+                </button>
               </div>
             </div>
           ))}
@@ -294,7 +332,16 @@ export default function Dashboard() {
                   : `${fmtMoney(k._value)}${unit ? ` ${unit}` : ''}`;
 
           return (
-            <div className="card card-pad" key={k.id}>
+            <div
+              className="card card-pad"
+              key={k.id}
+              role="button"
+              tabIndex={0}
+              style={{ cursor: 'pointer' }}
+              title={t('kpi_view')}
+              onClick={() => nav(KPI_ROUTE[k.id] || '/dashboard')}
+              onKeyDown={(e) => { if (e.key === 'Enter') nav(KPI_ROUTE[k.id] || '/dashboard'); }}
+            >
               <div className="kpi">
                 <div className="kpi__icon">
                   <span className={`badge ${badgeForColor(k.color)}`}>{k.id.toUpperCase()}</span>
@@ -347,38 +394,15 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-2">
-        <div className="card card-pad">
-          <div className="page-head" style={{ marginBottom: 10 }}>
-            <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('src_title')}</div>
-              <div className="page-sub">{t('recent_sub')}</div>
-            </div>
-          </div>
-
-          <div className="source-cards">
-            {SOURCES.map((s) => (
-              <div key={s.id} className="card source-card">
-                <div>
-                  <b>{s.name}</b>
-                  <p>{T(s, 'desc')}</p>
-                </div>
-                <span className={`badge ${badgeForColor(s.color)}`}>{fmtMoney(Math.round(s.count * orgScale))}</span>
-              </div>
-            ))}
+      <div className="card chart-box" style={{ height: 360 }}>
+        <div className="page-head" style={{ marginBottom: 8 }}>
+          <div>
+            <div className="page-title" style={{ fontSize: 16 }}>{t('recovery_title')}</div>
+            <div className="page-sub">{t('recovery_sub')}</div>
           </div>
         </div>
-
-        <div className="card chart-box" style={{ height: 360 }}>
-          <div className="page-head" style={{ marginBottom: 8 }}>
-            <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('recovery_title')}</div>
-              <div className="page-sub">{t('recovery_sub')}</div>
-            </div>
-          </div>
-          <div style={{ height: 285 }}>
-            <Line ref={recoveryRef} data={recoveryData} options={recoveryOptions} />
-          </div>
+        <div style={{ height: 285 }}>
+          <Line ref={recoveryRef} data={recoveryData} options={recoveryOptions} />
         </div>
       </div>
 
@@ -432,6 +456,8 @@ export default function Dashboard() {
           </table>
         </div>
       </div>
+
+      <AIProcessDrawer open={!!drawer} onClose={() => setDrawer(null)} data={drawer} />
     </div>
   );
 }

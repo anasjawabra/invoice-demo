@@ -132,6 +132,9 @@ export default function Login() {
               <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
                 {t('org_login_hint')}
               </div>
+              <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                {t('rbac_note')}
+              </div>
             </div>
 
             <div className="row">
@@ -169,17 +172,10 @@ export default function Login() {
               <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
                 {t('or_sso')}
               </div>
-              <button
-                type="button"
-                className="btn"
-                style={{ width: '100%', height: 44 }}
-                onClick={() => {
-                  setErr(t('sso_redirect'));
-                  setTimeout(() => setErr(''), 2000);
-                }}
-              >
-                {t('btn_sso')}
-              </button>
+              <div className="sso-reserved" aria-disabled="true">
+                <span>{t('sso_reserved')}</span>
+                <span className="pill" style={{ fontSize: 11 }}>{t('sso_coming')}</span>
+              </div>
             </div>
 
             <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
