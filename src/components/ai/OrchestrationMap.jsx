@@ -1,47 +1,69 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../../context/I18nContext';
 import { AGENTS } from '../../data/mock';
-import { ORCH_TASKS } from '../../data/aiProcess';
-import { L } from './util';
+import { ORCH_MESSAGES, ORCH_LATENCY } from '../../data/aiProcess';
+import OrchestrationLog from './OrchestrationLog';
 
 const SUB_AGENTS = AGENTS.filter((a) => a.id !== 'A0');
 
-// Which agent tags are "lit" while a given task is routing (both ends of A?→A?).
-function agentsOfTask(task) {
-  return (task.route.match(/A\d/g) || []).filter((tag) => tag !== 'A0');
+// Derive queued → running → done from the messages revealed so far:
+//  - an agent that has SENT a message is done
+//  - an agent that has (only) RECEIVED a message is running
+//  - otherwise queued
+function agentStatus(id, revealed) {
+  let received = false;
+  for (const m of revealed) {
+    if (m.from === id) return 'done';
+    if (m.to === id) received = true;
+  }
+  return received ? 'running' : 'queued';
 }
 
 /**
- * OrchestrationMap — A0 orchestrator dispatching to A1..A6 with an animated,
- * step-by-step task routing stream and HITL breakpoints. GOV-SA light theme.
+ * OrchestrationMap — a LIVE multi-agent orchestration graph. A0 dispatches to
+ * A1..A6; edges light up as "messages" flow, each node shows a live status chip
+ * (queued → running → done) plus a per-agent metric (calls / avg latency /
+ * accuracy), and an inter-agent message log scrolls the handoff payloads.
+ * Some agents run in PARALLEL (A3 anomaly ∥ A5 forecast; A5→A6 ∥ A4→A0).
+ * Bounded + replayable via the Replay button. GOV-SA light theme.
  */
 export default function OrchestrationMap() {
-  const { t, T, lang, isRtl } = useI18n();
+  const { t, T } = useI18n();
   const [running, setRunning] = useState(false);
-  const [active, setActive] = useState(-1); // index into ORCH_TASKS
+  const [cursor, setCursor] = useState(-1); // last-revealed message index
+  const [played, setPlayed] = useState(false);
   const timers = useRef([]);
 
   function clearTimers() {
     timers.current.forEach((x) => clearTimeout(x));
     timers.current = [];
   }
+  useEffect(() => clearTimers, []);
 
   function play() {
     clearTimers();
     setRunning(true);
-    setActive(-1);
-    ORCH_TASKS.forEach((_, i) => {
-      timers.current.push(setTimeout(() => setActive(i), 300 + i * 1100));
+    setPlayed(true);
+    setCursor(-1);
+    ORCH_MESSAGES.forEach((_, i) => {
+      timers.current.push(setTimeout(() => setCursor(i), 260 + i * 1050));
     });
     timers.current.push(
-      setTimeout(() => setRunning(false), 300 + ORCH_TASKS.length * 1100)
+      setTimeout(() => setRunning(false), 260 + ORCH_MESSAGES.length * 1050)
     );
   }
 
-  useEffect(() => clearTimers, []);
+  const revealed = useMemo(
+    () => (cursor >= 0 ? ORCH_MESSAGES.slice(0, cursor + 1) : []),
+    [cursor]
+  );
 
-  const activeTags = active >= 0 ? agentsOfTask(ORCH_TASKS[active]) : [];
-  const visibleTasks = active >= 0 ? ORCH_TASKS.slice(0, active + 1) : [];
+  // Agents touched by the in-flight message (both ends light up → parallel edges).
+  const liveTags = running && cursor >= 0
+    ? [ORCH_MESSAGES[cursor].from, ORCH_MESSAGES[cursor].to].filter((x) => x !== 'A0')
+    : [];
+
+  const a0Done = played && !running;
 
   return (
     <div className="card card-pad orch-map">
@@ -50,17 +72,12 @@ export default function OrchestrationMap() {
           <div className="page-title" style={{ fontSize: 16 }}>{t('orch_title')}</div>
           <div className="page-sub">{t('orch_sub')}</div>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          onClick={play}
-          disabled={running}
-        >
-          {running ? t('orch_running') : t('orch_run')}
+        <button type="button" className="btn btn-primary btn-sm" onClick={play} disabled={running}>
+          {running ? t('orch_running') : played ? t('orch_replay') : t('orch_run')}
         </button>
       </div>
 
-      <div className="orch-hub">
+      <div className={`orch-hub${running ? ' orch-hub--live' : ''}`}>
         <span className="orch-hub__badge">A0</span>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 900, fontSize: 13 }}>{T(AGENTS[0], 'name')}</div>
@@ -68,43 +85,37 @@ export default function OrchestrationMap() {
             {t('a0_note')}
           </div>
         </div>
+        <span className={`orch-chip orch-chip--${running ? 'running' : a0Done ? 'done' : 'queued'}`}>
+          {running ? t('orch_running') : a0Done ? t('orch_done') : t('orch_queued')}
+        </span>
       </div>
 
       <div className="orch-lane">
         {SUB_AGENTS.map((a) => {
-          const on = activeTags.includes(a.id);
+          const status = played ? agentStatus(a.id, revealed) : 'queued';
+          const on = liveTags.includes(a.id);
+          const lat = ORCH_LATENCY[a.id];
           return (
-            <div key={a.id} className={`orch-agent${on ? ' orch-agent--active' : ''}`}>
+            <div key={a.id} className={`orch-agent orch-agent--${status}${on ? ' orch-agent--active' : ''}`}>
               {on ? <span className="orch-agent__pulse" /> : null}
-              <div className="orch-agent__tag">{a.id}</div>
+              <div className="orch-agent__topline">
+                <span className="orch-agent__tag">{a.id}</span>
+                <span className={`orch-chip orch-chip--${status}`}>
+                  {status === 'done' ? t('orch_done') : status === 'running' ? t('orch_running') : t('orch_queued')}
+                </span>
+              </div>
               <div className="orch-agent__name">{T(a, 'name')}</div>
-              <div
-                className="orch-agent__status"
-                style={{ color: on ? 'var(--primary)' : 'var(--txt-mute)' }}
-              >
-                {on ? t('pipe_running') : t('online')}
+              <div className="orch-agent__metrics">
+                <span title={t('orch_metric_calls')}>⚙ {a.calls.toLocaleString('en-US')}</span>
+                <span title={t('orch_metric_latency')} dir="ltr">◷ {lat}ms</span>
+                <span title={t('orch_metric_acc')}>✓ {a.acc}%</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid" style={{ gap: 8 }}>
-        <div style={{ fontWeight: 900, fontSize: 12, color: 'var(--txt-mute)' }}>
-          {t('orch_tasks')}
-        </div>
-        {visibleTasks.length === 0 ? (
-          <div className="muted" style={{ fontSize: 12 }}>{t('orch_sub')}</div>
-        ) : (
-          visibleTasks.map((task, i) => (
-            <div key={task.route} className={`orch-task${task.hitl ? ' orch-task--hitl' : ''}`}>
-              <span className="orch-task__route">{isRtl ? task.route.split(' ').reverse().join(' ') : task.route}</span>
-              <span style={{ color: task.hitl ? '#8A5A00' : 'var(--txt)' }}>{L(task.text, lang)}</span>
-              {i === active && running ? <span className="orch-agent__pulse" style={{ position: 'static', marginInlineStart: 'auto' }} /> : null}
-            </div>
-          ))
-        )}
-      </div>
+      <OrchestrationLog messages={revealed} activeIndex={running ? cursor : -1} />
     </div>
   );
 }
