@@ -4,7 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import { I18nProvider } from './context/I18nContext';
 import { AuthProvider } from './context/AuthContext';
-import './styles/fonts.css';
 import './styles/variables.css';
 import './styles/global.css';
 import './styles/ai-process.css';
