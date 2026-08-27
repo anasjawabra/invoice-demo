@@ -66,7 +66,14 @@ export default function Approvals() {
                 </div>
                 <div className="card" style={{ padding: 10, background: 'rgba(255,255,255,0.03)' }}>
                   <div className="muted" style={{ fontSize: 12, fontWeight: 800 }}>{t('apv_sla')}</div>
-                  <div style={{ marginTop: 6, fontSize: 12, color: 'var(--txt-dim)' }}>{lang === 'zh' ? a.sla : lang === 'ar' ? a.slaAr : a.slaEn}</div>
+                  <div style={{ marginTop: 6, fontSize: 12, color: 'var(--txt-dim)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span>{lang === 'zh' ? a.sla : lang === 'ar' ? a.slaAr : a.slaEn}</span>
+                    {typeof a.slaLeft === 'number' ? (
+                      <span className={`badge ${a.slaLeft < 6 ? 'badge--orange' : 'badge--green'}`} dir="ltr">
+                        {t('sla_left')} {a.slaLeft}h{a.slaLeft < 6 ? ' ⚠' : ''}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </div>
               <div>
@@ -82,6 +89,13 @@ export default function Approvals() {
                 onClick={() => setDrawer(APPROVAL_BASIS[a.id])}
               >
                 {t('ai_assist_btn')}
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => toast.info(`${t('toast_clarify')}${a.id}`)}
+              >
+                {t('btn_clarify')}
               </button>
               <button
                 className="btn btn-primary"

@@ -30,13 +30,13 @@ const eff = (agent) => ({ type: 'efficiency', agent });
 const decide = (text, tone, auto, gate) => ({ type: 'decision', text, tone, auto, gate });
 
 /* ---------------------------------------------------------------- Ingest sources
-   BRD: invoices scattered across Email, Government ERP, Tahseel, Makin, Efa, Sanad. */
+   BRD: invoices scattered across Email, Government ERP, Tahseel, Makeen, Efaa, Sanad. */
 export const INGEST_SOURCES = [
   { id: 'email', name: { zh: '邮件', en: 'Email', ar: 'البريد' }, count: 1860 },
   { id: 'erp', name: { zh: '政府 ERP', en: 'Government ERP', ar: 'ERP الحكومي' }, count: 2140 },
   { id: 'tahseel', name: { zh: 'Tahseel · 催收', en: 'Tahseel · Collection', ar: 'Tahseel · التحصيل' }, count: 4820 },
-  { id: 'makin', name: { zh: 'Makin · 合同', en: 'Makin · Contracts', ar: 'Makin · العقود' }, count: 3610 },
-  { id: 'efa', name: { zh: 'Efa · 支付', en: 'Efa · Payment', ar: 'Efa · الدفع' }, count: 2240 },
+  { id: 'makin', name: { zh: 'Makeen · 合同', en: 'Makeen · Contracts', ar: 'Makeen · العقود' }, count: 3610 },
+  { id: 'efa', name: { zh: 'Efaa · 支付', en: 'Efaa · Payment', ar: 'Efaa · الدفع' }, count: 2240 },
   { id: 'sanad', name: { zh: 'Sanad · 凭证', en: 'Sanad · Vouchers', ar: 'Sanad · القسائم' }, count: 1810 }
 ];
 
@@ -145,7 +145,7 @@ export const OCR_SAMPLES = {
    agent" line (A2..A6). Index 0 = A1. */
 export const PIPELINE_WORK = {
   normal: [
-    { conclusion: { zh: '从 Makin 拉取 PDF，OCR 提取 10 个字段，映射统一模型，去重通过。', en: 'Pulled PDF from Makin, OCR extracted 10 fields, mapped to unified model, dedup passed.', ar: 'تم سحب PDF من Makin واستخراج 10 حقول وتوحيدها، واجتياز فحص التكرار.' } },
+    { conclusion: { zh: '从 Makeen 拉取 PDF，OCR 提取 10 个字段，映射统一模型，去重通过。', en: 'Pulled PDF from Makeen, OCR extracted 10 fields, mapped to unified model, dedup passed.', ar: 'تم سحب PDF من Makeen واستخراج 10 حقول وتوحيدها، واجتياز فحص التكرار.' } },
     { handoff: { zh: '接收 A1 输出：标准化发票 INV-2026-0731（金额/PO/VAT）', en: 'Received A1 output: standardized invoice INV-2026-0731 (amount/PO/VAT)', ar: 'استلام مخرجات A1: الفاتورة الموحدة INV-2026-0731' }, conclusion: { zh: '三单匹配一致，ZATCA 税号有效，VAT 15% 复算通过，匹配置信度 97%。', en: '3-way match consistent, ZATCA tax ID valid, VAT 15% recomputed OK, match confidence 97%.', ar: 'المطابقة الثلاثية متسقة، الرقم الضريبي صالح، إعادة حساب الضريبة 15٪ ناجحة، ثقة 97٪.' } },
     { handoff: { zh: '接收 A2 输出：匹配一致、税务合规', en: 'Received A2 output: matched & tax-compliant', ar: 'استلام مخرجات A2: مطابقة ومتوافقة ضريبياً' }, conclusion: { zh: '价格贴近历史均价，风险评分 12（低危），无欺诈特征。', en: 'Price near historical average, risk score 12 (low), no fraud signals.', ar: 'السعر قريب من المتوسط التاريخي، درجة المخاطرة 12 (منخفضة).' } },
     { handoff: { zh: '接收 A3 输出：风险评分 12（低危）', en: 'Received A3 output: risk score 12 (low)', ar: 'استلام مخرجات A3: درجة 12 (منخفضة)' }, conclusion: { zh: '金额 1.25M，命中三级审批链，推送人工确认（HITL）。', en: 'Amount 1.25M, matched 3-level chain, pushed to human confirm (HITL).', ar: 'المبلغ 1.25M، سلسلة من 3 مستويات، أُرسلت للتأكيد البشري (HITL).' } },
@@ -153,7 +153,7 @@ export const PIPELINE_WORK = {
     { handoff: { zh: '接收 A5 输出：结算周期正常', en: 'Received A5 output: normal settlement', ar: 'استلام مخرجات A5: تسوية طبيعية' }, conclusion: { zh: 'KPI 汇总入库，审计留痕已生成。', en: 'KPIs aggregated, audit trail generated.', ar: 'تم تجميع المؤشرات وإنشاء سجل التدقيق.' } }
   ],
   fraud: [
-    { conclusion: { zh: '从 Makin 摄取 NEOM 账单，字段提取完成，去重通过。', en: 'Ingested NEOM invoice from Makin, fields extracted, dedup passed.', ar: 'تم استيعاب فاتورة NEOM، استخراج الحقول، اجتياز التكرار.' } },
+    { conclusion: { zh: '从 Makeen 摄取 NEOM 账单，字段提取完成，去重通过。', en: 'Ingested NEOM invoice from Makeen, fields extracted, dedup passed.', ar: 'تم استيعاب فاتورة NEOM، استخراج الحقول، اجتياز التكرار.' } },
     { handoff: { zh: '接收 A1 输出：标准化发票 INV-2026-0730', en: 'Received A1 output: standardized invoice INV-2026-0730', ar: 'استلام مخرجات A1: INV-2026-0730' }, conclusion: { zh: '三单匹配通过，税号有效——移交异常检测复核价格。', en: '3-way match OK, tax valid — handing to anomaly agent for price review.', ar: 'المطابقة والضريبة صحيحة — التحويل لوكيل الشذوذ لمراجعة السعر.' } },
     { handoff: { zh: '接收 A2 输出：账单-PO-实收一致', en: 'Received A2 output: invoice-PO-receipt consistent', ar: 'استلام مخرجات A2: الفاتورة-PO-الإيصال متسقة' }, conclusion: { zh: '⚠ 价格偏离行业基准 +38%，供应商 90 天内无历史，风险评分 82，置信度 71% < 75% → 触发 HITL 断点。', en: '⚠ Price +38% above benchmark, no vendor history in 90d, risk score 82, confidence 71% < 75% → HITL breakpoint.', ar: '⚠ السعر +38٪ فوق المعيار، لا تاريخ للمورد، درجة 82، ثقة 71٪ < 75٪ → نقطة توقف HITL.' } },
     {}, {}, {}
@@ -174,15 +174,15 @@ export const PIPELINE_WORK = {
    verifyBundle('normal'); A4 reuses APPROVAL_BASIS below. */
 const INGEST_OK_BUNDLE = {
   title: { zh: 'A1 摄取标准化 · Agent 运行轨迹', en: 'A1 Ingestion · Agent Run-Trace', ar: 'A1 الاستيعاب · مسار الوكيل' },
-  subtitle: { zh: 'Makin PDF · OCR 提取 · 去重', en: 'Makin PDF · OCR extract · dedup', ar: 'Makin · استخراج OCR · تكرار' },
+  subtitle: { zh: 'Makeen PDF · OCR 提取 · 去重', en: 'Makeen PDF · OCR extract · dedup', ar: 'Makeen · استخراج OCR · تكرار' },
   agentTag: 'A1',
   steps: [
     {
       agent: 'A1',
       title: { zh: '抓取与 OCR 提取', en: 'Fetch & OCR extract', ar: 'الجلب واستخراج OCR' },
       blocks: [
-        think({ zh: '从 Makin 拉取 PDF，调用视觉模型提取 10 个结构化字段。', en: 'Pulling the PDF from Makin and calling the vision model to extract 10 structured fields.', ar: 'أسحب PDF من Makin وأستدعي نموذج الرؤية لاستخراج 10 حقول.' }),
-        tool('vision.ocr_extract', { source: 'Makin', doc: 'INV-2026-0731.pdf' }, { fields_extracted: 10, avg_confidence: 0.98, low_confidence_fields: 0 }, 420),
+        think({ zh: '从 Makeen 拉取 PDF，调用视觉模型提取 10 个结构化字段。', en: 'Pulling the PDF from Makeen and calling the vision model to extract 10 structured fields.', ar: 'أسحب PDF من Makeen وأستدعي نموذج الرؤية لاستخراج 10 حقول.' }),
+        tool('vision.ocr_extract', { source: 'Makeen', doc: 'INV-2026-0731.pdf' }, { fields_extracted: 10, avg_confidence: 0.98, low_confidence_fields: 0 }, 420),
         obs({ zh: '成功提取 10 个字段，平均置信度 98%，无低置信字段。', en: 'Extracted 10 fields at 98% average confidence, no low-confidence fields.', ar: 'تم استخراج 10 حقول بثقة 98٪ دون حقول منخفضة.' }, 'ok')
       ]
     },
@@ -314,7 +314,7 @@ function verifyBundle(scenario) {
 
   return {
     title: { zh: 'A2 验证合规 · Agent 运行轨迹', en: 'A2 Verification · Agent Run-Trace', ar: 'A2 التحقق · مسار تشغيل الوكيل' },
-    subtitle: { zh: '三单匹配 · ZATCA 税务校验 · Makin↔Tahseel 对账', en: '3-way match · ZATCA check · Makin↔Tahseel reconciliation', ar: 'مطابقة ثلاثية · فحص ZATCA · تسوية' },
+    subtitle: { zh: '三单匹配 · ZATCA 税务校验 · Makeen↔Tahseel 对账', en: '3-way match · ZATCA check · Makeen↔Tahseel reconciliation', ar: 'مطابقة ثلاثية · فحص ZATCA · تسوية' },
     agentTag: 'A2',
     steps: [
       {
@@ -518,7 +518,7 @@ export const RISK_ANALYSIS = {
         title: { zh: '主体一致性核查', en: 'Entity consistency check', ar: 'فحص اتساق الكيان' },
         blocks: [
           tool('sanad.lookup_contract', { vat: '3007788990000004' }, { vat_owner: 'Falcon Engineering Ltd', contract_signatory: 'Falcon Holdings', match: false }, 260),
-          obs({ zh: 'VAT 号归属主体与 Makin 合同签约主体不一致。', en: 'VAT owner differs from the Makin contract signatory.', ar: 'مالك الرقم يختلف عن موقّع العقد.' }, 'warn'),
+          obs({ zh: 'VAT 号归属主体与 Makeen 合同签约主体不一致。', en: 'VAT owner differs from the Makeen contract signatory.', ar: 'مالك الرقم يختلف عن موقّع العقد.' }, 'warn'),
           conf(58, { zh: '风险评分', en: 'Risk score', ar: 'الدرجة' }, [
             { label: { zh: '主体不一致', en: 'Entity mismatch', ar: 'عدم تطابق الكيان' }, points: 38 },
             { label: { zh: '无关联映射', en: 'No affiliation mapping', ar: 'لا ربط انتماء' }, points: 20 }
@@ -727,3 +727,176 @@ export const ORCH_MESSAGES = [
 
 // Per-agent synthetic average latency (ms) for the live orchestration metrics.
 export const ORCH_LATENCY = { A1: 340, A2: 280, A3: 410, A4: 190, A5: 520, A6: 230 };
+
+/* ------------------------------------------------- SCR-11: platform reconciliation
+   Traces follow HLSD WF-07: match by invoice number first, fall back to
+   beneficiary ID + amount, classify the difference, propose a corrective
+   action with Tahseel as the authoritative reference. */
+export const XRECON_ANALYSIS = {
+  'INV-2026-0731': {
+    title: { zh: '平台对账分析 · Makeen ↔ Tahseel', en: 'Platform Reconciliation · Makeen ↔ Tahseel', ar: 'تسوية المنصتين · Makeen ↔ Tahseel' },
+    subtitle: { zh: 'INV-2026-0731 · 金额差异 62,500 SAR', en: 'INV-2026-0731 · amount diff 62,500 SAR', ar: 'INV-2026-0731 · فرق 62,500' },
+    agentTag: 'A2',
+    steps: [
+      {
+        agent: 'A2',
+        title: { zh: '匹配与差异分类', en: 'Matching & difference classification', ar: 'المطابقة وتصنيف الفرق' },
+        blocks: [
+          think({ zh: '周度对账：先按发票号匹配，失败再回退受益人身份标识 + 金额。', en: 'Weekly run: match by invoice number first, fall back to beneficiary ID + amount.', ar: 'التشغيل الأسبوعي: المطابقة برقم الفاتورة ثم بالهوية والمبلغ.' }),
+          tool('recon.match_invoice_no', { invoice: 'INV-2026-0731', sources: ['Makeen', 'Tahseel'] }, { matched: true, makken_amt: 1250000, tahsil_amt: 1187500, diff: 62500 }, 280),
+          obs({ zh: '差额 62,500 SAR 恰为不含税回款与含税计费的缺口，归类「回款未含税」。', en: 'The 62,500 SAR gap maps to VAT-exclusive collection vs tax-inclusive billing — classified "collection excluding VAT".', ar: 'الفرق 62,500 يعادل الضريبة غير المحصّلة — تصنيف «تحصيل بلا ضريبة».' }, 'warn'),
+          evid([
+            { source: 'WF-07 规则', detail: { zh: '未含税回款的发票以最高优先级处理。', en: 'VAT-exclusive collections take top priority (WF-07 rule).', ar: 'التحصيل بلا ضريبة أولوية قصوى (قاعدة WF-07).' } },
+            { source: 'Tahseel · 权威基准', detail: { zh: '以 Tahseel 登记金额为官方基准。', en: 'Tahseel-registered amount is the official baseline.', ar: 'مبلغ Tahseel هو المرجع الرسمي.' } }
+          ]),
+          decide({ zh: '转税务审计员核查补税，并同步 Makeen 更新含税口径。', en: 'Refer to the tax auditor for VAT recovery; align Makeen to the tax-inclusive basis.', ar: 'إحالة لمدقق الضرائب ومواءمة Makeen.' }, 'warn', false, { zh: '未含税差异 → 税务审计员', en: 'VAT gap → tax auditor', ar: 'فرق الضريبة → مدقق الضرائب' })
+        ]
+      }
+    ],
+    conclusion: { text: { zh: '差异属「回款未含税」，金额 62,500 SAR，建议税务审计介入并统一 Makeen 含税口径。', en: 'Difference classified "collection excluding VAT" (62,500 SAR); recommend tax-auditor intervention and aligning Makeen.', ar: 'الفرق «تحصيل بلا ضريبة» بقيمة 62,500؛ يوصى بتدخل مدقق الضرائب.' }, confidence: 93, tone: 'warn', action: { zh: '导出周报并送税务审计员', en: 'Export weekly report & refer to tax auditor', ar: 'تصدير التقرير والإحالة' } }
+  },
+  'INV-2026-0728': {
+    title: { zh: '平台对账分析 · Makeen ↔ Tahseel', en: 'Platform Reconciliation · Makeen ↔ Tahseel', ar: 'تسوية المنصتين · Makeen ↔ Tahseel' },
+    subtitle: { zh: 'INV-2026-0728 · 状态差异', en: 'INV-2026-0728 · status diff', ar: 'INV-2026-0728 · فرق حالة' },
+    agentTag: 'A2',
+    steps: [
+      {
+        agent: 'A2',
+        title: { zh: '状态差异核查', en: 'Status-difference check', ar: 'فحص فرق الحالة' },
+        blocks: [
+          tool('recon.match_invoice_no', { invoice: 'INV-2026-0728', sources: ['Makeen', 'Tahseel'] }, { matched: true, makken_status: 'cancelled', tahsil_status: 'collected', amount: 1250000 }, 260),
+          obs({ zh: 'Tahseel 显示已回款，Makeen 中该发票已注销 → 归类「已回款但 Makken 已注销」。', en: 'Collected in Tahseel but cancelled in Makeen — classified per WF-07.', ar: 'محصّلة في Tahseel وملغاة في Makeen.' }, 'danger'),
+          decide({ zh: '高价值差异（1.25M SAR）：纳入每日更新清单，建议在 Makeen 中补录。', en: 'High-value difference (1.25M SAR): add to the daily-refresh list; reinstate in Makeen.', ar: 'فرق عالي القيمة؛ إعادة التسجيل في Makeen.' }, 'danger', false, { zh: '已回款/已注销 → Makeen 补录', en: 'collected/cancelled → reinstate in Makeen', ar: 'محصّلة/ملغاة → إعادة التسجيل' })
+        ]
+      }
+    ],
+    conclusion: { text: { zh: '状态差异：Tahseel 已回款 / Makeen 已注销，涉及 1.25M SAR，按规则需在 Makeen 补录。', en: 'Status difference: collected in Tahseel vs cancelled in Makeen (1.25M SAR); reinstate in Makeen per rule.', ar: 'فرق حالة بقيمة 1.25M؛ إعادة التسجيل في Makeen.' }, confidence: 96, tone: 'danger', action: { zh: '在 Makeen 中补录并复核', en: 'Reinstate in Makeen & verify', ar: 'إعادة التسجيل والتحقق' } }
+  },
+  'INV-2026-0726': {
+    title: { zh: '平台对账分析 · Makeen ↔ Tahseel', en: 'Platform Reconciliation · Makeen ↔ Tahseel', ar: 'تسوية المنصتين · Makeen ↔ Tahseel' },
+    subtitle: { zh: 'INV-2026-0726 · Tahseel 缺失', en: 'INV-2026-0726 · missing in Tahseel', ar: 'INV-2026-0726 · مفقود في Tahseel' },
+    agentTag: 'A2',
+    steps: [
+      {
+        agent: 'A2',
+        title: { zh: '回退匹配', en: 'Fallback matching', ar: 'المطابقة الاحتياطية' },
+        blocks: [
+          tool('recon.match_invoice_no', { invoice: 'INV-2026-0726', sources: ['Makeen', 'Tahseel'] }, { matched: false, makken_amt: 742000 }, 240),
+          think({ zh: '发票号未命中，回退按受益人身份标识 + 金额二次匹配。', en: 'Invoice number missed; falling back to beneficiary ID + amount matching.', ar: 'لم يُطابق الرقم؛ التراجع للهوية والمبلغ.' }),
+          tool('recon.match_beneficiary', { beneficiary_id: '1042•••••55', amount: 742000 }, { matched: false }, 300),
+          obs({ zh: '两轮匹配均未命中：Makeen 计费 742K SAR，Tahseel 无对应回款记录。', en: 'Both passes missed: Makeen billed 742K SAR with no Tahseel collection record.', ar: 'لم تطابق المحاولتان؛ لا سجل تحصيل في Tahseel.' }, 'warn'),
+          decide({ zh: '归类「Tahseel 缺失」，建议在 Tahseel 中核验收款流向。', en: 'Classified "missing in Tahseel"; verify the payment flow in Tahseel.', ar: 'تصنيف «مفقود في Tahseel» والتحقق من التدفق.' }, 'warn', false, { zh: 'Tahseel 缺失 → 核验收款流向', en: 'missing in Tahseel → verify flow', ar: 'مفقود → تحقق' })
+        ]
+      }
+    ],
+    conclusion: { text: { zh: 'Makeen 计费 742K SAR 在 Tahseel 无对应回款，需核验收款流向后补录。', en: 'Makeen billing of 742K SAR has no Tahseel collection counterpart; verify then back-fill.', ar: 'فوترة 742K بلا مقابل؛ التحقق ثم التسجيل.' }, confidence: 90, tone: 'warn', action: { zh: '核验 Tahseel 收款流向', en: 'Verify Tahseel payment flow', ar: 'تحقق من تدفق Tahseel' } }
+  }
+};
+
+/* ----------------------------------------------------- SCR-08: audit compliance
+   Follows HLSD WF-05: assemble evidence, run the delegation-table compliance
+   check, highlight deviations, produce the compliance report. */
+export const AUDIT_CHECK = {
+  title: { zh: '授权表合规检查 · 审计轨迹', en: 'Delegation Compliance · Audit Trail', ar: 'فحص الامتثال · سجل التدقيق' },
+  subtitle: { zh: '本期范围内发票 · 授权矩阵自动比对', en: 'In-scope invoices · automated authority-matrix check', ar: 'الفواتير المشمولة · فحص آلي للمصفوفة' },
+  agentTag: 'A0',
+  stats: [
+    { value: '18', label: { zh: '审计事件', en: 'Audit events', ar: 'أحداث التدقيق' } },
+    { value: '4', label: { zh: '覆盖发票', en: 'Invoices covered', ar: 'فواتير مشمولة' } },
+    { value: '100%', label: { zh: '日志完整率', en: 'Trail completeness', ar: 'اكتمال السجل' } }
+  ],
+  steps: [
+    {
+      agent: 'A0',
+      title: { zh: '证据组装与合规比对', en: 'Evidence assembly & compliance check', ar: 'تجميع الأدلة وفحص الامتثال' },
+      blocks: [
+        think({ zh: '按 HLSD WF-05 组装不可篡改证据：摄取来源、核验结果与置信度、异常报告、审批决定与时间戳。', en: 'Per WF-05, assemble immutable evidence: ingestion source, validation results & confidence, anomaly report, approval decisions with timestamps.', ar: 'وفق WF-05 أجمّع الأدلة غير القابلة للتعديل.' }),
+        tool('audit.assemble_evidence', { period: '2026-07-23..27', invoices: 4 }, { events: 18, hitl_events: 4, complete: true }, 340),
+        tool('audit.check_authority_matrix', { scope: 'approvals' }, { checked: 3, compliant: 3, outside_delegation: 0 }, 300),
+        obs({ zh: '3 项审批全部由授权表规定的主管员工作出，无越权记录。', en: 'All 3 approvals made by the competent employees per the delegation table; none outside authority.', ar: 'جميع الموافقات ضمن التفويض؛ لا تجاوزات.' }, 'ok'),
+        evid([
+          { source: 'INV-2026-0727', detail: { zh: '评估超时 8h → 按规则自动升级中心主任（记录在案）。', en: 'Overran by 8h → auto-escalated to Center Director per rule (recorded).', ar: 'تجاوز 8 ساعات → تصعيد موثق للمدير.' } },
+          { source: 'INV-2026-0730', detail: { zh: 'HITL 断点：置信度 71% < 75%，付款暂停转审计师。', en: 'HITL breakpoint: confidence 71% < 75%; payment paused, referred.', ar: 'توقف HITL: الثقة 71٪؛ إيقاف وإحالة.' }, tone: 'warn' }
+        ]),
+        decide({ zh: '本期合规：未发现授权表之外的审批；4 处 HITL 断点均有人工决定留痕。', en: 'Compliant this period: no approvals outside the delegation table; all 4 HITL breakpoints carry recorded human decisions.', ar: 'ممتثل: لا تجاوزات؛ جميع نقاط HITL موثقة.' }, 'ok', true, { zh: '审计报告 → 数字签名导出', en: 'audit report → digitally-signed export', ar: 'تقرير → تصدير موقّع' })
+      ]
+    }
+  ],
+  conclusion: { text: { zh: '本期无越权审批，审计轨迹 100% 完整，可出具数字签名合规报告。', en: 'No out-of-authority approvals this period; trail 100% complete; compliance report ready for signed export.', ar: 'لا تجاوزات؛ السجل مكتمل؛ التقرير جاهز للتصدير.' }, confidence: 97, tone: 'ok', action: { zh: '导出数字签名审计报告 (PDF/Excel)', en: 'Export digitally-signed audit report (PDF/Excel)', ar: 'تصدير التقرير الموقّع' } }
+};
+
+/* ------------------------------------------------------ SCR-10: revenue summary
+   Follows HLSD WF-06: load Tahseel data, compute KPIs & coverage, compare to
+   targets (Tahseel authoritative on conflict), draft the executive summary. */
+export const REVENUE_ANALYSIS = {
+  title: { zh: '月度收入报表 · 生成过程', en: 'Monthly Revenue Report · Generation', ar: 'تقرير الإيرادات الشهري · التوليد' },
+  subtitle: { zh: '市政 + 住房 · 按 Amanah 与收入来源', en: 'Municipal + Housing · by Amanah & source', ar: 'بلدي + إسكان · حسب الأمانة والمصدر' },
+  agentTag: 'A6',
+  stats: [
+    { value: '382M', label: { zh: '本月开票总额', en: 'Invoiced', ar: 'المفوتر' } },
+    { value: '87.3%', label: { zh: '回款率', en: 'Collection rate', ar: 'معدل التحصيل' } },
+    { value: '93.1%', label: { zh: '目标达成率', en: 'Target attainment', ar: 'تحقيق الهدف' } }
+  ],
+  steps: [
+    {
+      agent: 'A6',
+      title: { zh: '数据加载与 KPI 计算', en: 'Data load & KPI computation', ar: 'تحميل البيانات وحساب المؤشرات' },
+      blocks: [
+        think({ zh: '每月首个工作日触发：加载 Tahseel 回款、年度目标、运营支出与执行组合数据。', en: 'Triggered the first working day: load Tahseel collections, annual targets, opex and enforcement portfolio.', ar: 'يُطلق أول يوم عمل: تحميل بيانات Tahseel والأهداف والمصروفات.' }),
+        tool('revenue.load_tahsil', { month: '2026-07', granularity: ['source', 'amanah'] }, { sources: 8, amanah: 4, invoiced: 382000000, collected: 333300000 }, 420),
+        obs({ zh: 'Makeen 与 Tahseel 在 2 个来源上数字冲突，按规则以 Tahseel 为准并在备注登记差异。', en: 'Makeen and Tahseel conflict on 2 sources; Tahseel taken as approved figure, gaps documented in notes.', ar: 'تعارض في مصدرين؛ اعتماد Tahseel وتوثيق الفرق.' }, 'warn'),
+        conf(93, { zh: '报表置信度', en: 'Report confidence', ar: 'ثقة التقرير' }, [
+          { label: { zh: 'Tahseel 数据完整率', en: 'Tahseel completeness', ar: 'اكتمال Tahseel' }, points: 71 },
+          { label: { zh: '目标表更新度', en: 'Target-table freshness', ar: 'حداثة الأهداف' }, points: 22 }
+        ]),
+        decide({ zh: '执行摘要：回款 333.3M / 382M（87.3%），达成年度目标 93.1%；「住宿类占用」与「烟草申报费」两个来源达成率 <60% 标红，建议专项催收。', en: 'Executive summary: 333.3M / 382M collected (87.3%), 93.1% of target; accommodation-occupancy and tobacco sources below 60% attainment — flagged for dedicated collection.', ar: 'الملخص: تحصيل 87.3٪ وتحقيق 93.1٪؛ مصدران تحت 60٪ — معالجة خاصة.' }, 'ok', true, { zh: '报表 → PDF/Excel 分发', en: 'report → PDF/Excel distribution', ar: 'التقرير → توزيع' })
+      ]
+    }
+  ],
+  conclusion: { text: { zh: '月度收入报表就绪：回款率 87.3%，达成率 93.1%，两个来源低于 60% 需干预。', en: 'Monthly report ready: collection 87.3%, attainment 93.1%; two sources below 60% need intervention.', ar: 'التقرير جاهز: التحصيل 87.3٪ والتحقيق 93.1٪؛ مصدران يحتاجان تدخلاً.' }, confidence: 93, tone: 'ok', action: { zh: '导出 PDF/Excel 并分发各接收人', en: 'Export PDF/Excel & distribute to recipients', ar: 'التصدير والتوزيع' } }
+};
+
+/* --------------------------------------------------- SCR-12: violation follow-up
+   Follows HLSD WF-08: match via SADAD number first, respect the committee-
+   review pause rule, update the collection score, alert on material changes. */
+export const VIOLATION_ANALYSIS = {
+  'VIO-2026-1042': {
+    title: { zh: '违规跟踪分析 · Efaa ↔ Mumtathil', en: 'Violation Follow-up · Efaa ↔ Mumtathil', ar: 'متابعة المخالفات · Efaa ↔ Mumtathil' },
+    subtitle: { zh: 'VIO-2026-1042 · 申诉获受理', en: 'VIO-2026-1042 · appeal accepted', ar: 'VIO-2026-1042 · استئناف مقبول' },
+    agentTag: 'A5',
+    steps: [
+      {
+        agent: 'A5',
+        title: { zh: '匹配与评分联动', en: 'Matching & score update', ar: 'المطابقة وتحديث الدرجة' },
+        blocks: [
+          tool('mumtathil.pull_case', { case: 'VIO-2026-1042', fields: 18 }, { appeal_status: 'accepted', original_amount: 148000, revised_amount: 96000 }, 380),
+          tool('mumtathil.match_sadad', { sadad: 'SADAD-55031' }, { tahsil_invoice: 'INV-2026-0512', matched: true }, 200),
+          obs({ zh: '申诉获受理并调低金额（148K→96K）；重大变化满足告警条件。', en: 'Appeal accepted with amount reduced (148K→96K); material change meets the alert condition.', ar: 'قُبل الاستئناف وخُفض المبلغ؛ تغير جوهري يستوجب التنبيه.' }, 'warn'),
+          conf(38, { zh: '回款概率评分', en: 'Collection-probability score', ar: 'درجة احتمال التحصيل' }, [
+            { label: { zh: '金额调低 35%', en: 'Amount cut 35%', ar: 'خفض المبلغ 35٪' }, points: -10 },
+            { label: { zh: '申诉结案周期', en: 'Appeal closure cycle', ar: 'دورة الاستئناف' }, points: -4 }
+          ]),
+          decide({ zh: '回款评分 52→38；通知处罚与罚款专员跟进申诉执行。', en: 'Score 52→38; notify the Penalties & Fines Officer to follow up enforcement.', ar: 'الدرجة 52→38؛ إشعار مسؤول الغرامات.' }, 'warn', false, { zh: '重大变化 → 负责人告警', en: 'material change → officer alert', ar: 'تغير جوهري → تنبيه' })
+        ]
+      }
+    ],
+    conclusion: { text: { zh: '申诉获受理、金额调低至 96K SAR，回款评分降至 38，需人工跟进。', en: 'Appeal accepted, amount reduced to 96K SAR, score down to 38 — human follow-up required.', ar: 'قُبل الاستئناف وخُفض المبلغ؛ الدرجة 38 — متابعة بشرية.' }, confidence: 89, tone: 'warn', action: { zh: '跟进申诉 · 更新发票金额', en: 'Follow up appeal · update invoice amount', ar: 'متابعة الاستئناف وتحديث المبلغ' } }
+  },
+  'VIO-2026-1038': {
+    title: { zh: '违规跟踪分析 · Efaa ↔ Mumtathil', en: 'Violation Follow-up · Efaa ↔ Mumtathil', ar: 'متابعة المخالفات · Efaa ↔ Mumtathil' },
+    subtitle: { zh: 'VIO-2026-1038 · 等待委员会审查', en: 'VIO-2026-1038 · pending committee review', ar: 'VIO-2026-1038 · بانتظار اللجنة' },
+    agentTag: 'A5',
+    steps: [
+      {
+        agent: 'A5',
+        title: { zh: '执行暂停规则', en: 'Enforcement pause rule', ar: 'قاعدة إيقاف التنفيذ' },
+        blocks: [
+          tool('mumtathil.pull_case', { case: 'VIO-2026-1038', fields: 18 }, { appeal_status: 'pending_committee', enforcement: 'not_reported' }, 360),
+          obs({ zh: '「等待委员会审查」→ 按规则自动暂停执行流程直至作出决定。', en: 'Pending committee review → enforcement auto-paused until a decision is issued (rule).', ar: 'بانتظار اللجنة → إيقاف تلقائي حتى القرار.' }, 'warn'),
+          decide({ zh: '保持暂停，每周高金额违规报告中列示，等待委员会决定。', en: 'Keep paused; list in the weekly high-value report while awaiting the committee.', ar: 'استمرار الإيقاف وإدراجه في التقرير الأسبوعي.' }, 'warn', false, { zh: '委员会审查中 → 暂停执行', en: 'under review → enforcement paused', ar: 'قيد المراجعة → إيقاف' })
+        ]
+      }
+    ],
+    conclusion: { text: { zh: '案件等待委员会审查，执行流程按规则暂停，评分 44 维持。', en: 'Awaiting committee review; enforcement paused per rule; score held at 44.', ar: 'بانتظار اللجنة؛ التنفيذ موقوف والدرجة 44.' }, confidence: 91, tone: 'warn', action: { zh: '跟进申诉状态', en: 'Follow up appeal status', ar: 'متابعة حالة الاستئناف' } }
+  }
+};

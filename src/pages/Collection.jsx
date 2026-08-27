@@ -21,6 +21,27 @@ function badgeForDelay(k) {
   return 'badge--green';
 }
 
+/* SCR-09: the three forecast probabilities share a tone scale; higher
+   delay/cancellation risk is worse, so the thresholds invert. */
+function badgeForProb(v) {
+  if (v >= 80) return 'badge--green';
+  if (v >= 50) return 'badge--gold';
+  return 'badge--red';
+}
+
+function badgeForRiskProb(v) {
+  if (v >= 40) return 'badge--red';
+  if (v >= 20) return 'badge--orange';
+  return 'badge--green';
+}
+
+/* BRD UC-05 thresholds: <40% urgent, 40-70% active, >70% periodic. */
+function adviceFor(prob) {
+  if (prob < 40) return { key: 'advice_urgent', cls: 'badge--red' };
+  if (prob <= 70) return { key: 'advice_active', cls: 'badge--orange' };
+  return { key: 'advice_periodic', cls: 'badge--green' };
+}
+
 export default function Collection() {
   const { t, lang, T, isRtl } = useI18n();
   const [drawer, setDrawer] = useState(null);
@@ -46,12 +67,24 @@ export default function Collection() {
         {
           label: t('chart_recovery'),
           data: COLLECTIONS.map((c) => c.prob),
-          backgroundColor: COLLECTIONS.map((c) =>
-            c.prob >= 80 ? 'rgba(0, 102, 4,0.35)' : c.prob >= 50 ? 'rgba(255, 193, 7,0.35)' : 'rgba(175, 8, 24,0.28)'
-          ),
-          borderColor: COLLECTIONS.map((c) =>
-            c.prob >= 80 ? 'rgba(0, 102, 4,0.95)' : c.prob >= 50 ? 'rgba(255, 193, 7,0.95)' : 'rgba(175, 8, 24,0.95)'
-          ),
+          backgroundColor: 'rgba(0, 102, 4, 0.35)',
+          borderColor: 'rgba(0, 102, 4, 0.95)',
+          borderWidth: 1,
+          borderRadius: 10
+        },
+        {
+          label: t('th_delay_prob'),
+          data: COLLECTIONS.map((c) => c.delayProb),
+          backgroundColor: 'rgba(255, 193, 7, 0.35)',
+          borderColor: 'rgba(200, 135, 0, 0.95)',
+          borderWidth: 1,
+          borderRadius: 10
+        },
+        {
+          label: t('th_cancel_prob'),
+          data: COLLECTIONS.map((c) => c.cancelProb),
+          backgroundColor: 'rgba(175, 8, 24, 0.25)',
+          borderColor: 'rgba(175, 8, 24, 0.9)',
           borderWidth: 1,
           borderRadius: 10
         }
@@ -66,7 +99,7 @@ export default function Collection() {
       maintainAspectRatio: false,
       locale,
       plugins: {
-        legend: { display: false, rtl: isRtl },
+        legend: { display: true, rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
         tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
@@ -92,6 +125,7 @@ export default function Collection() {
           <div className="page-title">{t('collection')}</div>
           <div className="page-sub">{t('col_prob_sub')}</div>
         </div>
+        <span className="badge badge--teal">{t('updated_daily')}</span>
       </div>
 
       <div className="grid grid-4">
@@ -140,6 +174,9 @@ export default function Collection() {
                   <th>{t('th_overdue')}</th>
                   <th>{t('th_amount')}</th>
                   <th>{t('th_prob')}</th>
+                  <th>{t('th_delay_prob')}</th>
+                  <th>{t('th_cancel_prob')}</th>
+                  <th>{t('th_advice')}</th>
                   <th>{t('th_delay')}</th>
                   <th>{t('th_penalty')}</th>
                 </tr>
@@ -155,7 +192,16 @@ export default function Collection() {
                       <td>{c.overdue} {t('unit_day')}</td>
                       <td>{fmtMoney(c.amount)} SAR</td>
                       <td>
-                        <span className={`badge ${c.prob >= 80 ? 'badge--green' : c.prob >= 50 ? 'badge--gold' : 'badge--red'}`}>{c.prob}%</span>
+                        <span className={`badge ${badgeForProb(c.prob)}`}>{c.prob}%</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${badgeForRiskProb(c.delayProb)}`}>{c.delayProb}%</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${badgeForRiskProb(c.cancelProb)}`}>{c.cancelProb}%</span>
+                      </td>
+                      <td>
+                        <span className={`badge ${adviceFor(c.prob).cls}`}>{t(adviceFor(c.prob).key)}</span>
                       </td>
                       <td>
                         <span className={`badge ${badgeForDelay(c.delayKey)}`}>{lang === 'zh' ? c.delay : lang === 'ar' ? c.delayAr : c.delayEn}</span>

@@ -293,11 +293,11 @@ export const AGENTS = [
     formEn: 'Workflow App',
     formAr: 'تطبيق سير العمل',
     color: 'indigo',
-    desc: '三单匹配（账单-PO-实收），ZATCA 税务校验，Makin vs Tahseel 跨平台对账。',
+    desc: '三单匹配（账单-PO-实收），ZATCA 税务校验，Makeen vs Tahseel 跨平台对账。',
     descEn:
-      '3-way matching (Invoice-PO-Receipt), ZATCA tax verification, and cross-platform reconciliation between Makin and Tahseel.',
+      '3-way matching (Invoice-PO-Receipt), ZATCA tax verification, and cross-platform reconciliation between Makeen and Tahseel.',
     descAr:
-      'المطابقة الثلاثية (فاتورة-PO-إيصال)، التحقق الضريبي ZATCA، والتسوية عبر المنصات بين Makin وTahseel.',
+      'المطابقة الثلاثية (فاتورة-PO-إيصال)، التحقق الضريبي ZATCA، والتسوية عبر المنصات بين Makeen وTahseel.',
     uc: 'UC-02、UC-11 / FR-005/006',
     model: '豆包文本模型 · 温度 0.2',
     modelEn: 'Doubao Text · Temp 0.2',
@@ -477,7 +477,7 @@ export const SOURCES = [
   },
   {
     id: 'makin',
-    name: 'Makin',
+    name: 'Makeen',
     desc: '合同平台',
     descEn: 'Contract Platform',
     descAr: 'منصة العقود',
@@ -486,7 +486,7 @@ export const SOURCES = [
   },
   {
     id: 'efa',
-    name: 'Efa',
+    name: 'Efaa',
     desc: '支付平台',
     descEn: 'Payment Platform',
     descAr: 'منصة الدفع',
@@ -529,7 +529,7 @@ export const INVOICES = [
     entityAr: 'نيوم للخدمات اللوجستية',
     amount: 486000,
     currency: 'SAR',
-    source: 'Makin',
+    source: 'Makeen',
     po: 'PO-88192',
     vat: '3009988776600001',
     date: '2026-07-26',
@@ -545,7 +545,7 @@ export const INVOICES = [
     entityAr: 'الحلول التقنية السعودية',
     amount: 92500,
     currency: 'SAR',
-    source: 'Efa',
+    source: 'Efaa',
     po: 'PO-88155',
     vat: '3002233445500007',
     date: '2026-07-25',
@@ -577,7 +577,7 @@ export const INVOICES = [
     entityAr: 'أرامكو للإمداد اللوجستي',
     amount: 3180000,
     currency: 'SAR',
-    source: 'Makin',
+    source: 'Makeen',
     po: 'PO-87990',
     vat: '3005566778800002',
     date: '2026-07-24',
@@ -609,7 +609,7 @@ export const INVOICES = [
     entityAr: 'STC لخدمات الاتصالات',
     amount: 158900,
     currency: 'SAR',
-    source: 'Efa',
+    source: 'Efaa',
     po: 'PO-87880',
     vat: '3003344556600009',
     date: '2026-07-23',
@@ -625,7 +625,7 @@ export const INVOICES = [
     entityAr: 'البحري للخدمات اللوجستية البحرية',
     amount: 2260000,
     currency: 'SAR',
-    source: 'Makin',
+    source: 'Makeen',
     po: 'PO-87812',
     vat: '3006677889900005',
     date: '2026-07-23',
@@ -674,6 +674,7 @@ export const APPROVALS = [
     sla: '4 小时',
     slaEn: '4 hours',
     slaAr: '4 ساعات',
+    slaLeft: 3.5,
     reason:
       '金额 > 300 万 SAR，触发六级审批链；且评估已超时 8h，自动升级至中心主任',
     reasonEn:
@@ -705,6 +706,7 @@ export const APPROVALS = [
     sla: '8 小时',
     slaEn: '8 hours',
     slaAr: '8 ساعات',
+    slaLeft: 7,
     reason: '金额 100~300 万 SAR，触发四级审批链',
     reasonEn: 'Amount 1-3M SAR, triggers 4-level approval chain',
     reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من 4 مستويات',
@@ -733,6 +735,7 @@ export const APPROVALS = [
     sla: '8 小时',
     slaEn: '8 hours',
     slaAr: '8 ساعات',
+    slaLeft: 6.5,
     reason: '金额 100~300 万 SAR，触发三级审批链',
     reasonEn: 'Amount 1-3M SAR, triggers 3-level approval chain',
     reasonAr: 'المبلغ 1-3 مليون ر.س، يطلق سلسلة موافقة من 3 مستويات',
@@ -802,11 +805,11 @@ export const RISKS = [
     types: ['税号与合同主体不一致'],
     typesEn: ['VAT-contract entity mismatch'],
     typesAr: ['عدم تطابق الرقم الضريبي مع كيان العقد'],
-    evidence: 'VAT 号归属主体与 Makin 合同签约主体不一致，需核实关联关系。',
+    evidence: 'VAT 号归属主体与 Makeen 合同签约主体不一致，需核实关联关系。',
     evidenceEn:
-      'The VAT owner differs from the Makin contract signatory; the relationship needs verification.',
+      'The VAT owner differs from the Makeen contract signatory; the relationship needs verification.',
     evidenceAr:
-      'مالك الرقم الضريبي يختلف عن موقّع عقد Makin؛ يجب التحقق من العلاقة.',
+      'مالك الرقم الضريبي يختلف عن موقّع عقد Makeen؛ يجب التحقق من العلاقة.',
     action: '转合规复核',
     actionEn: 'Referred to compliance review',
     actionAr: 'محال لمراجعة الامتثال',
@@ -846,6 +849,8 @@ export const COLLECTIONS = [
     overdue: 45,
     amount: 890000,
     prob: 34,
+    delayProb: 48,
+    cancelProb: 18,
     delay: '高',
     delayEn: 'High',
     delayAr: 'عالٍ',
@@ -867,6 +872,8 @@ export const COLLECTIONS = [
     overdue: 28,
     amount: 320000,
     prob: 62,
+    delayProb: 31,
+    cancelProb: 7,
     delay: '中',
     delayEn: 'Medium',
     delayAr: 'متوسط',
@@ -888,6 +895,8 @@ export const COLLECTIONS = [
     overdue: 12,
     amount: 1560000,
     prob: 88,
+    delayProb: 9,
+    cancelProb: 3,
     delay: '低',
     delayEn: 'Low',
     delayAr: 'منخفض',
@@ -909,6 +918,8 @@ export const COLLECTIONS = [
     overdue: 61,
     amount: 2100000,
     prob: 21,
+    delayProb: 55,
+    cancelProb: 24,
     delay: '高',
     delayEn: 'High',
     delayAr: 'عالٍ',
@@ -946,15 +957,15 @@ export const TREND = {
 export const QA = [
   {
     match: ['回收率', '收缴', 'recovery', 'collection rate', 'التحصيل', 'تحصيل'],
-    zh: '本月账款回收率为 **87.3%**，环比上升 3.1 个百分点，已超过 85% 的目标。其中 Tahseel 平台回收率最高达 91.2%，Makin 平台 84.6%。当前有 4 笔逾期账单回收概率低于 40%，建议优先介入。',
-    en: "This month's collection rate is **87.3%**, up 3.1 pts month-over-month, exceeding the 85% target. Tahseel leads at 91.2%, Makin at 84.6%. There are 4 overdue invoices with recovery probability below 40% — priority intervention recommended.",
+    zh: '本月账款回收率为 **87.3%**，环比上升 3.1 个百分点，已超过 85% 的目标。其中 Tahseel 平台回收率最高达 91.2%，Makeen 平台 84.6%。当前有 4 笔逾期账单回收概率低于 40%，建议优先介入。',
+    en: "This month's collection rate is **87.3%**, up 3.1 pts month-over-month, exceeding the 85% target. Tahseel leads at 91.2%, Makeen at 84.6%. There are 4 overdue invoices with recovery probability below 40% — priority intervention recommended.",
     ar: 'بلغ معدل التحصيل هذا الشهر **87.3%**، بزيادة 3.1 نقطة مئوية عن الشهر السابق، متجاوزًا الهدف البالغ 85%. أعلى معدل تحصيل على منصة Tahseel بنسبة 91.2%.',
     chart: 'recovery'
   },
   {
     match: ['本月收入', '处理金额', '金额', 'revenue', 'amount', 'processed', 'المبلغ', 'الإيرادات'],
-    zh: '本月已处理账单金额合计 **3.82 亿 SAR**（12,480 张），环比增长 12.5%。其中 Makin 平台占比 41%，Tahseel 平台 32%。已通过审批金额 3.44 亿，待人工复核金额 0.31 亿。',
-    en: 'Total amount processed this month is **382M SAR** (12,480 invoices), up 12.5% MoM. Makin accounts for 41%, Tahseel 32%. Approved amount is 344M, and 31M is pending manual review.',
+    zh: '本月已处理账单金额合计 **3.82 亿 SAR**（12,480 张），环比增长 12.5%。其中 Makeen 平台占比 41%，Tahseel 平台 32%。已通过审批金额 3.44 亿，待人工复核金额 0.31 亿。',
+    en: 'Total amount processed this month is **382M SAR** (12,480 invoices), up 12.5% MoM. Makeen accounts for 41%, Tahseel 32%. Approved amount is 344M, and 31M is pending manual review.',
     ar: 'إجمالي المبالغ المعالجة هذا الشهر **382 مليون ريال سعودي** (12,480 فاتورة)، بنمو 12.5%.',
     chart: 'source'
   },
@@ -1090,6 +1101,288 @@ export const VALUE_SUMMARY = {
   escalated: 1073,
   costAvoided: 1250000
 };
+
+/* ---------- SCR-11: Platform reconciliation (Makeen ↔ Tahseel) ----------
+   Weekly diff report. Records derive from the RECON scenarios so the same
+   invoice facts stay consistent across pages. Tahseel is authoritative. */
+export const RECON_DIFF_TYPES = {
+  amount: { label: '金额差异', labelEn: 'Amount diff', labelAr: 'فرق مبلغ', color: 'orange' },
+  missingTahsil: { label: 'Tahseel 缺失', labelEn: 'Missing in Tahseel', labelAr: 'مفقود في Tahseel', color: 'blue' },
+  missingMakken: { label: 'Makeen 缺失', labelEn: 'Missing in Makeen', labelAr: 'مفقود في Makeen', color: 'indigo' },
+  status: { label: '状态差异', labelEn: 'Status diff', labelAr: 'فرق حالة', color: 'gold' }
+};
+
+export const PLATFORM_RECON = [
+  {
+    id: 'INV-2026-0731',
+    vendor: 'Al-Rajhi 建设集团',
+    vendorEn: 'Al-Rajhi Construction Group',
+    vendorAr: 'مجموعة الراجحي للإنشاءات',
+    orgId: 'riyadh',
+    type: 'amount',
+    makkenAmt: 1250000,
+    tahsilAmt: 1187500,
+    diff: 62500,
+    high: true,
+    reason: 'Tahseel 回款未含增值税，差额对应 15% 税额的一部分',
+    reasonEn: 'Tahseel collection excludes VAT; gap maps to part of the 15% tax',
+    reasonAr: 'تحصيل Tahseel لا يشمل الضريبة؛ الفرق جزء من ضريبة 15٪',
+    action: '转税务审计员核查',
+    actionEn: 'Refer to tax auditor',
+    actionAr: 'إحالة إلى مدقق الضرائب'
+  },
+  {
+    id: 'INV-2026-0727',
+    vendor: 'Aramco 后勤供应',
+    vendorEn: 'Aramco Logistics Supply',
+    vendorAr: 'أرامكو للإمداد اللوجستي',
+    orgId: 'eastern',
+    type: 'amount',
+    makkenAmt: 3180000,
+    tahsilAmt: 3128400,
+    diff: 51600,
+    high: true,
+    reason: 'Makeen 单价（180,000）高于 PO 基准，差异传导至回款',
+    reasonEn: 'Makeen unit price (180,000) above PO baseline; variance carried into collection',
+    reasonAr: 'سعر الوحدة في Makeen فوق مرجع PO؛ الفرق انتقل إلى التحصيل',
+    action: '以 Tahseel 为准核验',
+    actionEn: 'Verify against Tahseel',
+    actionAr: 'التحقق مقابل Tahseel'
+  },
+  {
+    id: 'INV-2026-0728',
+    vendor: 'Gulf Facility Mgmt',
+    vendorEn: 'Gulf Facility Mgmt',
+    vendorAr: 'إدارة مرافق الخليج',
+    orgId: 'riyadh',
+    type: 'status',
+    makkenAmt: 1250000,
+    tahsilAmt: 1250000,
+    diff: 1250000,
+    high: true,
+    reason: 'Tahseel 显示已回款，Makeen 中该发票已注销',
+    reasonEn: 'Collected in Tahseel but cancelled in Makeen',
+    reasonAr: 'محصّلة في Tahseel لكن ملغاة في Makeen',
+    action: '在 Makeen 中补录',
+    actionEn: 'Reinstate in Makeen',
+    actionAr: 'إعادة التسجيل في Makeen'
+  },
+  {
+    id: 'INV-2026-0726',
+    vendor: 'Riyadh 市政工程',
+    vendorEn: 'Riyadh Municipal Works',
+    vendorAr: 'أعمال بلدية الرياض',
+    orgId: 'riyadh',
+    type: 'missingTahsil',
+    makkenAmt: 742000,
+    tahsilAmt: null,
+    diff: 742000,
+    high: true,
+    reason: 'Makeen 存在计费记录，Tahseel 无对应回款记录',
+    reasonEn: 'Billing record exists in Makeen; no matching Tahseel collection record',
+    reasonAr: 'سجل فوترة في Makeen بلا مقابل في Tahseel',
+    action: '在 Tahseel 中核验',
+    actionEn: 'Verify in Tahseel',
+    actionAr: 'التحقق في Tahseel'
+  },
+  {
+    id: 'INV-2026-0724',
+    vendor: 'Bahri 海运物流',
+    vendorEn: 'Bahri Maritime Logistics',
+    vendorAr: 'البحري للخدمات اللوجستية البحرية',
+    orgId: 'eastern',
+    type: 'missingMakken',
+    makkenAmt: null,
+    tahsilAmt: 2260000,
+    diff: 2260000,
+    high: true,
+    reason: 'Tahseel 已回款，Makeen 无对应计费记录',
+    reasonEn: 'Collected in Tahseel; no matching Makeen billing record',
+    reasonAr: 'محصّلة في Tahseel؛ لا سجل فوترة في Makeen',
+    action: '在 Makeen 中补录',
+    actionEn: 'Reinstate in Makeen',
+    actionAr: 'إعادة التسجيل في Makeen'
+  },
+  {
+    id: 'INV-2026-0725',
+    vendor: 'STC 通信服务',
+    vendorEn: 'STC Telecom Services',
+    vendorAr: 'STC لخدمات الاتصالات',
+    orgId: 'riyadh',
+    type: 'amount',
+    makkenAmt: 158900,
+    tahsilAmt: 154900,
+    diff: 4000,
+    high: false,
+    reason: '手续费计入口径不一致（Makeen 含渠道费）',
+    reasonEn: 'Channel-fee accounting differs (Makeen includes the channel fee)',
+    reasonAr: 'اختلاف احتساب رسوم القناة',
+    action: '人工审查',
+    actionEn: 'Manual review',
+    actionAr: 'مراجعة يدوية'
+  },
+  {
+    id: 'INV-2026-0730',
+    vendor: 'NEOM 物流服务',
+    vendorEn: 'NEOM Logistics',
+    vendorAr: 'نيوم للخدمات اللوجستية',
+    orgId: 'makkah',
+    type: 'status',
+    makkenAmt: 486000,
+    tahsilAmt: 486000,
+    diff: 486000,
+    high: true,
+    reason: 'Makeen 待审批，Tahseel 已按风险拦截拒付，状态未同步',
+    reasonEn: 'Pending in Makeen but blocked/rejected in Tahseel after risk flag; status out of sync',
+    reasonAr: 'قيد الانتظار في Makeen ومرفوضة في Tahseel بعد وسم المخاطر',
+    action: '人工审查',
+    actionEn: 'Manual review',
+    actionAr: 'مراجعة يدوية'
+  }
+];
+
+/* ---------- SCR-08: Audit trail (derived from the demo scenarios) ----------
+   Immutable event log assembled from the same facts shown on Pipeline / Risk /
+   Approvals, so the audit view never contradicts the processing views.
+   Uses {zh,en,ar} objects rendered via L() like other component-level data. */
+export const AUDIT_STAGES = {
+  ingest: { label: { zh: '摄取', en: 'Ingest', ar: 'استيعاب' }, color: 'blue' },
+  ocr: { label: { zh: 'OCR 提取', en: 'OCR', ar: 'OCR' }, color: 'blue' },
+  dedup: { label: { zh: '去重', en: 'Dedup', ar: 'إزالة التكرار' }, color: 'blue' },
+  validate: { label: { zh: '核验', en: 'Validate', ar: 'التحقق' }, color: 'teal' },
+  anomaly: { label: { zh: '异常检测', en: 'Anomaly', ar: 'الشذوذ' }, color: 'orange' },
+  route: { label: { zh: '审批路由', en: 'Routing', ar: 'التوجيه' }, color: 'purple' },
+  approval: { label: { zh: '人工审批', en: 'Approval', ar: 'الموافقة' }, color: 'green' },
+  pending: { label: { zh: '暂停待处置', en: 'Pending', ar: 'معلّقة' }, color: 'gold' }
+};
+
+export const AUDIT_TRAIL = [
+  { time: '2026-07-26 09:14', inv: 'INV-2026-0731', stage: 'ingest', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '从 Tahseel 拉取 PDF，分配唯一标识', en: 'Pulled PDF from Tahseel, assigned unique ID', ar: 'سحب PDF من Tahseel وتعيين معرف' }, conf: 97 },
+  { time: '2026-07-26 09:15', inv: 'INV-2026-0731', stage: 'ocr', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: 'OCR 提取 10 字段，日期/金额标准化', en: 'OCR extracted 10 fields; date/amount standardized', ar: 'استخراج 10 حقول وتوحيد التاريخ والمبلغ' }, conf: 99 },
+  { time: '2026-07-26 09:16', inv: 'INV-2026-0731', stage: 'dedup', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '发票号+主体+金额+日期四元组比对通过', en: 'Tuple match (no/ entity/ amount/ date) passed', ar: 'المطابقة الرباعية نجحت' }, conf: 95 },
+  { time: '2026-07-26 09:18', inv: 'INV-2026-0731', stage: 'validate', actor: { zh: 'A2 · 核验智能体', en: 'A2 · Validation Agent', ar: 'A2 · وكيل التحقق' }, action: { zh: '三单匹配通过，ZATCA VAT 复算一致', en: '3-way match passed; ZATCA VAT recompute consistent', ar: 'المطابقة الثلاثية ناجحة والضريبة متسقة' }, conf: 96 },
+  { time: '2026-07-26 09:19', inv: 'INV-2026-0731', stage: 'anomaly', actor: { zh: 'A3 · 异常智能体', en: 'A3 · Anomaly Agent', ar: 'A3 · وكيل الشذوذ' }, action: { zh: '风险评分 12（低），放行', en: 'Risk score 12 (low); released', ar: 'درجة 12 (منخفضة)؛ سماح' }, conf: 92 },
+  { time: '2026-07-26 09:20', inv: 'INV-2026-0731', stage: 'route', actor: { zh: 'A4 · 路由智能体', en: 'A4 · Routing Agent', ar: 'A4 · وكيل التوجيه' }, action: { zh: '金额 1.25M → 3 级审批链，SLA 8h', en: '1.25M → 3-level chain, SLA 8h', ar: '1.25M → سلسلة 3 مستويات، SLA 8 ساعات' }, conf: 95 },
+  { time: '2026-07-27 10:05', inv: 'INV-2026-0731', stage: 'approval', actor: { zh: '李芳军（人工）', en: 'Li Fangjun (human)', ar: 'لي فانغجون (بشري)' }, action: { zh: '人工确认批准，进入付款队列', en: 'Human confirmed approval; queued for payment', ar: 'تأكيد بشري بالموافقة' }, hitl: true },
+  { time: '2026-07-26 09:22', inv: 'INV-2026-0730', stage: 'ingest', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '从 Makeen 拉取 PDF，分配唯一标识', en: 'Pulled PDF from Makeen, assigned unique ID', ar: 'سحب PDF من Makeen وتعيين معرف' }, conf: 98 },
+  { time: '2026-07-26 09:24', inv: 'INV-2026-0730', stage: 'validate', actor: { zh: 'A2 · 核验智能体', en: 'A2 · Validation Agent', ar: 'A2 · وكيل التحقق' }, action: { zh: '三单一致（价格偏差移交 A3）', en: '3-way consistent (price deviation passed to A3)', ar: 'مطابقة متسقة (انحراف السعر إلى A3)' }, conf: 90 },
+  { time: '2026-07-26 09:25', inv: 'INV-2026-0730', stage: 'anomaly', actor: { zh: 'A3 · 异常智能体', en: 'A3 · Anomaly Agent', ar: 'A3 · وكيل الشذوذ' }, action: { zh: '风险 82：价格高于基准 +38%、供应商首次交易', en: 'Risk 82: price +38% over benchmark, first-time vendor', ar: 'درجة 82: السعر +38٪ ومورد جديد' }, conf: 71 },
+  { time: '2026-07-26 09:25', inv: 'INV-2026-0730', stage: 'pending', actor: { zh: 'A0 · 编排层', en: 'A0 · Orchestrator', ar: 'A0 · المنسق' }, action: { zh: 'HITL 断点：置信度 71% < 75%，暂停付款转审计师', en: 'HITL breakpoint: confidence 71% < 75%; payment paused, referred to auditor', ar: 'توقف HITL: الثقة 71٪ < 75٪؛ إيقاف وإحالة' }, hitl: true },
+  { time: '2026-07-26 09:30', inv: 'INV-2026-0728', stage: 'ingest', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '从 Tahseel 拉取 PDF，分配唯一标识', en: 'Pulled PDF from Tahseel, assigned unique ID', ar: 'سحب PDF من Tahseel وتعيين معرف' }, conf: 96 },
+  { time: '2026-07-26 09:31', inv: 'INV-2026-0728', stage: 'dedup', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '与 INV-2026-0731 四元组一致 → 拦截疑似重复', en: 'Tuple matches INV-2026-0731 → blocked as suspected duplicate', ar: 'تطابق رباعي مع INV-2026-0731 → حظر التكرار' }, conf: 95 },
+  { time: '2026-07-26 09:31', inv: 'INV-2026-0728', stage: 'pending', actor: { zh: 'A0 · 编排层', en: 'A0 · Orchestrator', ar: 'A0 · المنسق' }, action: { zh: '重复拦截，等待人工确认后归档', en: 'Duplicate blocked; awaiting human confirm to archive', ar: 'حظر التكرار؛ بانتظار التأكيد البشري' }, hitl: true },
+  { time: '2026-07-26 09:40', inv: 'INV-2026-0727', stage: 'ingest', actor: { zh: 'A1 · 摄取智能体', en: 'A1 · Ingestion Agent', ar: 'A1 · وكيل الاستيعاب' }, action: { zh: '从 Makeen 拉取 PDF，分配唯一标识', en: 'Pulled PDF from Makeen, assigned unique ID', ar: 'سحب PDF من Makeen وتعيين معرف' }, conf: 97 },
+  { time: '2026-07-26 09:42', inv: 'INV-2026-0727', stage: 'validate', actor: { zh: 'A2 · 核验智能体', en: 'A2 · Validation Agent', ar: 'A2 · وكيل التحقق' }, action: { zh: 'VAT 申报 ≠ ZATCA 复算，税号校验位失败，总额偏差 +2.4%', en: 'VAT declared ≠ ZATCA expected; tax-ID check-digit failed; total +2.4%', ar: 'الضريبة المعلنة ≠ المتوقعة؛ فشل الرقم الضريبي؛ +2.4٪' }, conf: 68 },
+  { time: '2026-07-26 09:43', inv: 'INV-2026-0727', stage: 'route', actor: { zh: 'A4 · 路由智能体', en: 'A4 · Routing Agent', ar: 'A4 · وكيل التوجيه' }, action: { zh: '评估超时 8h → 自动升级至中心主任', en: 'Evaluation overran SLA by 8h → auto-escalated to Center Director', ar: 'تجاوز 8 ساعات → تصعيد تلقائي للمدير' }, conf: 88 },
+  { time: '2026-07-26 14:30', inv: 'INV-2026-0727', stage: 'approval', actor: { zh: '中心主任（人工）', en: 'Center Director (human)', ar: 'مدير المركز (بشري)' }, action: { zh: '要求补正税号后重新提交审批', en: 'Requested tax-ID correction before resubmission', ar: 'طلب تصحيح الرقم الضريبي قبل إعادة التقديم' }, hitl: true }
+];
+
+/* ---------- SCR-10: Periodic revenue reporting (Municipal + Housing) ----------
+   Figures are split from the monthly KPI universe (382M invoiced / 87.3%
+   collection) so the revenue board never contradicts the Dashboard. */
+export const REVENUE_SOURCES = [
+  { id: 'realty', sector: 'municipal', label: '市政房地产投资', labelEn: 'Municipal real-estate investment', labelAr: 'الاستثمار العقاري البلدي', invoiced: 96400000, collected: 87400000, target: 92000000, lastYear: 79300000 },
+  { id: 'penalty', sector: 'municipal', label: '处罚与违规罚款', labelEn: 'Penalties & fines', labelAr: 'الغرامات والمخالفات', invoiced: 58200000, collected: 48000000, target: 54000000, lastYear: 41200000 },
+  { id: 'fees', sector: 'municipal', label: '规费与财务对价', labelEn: 'Fees & financial consideration', labelAr: 'الرسوم والمقابل المالي', invoiced: 74800000, collected: 66200000, target: 70000000, lastYear: 63800000 },
+  { id: 'hostel', sector: 'municipal', label: '住宿类设施占用', labelEn: 'Accommodation-facility occupancy', labelAr: 'إشغال المرافق الإيوائية', invoiced: 12600000, collected: 6900000, target: 11800000, lastYear: 8100000 },
+  { id: 'tobacco', sector: 'municipal', label: '烟草制品申报费', labelEn: 'Tobacco declaration fees', labelAr: 'رسوم إقرار التبغ', invoiced: 8400000, collected: 4100000, target: 7900000, lastYear: 5200000 },
+  { id: 'whiteLand', sector: 'housing', label: '白地费（空置土地）', labelEn: 'White-land fee (vacant land)', labelAr: 'رسوم الأراضي البيضاء', invoiced: 98600000, collected: 92000000, target: 92000000, lastYear: 81400000 },
+  { id: 'housingSales', sector: 'housing', label: '住宅销售收入', labelEn: 'Residential sales revenue', labelAr: 'إيرادات البيع السكني', invoiced: 28900000, collected: 25100000, target: 26500000, lastYear: 22300000 },
+  { id: 'other', sector: 'municipal', label: '其他收入', labelEn: 'Other revenues', labelAr: 'إيرادات أخرى', invoiced: 4100000, collected: 3600000, target: 3800000, lastYear: 3100000 }
+];
+
+export const REVENUE_SECTORS = {
+  municipal: { label: '市政板块', labelEn: 'Municipal', labelAr: 'القطاع البلدي' },
+  housing: { label: '住房板块', labelEn: 'Housing', labelAr: 'قطاع الإسكان' }
+};
+
+/* Per-Amanah rollup; org names/labels join from ORGS by orgId. */
+export const REVENUE_AMANAH = [
+  { orgId: 'riyadh', collected: 118600000, target: 126000000, coverage: 1.92 },
+  { orgId: 'makkah', collected: 72400000, target: 78000000, coverage: 1.54 },
+  { orgId: 'eastern', collected: 58900000, target: 61000000, coverage: 1.71 },
+  { orgId: 'gen-office', collected: 12600000, target: 13200000, coverage: null }
+];
+
+/* ---------- SCR-12: Violation follow-up (Efaa ↔ Mumtathil) ---------- */
+export const EXEC_STATUS = {
+  notReported: { label: '未上报', labelEn: 'Not reported', labelAr: 'لم يُرفع', color: 'blue' },
+  referable: { label: '可转办', labelEn: 'Referable', labelAr: 'قابل للإحالة', color: 'gold' },
+  unenforceable: { label: '无法执行', labelEn: 'Unenforceable', labelAr: 'غير قابل للتنفيذ', color: 'red' },
+  enforced: { label: '已对其执行', labelEn: 'Enforced', labelAr: 'تم التنفيذ', color: 'green' }
+};
+
+export const APPEAL_STATUS = {
+  none: { label: '无', labelEn: 'None', labelAr: 'لا يوجد', color: '' },
+  rejected: { label: '已驳回', labelEn: 'Rejected', labelAr: 'مرفوض', color: 'green' },
+  accepted: { label: '已受理', labelEn: 'Accepted', labelAr: 'مقبول', color: 'gold' },
+  pending: { label: '等待委员会审查', labelEn: 'Pending committee review', labelAr: 'بانتظار مراجعة اللجنة', color: 'orange' }
+};
+
+export const VIOLATION_LAWS = {
+  road: { label: '道路与街道违规', labelEn: 'Road & street violation', labelAr: 'مخالفة الطرق' },
+  building: { label: '一般建筑违规', labelEn: 'Building violation', labelAr: 'مخالفة بناء' },
+  municipal: { label: '市政违规', labelEn: 'Municipal violation', labelAr: 'مخالفة بلدية' }
+};
+
+export const VIOLATIONS = [
+  {
+    id: 'VIO-2026-1042', nid: '1042•••••55', orgId: 'riyadh', lawKey: 'road',
+    amount: 148000, execKey: 'referable', appealKey: 'accepted', score: 38,
+    updated: '2026-08-24', high: true,
+    note: '申诉获受理并调低金额（148K→96K），回款评分 52→38',
+    noteEn: 'Appeal accepted with amount reduced (148K→96K); score 52→38',
+    noteAr: 'قُبل الاستئناف وخُفض المبلغ؛ الدرجة 52→38'
+  },
+  {
+    id: 'VIO-2026-1038', nid: '2091•••••10', orgId: 'riyadh', lawKey: 'building',
+    amount: 86500, execKey: 'notReported', appealKey: 'pending', score: 44,
+    updated: '2026-08-24', high: false,
+    note: '等待委员会审查：执行流程自动暂停直至作出决定',
+    noteEn: 'Pending committee review: enforcement auto-paused until decision',
+    noteAr: 'بانتظار اللجنة: التنفيذ موقوف تلقائياً حتى القرار'
+  },
+  {
+    id: 'VIO-2026-1031', nid: '7310•••••82', orgId: 'makkah', lawKey: 'municipal',
+    amount: 214000, execKey: 'enforced', appealKey: 'rejected', score: 86,
+    updated: '2026-08-23', high: true,
+    note: '申诉已驳回，已对其执行，回款评分升至 86',
+    noteEn: 'Appeal rejected; enforced; score raised to 86',
+    noteAr: 'رُفض الاستئناف وتم التنفيذ؛ الدرجة 86'
+  },
+  {
+    id: 'VIO-2026-1027', nid: '8842•••••03', orgId: 'eastern', lawKey: 'road',
+    amount: 42300, execKey: 'unenforceable', appealKey: 'none', score: 12,
+    updated: '2026-08-23', high: false,
+    note: '被执行方无的可执行资产，转入坏账评估',
+    noteEn: 'No enforceable assets; moved to bad-debt assessment',
+    noteAr: 'لا أصول قابلة للتنفيذ؛ تحويل لتقييم الديون المعدومة'
+  },
+  {
+    id: 'VIO-2026-1019', nid: '5520•••••41', orgId: 'makkah', lawKey: 'building',
+    amount: 67800, execKey: 'referable', appealKey: 'none', score: 63,
+    updated: '2026-08-22', high: false,
+    note: '身份标识在 Efaa 与 Mumtathil 之间冲突，标记需人工审查',
+    noteEn: 'Identity conflicts between Efaa and Mumtathil; flagged for manual review',
+    noteAr: 'تعارض الهوية بين المنصتين؛ موسوم لمراجعة يدوية'
+  },
+  {
+    id: 'VIO-2026-1011', nid: '3391•••••27', orgId: 'eastern', lawKey: 'municipal',
+    amount: 158500, execKey: 'enforced', appealKey: 'rejected', score: 91,
+    updated: '2026-08-21', high: true,
+    note: '已执行完毕并回款，评分 91（高）',
+    noteEn: 'Enforced and collected; score 91 (high)',
+    noteAr: 'تم التنفيذ والتحصيل؛ الدرجة 91'
+  },
+  {
+    id: 'VIO-2026-1005', nid: '6614•••••99', orgId: 'riyadh', lawKey: 'municipal',
+    amount: 28900, execKey: 'notReported', appealKey: 'none', score: 57,
+    updated: '2026-08-21', high: false,
+    note: '新批次接入，待匹配 Tahseel 缴款号',
+    noteEn: 'New batch ingested; awaiting Tahseel SADAD match',
+    noteAr: 'دفعة جديدة؛ بانتظار مطابقة رقم Sadad'
+  }
+];
 
 /* ---------- Utility ---------- */
 export function fmtMoney(n) {

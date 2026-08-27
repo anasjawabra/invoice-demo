@@ -9,6 +9,7 @@ import {
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
+import { useToast } from '../components/Toast';
 import { RISKS } from '../data/mock';
 import { RISK_ANALYSIS } from '../data/aiProcess';
 import AIProcessDrawer from '../components/ai/AIProcessDrawer';
@@ -25,6 +26,9 @@ function badgeForLevel(score) {
 export default function Risk() {
   const { t, lang, T, isRtl } = useI18n();
   const [drawer, setDrawer] = useState(null);
+  // Local copy so auditor decisions (accept / investigate) mutate the list.
+  const [items, setItems] = useState(RISKS);
+  const toast = useToast();
 
   const labels = useMemo(() => {
     const v = t('risk_labels');
@@ -142,7 +146,7 @@ export default function Risk() {
           <div className="page-sub">{t('risk_list_sub')}</div>
           <div className="hr" />
           <div style={{ display: 'grid', gap: 12 }}>
-            {RISKS.map((r) => (
+            {items.map((r) => (
               <div className="card" style={{ padding: 12, background: 'rgba(255,255,255,0.03)' }} key={r.id}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
                   <div style={{ minWidth: 0 }}>
@@ -175,6 +179,19 @@ export default function Risk() {
                 <div style={{ marginTop: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button className="btn btn-ghost btn-sm" type="button" onClick={() => setDrawer(RISK_ANALYSIS[r.id])}>
                     {t('ai_process_btn')}
+                  </button>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    type="button"
+                    onClick={() => {
+                      setItems((prev) => prev.filter((x) => x.id !== r.id));
+                      toast.success(`${t('toast_accept')}${r.id}`);
+                    }}
+                  >
+                    {t('btn_accept')}
+                  </button>
+                  <button className="btn btn-ghost btn-sm" type="button" onClick={() => toast.warning(`${t('toast_investigate')}${r.id}`)}>
+                    {t('btn_investigate')}
                   </button>
                 </div>
               </div>

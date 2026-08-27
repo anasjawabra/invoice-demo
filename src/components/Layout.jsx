@@ -80,6 +80,42 @@ function Icon({ name }) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       );
+    case 'recon':
+      return (
+        <svg {...common}>
+          <path d="M8 3H4v4" />
+          <path d="M16 3h4v4" />
+          <path d="M8 21H4v-4" />
+          <path d="M16 21h4v-4" />
+          <path d="M4 12h16" />
+          <path d="M9 9l-2 3 2 3" />
+          <path d="M15 9l2 3-2 3" />
+        </svg>
+      );
+    case 'violations':
+      return (
+        <svg {...common}>
+          <path d="M12 3l9 16H3l9-16z" />
+          <path d="M12 10v4" />
+          <path d="M12 17h.01" />
+        </svg>
+      );
+    case 'revenue':
+      return (
+        <svg {...common}>
+          <path d="M4 20V10" />
+          <path d="M10 20V4" />
+          <path d="M16 20v-8" />
+          <path d="M22 20H2" />
+        </svg>
+      );
+    case 'audit':
+      return (
+        <svg {...common}>
+          <circle cx="11" cy="11" r="7" />
+          <path d="M21 21l-4.3-4.3" />
+        </svg>
+      );
     default:
       return (
         <svg {...common}>
@@ -110,6 +146,7 @@ function LayoutInner() {
         items: [
           { to: '/pipeline', icon: 'pipeline', label: t('process') },
           { to: '/invoices', icon: 'invoices', label: t('invoices') },
+          { to: '/recon', icon: 'recon', label: t('recon') },
           { to: '/approvals', icon: 'approvals', label: t('approvals') }
         ]
       },
@@ -117,7 +154,15 @@ function LayoutInner() {
         title: t('nav_risk'),
         items: [
           { to: '/risk', icon: 'risk', label: t('risk') },
-          { to: '/collection', icon: 'collection', label: t('collection') }
+          { to: '/collection', icon: 'collection', label: t('collection') },
+          { to: '/violations', icon: 'violations', label: t('violations') }
+        ]
+      },
+      {
+        title: t('nav_report'),
+        items: [
+          { to: '/revenue', icon: 'revenue', label: t('revenue') },
+          { to: '/audit', icon: 'audit', label: t('audit') }
         ]
       },
       {
@@ -135,9 +180,13 @@ function LayoutInner() {
     if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
     if (p.startsWith('/pipeline')) return t('process');
     if (p.startsWith('/invoices')) return t('invoices');
+    if (p.startsWith('/recon')) return t('recon');
     if (p.startsWith('/approvals')) return t('approvals');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
+    if (p.startsWith('/violations')) return t('violations');
+    if (p.startsWith('/revenue')) return t('revenue');
+    if (p.startsWith('/audit')) return t('audit');
     if (p.startsWith('/assistant')) return t('assistant');
     if (p.startsWith('/agents')) return t('agents');
     return 'INTELLIBILL';

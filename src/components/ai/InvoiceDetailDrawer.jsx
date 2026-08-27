@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../context/I18nContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../Toast';
 import { L } from './util';
 import ConfidenceBar from './ConfidenceBar';
 import ReconciliationTable from './ReconciliationTable';
@@ -28,7 +29,9 @@ const TX = {
   anomaly: { zh: '异常类型', en: 'Anomaly type', ar: 'نوع الشذوذ' },
   decision: { zh: '处理决策 (HITL)', en: 'Decision (HITL)', ar: 'القرار (HITL)' },
   viewAi: { zh: '查看完整 AI 分析', en: 'View full AI analysis', ar: 'عرض تحليل الذكاء الكامل' },
-  none: { zh: '无', en: 'None', ar: 'لا يوجد' }
+  none: { zh: '无', en: 'None', ar: 'لا يوجد' },
+  vdTitle: { zh: '审计员决定（偏差 > 5% 强制转人工）', en: 'Auditor decision (deviation > 5% forced review)', ar: 'قرار المدقق (انحراف > 5٪)' },
+  vdHint: { zh: '决定与意见将写入不可篡改审计日志', en: 'Decision & comment are written to the immutable audit trail', ar: 'يُكتب القرار في سجل تدقيق غير قابل للتعديل' }
 };
 
 /* Per-scenario anomaly tag surfaced in the AI strip. */
@@ -38,7 +41,7 @@ const ANOMALY_TAG = {
   taxfail: { zh: 'ZATCA 税号校验失败 · PO 单价差异', en: 'ZATCA tax-ID failed · PO price variance', ar: 'فشل الرقم الضريبي · فرق سعر PO' }
 };
 
-const SOURCE_BADGE = { Tahseel: 'badge--teal', Makin: 'badge--indigo', Efa: 'badge--green', Sanad: 'badge--gold' };
+const SOURCE_BADGE = { Tahseel: 'badge--teal', Makeen: 'badge--indigo', Efaa: 'badge--green', Sanad: 'badge--gold' };
 
 function statusBadge(color) {
   const map = { green: 'badge--green', red: 'badge--red', orange: 'badge--orange', gold: 'badge--gold', blue: 'badge--blue', indigo: 'badge--indigo', purple: 'badge--purple' };
@@ -87,7 +90,12 @@ function Cell({ label, children, ltr }) {
 export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, suppressClose }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
+  const toast = useToast();
   const closeRef = useRef(null);
+  // SCR-02 auditor decision block — shown for scenarios where the deviation
+  // forces human review (taxfail demonstrates the >5% rule).
+  const [vDecision, setVDecision] = useState('clarify');
+  const [vComment, setVComment] = useState('');
 
   const onEsc = useCallback((e) => {
     if (e.key === 'Escape' && !suppressClose) onClose?.();
@@ -198,6 +206,43 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
             ) : (
               <div className="muted" style={{ fontSize: 12 }}>{L(TX.noRecon, lang)}</div>
             )}
+
+            {recon && scenario === 'taxfail' ? (
+              <div className="card" style={{ marginTop: 12, padding: 12, background: 'rgba(255,255,255,0.03)' }}>
+                <div style={{ fontWeight: 900, fontSize: 13 }}>{L(TX.vdTitle, lang)}</div>
+                <div className="muted" style={{ marginTop: 4, fontSize: 11 }}>{L(TX.vdHint, lang)}</div>
+                <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+                  <select
+                    className="select"
+                    value={vDecision}
+                    onChange={(e) => setVDecision(e.target.value)}
+                    aria-label={t('v_decision')}
+                  >
+                    <option value="accept">{t('v_accept')}</option>
+                    <option value="reject">{t('v_reject')}</option>
+                    <option value="clarify">{t('btn_clarify')}</option>
+                  </select>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={vComment}
+                    onChange={(e) => setVComment(e.target.value)}
+                    placeholder={t('v_comment')}
+                    aria-label={t('v_comment')}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => {
+                      toast.success(`${t('toast_v_decision')}${inv.id}`);
+                      setVComment('');
+                    }}
+                  >
+                    {t('v_submit')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {/* AI assessment strip */}
