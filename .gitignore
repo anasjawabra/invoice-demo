@@ -1,3 +1,15 @@
 node_modules
 .DS_Store
 *.local
+
+# OpenWolf (context management) and its cross-tool generated files
+.wolf/
+AGENTS.md
+GEMINI.md
+.cursor/
+.codex/
+.opencode/
+
+# Claude workspace files
+.claude/
+CLAUDE.md
