@@ -80,6 +80,7 @@ export default function Recon() {
           <div className="page-sub">{t('recon_sub')}</div>
         </div>
         <span className="badge badge--teal">{t('rcn_auth')}</span>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_recon')}</span>
       </div>
 
       <div className="grid grid-4">

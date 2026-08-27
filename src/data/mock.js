@@ -1,11 +1,14 @@
 // IntelliBill demo data (ES module)
 // Source: legacy assets/js/data.js
 
-/* ---------- Demo accounts ---------- */
+/* ---------- Demo accounts ----------
+   roleKey drives nav visibility (Layout) per the HLSD 10-persona matrix;
+   legacy sessions without a roleKey fall back to 'manager'. */
 export const CREDENTIALS = [
   {
     user: 'demo',
     pass: 'demo123',
+    roleKey: 'manager',
     name: '李芳军',
     nameEn: 'Li Fangjun',
     nameAr: 'لي فانغجون',
@@ -17,6 +20,7 @@ export const CREDENTIALS = [
   {
     user: 'auditor',
     pass: 'demo123',
+    roleKey: 'auditor',
     name: 'Ahmad Al-Saud',
     nameEn: 'Ahmad Al-Saud',
     nameAr: 'أحمد آل سعود',
@@ -26,8 +30,33 @@ export const CREDENTIALS = [
     avatar: 'AS'
   },
   {
+    user: 'reconciler',
+    pass: 'demo123',
+    roleKey: 'reconciler',
+    name: 'Faisal Al-Otaibi',
+    nameEn: 'Faisal Al-Otaibi',
+    nameAr: 'فيصل العتيبي',
+    role: '对账专员 · Reconciliation',
+    roleEn: 'Financial Reconciliation Officer',
+    roleAr: 'مسؤول التسوية المالية',
+    avatar: 'FO'
+  },
+  {
+    user: 'penalties',
+    pass: 'demo123',
+    roleKey: 'penalties',
+    name: 'Noura Al-Harbi',
+    nameEn: 'Noura Al-Harbi',
+    nameAr: 'نورة الحربي',
+    role: '处罚与罚款专员 · Penalties',
+    roleEn: 'Penalties & Fines Officer',
+    roleAr: 'مسؤول الغرامات والمخالفات',
+    avatar: 'NH'
+  },
+  {
     user: 'admin',
     pass: 'admin',
+    roleKey: 'admin',
     name: '系统管理员',
     nameEn: 'System Admin',
     nameAr: 'مدير النظام',

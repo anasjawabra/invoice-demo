@@ -126,6 +126,7 @@ export default function Collection() {
           <div className="page-sub">{t('col_prob_sub')}</div>
         </div>
         <span className="badge badge--teal">{t('updated_daily')}</span>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_rev_manager')} · {t('persona_field_manager')}</span>
       </div>
 
       <div className="grid grid-4">

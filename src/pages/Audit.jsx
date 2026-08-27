@@ -69,7 +69,8 @@ export default function Audit() {
           <div className="page-title">{t('audit')}</div>
           <div className="page-sub">{t('audit_sub')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_auditor')} · {t('persona_governance')}</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={doExport}>
             {t('ad_export')}
           </button>

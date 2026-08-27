@@ -32,6 +32,7 @@ export default function Approvals() {
           </div>
         </div>
         <span className={`badge ${pendingCount ? 'badge--orange' : 'badge--green'}`}>{pendingCount}</span>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_approver')}</span>
       </div>
 
       {empty ? (

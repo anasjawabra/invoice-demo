@@ -80,6 +80,7 @@ export default function Violations() {
           <div className="page-sub">{t('vio_sub')}</div>
         </div>
         <span className="badge badge--teal">{t('updated_daily')}</span>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_penalties')}</span>
       </div>
 
       {/* Four-state enforcement KPIs (SCR-12) */}

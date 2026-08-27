@@ -258,6 +258,7 @@ export default function Dashboard() {
           <p>{orgScoped ? t('org_scope_note') : t('data_scope_consolidated')}</p>
         </div>
         <span className="badge badge--indigo">{user?.org?.code}</span>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_manager')}</span>
       </div>
 
       <div

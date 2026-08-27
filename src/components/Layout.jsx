@@ -135,7 +135,29 @@ function LayoutInner() {
 
   const org = user?.org || ORGS[0];
 
+  // RBAC (HLSD 10-persona matrix): which roleKeys may see each nav item.
+  // null = visible to every role; empty groups are hidden entirely.
+  const NAV_VISIBILITY = {
+    '/dashboard': null,
+    '/pipeline': ['manager', 'admin'],
+    '/invoices': null,
+    '/recon': ['manager', 'admin', 'auditor', 'reconciler'],
+    '/approvals': ['manager', 'admin'],
+    '/risk': ['manager', 'admin', 'auditor'],
+    '/collection': ['manager', 'admin', 'penalties'],
+    '/violations': ['manager', 'admin', 'penalties', 'auditor'],
+    '/revenue': ['manager', 'admin'],
+    '/audit': ['manager', 'admin', 'auditor'],
+    '/assistant': null,
+    '/agents': null
+  };
+
   const groups = useMemo(() => {
+    const role = user?.roleKey || 'manager';
+    const visible = (to) => {
+      const allowed = NAV_VISIBILITY[to];
+      return !allowed || allowed.includes(role);
+    };
     return [
       {
         title: t('nav_overview'),
@@ -172,8 +194,10 @@ function LayoutInner() {
           { to: '/agents', icon: 'agents', label: t('agents') }
         ]
       }
-    ];
-  }, [t]);
+    ]
+      .map((g) => ({ ...g, items: g.items.filter((it) => visible(it.to)) }))
+      .filter((g) => g.items.length > 0);
+  }, [t, user]);
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');

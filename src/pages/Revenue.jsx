@@ -112,7 +112,8 @@ export default function Revenue() {
           <div className="page-title">{t('revenue')}</div>
           <div className="page-sub">{t('rev_sub')}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_rev_manager')} · {t('persona_amanah_leader')}</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={doExport}>
             {t('rcn_export')}
           </button>

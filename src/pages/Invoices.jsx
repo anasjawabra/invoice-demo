@@ -142,6 +142,7 @@ export default function Invoices() {
           <div className="page-title">{t('invoices')}</div>
           <div className="page-sub">{t('recent_sub')}</div>
         </div>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_officer')}</span>
       </div>
 
       <div className="grid grid-4">

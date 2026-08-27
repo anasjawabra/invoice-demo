@@ -63,6 +63,7 @@ export default function Pipeline() {
           <div className="page-title">{t('process')}</div>
           <div className="page-sub">{t('proc_sub')}</div>
         </div>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_officer')}</span>
       </div>
 
       {/* Upload + sample scenarios */}

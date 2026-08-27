@@ -107,6 +107,7 @@ export default function Risk() {
           <div className="page-title">{t('risk')}</div>
           <div className="page-sub">{t('risk_dist_sub')}</div>
         </div>
+        <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_auditor')}</span>
       </div>
 
       <div className="grid grid-4">
