@@ -176,3 +176,44 @@ WF03-04 给出六项 KPI 权威清单：实际回款率、平均处理时长、�
 - **平台拼写不统一**：HLSD 用 Tahseel / Makeen / Efaa；BRD 中文版用 Tahsil / Makken；代码混用 Tahseel / Makin / Efa。建议统一为 HLSD 拼写（英文权威版），需全局替换 `mock.js` / `i18n.js` 文案。
 - **阈值方向冲突**（HLSD 已标记待澄清，demo 取安全值）：异常检出率取「≥85%（6 个月）→95%（第一年）」；违规金额警报取「>10 万 SAR」（BRD 方向，HLSD 写反）；F1 取「≥85%」。
 - 其他 HLSD 待澄清项（15%~30% 双重含义、2025 年 250 亿时间线、两处 SLA 定义重复）不影响演示，登记备查即可。
+
+## 九、实现落地记录（feat/brd-completion 分支）
+
+分支 `feat/brd-completion`（commit `08048a5` 四页面 + `668784b` Persona RBAC + `61f1f3f`/`a7fd14d` 清理与 gitignore）。
+
+### 9.1 新增页面（4 个）
+
+| 路由 | 页面文件 | 需求对应 | 主要 Persona | 核心功能 |
+|---|---|---|---|---|
+| `/recon` | `src/pages/Recon.jsx` | SCR-11 / UC-11 / CAP-11 / FR-014 / WF-07 | 对账专员 | Makeen↔Tahseel 周度差异对账：差异类型筛选、>50K 高危红标、AI 对账 trace（发票号优先/回退身份标识匹配）、「送审计 / 审批对账」操作、CSV 导出 |
+| `/audit` | `src/pages/Audit.jsx` | SCR-08 / UC-09 / FR-012 / WF-05 | 审计员 + 治理专员 | 不可篡改审计轨迹检索：18 条事件（自演示场景派生，与其他页面同源同值）、阶段/发票号筛选、授权表合规检查抽屉、CSV 导出 |
+| `/revenue` | `src/pages/Revenue.jsx` | SCR-10 / UC-10 / CAP-10 / FR-013 / WF-06 | 收入经理 + Amanah 领导 | 定期收入报表：8 收入科目（市政+住房，自 382M/87.3% 拆分）、板块筛选、达成率 <60% 标红、Amanah 回款/目标对比 + 运营支出覆盖率、AI 摘要、CSV 导出 |
+| `/violations` | `src/pages/Violations.jsx` | SCR-12 / UC-12 / CAP-12 / FR-015 / WF-08 | 处罚与罚款专员 | Efaa↔Mumtathil 违规跟踪：执行四态 KPI、申诉状态徽章、>10 万 SAR 红标、「上报执行 / 跟进申诉 / 手工更新」操作、AI 评分联动 trace |
+
+### 9.2 现有页面改造
+
+| 页面 | 改造内容 | 需求对应 |
+|---|---|---|
+| Collection | 三概率（回款/延迟/注销）列 + 分级建议徽章（紧急干预/积极跟进/定期跟进）+ 三序列分组柱图 | SCR-09 / UC-05 / WF-02 |
+| Invoices | 暂停发票四处置（更正重提/最终拒绝必填理由/转办/索要单据）+ 状态/来源筛选 | UC-08 / FR-011 / WF01-11 |
+| Approvals | 「请求澄清」按钮 + SLA 剩余时间徽章（<6h 变橙） | UC-04 / SCR-04 |
+| Risk | 审计员「接受 / 请求追加调查」按钮 | SCR-03 / UC-03 |
+| InvoiceDetailDrawer | taxfail 场景审计员决定区（下拉+意见，演示偏差 >5% 强制转人工） | SCR-02 / UC-02 |
+| 全部 10 个业务页面 | page-head 主要用户 Persona 徽章 | HLSD Persona 10 |
+| Layout | 按 roleKey 过滤导航（HLSD persona 矩阵）；新增「报表与治理」分组与 4 个新导航图标 | NFR-002 / RBAC |
+
+### 9.3 新增演示账号
+
+| 账号 | 密码 | 角色（roleKey） | 可见导航 |
+|---|---|---|---|
+| demo | demo123 | 主管（manager） | 全部 |
+| auditor | demo123 | 审计员（auditor） | 总览 / 账单库 / 平台对账 / 风险雷达 / 审计审查 / 智能中枢 |
+| reconciler | demo123 | 对账专员（reconciler） | 总览 / 账单库 / 平台对账 / 智能中枢 |
+| penalties | demo123 | 处罚专员（penalties） | 总览 / 催收预测 / 违规跟踪 / 智能中枢 |
+| admin | admin | 管理员（admin） | 全部 |
+
+### 9.4 其他
+
+- 新增 `src/utils/export.js`：零依赖 `exportCSV`（Blob + a.download），三个新页面与对账导出共用。
+- 平台命名全局统一为 Tahseel / Makeen / Efaa / Sanad（HLSD 英文权威拼写）。
+- 三语词条 383 键 / 语言，完全对齐；`dist/` 已按仓库惯例重建并提交。
