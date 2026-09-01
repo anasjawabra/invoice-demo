@@ -194,6 +194,16 @@ export default function Risk() {
                   <button className="btn btn-ghost btn-sm" type="button" onClick={() => toast.warning(`${t('toast_investigate')}${r.id}`)}>
                     {t('btn_investigate')}
                   </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    type="button"
+                    onClick={() => {
+                      setItems((prev) => prev.filter((x) => x.id !== r.id));
+                      toast.success(`${t('toast_false_positive')}${r.id}`);
+                    }}
+                  >
+                    {t('btn_false_positive')}
+                  </button>
                 </div>
               </div>
             ))}

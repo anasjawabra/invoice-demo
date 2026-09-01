@@ -982,10 +982,13 @@ export const TREND = {
   recovery: [78, 79.5, 81, 82.4, 83.9, 85.2, 86.4, 87.3]
 };
 
-/* ---------- Q&A scripts ---------- */
+/* ---------- Q&A scripts ----------
+   `roles`: null = answer for every role; otherwise a roleKey whitelist —
+   questions outside the user's scope return the RBAC-denied reply (WF04-03). */
 export const QA = [
   {
     match: ['回收率', '收缴', 'recovery', 'collection rate', 'التحصيل', 'تحصيل'],
+    roles: null,
     zh: '本月账款回收率为 **87.3%**，环比上升 3.1 个百分点，已超过 85% 的目标。其中 Tahseel 平台回收率最高达 91.2%，Makeen 平台 84.6%。当前有 4 笔逾期账单回收概率低于 40%，建议优先介入。',
     en: "This month's collection rate is **87.3%**, up 3.1 pts month-over-month, exceeding the 85% target. Tahseel leads at 91.2%, Makeen at 84.6%. There are 4 overdue invoices with recovery probability below 40% — priority intervention recommended.",
     ar: 'بلغ معدل التحصيل هذا الشهر **87.3%**، بزيادة 3.1 نقطة مئوية عن الشهر السابق، متجاوزًا الهدف البالغ 85%. أعلى معدل تحصيل على منصة Tahseel بنسبة 91.2%.',
@@ -993,6 +996,7 @@ export const QA = [
   },
   {
     match: ['本月收入', '处理金额', '金额', 'revenue', 'amount', 'processed', 'المبلغ', 'الإيرادات'],
+    roles: ['manager', 'admin'],
     zh: '本月已处理账单金额合计 **3.82 亿 SAR**（12,480 张），环比增长 12.5%。其中 Makeen 平台占比 41%，Tahseel 平台 32%。已通过审批金额 3.44 亿，待人工复核金额 0.31 亿。',
     en: 'Total amount processed this month is **382M SAR** (12,480 invoices), up 12.5% MoM. Makeen accounts for 41%, Tahseel 32%. Approved amount is 344M, and 31M is pending manual review.',
     ar: 'إجمالي المبالغ المعالجة هذا الشهر **382 مليون ريال سعودي** (12,480 فاتورة)، بنمو 12.5%.',
@@ -1000,6 +1004,7 @@ export const QA = [
   },
   {
     match: ['异常', '欺诈', '风险', 'anomaly', 'fraud', 'risk', 'الشاذة', 'احتيال'],
+    roles: ['manager', 'admin', 'auditor'],
     zh: '本月共拦截异常/欺诈账单 **214 起**，其中高危 63 起、中危 151 起。最典型的是 NEOM 物流服务（INV-2026-0730），价格偏离行业基准 +38% 且为首次交易，风险评分 82，已转人工复核。',
     en: 'A total of **214 anomalous/fraudulent invoices** were blocked this month — 63 high-risk and 151 mid-risk. The most notable is NEOM Logistics (INV-2026-0730): price deviated +38% from benchmark and it was a first-time deal, risk score 82, now referred for manual review.',
     ar: 'تم اعتراض **214 حالة** شاذة/احتيالية هذا الشهر، منها 63 عالية الخطورة. أبرزها الفاتورة INV-2026-0730 بدرجة خطورة 82.',
@@ -1007,6 +1012,7 @@ export const QA = [
   },
   {
     match: ['自动', '录入', 'automation', 'auto entry', 'الأتمتة'],
+    roles: ['manager', 'admin', 'auditor'],
     zh: '字段自动录入率为 **96.4%**，已超过 95% 的目标（FR-002）。重复检出率 98.6%，多源字段映射成功率 100%。近 8 个月自动化率从 88.2% 稳步提升至 96.4%。',
     en: 'The field auto-entry rate is **96.4%**, exceeding the 95% target (FR-002). Duplicate detection rate is 98.6% and multi-source field mapping success is 100%. Over the last 8 months, automation rose steadily from 88.2% to 96.4%.',
     ar: 'بلغ معدل الأتمتة في إدخال الحقول **96.4%**، متجاوزًا الهدف 95%.',

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useI18n } from '../context/I18nContext';
 import { useToast } from '../components/Toast';
-import { AUDIT_STAGES, AUDIT_TRAIL } from '../data/mock';
+import { AUDIT_STAGES, AUDIT_TRAIL, INVOICES, STATUS } from '../data/mock';
 import { AUDIT_CHECK } from '../data/aiProcess';
 import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 import { exportCSV } from '../utils/export';
@@ -32,6 +32,9 @@ export default function Audit() {
 
   const [invFilter, setInvFilter] = useState('');
   const [stageFilter, setStageFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [amountMin, setAmountMin] = useState('');
+  const [amountMax, setAmountMax] = useState('');
   const [drawer, setDrawer] = useState(null);
 
   const stats = useMemo(() => {
@@ -41,13 +44,22 @@ export default function Audit() {
     return { events, invoices, hitl, violations: 0 };
   }, []);
 
+  // SCR-08 search criteria: stage / invoice no / status / amount range. Amount
+  // and status join the INVOICES records so the audit view stays same-source.
   const filtered = useMemo(() => {
     const q = invFilter.trim().toLowerCase();
-    return AUDIT_TRAIL.filter((e) =>
-      (stageFilter === 'all' || e.stage === stageFilter) &&
-      (!q || e.inv.toLowerCase().includes(q))
-    );
-  }, [invFilter, stageFilter]);
+    const min = parseFloat(amountMin);
+    const max = parseFloat(amountMax);
+    return AUDIT_TRAIL.filter((e) => {
+      if (stageFilter !== 'all' && e.stage !== stageFilter) return false;
+      if (q && !e.inv.toLowerCase().includes(q)) return false;
+      const inv = INVOICES.find((i) => i.id === e.inv);
+      if (statusFilter !== 'all' && inv?.status !== statusFilter) return false;
+      if (!Number.isNaN(min) && (!inv || inv.amount < min)) return false;
+      if (!Number.isNaN(max) && (!inv || inv.amount > max)) return false;
+      return true;
+    });
+  }, [invFilter, stageFilter, statusFilter, amountMin, amountMax]);
 
   function doExport() {
     exportCSV('audit-trail', filtered.map((e) => ({
@@ -73,6 +85,14 @@ export default function Audit() {
           <span className="badge badge--indigo" title={t('persona_main')}>{t('persona_auditor')} · {t('persona_governance')}</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={doExport}>
             {t('ad_export')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            title={t('exp_signed_note')}
+            onClick={() => toast.info(t('exp_signed_note'))}
+          >
+            {t('exp_signed')}
           </button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setDrawer(AUDIT_CHECK)}>
             {t('ad_compliance')}
@@ -124,6 +144,41 @@ export default function Audit() {
               <option key={k} value={k}>{L(AUDIT_STAGES[k].label, lang)}</option>
             ))}
           </select>
+          <select
+            className="select"
+            style={{ width: 180 }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label={t('th_status')}
+          >
+            <option value="all">{`${t('th_status')}: ${t('ad_all')}`}</option>
+            {Object.keys(STATUS).map((k) => (
+              <option key={k} value={k}>
+                {lang === 'zh' ? STATUS[k].label : lang === 'ar' ? STATUS[k].labelAr : STATUS[k].labelEn}
+              </option>
+            ))}
+          </select>
+          <input
+            className="input"
+            style={{ width: 130 }}
+            type="number"
+            value={amountMin}
+            onChange={(e) => setAmountMin(e.target.value)}
+            placeholder={t('ad_filter_min')}
+            aria-label={t('ad_filter_min')}
+            dir="ltr"
+          />
+          <span className="muted">—</span>
+          <input
+            className="input"
+            style={{ width: 130 }}
+            type="number"
+            value={amountMax}
+            onChange={(e) => setAmountMax(e.target.value)}
+            placeholder={t('ad_filter_max')}
+            aria-label={t('ad_filter_max')}
+            dir="ltr"
+          />
         </div>
 
         <div className="table-wrap">

@@ -11,6 +11,7 @@ import {
 } from 'chart.js';
 import { Doughnut, Line } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
+import { useAuth } from '../context/AuthContext';
 import { DEFAULT_ANSWER, QA, SOURCES, TREND } from '../data/mock';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
@@ -145,6 +146,7 @@ function InlineChart({ type }) {
 
 export default function Assistant() {
   const { t, lang } = useI18n();
+  const { user } = useAuth();
   const [q, setQ] = useState('');
   const [msgs, setMsgs] = useState(() => [
     { id: 'welcome', role: 'assistant', html: mdToHtml(DEFAULT_ANSWER[lang] || DEFAULT_ANSWER.en), chart: null }
@@ -172,6 +174,12 @@ export default function Assistant() {
     const lower = input.toLowerCase();
     const hit = QA.find((x) => x.match.some((m) => lower.includes(m.toLowerCase())));
     if (!hit) return { answer: DEFAULT_ANSWER[lang] || DEFAULT_ANSWER.en, chart: null };
+
+    // WF04-03: queries outside the user's RBAC scope are not answered.
+    const roleKey = user?.roleKey || 'manager';
+    if (hit.roles && !hit.roles.includes(roleKey)) {
+      return { answer: t('ast_denied'), chart: null, denied: true };
+    }
 
     const answer = hit[lang] || hit.en || hit.zh;
     return { answer, chart: hit.chart };

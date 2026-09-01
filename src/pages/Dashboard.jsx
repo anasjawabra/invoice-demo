@@ -62,11 +62,14 @@ export default function Dashboard() {
 
   const orgScale = user?.org?.scale ?? 1;
 
+  // SCR-05 field 5: time-period filter for the trend charts (UC-06 drill-down).
+  const [trendMonths, setTrendMonths] = useState(8);
+
   const trendLabels = useMemo(() => {
-    if (lang === 'zh') return TREND.labels;
-    if (lang === 'ar') return TREND.labelsAr;
-    return TREND.labelsEn;
-  }, [lang]);
+    const src = lang === 'zh' ? TREND.labels : lang === 'ar' ? TREND.labelsAr : TREND.labelsEn;
+    // SCR-05 period filter: slice the trend window (3/6/8 months).
+    return src.slice(-trendMonths);
+  }, [lang, trendMonths]);
 
   const baseChartOptions = useMemo(() => {
     const locale = lang === 'ar' ? 'ar' : lang === 'zh' ? 'zh-CN' : 'en-US';
@@ -122,7 +125,7 @@ export default function Dashboard() {
   }, [orgScale]);
 
   const trendData = useMemo(() => {
-    const processed = TREND.processed.map((v) => Math.round(v * orgScale));
+    const processed = TREND.processed.slice(-trendMonths).map((v) => Math.round(v * orgScale));
     return {
       labels: trendLabels,
       datasets: [
@@ -139,7 +142,7 @@ export default function Dashboard() {
         {
           type: 'line',
           label: t('chart_automation'),
-          data: TREND.automation,
+          data: TREND.automation.slice(-trendMonths),
           borderColor: 'rgba(0, 90, 150, 0.95)',
           backgroundColor: 'rgba(0, 90, 150, 0.12)',
           tension: 0.35,
@@ -148,7 +151,7 @@ export default function Dashboard() {
         }
       ]
     };
-  }, [orgScale, t, trendLabels]);
+  }, [orgScale, t, trendLabels, trendMonths]);
 
   const trendOptions = useMemo(() => {
     return {
@@ -215,7 +218,7 @@ export default function Dashboard() {
       datasets: [
         {
           label: t('chart_recovery'),
-          data: TREND.recovery,
+          data: TREND.recovery.slice(-trendMonths),
           borderColor: 'rgba(0, 102, 4, 0.95)',
           backgroundColor: 'rgba(0, 102, 4, 0.10)',
           tension: 0.35,
@@ -224,7 +227,7 @@ export default function Dashboard() {
         }
       ]
     };
-  }, [t, trendLabels]);
+  }, [t, trendLabels, trendMonths]);
 
   const recoveryOptions = useMemo(() => {
     return {
@@ -375,6 +378,19 @@ export default function Dashboard() {
             <div>
               <div className="page-title" style={{ fontSize: 16 }}>{t('trend_title')}</div>
               <div className="page-sub">{t('trend_sub')}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[3, 6, 8].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`btn btn-sm ${trendMonths === m ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setTrendMonths(m)}
+                  aria-label={t('trend_period')}
+                >
+                  {t(m === 3 ? 'period_3m' : m === 6 ? 'period_6m' : 'period_8m')}
+                </button>
+              ))}
             </div>
           </div>
           <div style={{ height: 270 }}>

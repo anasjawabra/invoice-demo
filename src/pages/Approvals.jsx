@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '../context/I18nContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/Toast';
 import { fmtMoney, APPROVALS } from '../data/mock';
 import { APPROVAL_BASIS } from '../data/aiProcess';
@@ -13,12 +14,44 @@ function priorityBadge(k) {
 
 export default function Approvals() {
   const { t, lang, T } = useI18n();
+  const { user } = useAuth();
   const toast = useToast();
 
   const [items, setItems] = useState(APPROVALS);
   const [drawer, setDrawer] = useState(null);
+  // Live SLA countdown (SCR-04 field 2): remaining hours tick down every
+  // minute; breaching zero auto-escalates (banner + removal from the queue).
+  const [now, setNow] = useState(() => Date.now());
+  const [escalated, setEscalated] = useState({});
+  const mountedAt = useRef(Date.now());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Field-level RBAC sample: only manager/admin hold approval authority;
+  // other personas see the queue read-only (BRAC permission matrix).
+  const canApprove = user?.roleKey === 'manager' || user?.roleKey === 'admin' || !user?.roleKey;
 
   const empty = items.length === 0;
+
+  // Remaining SLA hours derived from the live clock (ticks every minute).
+  function slaLeftOf(a) {
+    if (typeof a.slaLeft !== 'number') return null;
+    return a.slaLeft - (now - mountedAt.current) / 3600000;
+  }
+
+  // Auto-escalate once an SLA breaches zero (UC-04 alternative c).
+  useEffect(() => {
+    items.forEach((a) => {
+      if (typeof a.slaLeft !== 'number' || escalated[a.id]) return;
+      if (slaLeftOf(a) <= 0) {
+        setEscalated((prev) => ({ ...prev, [a.id]: true }));
+        toast.warning(`${t('sla_escalated')} · ${a.id}`);
+      }
+    });
+  }, [now, items, escalated, toast, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pendingCount = useMemo(() => items.length, [items.length]);
 
@@ -69,11 +102,16 @@ export default function Approvals() {
                   <div className="muted" style={{ fontSize: 12, fontWeight: 800 }}>{t('apv_sla')}</div>
                   <div style={{ marginTop: 6, fontSize: 12, color: 'var(--txt-dim)', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span>{lang === 'zh' ? a.sla : lang === 'ar' ? a.slaAr : a.slaEn}</span>
-                    {typeof a.slaLeft === 'number' ? (
-                      <span className={`badge ${a.slaLeft < 6 ? 'badge--orange' : 'badge--green'}`} dir="ltr">
-                        {t('sla_left')} {a.slaLeft}h{a.slaLeft < 6 ? ' ⚠' : ''}
-                      </span>
-                    ) : null}
+                    {(() => {
+                      const left = slaLeftOf(a);
+                      if (left == null) return null;
+                      if (left <= 0) return <span className="badge badge--red" dir="ltr">{t('sla_over')} · ↑</span>;
+                      return (
+                        <span className={`badge ${left < 6 ? 'badge--orange' : 'badge--green'}`} dir="ltr">
+                          {t('sla_left')} {left.toFixed(1)}h{left < 6 ? ' ⚠' : ''}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
@@ -98,26 +136,32 @@ export default function Approvals() {
               >
                 {t('btn_clarify')}
               </button>
-              <button
-                className="btn btn-primary"
-                type="button"
-                onClick={() => {
-                  setItems((prev) => prev.filter((x) => x.id !== a.id));
-                  toast.success(`${t('toast_approve')}${a.id}`);
-                }}
-              >
-                {t('btn_approve')}
-              </button>
-              <button
-                className="btn btn-danger"
-                type="button"
-                onClick={() => {
-                  setItems((prev) => prev.filter((x) => x.id !== a.id));
-                  toast.warning(`${t('toast_reject')}${a.id}`);
-                }}
-              >
-                {t('btn_reject')}
-              </button>
+              {canApprove ? (
+                <>
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    onClick={() => {
+                      setItems((prev) => prev.filter((x) => x.id !== a.id));
+                      toast.success(`${t('toast_approve')}${a.id}`);
+                    }}
+                  >
+                    {t('btn_approve')}
+                  </button>
+                  <button
+                    className="btn btn-danger"
+                    type="button"
+                    onClick={() => {
+                      setItems((prev) => prev.filter((x) => x.id !== a.id));
+                      toast.warning(`${t('toast_reject')}${a.id}`);
+                    }}
+                  >
+                    {t('btn_reject')}
+                  </button>
+                </>
+              ) : (
+                <span className="badge badge--gold" title={t('apv_readonly')}>🔒 {t('apv_readonly')}</span>
+              )}
             </div>
           </div>
         ))}

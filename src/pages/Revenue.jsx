@@ -35,6 +35,11 @@ export default function Revenue() {
   const [period, setPeriod] = useState('month');
   const [drawer, setDrawer] = useState(null);
 
+  // SCR-10 field 1: monthly / quarterly / yearly aggregation of the same
+  // source data (quarter = 3x, year = 12x monthly run-rate).
+  const PERIOD_MULT = { month: 1, quarter: 3, year: 12 };
+  const mult = PERIOD_MULT[period] || 1;
+
   const chartRef = useRef(null);
   useEffect(() => () => chartRef.current?.destroy?.(), []);
 
@@ -43,18 +48,18 @@ export default function Revenue() {
   ), [sector]);
 
   const totals = useMemo(() => {
-    const invoiced = sources.reduce((s, r) => s + r.invoiced, 0) * scale;
-    const collected = sources.reduce((s, r) => s + r.collected, 0) * scale;
-    const target = sources.reduce((s, r) => s + r.target, 0) * scale;
+    const invoiced = sources.reduce((s, r) => s + r.invoiced, 0) * scale * mult;
+    const collected = sources.reduce((s, r) => s + r.collected, 0) * scale * mult;
+    const target = sources.reduce((s, r) => s + r.target, 0) * scale * mult;
     return { invoiced, collected, target, attain: target ? collected / target : 0, gap: target - collected };
-  }, [sources, scale]);
+  }, [sources, scale, mult]);
 
   const data = useMemo(() => ({
     labels: sources.map((s) => T(s, 'label')),
     datasets: [
       {
         label: t('chart_invoiced'),
-        data: sources.map((s) => Math.round(s.invoiced * scale)),
+        data: sources.map((s) => Math.round(s.invoiced * scale * mult)),
         backgroundColor: 'rgba(0, 90, 150, 0.35)',
         borderColor: 'rgba(0, 90, 150, 0.95)',
         borderWidth: 1,
@@ -62,14 +67,14 @@ export default function Revenue() {
       },
       {
         label: t('chart_collected'),
-        data: sources.map((s) => Math.round(s.collected * scale)),
+        data: sources.map((s) => Math.round(s.collected * scale * mult)),
         backgroundColor: 'rgba(38, 99, 75, 0.4)',
         borderColor: 'rgba(38, 99, 75, 0.95)',
         borderWidth: 1,
         borderRadius: 8
       }
     ]
-  }), [sources, scale, t, T]);
+  }), [sources, scale, mult, t, T]);
 
   const options = useMemo(() => {
     const locale = lang === 'ar' ? 'ar' : lang === 'zh' ? 'zh-CN' : 'en-US';
@@ -142,16 +147,16 @@ export default function Revenue() {
           className="select"
           style={{ width: 140 }}
           value={period}
-          onChange={(e) => {
-            setPeriod(e.target.value);
-            if (e.target.value !== 'month') toast.info(t('rev_period_demo'));
-          }}
+          onChange={(e) => setPeriod(e.target.value)}
           aria-label={t('rev_period')}
         >
           <option value="month">{t('rev_period_month')}</option>
           <option value="quarter">{t('rev_period_quarter')}</option>
           <option value="year">{t('rev_period_year')}</option>
         </select>
+        <span className="badge badge--indigo">
+          {t(period === 'month' ? 'rev_scope_month' : period === 'quarter' ? 'rev_scope_quarter' : 'rev_scope_year')}
+        </span>
       </div>
 
       <div className="grid grid-4">
@@ -241,9 +246,9 @@ export default function Revenue() {
                   <tr key={s.id} style={attain < 0.6 ? { background: 'rgba(175, 8, 24, 0.04)' } : undefined}>
                     <td style={{ fontWeight: 900 }}>{T(s, 'label')}</td>
                     <td><span className="badge badge--indigo">{T(REVENUE_SECTORS[s.sector], 'label')}</span></td>
-                    <td dir="ltr">{fmtMoney(Math.round(s.invoiced * scale))}</td>
-                    <td dir="ltr">{fmtMoney(Math.round(s.collected * scale))}</td>
-                    <td dir="ltr">{fmtMoney(Math.round(s.target * scale))}</td>
+                    <td dir="ltr">{fmtMoney(Math.round(s.invoiced * scale * mult))}</td>
+                    <td dir="ltr">{fmtMoney(Math.round(s.collected * scale * mult))}</td>
+                    <td dir="ltr">{fmtMoney(Math.round(s.target * scale * mult))}</td>
                     <td dir="ltr"><span className={`badge ${badgeForAttain(attain)}`}>{Math.round(attain * 100)}%</span></td>
                     <td dir="ltr" style={{ color: yoy >= 0 ? 'var(--green, #006604)' : 'var(--red, #AF0818)', fontWeight: 800 }}>
                       {yoy >= 0 ? '+' : ''}{yoy.toFixed(1)}%
