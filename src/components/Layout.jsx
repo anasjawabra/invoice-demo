@@ -107,11 +107,7 @@ function LayoutInner() {
       },
       {
         title: t('nav_proc'),
-        items: [
-          { to: '/pipeline', icon: 'pipeline', label: t('process') },
-          { to: '/invoices', icon: 'invoices', label: t('invoices') },
-          { to: '/approvals', icon: 'approvals', label: t('approvals') }
-        ]
+        items: [{ to: '/invoices', icon: 'invoices', label: t('invoices') }]
       },
       {
         title: t('nav_risk'),
@@ -122,10 +118,7 @@ function LayoutInner() {
       },
       {
         title: t('nav_hub'),
-        items: [
-          { to: '/assistant', icon: 'assistant', label: t('assistant') },
-          { to: '/agents', icon: 'agents', label: t('agents') }
-        ]
+        items: [{ to: '/assistant', icon: 'assistant', label: t('assistant') }]
       }
     ];
   }, [t]);
@@ -178,11 +171,6 @@ function LayoutInner() {
             </div>
           ))}
         </nav>
-
-        <div className="sidebar-footer">
-          <span>{t('agents_online')}</span>
-          <span className="badge badge--teal">7</span>
-        </div>
       </aside>
 
       <main className="main">

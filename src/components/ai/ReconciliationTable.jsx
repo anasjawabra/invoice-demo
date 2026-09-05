@@ -3,7 +3,7 @@ import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
 import { fmtMoney } from '../../data/mock';
 
-/** Derive a per-line 3-way status from raw invoice/PO/GRN values. */
+/** Derive a per-line 3-way status from raw invoice/collection-order/accrual values. */
 function lineStatus(line, tol) {
   const qtyOk = line.qty === line.poQty && line.qty === line.grnQty;
   const priceDiff = line.poUnit ? Math.abs(line.invUnit - line.poUnit) / line.poUnit : 0;
@@ -16,8 +16,8 @@ function lineStatus(line, tol) {
 const STATUS_ICON = { match: '✓', tolerance: '⚠', mismatch: '✗' };
 
 /**
- * ReconciliationTable — a real 3-way match table (Invoice ↔ PO ↔ Goods Receipt)
- * built from concrete values, with per-line status chips (match ✓ / within-
+ * ReconciliationTable — a real 3-way verification table (Invoice ↔ Collection
+ * Order ↔ Accrual Confirmation) built from concrete values, with per-line status chips (match ✓ / within-
  * tolerance ⚠ / mismatch ✗), a subtotal, a ZATCA 15% VAT-recompute row
  * (declared vs computed vs expected) and a tax-ID validity row.
  *
@@ -40,7 +40,7 @@ export default function ReconciliationTable({ recon, tolerance = 0.02 }) {
   return (
     <div className="recon">
       <div className="recon__caption">
-        <span>{recon.invoiceNo} · {recon.po} · {recon.grn}</span>
+        <span>{recon.invoiceNo} · {recon.co} · {recon.accrual}</span>
         <span className="recon__contract">{recon.contract}</span>
       </div>
 
@@ -64,11 +64,11 @@ export default function ReconciliationTable({ recon, tolerance = 0.02 }) {
               </span>
               <span className="recon__c">
                 <span dir="ltr">{fmtMoney(ln.qty)}</span>
-                {!qtyOk ? <em className="recon__alt" dir="ltr">PO {fmtMoney(ln.poQty)}</em> : null}
+                {!qtyOk ? <em className="recon__alt" dir="ltr">CO {fmtMoney(ln.poQty)}</em> : null}
               </span>
               <span className="recon__c">
                 <span dir="ltr">{fmtMoney(ln.invUnit)}</span>
-                {!priceOk ? <em className="recon__alt recon__alt--bad" dir="ltr">PO {fmtMoney(ln.poUnit)}</em> : null}
+                {!priceOk ? <em className="recon__alt recon__alt--bad" dir="ltr">CO {fmtMoney(ln.poUnit)}</em> : null}
               </span>
               <span className="recon__c" dir="ltr">{fmtMoney(ln.qty * ln.invUnit)}</span>
               <span className="recon__c recon__c--st">

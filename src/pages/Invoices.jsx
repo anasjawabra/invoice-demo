@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
 import { fmtMoney, INVOICES, STATUS } from '../data/mock';
@@ -29,7 +30,7 @@ function badgeForStatusColor(c) {
 }
 
 // Which agent node best represents each scenario's "full AI analysis".
-const PRIMARY_AGENT = { normal: 'A2', fraud: 'A3', dup: 'A1', taxfail: 'A2' };
+const PRIMARY_AGENT = { normal: 'validation', fraud: 'anomaly', dup: 'dedup', taxfail: 'compliance' };
 
 // Map an invoice to the same aiProcess bundle the Risk/Approvals/Pipeline pages
 // use: prefer a per-invoice bundle, else fall back to the scenario's key node.
@@ -38,18 +39,27 @@ function aiBundleForInvoice(inv) {
   if (APPROVAL_BASIS[inv.id]) return APPROVAL_BASIS[inv.id];
   const scenario = inv.tag || 'normal';
   const nodes = NODE_DRAWERS[scenario] || NODE_DRAWERS.normal;
-  const agent = PRIMARY_AGENT[scenario] || 'A2';
-  return nodes[agent] || nodes.A1 || nodes.A2 || null;
+  const agent = PRIMARY_AGENT[scenario] || 'validation';
+  return nodes[agent] || nodes.ingest || nodes.validation || null;
 }
 
 export default function Invoices() {
   const { t, lang, T } = useI18n();
   const { user } = useAuth();
   const scale = user?.org?.scale ?? 1;
+  const [searchParams] = useSearchParams();
+  const highlightCo = searchParams.get('co');
 
   const [detail, setDetail] = useState(null); // invoice shown in the detail drawer
   const [aiDrawer, setAiDrawer] = useState(null); // aiProcess bundle (stacked on top)
   const triggerRef = useRef(null); // row that opened the detail (for focus return)
+
+  // Deep-linked from a Dashboard alert (?co=CO-xxxxx) — jump straight to that contract's invoice.
+  useEffect(() => {
+    if (!highlightCo) return;
+    const match = INVOICES.find((inv) => inv.co === highlightCo);
+    if (match) setDetail(match);
+  }, [highlightCo]);
 
   const openDetail = useCallback((inv, e) => {
     triggerRef.current = e.currentTarget;
@@ -122,6 +132,7 @@ export default function Invoices() {
                 <th>{t('th_vendor')}</th>
                 <th>{t('th_amount')}</th>
                 <th>{t('th_source')}</th>
+                <th>{t('th_paytype')}</th>
                 <th>{t('th_status')}</th>
                 <th>{t('th_po')}</th>
                 <th>{t('th_date')}</th>
@@ -143,15 +154,21 @@ export default function Invoices() {
                     aria-label={`${viewLabel} · ${inv.id}`}
                     onClick={(e) => openDetail(inv, e)}
                     onKeyDown={(e) => onRowKey(inv, e)}
+                    style={highlightCo && inv.co === highlightCo ? { background: 'rgba(0, 128, 255, 0.08)' } : undefined}
                   >
                     <td style={{ fontWeight: 900 }} dir="ltr">{inv.id}</td>
                     <td>{T(inv, 'entity')}</td>
                     <td dir="ltr">{fmtMoney(Math.round(inv.amount * scale))} {inv.currency}</td>
                     <td>{inv.source}</td>
                     <td>
+                      <span className={`badge ${inv.payType === 'prepaid' ? 'badge--teal' : 'badge--indigo'}`}>
+                        {inv.payType === 'prepaid' ? t('paytype_prepaid') : t('paytype_deferred')}
+                      </span>
+                    </td>
+                    <td>
                       <span className={`badge ${badge}`}>{stLabel}</span>
                     </td>
-                    <td dir="ltr">{inv.po}</td>
+                    <td dir="ltr">{inv.co}</td>
                     <td dir="ltr">{inv.date}</td>
                     <td>
                       <span className={`badge ${inv.risk >= 60 ? 'badge--red' : inv.risk >= 40 ? 'badge--orange' : 'badge--green'}`}>{inv.risk}</span>

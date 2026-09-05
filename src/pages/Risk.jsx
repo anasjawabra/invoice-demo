@@ -48,7 +48,7 @@ export default function Risk() {
     const high = RISKS.filter((r) => r.score >= 60).length;
     const mid = RISKS.filter((r) => r.score >= 40 && r.score < 60).length;
     const acc = 88.6;
-    return { intercepted: 214, high, mid, acc };
+    return { intercepted: RISKS.length, high, mid, acc };
   }, []);
 
   const chartRef = useRef(null);

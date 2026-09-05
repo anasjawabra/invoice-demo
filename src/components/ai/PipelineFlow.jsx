@@ -29,7 +29,7 @@ function Node({ step, idx, scenario, status, onOpen, hasDrawer }) {
   return (
     <div className={cls}>
       <div className="pipe-node__head">
-        <span className="pipe-node__tag">{step.agent}</span>
+        <span className="pipe-node__tag">{String(idx + 1).padStart(2, '0')}</span>
         {status === 'blocked' ? <span className="badge badge--red">{t('node_blocked')}</span>
           : status === 'done' ? <span className="badge badge--green">✓</span>
           : status === 'running' ? <span className="badge badge--teal">{t('pipe_running')}</span>
@@ -60,7 +60,7 @@ function Node({ step, idx, scenario, status, onOpen, hasDrawer }) {
 }
 
 /**
- * PipelineFlow — the A1→A6 agent chain with sequential loading→typewriter,
+ * PipelineFlow — the 11-agent chain with sequential loading→typewriter,
  * data handoff, scenario-based stalling, and per-node AIProcessDrawer.
  */
 export default function PipelineFlow({ scenario, runKey }) {

@@ -4,7 +4,7 @@ import { AGENTS } from '../../data/mock';
 import { ORCH_MESSAGES, ORCH_LATENCY } from '../../data/aiProcess';
 import OrchestrationLog from './OrchestrationLog';
 
-const SUB_AGENTS = AGENTS.filter((a) => a.id !== 'A0');
+const SUB_AGENTS = AGENTS.filter((a) => a.id !== 'orch');
 
 // Derive queued → running → done from the messages revealed so far:
 //  - an agent that has SENT a message is done
@@ -20,11 +20,12 @@ function agentStatus(id, revealed) {
 }
 
 /**
- * OrchestrationMap — a LIVE multi-agent orchestration graph. A0 dispatches to
- * A1..A6; edges light up as "messages" flow, each node shows a live status chip
- * (queued → running → done) plus a per-agent metric (calls / avg latency /
- * accuracy), and an inter-agent message log scrolls the handoff payloads.
- * Some agents run in PARALLEL (A3 anomaly ∥ A5 forecast; A5→A6 ∥ A4→A0).
+ * OrchestrationMap — a LIVE multi-agent orchestration graph. The orchestrator
+ * dispatches to the 11 specialist agents; edges light up as "messages" flow,
+ * each node shows a live status chip (queued → running → done) plus a
+ * per-agent metric (calls / avg latency / accuracy), and an inter-agent
+ * message log scrolls the handoff payloads. Some steps report back to the
+ * orchestrator in PARALLEL when they trigger a HITL breakpoint.
  * Bounded + replayable via the Replay button. GOV-SA light theme.
  */
 export default function OrchestrationMap() {
@@ -60,7 +61,7 @@ export default function OrchestrationMap() {
 
   // Agents touched by the in-flight message (both ends light up → parallel edges).
   const liveTags = running && cursor >= 0
-    ? [ORCH_MESSAGES[cursor].from, ORCH_MESSAGES[cursor].to].filter((x) => x !== 'A0')
+    ? [ORCH_MESSAGES[cursor].from, ORCH_MESSAGES[cursor].to].filter((x) => x !== 'orch')
     : [];
 
   const a0Done = played && !running;
@@ -78,7 +79,6 @@ export default function OrchestrationMap() {
       </div>
 
       <div className={`orch-hub${running ? ' orch-hub--live' : ''}`}>
-        <span className="orch-hub__badge">A0</span>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 900, fontSize: 13 }}>{T(AGENTS[0], 'name')}</div>
           <div className="muted" style={{ fontSize: 12, marginTop: 3, lineHeight: 1.5 }}>
@@ -99,7 +99,6 @@ export default function OrchestrationMap() {
             <div key={a.id} className={`orch-agent orch-agent--${status}${on ? ' orch-agent--active' : ''}`}>
               {on ? <span className="orch-agent__pulse" /> : null}
               <div className="orch-agent__topline">
-                <span className="orch-agent__tag">{a.id}</span>
                 <span className={`orch-chip orch-chip--${status}`}>
                   {status === 'done' ? t('orch_done') : status === 'running' ? t('orch_running') : t('orch_queued')}
                 </span>

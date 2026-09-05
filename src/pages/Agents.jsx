@@ -2,6 +2,7 @@ import React from 'react';
 import { useI18n } from '../context/I18nContext';
 import { AGENTS } from '../data/mock';
 import OrchestrationMap from '../components/ai/OrchestrationMap';
+import FeatureAgentMap from '../components/ai/FeatureAgentMap';
 
 function badgeForColor(c) {
   switch (c) {
@@ -43,19 +44,23 @@ export default function Agents() {
           <b>{t('agent_center_banner')}</b>
           <p>{t('agent_center_desc')}</p>
         </div>
-        <span className="badge badge--teal">A0-A6</span>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'flex-end' }}>
+          {AGENTS.map((a) => (
+            <span key={a.id} className={`badge ${badgeForColor(a.color)}`}>{T(a, 'name')}</span>
+          ))}
+        </div>
       </div>
 
       <OrchestrationMap />
+
+      <FeatureAgentMap />
 
       <div className="agent-grid">
         {AGENTS.map((a) => (
           <div className="card agent-card" key={a.id}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
               <div style={{ minWidth: 0 }}>
-                <h3>
-                  {a.id} · {T(a, 'name')}
-                </h3>
+                <h3>{T(a, 'name')}</h3>
                 <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
                   {T(a, 'form')} · {a.en}
                 </div>

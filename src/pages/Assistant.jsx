@@ -3,17 +3,18 @@ import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
+  BarElement,
   PointElement,
   LineElement,
   ArcElement,
   Tooltip,
   Legend
 } from 'chart.js';
-import { Doughnut, Line } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
-import { DEFAULT_ANSWER, QA, SOURCES, TREND } from '../data/mock';
+import { APPROVALS, COLLECTIONS, DEFAULT_ANSWER, INVOICES, KPIS, QA, RISKS, SOURCES, STATUS, TREND, fmtMoney } from '../data/mock';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, ArcElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
 
 function mdToHtml(s = '') {
   // minimal markdown: **bold** + line breaks
@@ -25,8 +26,18 @@ function mdToHtml(s = '') {
     .replace(/\n/g, '<br/>');
 }
 
+function fillTemplate(str, vars) {
+  return str.replace(/\{\{(\w+)\}\}/g, (_, key) => (vars[key] != null ? vars[key] : ''));
+}
+
+function badgeColor(v) {
+  if (v >= 80) return { bg: 'rgba(0, 102, 4,0.65)', border: 'rgba(0, 102, 4,1)' };
+  if (v >= 50) return { bg: 'rgba(255, 193, 7,0.65)', border: 'rgba(255, 193, 7,1)' };
+  return { bg: 'rgba(175, 8, 24,0.65)', border: 'rgba(175, 8, 24,1)' };
+}
+
 function InlineChart({ type }) {
-  const { lang, isRtl, t } = useI18n();
+  const { lang, isRtl, t, T } = useI18n();
   const ref = useRef(null);
 
   useEffect(() => {
@@ -46,12 +57,12 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale,
       plugins: {
-        legend: { rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
+        legend: { display: false, rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
         tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
         x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        y: { beginAtZero: true, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
   }, [isRtl, lang]);
@@ -113,6 +124,101 @@ function InlineChart({ type }) {
     );
   }
 
+  if (type === 'riskBuckets') {
+    const rlabels = t('risk_labels');
+    const counts = [0, 0, 0, 0, 0];
+    for (const r of RISKS) {
+      const s = r.score;
+      if (s <= 20) counts[0]++;
+      else if (s <= 40) counts[1]++;
+      else if (s <= 60) counts[2]++;
+      else if (s <= 80) counts[3]++;
+      else counts[4]++;
+    }
+    const data = {
+      labels: Array.isArray(rlabels) ? rlabels : ['0-20', '21-40', '41-60', '61-80', '81-100'],
+      datasets: [
+        {
+          data: counts,
+          backgroundColor: ['rgba(0, 102, 4,0.35)', 'rgba(255, 193, 7,0.35)', 'rgba(200, 135, 0,0.35)', 'rgba(175, 8, 24,0.35)', 'rgba(175, 8, 24,0.60)'],
+          borderColor: ['rgba(0, 102, 4,0.95)', 'rgba(255, 193, 7,0.95)', 'rgba(200, 135, 0,0.95)', 'rgba(175, 8, 24,0.95)', 'rgba(175, 8, 24,0.95)'],
+          borderWidth: 1,
+          borderRadius: 8
+        }
+      ]
+    };
+    return (
+      <div style={{ height: 220 }}>
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { ...common.scales.y.ticks, precision: 0 } } } }} />
+      </div>
+    );
+  }
+
+  if (type === 'collectionProb') {
+    const sorted = [...COLLECTIONS].sort((a, b) => a.prob - b.prob);
+    const data = {
+      labels: sorted.map((c) => c.id),
+      datasets: [
+        {
+          data: sorted.map((c) => c.prob),
+          backgroundColor: sorted.map((c) => badgeColor(c.prob).bg),
+          borderColor: sorted.map((c) => badgeColor(c.prob).border),
+          borderWidth: 1,
+          borderRadius: 8
+        }
+      ]
+    };
+    return (
+      <div style={{ height: 220 }}>
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }} />
+      </div>
+    );
+  }
+
+  if (type === 'approvalsBar') {
+    const data = {
+      labels: APPROVALS.map((a) => a.id),
+      datasets: [
+        {
+          data: APPROVALS.map((a) => a.amount),
+          backgroundColor: 'rgba(38, 99, 75,0.5)',
+          borderColor: 'rgba(38, 99, 75,1)',
+          borderWidth: 1,
+          borderRadius: 8
+        }
+      ]
+    };
+    return (
+      <div style={{ height: 220 }}>
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) } } } }} />
+      </div>
+    );
+  }
+
+  if (type === 'invoiceStatus') {
+    const counts = Object.keys(STATUS)
+      .map((key) => ({ key, ...STATUS[key], count: INVOICES.filter((i) => i.status === key).length }))
+      .filter((s) => s.count > 0);
+    const colorMap = { blue: '#005A96', green: '#006604', red: '#AF0818', gold: '#FFC107', orange: '#C88700', grey: '#8B93A1' };
+    const data = {
+      labels: counts.map((s) => T(s, 'label')),
+      datasets: [
+        {
+          data: counts.map((s) => s.count),
+          backgroundColor: counts.map((s) => `${colorMap[s.color] || '#26634B'}CC`),
+          borderColor: counts.map((s) => colorMap[s.color] || '#26634B'),
+          borderWidth: 1,
+          borderRadius: 8
+        }
+      ]
+    };
+    return (
+      <div style={{ height: 220 }}>
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { ...common.scales.y.ticks, precision: 0 } } } }} />
+      </div>
+    );
+  }
+
   // recovery
   const data = {
     labels,
@@ -144,7 +250,7 @@ function InlineChart({ type }) {
 }
 
 export default function Assistant() {
-  const { t, lang } = useI18n();
+  const { t, lang, T } = useI18n();
   const [q, setQ] = useState('');
   const [msgs, setMsgs] = useState(() => [
     { id: 'welcome', role: 'assistant', html: mdToHtml(DEFAULT_ANSWER[lang] || DEFAULT_ANSWER.en), chart: null }
@@ -160,10 +266,82 @@ export default function Assistant() {
   }, [lang]);
 
   const suggestions = useMemo(() => {
-    if (lang === 'zh') return ['本月回收率多少？', '本月处理金额多少？', '自动化率达到多少？'];
-    if (lang === 'ar') return ['ما هو معدل التحصيل؟', 'ما هو إجمالي المبالغ المعالجة هذا الشهر؟', 'كم بلغت نسبة الأتمتة؟'];
-    return ["What is this month's collection rate?", 'How much was processed this month?', 'What is the automation rate?'];
+    if (lang === 'zh') return ['本月回收率多少？', '逾期账款情况如何？', '异常/欺诈拦截了多少？', '待审批账单有哪些？'];
+    if (lang === 'ar') return ['ما هو معدل التحصيل؟', 'ما هي المديونيات المتعثرة؟', 'كم عدد الحالات المنحرفة؟', 'ما الفواتير المعلقة للموافقة؟'];
+    return ["What is this month's collection rate?", 'What overdue receivables need attention?', 'How many anomalies were blocked?', 'What invoices are pending approval?'];
   }, [lang]);
+
+  // Every value here is derived live from the same real arrays the rest of the
+  // app renders from, so the assistant's answers can never drift out of sync
+  // with what the Dashboard/Risk/Collection/Approvals/Invoices pages show.
+  const stats = useMemo(() => {
+    const recoveryKpi = KPIS.find((k) => k.id === 'recovery');
+    const amountKpi = KPIS.find((k) => k.id === 'amount');
+    const automationKpi = KPIS.find((k) => k.id === 'automation');
+    const anomalyKpi = KPIS.find((k) => k.id === 'anomaly');
+    const cycleKpi = KPIS.find((k) => k.id === 'cycle');
+
+    const totalSourceCount = SOURCES.reduce((s, x) => s + x.count, 0);
+    const pct = (id) => {
+      const s = SOURCES.find((x) => x.id === id);
+      return s ? Math.round((s.count / totalSourceCount) * 1000) / 10 : 0;
+    };
+
+    const lowCount = COLLECTIONS.filter((c) => c.prob < 40).length;
+    const oldest = [...COLLECTIONS].sort((a, b) => b.overdue - a.overdue)[0];
+    const debtTotal = COLLECTIONS.reduce((s, c) => s + c.amount, 0);
+
+    const highRisk = RISKS.filter((r) => r.score >= 60).length;
+    const midRisk = RISKS.filter((r) => r.score >= 40 && r.score < 60).length;
+    const topRisk = [...RISKS].sort((a, b) => b.score - a.score)[0];
+    const topRiskTag = topRisk ? (lang === 'zh' ? topRisk.types[0] : lang === 'ar' ? topRisk.typesAr[0] : topRisk.typesEn[0]) : '';
+
+    const apvTotal = APPROVALS.reduce((s, a) => s + a.amount, 0);
+    const apvTop = [...APPROVALS].sort((a, b) => b.amount - a.amount)[0];
+
+    const statusCount = (key) => INVOICES.filter((i) => i.status === key).length;
+
+    return {
+      recovery: recoveryKpi?.value,
+      recoveryDelta: recoveryKpi?.delta,
+      recoveryTarget: recoveryKpi?.target,
+      lowCount,
+      amountB: amountKpi?.value.toFixed(2),
+      amountDelta: amountKpi?.delta,
+      processedCount: fmtMoney(KPIS.find((k) => k.id === 'processed')?.value || 0),
+      makinPct: pct('momtathil'),
+      tahseelPct: pct('forsah'),
+      anomalyTotal: anomalyKpi?.value,
+      riskListCount: RISKS.length,
+      highRisk,
+      midRisk,
+      topRiskEntity: topRisk ? T(topRisk, 'entity') : '',
+      topRiskId: topRisk?.id,
+      topRiskTag,
+      topRiskScore: topRisk?.score,
+      automation: automationKpi?.value,
+      automationTarget: automationKpi?.target,
+      automationStart: TREND.automation[0],
+      debtCount: COLLECTIONS.length,
+      debtTotalK: Math.round(debtTotal / 1000),
+      oldestEntity: oldest ? T(oldest, 'entity') : '',
+      oldestId: oldest?.id,
+      oldestDays: oldest?.overdue,
+      oldestProb: oldest?.prob,
+      apvCount: APPROVALS.length,
+      apvTotalM: Math.round((apvTotal / 1000000) * 100) / 100,
+      apvTopEntity: apvTop ? T(apvTop, 'entity') : '',
+      apvTopId: apvTop?.id,
+      apvTopAmount: fmtMoney(apvTop?.amount || 0),
+      invTotal: INVOICES.length,
+      stApproved: statusCount('approved'),
+      stPending: statusCount('pending'),
+      stReview: statusCount('review'),
+      stDuplicate: statusCount('duplicate'),
+      stAnomaly: statusCount('anomaly'),
+      avgHours: Math.round((cycleKpi?.value || 0) * 24)
+    };
+  }, [lang, T]);
 
   function findAnswer(text) {
     const input = (text || '').trim();
@@ -173,7 +351,8 @@ export default function Assistant() {
     const hit = QA.find((x) => x.match.some((m) => lower.includes(m.toLowerCase())));
     if (!hit) return { answer: DEFAULT_ANSWER[lang] || DEFAULT_ANSWER.en, chart: null };
 
-    const answer = hit[lang] || hit.en || hit.zh;
+    const template = hit[lang] || hit.en || hit.zh;
+    const answer = fillTemplate(template, stats);
     return { answer, chart: hit.chart };
   }
 
@@ -246,15 +425,6 @@ export default function Assistant() {
             ))}
           </div>
 
-          <div className="hr" />
-
-          <div style={{ fontWeight: 900, fontSize: 14 }}>{t('ast_usecases')}</div>
-          <div style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-            <span className="badge">{t('uc_06')}</span>
-            <span className="badge">{t('uc_07')}</span>
-            <span className="badge">{t('uc_08')}</span>
-            <span className="badge">{t('uc_10')}</span>
-          </div>
         </div>
 
         <div className="card chat-main">
@@ -286,7 +456,7 @@ export default function Assistant() {
               aria-label={t('ast_placeholder')}
             />
             <button className="btn btn-primary" type="submit">
-              Send
+              {t('ast_send')}
             </button>
           </form>
         </div>

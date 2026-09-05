@@ -4,9 +4,18 @@ import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
 import Typewriter from './Typewriter';
 import AgentThinking from './AgentThinking';
-import ConfidenceBar from './ConfidenceBar';
 import EvidenceList from './EvidenceList';
 import TraceBlock from './TraceBlock';
+import { AGENTS } from '../../data/mock';
+
+/* Full localized agent name for an internal agent id. */
+function agentName(id, lang) {
+  const a = AGENTS.find((x) => x.id === id);
+  if (!a) return '';
+  if (lang === 'ar') return a.nameAr;
+  if (lang === 'zh') return a.name;
+  return a.nameEn;
+}
 
 /* ---------------------------------------------------------------- Legacy step
    Backward-compatible renderer for the original title/detail/rows/confidence
@@ -32,7 +41,7 @@ function LegacyStep({ step, lang, running, done, onDone }) {
 
   return (
     <div className={cls}>
-      <div className="ai-step__tag">{step.agent || '•'}</div>
+      <div className="ai-step__tag">{step.agent ? agentName(step.agent, lang) : '•'}</div>
       <div className="ai-step__title">
         <span>{L(step.title, lang)}</span>
         {step.blocked ? <span className="badge badge--red">HITL</span> : null}
@@ -55,11 +64,6 @@ function LegacyStep({ step, lang, running, done, onDone }) {
           {step.rows?.length ? (
             <div className="ai-step__rows">
               <EvidenceList rows={step.rows} />
-            </div>
-          ) : null}
-          {typeof step.confidence === 'number' ? (
-            <div className="ai-step__conf">
-              <ConfidenceBar value={step.confidence} label={step.confLabel ? L(step.confLabel, lang) : null} />
             </div>
           ) : null}
         </>
@@ -100,7 +104,7 @@ function BlockStep({ step, lang, running, done, onDone }) {
 
   return (
     <div className={cls}>
-      <div className="ai-step__tag">{step.agent || '•'}</div>
+      <div className="ai-step__tag">{step.agent ? agentName(step.agent, lang) : '•'}</div>
       <div className="ai-step__title">
         <span>{L(step.title, lang)}</span>
         {step.blocked ? <span className="badge badge--red">HITL</span> : null}
@@ -167,11 +171,11 @@ export default function AIProcessDrawer({ open, onClose, data }) {
   return createPortal(
     <>
       <div className="ai-drawer-overlay" onClick={onClose} />
-      <aside className="ai-drawer" role="dialog" aria-modal="true" aria-label={L(data.title, lang) || t('ai_drawer_title')}>
+      <aside className="ai-drawer ai-drawer--wide" role="dialog" aria-modal="true" aria-label={L(data.title, lang) || t('ai_drawer_title')}>
         <div className="ai-drawer__head">
           <div style={{ minWidth: 0 }}>
             <div className="ai-drawer__title">
-              {data.agentTag ? <span className="badge badge--teal">{data.agentTag}</span> : null}
+              {data.agentTag ? <span className="badge badge--teal">{agentName(data.agentTag, lang)}</span> : null}
               <span>{L(data.title, lang) || t('ai_drawer_title')}</span>
             </div>
             {data.subtitle ? <div className="ai-drawer__sub">{L(data.subtitle, lang)}</div> : null}
@@ -212,11 +216,6 @@ export default function AIProcessDrawer({ open, onClose, data }) {
             <div className={`ai-conclusion${cTone}`}>
               <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
               <div className="ai-conclusion__text">{L(conclusion.text, lang)}</div>
-              {typeof conclusion.confidence === 'number' ? (
-                <div style={{ marginTop: 12 }}>
-                  <ConfidenceBar value={conclusion.confidence} label={t('ai_confidence')} />
-                </div>
-              ) : null}
               {conclusion.action ? (
                 <div className="ai-conclusion__action">
                   <b>{t('ai_recommendation')}: </b>{L(conclusion.action, lang)}

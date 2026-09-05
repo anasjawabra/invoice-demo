@@ -2,8 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
 import { OCR_SAMPLES } from '../../data/aiProcess';
+import { AGENTS } from '../../data/mock';
 import DataDiff from './DataDiff';
 import AgentThinking from './AgentThinking';
+
+const OCR_AGENT = AGENTS.find((a) => a.id === 'ocr');
 
 /**
  * OcrExtraction — an invoice "document" panel with fields extracted one-by-one
@@ -11,7 +14,7 @@ import AgentThinking from './AgentThinking';
  * Re-runs whenever `runKey` changes. `scenario` selects the sample.
  */
 export default function OcrExtraction({ scenario = 'normal', runKey }) {
-  const { t, lang } = useI18n();
+  const { t, lang, T } = useI18n();
   const sample = OCR_SAMPLES[scenario] || OCR_SAMPLES.normal;
   const [shown, setShown] = useState(0);
   const timers = useRef([]);
@@ -38,7 +41,7 @@ export default function OcrExtraction({ scenario = 'normal', runKey }) {
           <div className="page-title" style={{ fontSize: 15 }}>{t('ocr_title')}</div>
           <div className="page-sub">{t('ocr_sub')}</div>
         </div>
-        {!done ? <AgentThinking variant="spinner" label={`A1 · ${t('ai_thinking')}`} /> : <span className="badge badge--green">✓</span>}
+        {!done ? <AgentThinking variant="spinner" label={`${T(OCR_AGENT, 'name')} · ${t('ai_thinking')}`} /> : <span className="badge badge--green">✓</span>}
       </div>
 
       <div className="ocr-board">

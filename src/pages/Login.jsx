@@ -56,7 +56,7 @@ export default function Login() {
 
           <div className="hero-stats">
             <div className="hero-stat">
-              <b>7</b>
+              <b>{AGENTS.length}</b>
               <span>{t('stat_agents')}</span>
             </div>
             <div className="hero-stat">
@@ -72,7 +72,7 @@ export default function Login() {
           <div className="hero-agents">
             {AGENTS.map((a) => (
               <span key={a.id} className="hero-chip">
-                {a.id} · {T(a, 'en') || a.en}
+                {T(a, 'en') || a.en}
               </span>
             ))}
           </div>
