@@ -18,17 +18,6 @@ function Icon({ name }) {
           <path d="M4 20h7v-5H4v5z" />
         </svg>
       );
-    case 'pipeline':
-      return (
-        <svg {...common}>
-          <path d="M4 6h6v6H4V6z" />
-          <path d="M14 6h6v6h-6V6z" />
-          <path d="M9 9h6" />
-          <path d="M4 16h6v4H4v-4z" />
-          <path d="M14 16h6v4h-6v-4z" />
-          <path d="M9 18h6" />
-        </svg>
-      );
     case 'invoices':
       return (
         <svg {...common}>
@@ -36,13 +25,6 @@ function Icon({ name }) {
           <path d="M8 7h8" />
           <path d="M8 11h8" />
           <path d="M8 15h6" />
-        </svg>
-      );
-    case 'approvals':
-      return (
-        <svg {...common}>
-          <path d="M9 11l3 3L22 4" />
-          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
         </svg>
       );
     case 'risk':
@@ -66,11 +48,11 @@ function Icon({ name }) {
           <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z" />
         </svg>
       );
-    case 'agents':
+    case 'smart-reports':
       return (
         <svg {...common}>
-          <path d="M12 2l8 6-8 6-8-6 8-6z" />
-          <path d="M4 14l8 6 8-6" />
+          <path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
+          <path d="M9 12l2 2 4-4" />
         </svg>
       );
     case 'bell':
@@ -118,7 +100,10 @@ function LayoutInner() {
       },
       {
         title: t('nav_hub'),
-        items: [{ to: '/assistant', icon: 'assistant', label: t('assistant') }]
+        items: [
+          { to: '/assistant', icon: 'assistant', label: t('assistant') },
+          { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') }
+        ]
       }
     ];
   }, [t]);
@@ -126,13 +111,12 @@ function LayoutInner() {
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
-    if (p.startsWith('/pipeline')) return t('process');
     if (p.startsWith('/invoices')) return t('invoices');
-    if (p.startsWith('/approvals')) return t('approvals');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
     if (p.startsWith('/assistant')) return t('assistant');
-    if (p.startsWith('/agents')) return t('agents');
+    if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
+    if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
     return 'INTELLIBILL';
   }, [loc.pathname, t]);
 

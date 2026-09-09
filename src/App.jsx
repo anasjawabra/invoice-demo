@@ -4,13 +4,15 @@ import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-import Pipeline from './pages/Pipeline';
 import Invoices from './pages/Invoices';
-import Approvals from './pages/Approvals';
 import Risk from './pages/Risk';
 import Collection from './pages/Collection';
 import Assistant from './pages/Assistant';
-import Agents from './pages/Agents';
+import SmartReports from './pages/SmartReports';
+import SanadOrders from './pages/SanadOrders';
+import SanadOrderDetail from './pages/SanadOrderDetail';
+import InvestmentInvoices from './pages/InvestmentInvoices';
+import InvestmentInvoiceDetail from './pages/InvestmentInvoiceDetail';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -25,13 +27,15 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="pipeline" element={<Pipeline />} />
         <Route path="invoices" element={<Invoices />} />
-        <Route path="approvals" element={<Approvals />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />
         <Route path="assistant" element={<Assistant />} />
-        <Route path="agents" element={<Agents />} />
+        <Route path="smart-reports" element={<SmartReports />} />
+        <Route path="sanad-orders" element={<SanadOrders />} />
+        <Route path="sanad-orders/:enforceNum" element={<SanadOrderDetail />} />
+        <Route path="investment-invoices" element={<InvestmentInvoices />} />
+        <Route path="investment-invoices/:id" element={<InvestmentInvoiceDetail />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

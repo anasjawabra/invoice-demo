@@ -29,7 +29,7 @@ const chart = (chartType, payload) => ({ type: 'chart', chartType, payload });
 const decide = (text, tone, auto, gate) => ({ type: 'decision', text, tone, auto, gate });
 
 /* ---------------------------------------------------------------- Ingest sources
-   Real originating products: Forsah, Momtathil, Baladi (central) and
+   Real originating products: Foras, Mumathil, Baladi (central) and
    Amanah-internal systems — plus generic Email/ERP channels. Tahseel and
    Makin are reporting/view layers, not origins (see note below). */
 // Tahseel and Makin are "means" — reporting/view layers, NOT where an
@@ -37,17 +37,6 @@ const decide = (text, tone, auto, gate) => ({ type: 'decision', text, tone, auto
 // Amanah raised a given invoice, and Makin is a read-only customized-report
 // view with no write capability of its own (you don't need it — you already
 // have the underlying data). So neither belongs here as a parallel volume
-// source; this animation shows the real ORIGINATING products instead —
-// everything ingested still ends up fully reflected in Tahseel regardless.
-export const INGEST_SOURCES = [
-  { id: 'email', name: { zh: '邮件', en: 'Email', ar: 'البريد' }, count: 1860 },
-  { id: 'erp', name: { zh: '政府 ERP', en: 'Government ERP', ar: 'ERP الحكومي' }, count: 2140 },
-  { id: 'forsah', name: { zh: 'Forsah · 投资', en: 'Forsah · Investment', ar: 'فرص · الاستثمار' }, count: 4820 },
-  { id: 'momtathil', name: { zh: 'Momtathil · 违规罚款', en: 'Momtathil · Violations & Fines', ar: 'ممتثل · المخالفات والغرامات' }, count: 3610 },
-  { id: 'baladi', name: { zh: 'Baladi · 市政', en: 'Baladi · Municipal', ar: 'بلدي · البلديات' }, count: 2240 },
-  { id: 'internal', name: { zh: '安曼纳内部系统', en: 'Amanah-Internal Systems', ar: 'أنظمة داخلية لدى الأمانات' }, count: 1810 }
-];
-
 /* ---------------------------------------------------------------- OCR samples
    All 10 BRD-required fields per scenario, with per-field confidence + a
    raw→standardized normalization diff. */
@@ -152,57 +141,10 @@ export const OCR_SAMPLES = {
    Shared invoice facts per scenario, used by the ingest-family and
    validation/compliance bundle factories below. */
 const SCENARIO_INFO = {
-  normal: { source: 'Forsah', doc: 'INV-2026-0731.pdf', invoice: 'INV-2026-0731', amount: 1250000, payer: 'Al-Rajhi Construction Group', co: 'CO-88231', accrual: 'AC-2026-4471', contract: 'SANAD-CT-2231', taxId: '3001234567800003', ocrConf: 0.98, lowFields: 0, dupSimilarity: 0.34 },
-  fraud: { source: 'Momtathil', doc: 'INV-2026-0730.pdf', invoice: 'INV-2026-0730', amount: 486000, payer: 'NEOM Logistics', co: 'CO-88192', accrual: 'AC-2026-4460', contract: 'SANAD-CT-7715', taxId: '3009988776600001', ocrConf: 0.96, lowFields: 0, dupSimilarity: 0.12 },
-  dup: { source: 'Momtathil', doc: 'INV-2026-0728.pdf', invoice: 'INV-2026-0728', amount: 1250000, payer: 'Gulf Facility Mgmt', co: 'CO-88231', accrual: 'AC-2026-4471', contract: 'SANAD-CT-2231', taxId: '3001234567800003', ocrConf: 0.99, lowFields: 0, isDup: true, dupOf: 'INV-2026-0731' },
+  normal: { source: 'Foras', doc: 'INV-2026-0731.pdf', invoice: 'INV-2026-0731', amount: 1250000, payer: 'Al-Rajhi Construction Group', co: 'CO-88231', accrual: 'AC-2026-4471', contract: 'SANAD-CT-2231', taxId: '3001234567800003', ocrConf: 0.98, lowFields: 0, dupSimilarity: 0.34 },
+  fraud: { source: 'Mumathil', doc: 'INV-2026-0730.pdf', invoice: 'INV-2026-0730', amount: 486000, payer: 'NEOM Logistics', co: 'CO-88192', accrual: 'AC-2026-4460', contract: 'SANAD-CT-7715', taxId: '3009988776600001', ocrConf: 0.96, lowFields: 0, dupSimilarity: 0.12 },
+  dup: { source: 'Mumathil', doc: 'INV-2026-0728.pdf', invoice: 'INV-2026-0728', amount: 1250000, payer: 'Gulf Facility Mgmt', co: 'CO-88231', accrual: 'AC-2026-4471', contract: 'SANAD-CT-2231', taxId: '3001234567800003', ocrConf: 0.99, lowFields: 0, isDup: true, dupOf: 'INV-2026-0731' },
   taxfail: { source: 'Baladi', doc: 'INV-2026-0727.pdf', invoice: 'INV-2026-0727', amount: 3180000, payer: 'Aramco Logistics Supply', co: 'CO-87990', accrual: 'AC-2026-4402', contract: 'SANAD-CT-2799', taxId: '3005566778800002', ocrConf: 0.95, lowFields: 1, dupSimilarity: 0.08 }
-};
-
-/* ---------------------------------------------------------------- Pipeline handoffs
-   Per-scenario, per-agent intermediate conclusion + "input received from previous
-   agent" line. 11 entries, index 0..10 matching PIPELINE (mock.js):
-   0 ingest, 1 ocr, 2 normalize, 3 dedup, 4 validation, 5 compliance,
-   6 anomaly, 7 pattern, 8 routing, 9 forecasting, 10 analytics. */
-export const PIPELINE_WORK = {
-  normal: [
-    { conclusion: { zh: '从 Forsah 拉取账单 PDF，加入接收队列。', en: 'Pulled the invoice PDF from Forsah into the intake queue.', ar: 'تم سحب PDF الفاتورة من فرص وإدراجها في قائمة الاستيعاب.' } },
-    { handoff: { zh: '接收摄取输出：账单已入队', en: 'Received ingestion output: invoice queued', ar: 'استلام مخرجات الاستيعاب: الفاتورة في القائمة' }, conclusion: { zh: 'OCR 提取 10 个字段，平均置信度 98%。', en: 'OCR extracted 10 fields at 98% average confidence.', ar: 'استخراج OCR لـ10 حقول بثقة 98٪.' } },
-    { handoff: { zh: '接收 OCR 输出：10 个字段', en: 'Received OCR output: 10 fields', ar: 'استلام مخرجات OCR: 10 حقول' }, conclusion: { zh: '格式、单位与字段名称已统一映射至标准模型。', en: 'Formats, units, and field labels mapped to the unified model.', ar: 'تم توحيد التنسيقات والوحدات وتسميات الحقول ضمن النموذج الموحد.' } },
-    { handoff: { zh: '接收标准化输出：统一模型', en: 'Received normalization output: unified model', ar: 'استلام مخرجات التوحيد: النموذج الموحد' }, conclusion: { zh: '指纹检索未命中重复（相似度 34%）。', en: 'Fingerprint search found no duplicate (nearest similarity 34%).', ar: 'لم يجد بحث البصمة تكراراً (أعلى تشابه 34٪).' } },
-    { handoff: { zh: '接收去重输出：无重复', en: 'Received dedup output: no duplicate', ar: 'استلام مخرجات التكرار: لا تكرار' }, conclusion: { zh: '三单匹配一致，匹配置信度 97%。', en: '3-way match consistent, match confidence 97%.', ar: 'المطابقة الثلاثية متسقة، ثقة المطابقة 97٪.' } },
-    { handoff: { zh: '接收核验输出：匹配一致', en: 'Received validation output: matched', ar: 'استلام مخرجات التحقق: مطابقة' }, conclusion: { zh: 'ZATCA 税号有效，VAT 15% 复算通过。', en: 'ZATCA tax ID valid, VAT 15% recomputed OK.', ar: 'الرقم الضريبي صالح، إعادة حساب الضريبة 15٪ ناجحة.' } },
-    { handoff: { zh: '接收合规输出：税务合规', en: 'Received compliance output: tax-compliant', ar: 'استلام مخرجات الامتثال: متوافق' }, conclusion: { zh: '价格贴近历史均价，风险评分 12（低危），无欺诈特征。', en: 'Price near historical average, risk score 12 (low), no fraud signals.', ar: 'السعر قريب من المتوسط التاريخي، درجة المخاطرة 12 (منخفضة).' } },
-    { handoff: { zh: '接收异常检测输出：风险 12（低危）', en: 'Received anomaly output: risk 12 (low)', ar: 'استلام مخرجات الانحراف: درجة 12 (منخفضة)' }, conclusion: { zh: '未见异常提交频率或定价模式，与缴款方历史一致。', en: 'No unusual submission frequency or pricing pattern vs. payer history.', ar: 'لا نمط تكرار أو تسعير غير معتاد مقارنة بسجل الجهة الدافعة.' } },
-    { handoff: { zh: '接收模式识别输出：无异常模式', en: 'Received pattern output: no unusual pattern', ar: 'استلام مخرجات الأنماط: لا نمط منحرف' }, conclusion: { zh: '金额 1.25M，命中三级审批链，推送人工确认（HITL）。', en: 'Amount 1.25M, matched 3-level chain, pushed to human confirm (HITL).', ar: 'المبلغ 1.25M، سلسلة من 3 مستويات، أُرسلت للتأكيد البشري (HITL).' } },
-    { handoff: { zh: '接收审批路由输出：待人工审批', en: 'Received routing output: pending approval', ar: 'استلام مخرجات التوجيه: بانتظار الموافقة' }, conclusion: { zh: '付款计划已建模，预计回收/结算周期正常。', en: 'Payment plan modeled; expected settlement cycle normal.', ar: 'تم نمذجة خطة الدفع؛ دورة التسوية المتوقعة طبيعية.' } },
-    { handoff: { zh: '接收催收预测输出：结算周期正常', en: 'Received forecasting output: normal settlement', ar: 'استلام مخرجات التنبؤ: تسوية طبيعية' }, conclusion: { zh: 'KPI 汇总入库，审计留痕已生成。', en: 'KPIs aggregated, audit trail generated.', ar: 'تم تجميع المؤشرات وإنشاء سجل التدقيق.' } }
-  ],
-  fraud: [
-    { conclusion: { zh: '从 Momtathil 拉取 NEOM 账单 PDF，加入接收队列。', en: 'Pulled the NEOM invoice PDF from Momtathil into the intake queue.', ar: 'تم سحب PDF فاتورة NEOM من ممتثل وإدراجها في القائمة.' } },
-    { handoff: { zh: '接收摄取输出：账单已入队', en: 'Received ingestion output: invoice queued', ar: 'استلام مخرجات الاستيعاب: الفاتورة في القائمة' }, conclusion: { zh: 'OCR 提取 10 个字段，平均置信度 96%。', en: 'OCR extracted 10 fields at 96% average confidence.', ar: 'استخراج OCR لـ10 حقول بثقة 96٪.' } },
-    { handoff: { zh: '接收 OCR 输出：10 个字段', en: 'Received OCR output: 10 fields', ar: 'استلام مخرجات OCR: 10 حقول' }, conclusion: { zh: '格式与字段名称已统一映射至标准模型。', en: 'Formats and field labels mapped to the unified model.', ar: 'تم توحيد التنسيقات وتسميات الحقول ضمن النموذج الموحد.' } },
-    { handoff: { zh: '接收标准化输出：统一模型', en: 'Received normalization output: unified model', ar: 'استلام مخرجات التوحيد: النموذج الموحد' }, conclusion: { zh: '指纹检索未命中重复（相似度 12%）。', en: 'Fingerprint search found no duplicate (nearest similarity 12%).', ar: 'لم يجد بحث البصمة تكراراً (أعلى تشابه 12٪).' } },
-    { handoff: { zh: '接收去重输出：无重复', en: 'Received dedup output: no duplicate', ar: 'استلام مخرجات التكرار: لا تكرار' }, conclusion: { zh: '三单匹配通过——移交合规检查税务。', en: '3-way match OK — handing to compliance for tax check.', ar: 'المطابقة صحيحة — التحويل لفحص الامتثال الضريبي.' } },
-    { handoff: { zh: '接收核验输出：匹配通过', en: 'Received validation output: matched', ar: 'استلام مخرجات التحقق: مطابقة' }, conclusion: { zh: '税号有效，VAT 复算通过——移交异常检测复核价格。', en: 'Tax ID valid, VAT recompute OK — handing to anomaly for price review.', ar: 'الرقم صالح، إعادة حساب الضريبة ناجحة — التحويل لوكيل الانحراف لمراجعة السعر.' } },
-    { handoff: { zh: '接收合规输出：税务合规', en: 'Received compliance output: tax-compliant', ar: 'استلام مخرجات الامتثال: متوافق' }, conclusion: { zh: '⚠ 费用偏离标准基准 +38%，该缴款方 90 天内无历史，风险评分 82，置信度 71% < 75% → 触发 HITL 断点。', en: '⚠ Fee +38% above the standard tariff, no history for this payer in 90d, risk score 82, confidence 71% < 75% → HITL breakpoint.', ar: '⚠ الرسم +38٪ فوق المعيار القياسي، لا تاريخ لهذه الجهة الدافعة، درجة 82، ثقة 71٪ < 75٪ → نقطة توقف HITL.' } },
-    {}, {}, {}, {}
-  ],
-  dup: [
-    { conclusion: { zh: '从 Momtathil 拉取 Gulf Facility 账单 PDF，加入接收队列。', en: 'Pulled the Gulf Facility Mgmt invoice PDF from Momtathil into the intake queue.', ar: 'تم سحب PDF فاتورة Gulf Facility من ممتثل وإدراجها في القائمة.' } },
-    { handoff: { zh: '接收摄取输出：账单已入队', en: 'Received ingestion output: invoice queued', ar: 'استلام مخرجات الاستيعاب: الفاتورة في القائمة' }, conclusion: { zh: 'OCR 提取 10 个字段，平均置信度 99%。', en: 'OCR extracted 10 fields at 99% average confidence.', ar: 'استخراج OCR لـ10 حقول بثقة 99٪.' } },
-    { handoff: { zh: '接收 OCR 输出：10 个字段', en: 'Received OCR output: 10 fields', ar: 'استلام مخرجات OCR: 10 حقول' }, conclusion: { zh: '格式与字段名称已统一映射至标准模型。', en: 'Formats and field labels mapped to the unified model.', ar: 'تم توحيد التنسيقات وتسميات الحقول ضمن النموذج الموحد.' } },
-    { handoff: { zh: '接收标准化输出：统一模型', en: 'Received normalization output: unified model', ar: 'استلام مخرجات التوحيد: النموذج الموحد' }, conclusion: { zh: '⚠ 指纹检索命中历史重复账单（发票号/金额/缴款方/催收单四元组一致），已自动拦截，等待人工确认。', en: '⚠ Fingerprint search matched a historical duplicate (invoice/amount/payer/CO tuple). Auto-blocked, awaiting human confirm.', ar: '⚠ طابق بحث البصمة فاتورة مكررة (رقم/مبلغ/جهة دافعة/أمر تحصيل). حظر تلقائي بانتظار التأكيد.' } },
-    {}, {}, {}, {}, {}, {}, {}
-  ],
-  taxfail: [
-    { conclusion: { zh: '从 Baladi 拉取 Aramco 账单 PDF，加入接收队列。', en: 'Pulled the Aramco invoice PDF from Baladi into the intake queue.', ar: 'تم سحب PDF فاتورة Aramco من بلدي وإدراجها في القائمة.' } },
-    { handoff: { zh: '接收摄取输出：账单已入队', en: 'Received ingestion output: invoice queued', ar: 'استلام مخرجات الاستيعاب: الفاتورة في القائمة' }, conclusion: { zh: 'OCR 提取 10 个字段——VAT 字段置信度仅 88%。', en: 'OCR extracted 10 fields — VAT field confidence only 88%.', ar: 'استخراج OCR لـ10 حقول — ثقة حقل الضريبة 88٪ فقط.' } },
-    { handoff: { zh: '接收 OCR 输出：VAT 字段待复核', en: 'Received OCR output: VAT field flagged', ar: 'استلام مخرجات OCR: حقل الضريبة موسوم' }, conclusion: { zh: '格式已统一映射，VAT 字段标记待合规复核。', en: 'Formats mapped to the unified model; VAT field flagged for compliance review.', ar: 'تم توحيد التنسيقات؛ حقل الضريبة موسوم لمراجعة الامتثال.' } },
-    { handoff: { zh: '接收标准化输出：统一模型', en: 'Received normalization output: unified model', ar: 'استلام مخرجات التوحيد: النموذج الموحد' }, conclusion: { zh: '指纹检索未命中重复。', en: 'Fingerprint search found no duplicate.', ar: 'لم يجد بحث البصمة تكراراً.' } },
-    { handoff: { zh: '接收去重输出：无重复', en: 'Received dedup output: no duplicate', ar: 'استلام مخرجات التكرار: لا تكرار' }, conclusion: { zh: '账单明细与催收单部分差异（第 1 行 +2.4%）——移交合规检查税号。', en: 'Invoice items partially differ from the Collection Order (line 1 +2.4%) — handing to compliance for tax check.', ar: 'انحراف جزئي مع أمر التحصيل (البند 1 +2.4٪) — التحويل لفحص الامتثال الضريبي.' } },
-    { handoff: { zh: '接收核验输出：部分差异', en: 'Received validation output: partial variance', ar: 'استلام مخرجات التحقق: انحراف جزئي' }, conclusion: { zh: '⚠ ZATCA 税号校验失败，匹配置信度 68% < 75% → 转人工复核。', en: '⚠ ZATCA tax-ID check failed, match confidence 68% < 75% → manual review.', ar: '⚠ فشل فحص الرقم الضريبي، ثقة 68٪ < 75٪ → مراجعة يدوية.' } },
-    {}, {}, {}, {}, {}
-  ]
 };
 
 /* ================================================================ Ingest family
@@ -533,19 +475,6 @@ const PATTERN_OK_BUNDLE = {
   ],
   conclusion: { text: { zh: '未见异常提交频率或定价模式，与该缴款方历史一致，自动继续。', en: 'No unusual submission frequency or pricing pattern vs. this payer\'s history — auto-continue.', ar: 'لا نمط تكرار أو تسعير غير معتاد مقارنة بسجل هذه الجهة الدافعة — متابعة تلقائية.' }, confidence: 91, tone: 'ok', action: { zh: '继续至审批路由', en: 'Continue to Approval Routing', ar: 'المتابعة إلى التوجيه' } }
 };
-
-// Which node the scenario stalls at (0-based, matches PIPELINE in mock.js).
-// 0 ingest, 1 ocr, 2 normalize, 3 dedup, 4 validation, 5 compliance, 6 anomaly,
-// 7 pattern, 8 routing, 9 forecasting, 10 analytics. null = runs the full chain.
-export const SCENARIO_STALL = { normal: null, fraud: 6, dup: 3, taxfail: 5 };
-
-// Pending action / why-blocked label for the stalled node.
-export const SCENARIO_PENDING = {
-  fraud: { zh: '欺诈风险评分 82，等待审计师人工复核', en: 'Fraud risk score 82 — awaiting auditor manual review', ar: 'درجة احتيال 82 — بانتظار مراجعة المدقق' },
-  dup: { zh: '检测到重复发票，已拦截，等待人工确认', en: 'Duplicate invoice detected, blocked — awaiting human confirm', ar: 'تم اكتشاف فاتورة مكررة، محظورة — بانتظار التأكيد' },
-  taxfail: { zh: '税务/匹配置信度 68% < 75%，转合规人工复核', en: 'Tax/match confidence 68% < 75% — referred to compliance', ar: 'ثقة 68٪ < 75٪ — تمت الإحالة إلى الامتثال' }
-};
-
 /* ================================================================ Routing */
 const ROUTE_OK_BUNDLE = {
   title: { zh: '审批路由 · Agent 运行轨迹', en: 'Approval Routing · Agent Run-Trace', ar: 'توجيه الاعتماد · مسار الوكيل' },
@@ -880,58 +809,3 @@ export const FORECAST_BASIS = {
   )
 };
 
-/* ---------------------------------------------------------------- HITL stats */
-export const HITL_STATS = {
-  title: { zh: '人机协作 (HITL) 运行统计', en: 'Human Oversight (HITL) Statistics', ar: 'إحصاءات الإشراف البشري (HITL)' },
-  subtitle: { zh: '本月 · AI 自动处理 vs 转人工 · 断点触发', en: 'This month · auto vs human · breakpoints', ar: 'هذا الشهر · تلقائي مقابل بشري' },
-  agentTag: 'orch',
-  stats: [
-    { value: '12,480', label: { zh: '本月已处理账单', en: 'Invoices processed', ar: 'الفواتير المعالجة' } },
-    { value: '91.4%', label: { zh: 'AI 自动处理占比', en: 'Auto-processed share', ar: 'نسبة المعالجة التلقائية' } },
-    { value: '1,073', label: { zh: '转人工复核', en: 'Sent to human', ar: 'أُحيلت للمراجعة البشرية' } },
-    { value: '93.7%', label: { zh: '平均决策置信度', en: 'Avg decision confidence', ar: 'متوسط الثقة' } }
-  ],
-  steps: [
-    {
-      agent: 'orch',
-      title: { zh: '断点来源与价值汇总', en: 'Breakpoint sources & value summary', ar: 'مصادر التوقف وملخص القيمة' },
-      blocks: [
-        think({ zh: '汇总本月编排层触发的 HITL 断点分布与自动化收益。', en: 'Aggregating this month\'s HITL breakpoint distribution and automation gains from the orchestrator.', ar: 'أجمّع توزيع نقاط توقف HITL ومكاسب الأتمتة لهذا الشهر.' }),
-        tool('orchestrator.hitl_stats', { period: '2026-07' }, { confidence_breakpoints: 612, amount_threshold: 327, anomaly: 134, auto_share: 0.914, hours_saved: 3860 }, 260),
-        evid([
-          { source: 'Orchestrator · breakpoints', detail: { zh: '置信度断点 612 · 金额阈值断点 327 · 异常断点 134。', en: 'Confidence 612 · amount-threshold 327 · anomaly 134.', ar: 'ثقة 612 · حد المبلغ 327 · انحراف 134.' } }
-        ]),
-        decide({ zh: 'AI 出结论、人工做决策：91.4% 自动完成，其余按风险精准转人工。', en: 'AI concludes, humans decide: 91.4% automated, the rest routed to humans by risk.', ar: 'الذكاء يستنتج والبشر يقررون: 91.4٪ آلي والباقي حسب المخاطر.' }, 'ok', true, { zh: '置信度 < 75% / 超阈值 / 异常 → 人工', en: 'confidence < 75% / over threshold / anomaly → human', ar: 'الثقة < 75٪ / تجاوز / انحراف → بشري' })
-      ]
-    }
-  ],
-  conclusion: { text: { zh: 'AI 出结论、人工做决策：91.4% 自动完成，其余按风险精准转人工。', en: 'AI concludes, humans decide: 91.4% automated, the rest routed to humans by risk.', ar: 'الذكاء يستنتج والبشر يقررون: 91.4٪ آلي والباقي حسب المخاطر.' }, confidence: 94, tone: 'ok' }
-};
-
-/* ---------------------------------------------------------------- Orchestration */
-// Live orchestration graph — inter-agent messages with realistic handoff
-// payload summaries. `wave` groups messages that fire together (parallelism).
-export const ORCH_MESSAGES = [
-  { from: 'orch', to: 'ingest', wave: 0, text: { zh: '派发摄取：从 4 源拉取', en: 'dispatch ingestion: fetch from 4 sources', ar: 'إرسال الاستيعاب: جلب من 4 مصادر' } },
-  { from: 'ingest', to: 'ocr', wave: 1, text: { zh: '账单已入队 → 提取字段', en: 'invoice queued → extract fields', ar: 'الفاتورة في القائمة → استخراج الحقول' } },
-  { from: 'ocr', to: 'normalize', wave: 2, text: { zh: '10 字段（置信度 0.98）→ 标准化', en: '10 fields (conf 0.98) → normalize', ar: '10 حقول (ثقة 0.98) → التوحيد' } },
-  { from: 'normalize', to: 'dedup', wave: 3, text: { zh: '统一模型 → 检索重复', en: 'unified model → search duplicates', ar: 'نموذج موحد → بحث التكرار' } },
-  { from: 'dedup', to: 'validation', wave: 4, text: { zh: '未见重复 → 三单匹配', en: 'no duplicate → 3-way match', ar: 'لا تكرار → مطابقة ثلاثية' } },
-  { from: 'validation', to: 'compliance', wave: 5, text: { zh: '匹配通过 → 税务校验', en: 'match OK → tax check', ar: 'المطابقة صحيحة → فحص ضريبي' } },
-  { from: 'compliance', to: 'anomaly', wave: 6, text: { zh: '税务合规 → 价格异常评分', en: 'tax-compliant → price anomaly scoring', ar: 'متوافق → تقييم انحراف السعر' } },
-  { from: 'anomaly', to: 'pattern', wave: 7, text: { zh: '风险 12（低危）→ 跨发票模式比对', en: 'risk 12 (low) → cross-invoice pattern check', ar: 'مخاطر 12 (منخفضة) → مقارنة الأنماط' } },
-  { from: 'anomaly', to: 'orch', wave: 7, hitl: true, parallel: true, text: { zh: '并行：高风险案例回报编排层触发 HITL', en: 'in parallel: high-risk cases report to orchestrator → HITL', ar: 'بالتوازي: الحالات عالية الخطورة تُبلغ المنسق ← HITL' } },
-  { from: 'pattern', to: 'routing', wave: 8, text: { zh: '无异常模式 → 授权矩阵匹配', en: 'no unusual pattern → authorization-matrix match', ar: 'لا نمط منحرف → مطابقة مصفوفة التفويض' } },
-  { from: 'routing', to: 'forecasting', wave: 9, text: { zh: '推送人工确认 → 结算周期建模', en: 'pushed to human confirm → model settlement cycle', ar: 'إرسال للتأكيد البشري → نمذجة دورة التسوية' } },
-  { from: 'routing', to: 'orch', wave: 9, hitl: true, parallel: true, text: { zh: '并行：审批 HITL 断点回报编排层', en: 'in parallel: approval HITL breakpoint reports to orchestrator', ar: 'بالتوازي: نقطة توقف الموافقة تُبلغ المنسق' } },
-  { from: 'forecasting', to: 'analytics', wave: 10, text: { zh: '回收概率 0.95 → KPI 汇总', en: 'recovery prob 0.95 → aggregate KPIs', ar: 'احتمال التحصيل 0.95 → تجميع المؤشرات' } },
-  { from: 'analytics', to: 'orch', wave: 11, text: { zh: 'KPI 已汇总，审计留痕已写入', en: 'KPIs aggregated, audit trail written', ar: 'تم تجميع المؤشرات وكتابة سجل التدقيق' } }
-];
-
-// Per-agent synthetic average latency (ms) for the live orchestration metrics.
-export const ORCH_LATENCY = {
-  ingest: 110, ocr: 190, normalize: 70, dedup: 60,
-  validation: 190, compliance: 170,
-  anomaly: 260, pattern: 150,
-  routing: 190, forecasting: 320, analytics: 230
-};

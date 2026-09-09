@@ -12,9 +12,16 @@ import {
 } from 'chart.js';
 import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
-import { APPROVALS, COLLECTIONS, DEFAULT_ANSWER, INVOICES, KPIS, QA, RISKS, SOURCES, STATUS, TREND, fmtMoney } from '../data/mock';
+import { APPROVALS, COLLECTIONS, DEFAULT_ANSWER, INVOICES, KPIS, QA, SOURCES, STATUS, TREND, fmtMoney, REVENUE_BENCHMARK_SAMPLE } from '../data/mock';
+import { computeGroupedRiskFlags } from '../data/riskAnalysis';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
+
+// Real, MoMAH-grounded risk flags (duplicate/struck-off registry/deceased
+// debtor/value anomaly) — same source Risk.jsx renders from, computed once
+// since INVOICES is static, so the Assistant's answers can never drift out
+// of sync with what the Risk Radar page shows.
+const RISKS = computeGroupedRiskFlags();
 
 function mdToHtml(s = '') {
   // minimal markdown: **bold** + line breaks
@@ -195,6 +202,32 @@ function InlineChart({ type }) {
     );
   }
 
+  if (type === 'realRevenueSource') {
+    const sorted = [...REVENUE_BENCHMARK_SAMPLE.bySource].sort((a, b) => b.weight - a.weight);
+    const data = {
+      labels: sorted.map((s) => T(s, 'name')),
+      datasets: [
+        {
+          label: t('dash_real_th_weight'),
+          data: sorted.map((s) => s.weight),
+          backgroundColor: sorted.map((s) => badgeColor(s.rate).bg),
+          borderColor: sorted.map((s) => badgeColor(s.rate).border),
+          borderWidth: 1,
+          borderRadius: 8
+        }
+      ]
+    };
+    return (
+      <div style={{ height: 220 }}>
+        <Bar
+          ref={ref}
+          data={data}
+          options={{ ...common, indexAxis: 'y', scales: { ...common.scales, x: { ...common.scales.x, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }}
+        />
+      </div>
+    );
+  }
+
   if (type === 'invoiceStatus') {
     const counts = Object.keys(STATUS)
       .map((key) => ({ key, ...STATUS[key], count: INVOICES.filter((i) => i.status === key).length }))
@@ -266,9 +299,9 @@ export default function Assistant() {
   }, [lang]);
 
   const suggestions = useMemo(() => {
-    if (lang === 'zh') return ['本月回收率多少？', '逾期账款情况如何？', '异常/欺诈拦截了多少？', '待审批账单有哪些？'];
-    if (lang === 'ar') return ['ما هو معدل التحصيل؟', 'ما هي المديونيات المتعثرة؟', 'كم عدد الحالات المنحرفة؟', 'ما الفواتير المعلقة للموافقة؟'];
-    return ["What is this month's collection rate?", 'What overdue receivables need attention?', 'How many anomalies were blocked?', 'What invoices are pending approval?'];
+    if (lang === 'zh') return ['本月回收率多少？', '逾期账款情况如何？', '异常/欺诈拦截了多少？', '待审批账单有哪些？', '收入基准报告情况如何？'];
+    if (lang === 'ar') return ['ما هو معدل التحصيل؟', 'ما هي المديونيات المتعثرة؟', 'كم عدد الحالات المنحرفة؟', 'ما الفواتير المعلقة للموافقة؟', 'ما هو معيار الإيرادات التوضيحي؟'];
+    return ["What is this month's collection rate?", 'What overdue receivables need attention?', 'How many anomalies were blocked?', 'What invoices are pending approval?', 'What does the sample revenue benchmark show?'];
   }, [lang]);
 
   // Every value here is derived live from the same real arrays the rest of the
@@ -339,7 +372,18 @@ export default function Assistant() {
       stReview: statusCount('review'),
       stDuplicate: statusCount('duplicate'),
       stAnomaly: statusCount('anomaly'),
-      avgHours: Math.round((cycleKpi?.value || 0) * 24)
+      avgHours: Math.round((cycleKpi?.value || 0) * 24),
+      realGross: fmtMoney(REVENUE_BENCHMARK_SAMPLE.cumulative.grossInvoiced),
+      realNet: fmtMoney(REVENUE_BENCHMARK_SAMPLE.cumulative.netInvoiced),
+      realNetPct: REVENUE_BENCHMARK_SAMPLE.cumulative.netPctOfGross,
+      realCollected: fmtMoney(REVENUE_BENCHMARK_SAMPLE.cumulative.collected),
+      realCollectedPct: REVENUE_BENCHMARK_SAMPLE.cumulative.collectedPctOfNet,
+      realCollected2025: fmtMoney(REVENUE_BENCHMARK_SAMPLE.yoy.collected.y2025),
+      realCollectedYoy: REVENUE_BENCHMARK_SAMPLE.yoy.collected.pct,
+      realTopWeight: REVENUE_BENCHMARK_SAMPLE.bySource[0].weight,
+      realTopRate: REVENUE_BENCHMARK_SAMPLE.bySource[0].rate,
+      realHousingWeight: REVENUE_BENCHMARK_SAMPLE.bySource[1].weight,
+      realHousingRate: REVENUE_BENCHMARK_SAMPLE.bySource[1].rate
     };
   }, [lang, T]);
 

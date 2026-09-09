@@ -11,12 +11,15 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "chart.js": "^4.4.4",
+    "docx": "^9.7.1",
+    "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
+    "react-chartjs-2": "^5.2.0",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.0",
-    "chart.js": "^4.4.4",
-    "react-chartjs-2": "^5.2.0",
-    "serve": "^14.2.4"
+    "serve": "^14.2.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
