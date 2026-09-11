@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
+const StrategicDashboard = lazy(() => import('./pages/StrategicDashboard'));
 import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import Collection from './pages/Collection';
@@ -27,6 +28,7 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
+        <Route path="strategic-dashboard" element={<Suspense fallback={<div role="status" aria-label="Loading">…</div>}><StrategicDashboard /></Suspense>} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />

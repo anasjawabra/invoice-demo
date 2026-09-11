@@ -3,6 +3,7 @@
 
 export const translations = {
   zh: {
+    strategic_dashboard: '战略仪表盘',
     hero_badge: '基于 HiAgent 多 Agent 架构 · 人机协作 (HITL)',
     hero_title: '智能账单<br><span>多 Agent 自动化平台</span>',
     hero_sub:
@@ -339,6 +340,7 @@ export const translations = {
   },
 
   en: {
+    strategic_dashboard: 'Strategic Dashboard',
     hero_badge: 'HiAgent Multi-Agent Architecture · HITL',
     hero_title: 'INTELLIBILL<br><span>Multi-Agent Platform</span>',
     hero_sub:
@@ -676,6 +678,7 @@ export const translations = {
   },
 
   ar: {
+    strategic_dashboard: 'لوحة المعلومات الاستراتيجية',
     hero_badge: 'بنية HiAgent متعددة الوكلاء · الإشراف البشري (HITL)',
     hero_title: 'INTELLIBILL<br><span>منصة أتمتة الوكلاء</span>',
     hero_sub:

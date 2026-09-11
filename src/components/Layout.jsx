@@ -9,6 +9,8 @@ function Icon({ name }) {
   // Minimal inline icons (no external deps)
   const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
   switch (name) {
+    case 'strategic':
+      return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="m12 12 8-8M16 4h4v4" /></svg>;
     case 'dashboard':
       return (
         <svg {...common}>
@@ -85,7 +87,8 @@ function LayoutInner() {
     return [
       {
         title: t('nav_overview'),
-        items: [{ to: '/dashboard', icon: 'dashboard', label: t('dashboard') }]
+        items: [{ to: '/dashboard', icon: 'dashboard', label: t('dashboard') },
+          { to: '/strategic-dashboard', icon: 'strategic', label: t('strategic_dashboard') }]
       },
       {
         title: t('nav_proc'),
@@ -111,6 +114,7 @@ function LayoutInner() {
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
+    if (p.startsWith('/strategic-dashboard')) return t('strategic_dashboard');
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
