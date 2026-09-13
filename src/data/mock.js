@@ -1401,6 +1401,14 @@ export const REVENUE_BENCHMARK_SAMPLE = {
   }
 };
 
+/* ---------- Illustrative operational-expenditure baseline (What-If Modeling) ----------
+   Fictional target figure, same SAR scale as the per-invoice INVOICES array (NOT the
+   SAR-millions REVENUE_BENCHMARK_SAMPLE above). Per the 10-Sep Smart Invoicing MOM, the
+   exact operational-expenditure calculation methodology was explicitly flagged as
+   "not finalized — requires further validation" before the real Prototype. This number
+   exists only so the demo can show the shape of an opex-coverage scenario. */
+export const OPEX_BASELINE = 17000000;
+
 /* ---------- Utility ---------- */
 export function fmtMoney(n) {
   return n.toLocaleString('en-US');

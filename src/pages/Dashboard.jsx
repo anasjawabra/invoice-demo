@@ -213,33 +213,6 @@ export default function Dashboard() {
     ]
   }), [byAmanah, t]);
 
-  const amanahTotals = useMemo(() => ({
-    gross: byAmanah.reduce((s, g) => s + g.gross, 0),
-    collected: byAmanah.reduce((s, g) => s + g.collected, 0)
-  }), [byAmanah]);
-
-  const amanahTotalsChartData = useMemo(() => ({
-    labels: [t('dash_amanah_total_gross'), t('dash_amanah_total_collected')],
-    datasets: [{
-      data: [amanahTotals.gross, amanahTotals.collected],
-      backgroundColor: ['rgba(0, 90, 150, 0.75)', 'rgba(0, 102, 4, 0.75)'],
-      borderRadius: 4
-    }]
-  }), [amanahTotals, t]);
-
-  const totalsChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, callbacks: { label: (ctx) => `${fmtMoney(ctx.parsed.y)} SAR` } }
-    },
-    scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11.5, weight: 700 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
-    }
-  }), [isRtl]);
-
   const exclusionChartData = useMemo(() => ({
     labels: Object.keys(EXCL_LABEL_KEY).map((k) => t(EXCL_LABEL_KEY[k])),
     datasets: [{
@@ -469,13 +442,6 @@ export default function Dashboard() {
 
   return (
     <div className="grid" style={{ gap: 14 }}>
-      <div className="page-head">
-        <div>
-          <div className="page-title">{t('dash_title')}</div>
-          <div className="page-sub">{t('dash_subtitle')}</div>
-        </div>
-      </div>
-
       <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <span style={{ fontWeight: 900, fontSize: 12, color: 'var(--muted)' }}>{t('dash_period_label')}</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -561,7 +527,15 @@ export default function Dashboard() {
       </div>
 
       {/* Core KPI strip */}
-      <div className="grid grid-4">
+      <div className="grid grid-6">
+        <div className="card card-pad">
+          <div className="kpi__value">{fmtMoney(kpi.gross)}</div>
+          <div className="kpi__label">{t('dash_kpi_gross')}</div>
+        </div>
+        <div className="card card-pad" style={{ borderInlineStart: '4px solid var(--red)' }}>
+          <div className="kpi__value">{fmtMoney(kpi.excludedValue)}</div>
+          <div className="kpi__label">{t('dash_kpi_excluded')}</div>
+        </div>
         <div className="card card-pad">
           <div className="kpi__value">{fmtMoney(kpi.netInvoiced)}</div>
           <div className="kpi__label">{t('dash_kpi_net_invoiced')}</div>
@@ -681,33 +655,15 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="card chart-box" style={{ height: 360, flexShrink: 0 }}>
-            <div className="page-head" style={{ marginBottom: 8 }}>
-              <div>
-                <div className="page-title" style={{ fontSize: 16 }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
-                <div className="page-sub">{t('dash_amanah_sub')}</div>
-              </div>
-            </div>
-            <div style={{ height: 280 }}>
-              <Bar data={amanahChartData} options={barOptions} />
+        <div className="card chart-box">
+          <div className="page-head" style={{ marginBottom: 8 }}>
+            <div>
+              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
+              <div className="page-sub">{t('dash_amanah_sub')}</div>
             </div>
           </div>
-
-          {/* Fills whatever space remains next to the taller Amanah table —
-              flex-grow (not a fixed height) so it scales with however many
-              Amanahs are in the table, instead of leaving a gap or being
-              stretched by the CSS grid row tracks into blank space. */}
-          <div className="card chart-box" style={{ flex: 1, minHeight: 220, display: 'flex', flexDirection: 'column' }}>
-            <div className="page-head" style={{ marginBottom: 6, flexShrink: 0 }}>
-              <div>
-                <div className="page-title" style={{ fontSize: 14 }}>{t('dash_amanah_total_gross')} / {t('dash_amanah_total_collected')}</div>
-                <div className="page-sub" style={{ fontSize: 11 }}>{t('dash_amanah_totals_scope')}</div>
-              </div>
-            </div>
-            <div style={{ flex: 1, minHeight: 140 }}>
-              <Bar data={amanahTotalsChartData} options={totalsChartOptions} />
-            </div>
+          <div style={{ height: 280 }}>
+            <Bar data={amanahChartData} options={barOptions} />
           </div>
         </div>
       </div>

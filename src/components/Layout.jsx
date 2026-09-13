@@ -55,6 +55,15 @@ function Icon({ name }) {
           <path d="M9 12l2 2 4-4" />
         </svg>
       );
+    case 'what-if':
+      return (
+        <svg {...common}>
+          <path d="M4 19h16" />
+          <path d="M4 19V7" />
+          <path d="M4 15l4-3 4 2 8-7" />
+          <path d="M20 7v4M20 7h-4" />
+        </svg>
+      );
     case 'bell':
       return (
         <svg {...common}>
@@ -102,7 +111,8 @@ function LayoutInner() {
         title: t('nav_hub'),
         items: [
           { to: '/assistant', icon: 'assistant', label: t('assistant') },
-          { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') }
+          { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') },
+          { to: '/what-if', icon: 'what-if', label: t('what_if_nav') }
         ]
       }
     ];
@@ -116,6 +126,7 @@ function LayoutInner() {
     if (p.startsWith('/collection')) return t('collection');
     if (p.startsWith('/assistant')) return t('assistant');
     if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
+    if (p.startsWith('/what-if')) return t('what_if_nav');
     if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
     return 'INTELLIBILL';
   }, [loc.pathname, t]);
