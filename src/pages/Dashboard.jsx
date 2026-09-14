@@ -44,6 +44,31 @@ const EXCL_LABEL_KEY = {
 };
 const EXCL_COLOR = { duplicate: 'gold', appeal: 'orange', invalid_debtor: 'red', enforcement: 'indigo' };
 
+
+const DEMO_TARGET_ACHIEVEMENT = {
+  'Eastern Province Amanah': 64,
+  'Riyadh Amanah': 78,
+  'Jeddah Amanah': 74,
+  'Tabuk Amanah': 58,
+  'Al Madinah Amanah': 100,
+  'Asir Amanah': 42,
+  'Jazan Amanah': 71,
+  "Ha'il Amanah": 83,
+  'Makkah Amanah': 88,
+  'Najran Amanah': 100,
+  'Al-Qassim Amanah': 69,
+  'Al Jawf Amanah': 76,
+  'Northern Borders Amanah': 36,
+  'Al Bahah Amanah': 73,
+  'Al-Ahsa Amanah': 55
+};
+
+function demoTargetAchievement(key) {
+  if (DEMO_TARGET_ACHIEVEMENT[key]) return DEMO_TARGET_ACHIEVEMENT[key];
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) % 997;
+  return 62 + (hash % 35);
+}
 function badgeForColor(c) {
   const map = { teal: 'badge--teal', indigo: 'badge--indigo', gold: 'badge--gold', green: 'badge--green', red: 'badge--red', orange: 'badge--orange', blue: 'badge--blue', purple: 'badge--purple' };
   return map[c] || '';
@@ -80,7 +105,7 @@ function RingGauge({ pct, target = 70, size = 84 }) {
         strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
       />
-      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="#2A2A2A" strokeWidth="2" />
+      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="var(--orange)" strokeWidth="3" strokeLinecap="round" />
       <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="#1A1A1A">{Math.round(clamped)}%</text>
     </svg>
   );
@@ -682,14 +707,14 @@ export default function Dashboard() {
             <div className="page-title" style={{ fontSize: 16 }}>{t('dash_amanah_target_title')}</div>
             <div className="page-sub">{t('dash_amanah_target_sub')}</div>
           </div>
-          <span className="badge" style={{ background: 'rgba(120,120,120,0.12)', color: '#666666', borderColor: 'rgba(120,120,120,0.25)' }}>
+          <span className="badge" style={{ background: 'rgba(232, 139, 47, 0.14)', color: 'var(--orange)', borderColor: 'rgba(232, 139, 47, 0.38)', boxShadow: '0 0 0 3px rgba(232, 139, 47, 0.08)' }}>
             {t('dash_map_target_label')}
           </span>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center' }}>
           {byAmanah.map((g) => (
             <div key={g.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 104 }}>
-              <RingGauge pct={g.rate} target={70} size={88} />
+              <RingGauge pct={demoTargetAchievement(g.key)} target={70} size={88} />
               <span style={{ fontSize: 11.5, fontWeight: 800, textAlign: 'center', lineHeight: 1.3 }}>{g.label}</span>
             </div>
           ))}
