@@ -87,10 +87,9 @@ export default function Login() {
         <div className="card login-card">
           <div className="brand-row">
             <div className="brand-left">
-              <div className="brand-logo">IB</div>
+              <div className="brand-logo">IM</div>
               <div className="brand-name">
-                <b>INTELLIBILL</b>
-                <small>{t('brand_tagline')}</small>
+                <b>{t('side_brand')}</b>
               </div>
             </div>
 

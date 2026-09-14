@@ -75,6 +75,15 @@ function requiredInvoicing(targetAmount, values, days, profile = OPERATING_PROFI
   return Math.max(0, requiredGross - current.grossInvoiced);
 }
 
+export function trajectory(values, days, steps = 12, profile = OPERATING_PROFILE) {
+  const points = [];
+  for (let i = 0; i <= steps; i++) {
+    const d = Math.max(1, Math.round(days * i / steps));
+    points.push({ day: d, ...project(values, d, profile) });
+  }
+  return points;
+}
+
 export function analyzeScenario(scenario) {
   const { target, targetType, days, values, enabled } = scenario;
   if (!TARGET_TYPES.includes(targetType) || !Number.isFinite(target) || target <= 0 || ![30, 60, 90].includes(days)

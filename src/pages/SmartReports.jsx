@@ -64,7 +64,7 @@ function useSmartReport(t, lang, focus) {
       enforcement: pick(lang, 'Enforcement & Compliance', 'التنفيذ والامتثال', '执行与合规'),
       investment: pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')
     };
-    const generatedOn = `${pick(lang, 'Generated', 'تاريخ الإنشاء', '生成时间')}: ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : lang === 'zh' ? 'zh-CN' : 'en-US')}`;
+    const generatedOn = `${pick(lang, 'Generated', 'تاريخ الإنشاء', '生成时间')}: ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : lang === 'zh' ? 'zh-CN' : 'en-US', { numberingSystem: 'latn' })}`;
 
     const executiveSummary = pick(
       lang,

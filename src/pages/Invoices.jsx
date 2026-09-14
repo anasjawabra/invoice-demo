@@ -164,7 +164,7 @@ export default function Invoices() {
           <button
             type="button"
             className="btn btn-sm btn-ghost"
-            onClick={() => { setAmanahFilter('all'); setCollectionFilter('all'); setSourceFilter('all'); setSearch(''); }}
+            onClick={() => { setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); }}
           >
             {t('inv_filter_clear')} ({activeFilterCount}) ×
           </button>

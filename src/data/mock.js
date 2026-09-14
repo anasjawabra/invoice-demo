@@ -6,13 +6,13 @@ export const CREDENTIALS = [
   {
     user: 'demo',
     pass: 'demo123',
-    name: '李芳军',
-    nameEn: 'Li Fangjun',
-    nameAr: 'طارق',
+    name: '奥马尔·拉希德',
+    nameEn: 'Omar Al-Rashid',
+    nameAr: 'عمر الرشيد',
     role: '财务共享中心 · 主管',
     roleEn: 'Shared Service Center · Manager',
     roleAr: 'مركز الخدمات المشتركة · مدير',
-    avatar: 'LF'
+    avatar: 'OA'
   },
   {
     user: 'auditor',
@@ -982,7 +982,7 @@ export const APPROVALS = [
       'Invoice Clerk → Finance Manager → Budget & Finance → Revenue Assurance Review → Center Director → CFO',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مراجعة ضمان الإيرادات ← مدير المركز ← الرئيس المالي',
     assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
+    assigneeEn: 'Omar Al-Rashid',
     assigneeAr: 'طارق',
     priority: '高',
     priorityEn: 'High',
@@ -1013,7 +1013,7 @@ export const APPROVALS = [
     chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance → Center Director',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مدير المركز',
     assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
+    assigneeEn: 'Omar Al-Rashid',
     assigneeAr: 'طارق',
     priority: '中',
     priorityEn: 'Medium',
@@ -1041,7 +1041,7 @@ export const APPROVALS = [
     chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية',
     assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
+    assigneeEn: 'Omar Al-Rashid',
     assigneeAr: 'طارق',
     priority: '中',
     priorityEn: 'Medium',
@@ -1403,5 +1403,5 @@ export const REVENUE_BENCHMARK_SAMPLE = {
 
 /* ---------- Utility ---------- */
 export function fmtMoney(n) {
-  return n.toLocaleString('en-US');
+  return n.toLocaleString('en-US', { numberingSystem: 'latn' });
 }

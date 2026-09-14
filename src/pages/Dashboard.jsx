@@ -213,33 +213,6 @@ export default function Dashboard() {
     ]
   }), [byAmanah, t]);
 
-  const amanahTotals = useMemo(() => ({
-    gross: byAmanah.reduce((s, g) => s + g.gross, 0),
-    collected: byAmanah.reduce((s, g) => s + g.collected, 0)
-  }), [byAmanah]);
-
-  const amanahTotalsChartData = useMemo(() => ({
-    labels: [t('dash_amanah_total_gross'), t('dash_amanah_total_collected')],
-    datasets: [{
-      data: [amanahTotals.gross, amanahTotals.collected],
-      backgroundColor: ['rgba(0, 90, 150, 0.75)', 'rgba(0, 102, 4, 0.75)'],
-      borderRadius: 4
-    }]
-  }), [amanahTotals, t]);
-
-  const totalsChartOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: { display: false },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, callbacks: { label: (ctx) => `${fmtMoney(ctx.parsed.y)} SAR` } }
-    },
-    scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11.5, weight: 700 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
-    }
-  }), [isRtl]);
-
   const exclusionChartData = useMemo(() => ({
     labels: Object.keys(EXCL_LABEL_KEY).map((k) => t(EXCL_LABEL_KEY[k])),
     datasets: [{
@@ -469,13 +442,6 @@ export default function Dashboard() {
 
   return (
     <div className="grid" style={{ gap: 14 }}>
-      <div className="page-head">
-        <div>
-          <div className="page-title">{t('dash_title')}</div>
-          <div className="page-sub">{t('dash_subtitle')}</div>
-        </div>
-      </div>
-
       <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <span style={{ fontWeight: 900, fontSize: 12, color: 'var(--muted)' }}>{t('dash_period_label')}</span>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -498,7 +464,7 @@ export default function Dashboard() {
         </div>
         <select
           className="select"
-          style={{ height: 32, width: 'auto', paddingInline: 10, fontSize: 12.5 }}
+          style={{ height: 32, width: 'auto', minWidth: 110, fontSize: 12.5 }}
           value={dateFilter.mode === 'year' ? dateFilter.year : ''}
           onChange={(e) => setDateFilter({ mode: 'year', year: e.target.value, from: '', to: '' })}
         >
@@ -544,7 +510,7 @@ export default function Dashboard() {
         <span style={{ fontWeight: 900, fontSize: 12, color: 'var(--muted)' }}>{t('dash_amanah_filter_label')}</span>
         <select
           className="select"
-          style={{ height: 32, width: 'auto', minWidth: 220, paddingInline: 10, fontSize: 12.5 }}
+          style={{ height: 32, width: 'auto', minWidth: 160, fontSize: 12.5 }}
           value={amanahFilter}
           onChange={(e) => setAmanahFilter(e.target.value)}
         >
@@ -561,7 +527,15 @@ export default function Dashboard() {
       </div>
 
       {/* Core KPI strip */}
-      <div className="grid grid-4">
+      <div className="grid grid-6">
+        <div className="card card-pad">
+          <div className="kpi__value">{fmtMoney(kpi.gross)}</div>
+          <div className="kpi__label">{t('dash_kpi_gross')}</div>
+        </div>
+        <div className="card card-pad" style={{ borderInlineStart: '4px solid var(--red)' }}>
+          <div className="kpi__value">{fmtMoney(kpi.excludedValue)}</div>
+          <div className="kpi__label">{t('dash_kpi_excluded')}</div>
+        </div>
         <div className="card card-pad">
           <div className="kpi__value">{fmtMoney(kpi.netInvoiced)}</div>
           <div className="kpi__label">{t('dash_kpi_net_invoiced')}</div>
@@ -636,79 +610,68 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-        <div className="hr" />
-        <div className="page-sub" style={{ marginBottom: 8 }}>{t('dash_excl_by_value')}</div>
-        <div style={{ height: 200, maxWidth: 340 }}>
-          <Doughnut data={exclusionChartData} options={doughnutOptions} />
+      </div>
+
+      <div className="dashboard-chart-row">
+        <div className="card chart-box dashboard-chart-box">
+          <div className="page-head" style={{ marginBottom: 8 }}>
+            <div>
+              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_excl_by_value')}</div>
+              <div className="page-sub">{t('dash_excl_sub')}</div>
+            </div>
+          </div>
+          <div className="dashboard-chart-box__canvas dashboard-chart-box__canvas--donut">
+            <Doughnut data={exclusionChartData} options={doughnutOptions} />
+          </div>
+        </div>
+
+        <div className="card chart-box dashboard-chart-box">
+          <div className="page-head" style={{ marginBottom: 8 }}>
+            <div>
+              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
+              <div className="page-sub">{t('dash_amanah_sub')}</div>
+            </div>
+          </div>
+          <div className="dashboard-chart-box__canvas">
+            <Bar data={amanahChartData} options={barOptions} />
+          </div>
         </div>
       </div>
 
       {/* Amanah-level indicators */}
-      <div className="grid grid-2">
-        <div className="card card-pad">
-          <div className="page-head" style={{ marginBottom: 10 }}>
-            <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_amanah_title')}</div>
-              <div className="page-sub">{t('dash_amanah_sub')}</div>
-            </div>
-            <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
-              {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
-            </button>
+      <div className="card card-pad">
+        <div className="page-head" style={{ marginBottom: 10 }}>
+          <div>
+            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_amanah_title')}</div>
+            <div className="page-sub">{t('dash_amanah_sub')}</div>
           </div>
-          <div className="table-wrap">
-            <table className="table" aria-label="Amanah-level indicators">
-              <thead>
-                <tr>
-                  <th>{t('th_amanah')}</th>
-                  <th>{t('th_id')}#</th>
-                  <th>{t('dash_th_gross')}</th>
-                  <th>{t('dash_th_rate')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byAmanah.map((g) => (
-                  <tr key={g.key}>
-                    <td>{g.label}</td>
-                    <td dir="ltr">{g.count}</td>
-                    <td dir="ltr">{fmtMoney(g.gross)} SAR</td>
-                    <td>
-                      <span className={`badge ${g.rate >= 70 ? 'badge--green' : g.rate >= 40 ? 'badge--gold' : 'badge--red'}`}>{g.rate}%</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
+            {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
+          </button>
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div className="card chart-box" style={{ height: 360, flexShrink: 0 }}>
-            <div className="page-head" style={{ marginBottom: 8 }}>
-              <div>
-                <div className="page-title" style={{ fontSize: 16 }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
-                <div className="page-sub">{t('dash_amanah_sub')}</div>
-              </div>
-            </div>
-            <div style={{ height: 280 }}>
-              <Bar data={amanahChartData} options={barOptions} />
-            </div>
-          </div>
-
-          {/* Fills whatever space remains next to the taller Amanah table —
-              flex-grow (not a fixed height) so it scales with however many
-              Amanahs are in the table, instead of leaving a gap or being
-              stretched by the CSS grid row tracks into blank space. */}
-          <div className="card chart-box" style={{ flex: 1, minHeight: 220, display: 'flex', flexDirection: 'column' }}>
-            <div className="page-head" style={{ marginBottom: 6, flexShrink: 0 }}>
-              <div>
-                <div className="page-title" style={{ fontSize: 14 }}>{t('dash_amanah_total_gross')} / {t('dash_amanah_total_collected')}</div>
-                <div className="page-sub" style={{ fontSize: 11 }}>{t('dash_amanah_totals_scope')}</div>
-              </div>
-            </div>
-            <div style={{ flex: 1, minHeight: 140 }}>
-              <Bar data={amanahTotalsChartData} options={totalsChartOptions} />
-            </div>
-          </div>
+        <div className="table-wrap">
+          <table className="table" aria-label="Amanah-level indicators">
+            <thead>
+              <tr>
+                <th>{t('th_amanah')}</th>
+                <th>{t('th_id')}#</th>
+                <th>{t('dash_th_gross')}</th>
+                <th>{t('dash_th_rate')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byAmanah.map((g) => (
+                <tr key={g.key}>
+                  <td>{g.label}</td>
+                  <td dir="ltr">{g.count}</td>
+                  <td dir="ltr">{fmtMoney(g.gross)} SAR</td>
+                  <td>
+                    <span className={`badge ${g.rate >= 70 ? 'badge--green' : g.rate >= 40 ? 'badge--gold' : 'badge--red'}`}>{g.rate}%</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1164,25 +1127,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => nav('/assistant')}
-        style={{
-          position: 'fixed',
-          insetBlockEnd: 24,
-          insetInlineEnd: 24,
-          borderRadius: 999,
-          padding: '12px 20px',
-          boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-          zIndex: 40,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}
-      >
-        {t('dash_float_assistant')}
-      </button>
     </div>
   );
 }

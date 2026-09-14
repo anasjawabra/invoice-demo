@@ -9,7 +9,7 @@ import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import Collection from './pages/Collection';
 import Assistant from './pages/Assistant';
-import SmartReports from './pages/SmartReports';
+const SmartReports = lazy(() => import('./pages/SmartReports'));
 import SanadOrders from './pages/SanadOrders';
 import SanadOrderDetail from './pages/SanadOrderDetail';
 import InvestmentInvoices from './pages/InvestmentInvoices';
@@ -33,7 +33,7 @@ export default function App() {
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />
         <Route path="assistant" element={<Assistant />} />
-        <Route path="smart-reports" element={<SmartReports />} />
+        <Route path="smart-reports" element={<Suspense fallback={<div role="status" aria-label="Loading">…</div>}><SmartReports /></Suspense>} />
         <Route path="sanad-orders" element={<SanadOrders />} />
         <Route path="sanad-orders/:enforceNum" element={<SanadOrderDetail />} />
         <Route path="investment-invoices" element={<InvestmentInvoices />} />

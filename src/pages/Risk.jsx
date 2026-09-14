@@ -149,7 +149,7 @@ export default function Risk() {
     },
     scales: {
       x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10.5 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0, callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [isRtl]);
 

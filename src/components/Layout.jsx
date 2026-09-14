@@ -5,9 +5,9 @@ import { useAuth } from '../context/AuthContext';
 import { ORGS } from '../data/mock';
 import { ToastProvider, useToast } from './Toast';
 
-function Icon({ name }) {
+function Icon({ name, size = 18 }) {
   // Minimal inline icons (no external deps)
-  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
+  const common = { width: size, height: size, style: { width: size, height: size }, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
   switch (name) {
     case 'strategic':
       return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="m12 12 8-8M16 4h4v4" /></svg>;
@@ -59,7 +59,7 @@ function Icon({ name }) {
       );
     case 'bell':
       return (
-        <svg {...common}>
+        <svg {...common} strokeWidth={2.5}>
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
@@ -88,7 +88,7 @@ function LayoutInner() {
       {
         title: t('nav_overview'),
         items: [{ to: '/dashboard', icon: 'dashboard', label: t('dashboard') },
-          { to: '/strategic-dashboard', icon: 'strategic', label: t('strategic_dashboard') }]
+          { to: '/strategic-dashboard', icon: 'strategic', label: t('what_if_nav') }]
       },
       {
         title: t('nav_proc'),
@@ -114,13 +114,14 @@ function LayoutInner() {
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
-    if (p.startsWith('/strategic-dashboard')) return t('strategic_dashboard');
+    if (p.startsWith('/strategic-dashboard')) return t('what_if_nav');
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
     if (p.startsWith('/assistant')) return t('assistant');
     if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
     if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
+    if (p.startsWith('/investment-invoices')) return t('dash_invest_title');
     return 'INTELLIBILL';
   }, [loc.pathname, t]);
 
@@ -131,10 +132,9 @@ function LayoutInner() {
 
       <aside className="sidebar">
         <NavLink to="/dashboard" className="side-brand">
-          <div className="side-brand__logo">IB</div>
+          <div className="side-brand__logo">IM</div>
           <div className="side-brand__text">
             <b>{t('side_brand')}</b>
-            <span>{t('brand_tagline')}</span>
           </div>
         </NavLink>
 
@@ -159,22 +159,27 @@ function LayoutInner() {
             </div>
           ))}
         </nav>
+
+        <div className="sidebar-fab">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => nav('/assistant')}
+          >
+            <Icon name="assistant" size={18} />
+            {t('dash_float_assistant')}
+          </button>
+        </div>
       </aside>
 
       <main className="main">
         <header className="topbar">
           <div className="topbar-left">
             <div className="topbar-title">{pageTitle}</div>
-            <div className="pill" title={t('org_scope_note')}>
-              <span className="badge badge--indigo">{org.code}</span>
-              <span style={{ color: 'var(--txt-dim)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>
-                {T(org, 'name')}
-              </span>
-            </div>
           </div>
 
           <div className="topbar-right">
-            <div className="pill" aria-label="Language">
+            <div className="pill topbar-language" aria-label="Language">
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'en' ? 'btn-primary' : 'btn-ghost'}`}
@@ -209,8 +214,7 @@ function LayoutInner() {
 
             {orgScoped ? (
               <select
-                className="select"
-                style={{ width: 270 }}
+                className="select topbar-org-select"
                 value={org.id}
                 onChange={(e) => {
                   switchOrg(e.target.value);
@@ -226,7 +230,7 @@ function LayoutInner() {
               </select>
             ) : (
               <div
-                className="pill org-consolidated"
+                className="pill org-consolidated topbar-org-select"
                 role="group"
                 tabIndex={0}
                 aria-label={t('data_scope_consolidated')}
@@ -254,28 +258,27 @@ function LayoutInner() {
 
             <button
               type="button"
-              className="btn"
+              className="btn topbar-notification"
               onClick={() => toast.info(t('notif_msg'))}
               aria-label={t('notif')}
               title={t('notif')}
             >
-              <Icon name="bell" />
-              <span style={{ fontSize: 12 }}>{t('notif')}</span>
+              <Icon name="bell" size={21} />
+              <span className="topbar-notification__dot" aria-hidden="true" />
             </button>
 
-            <div className="pill" style={{ gap: 10 }}>
+            <div className="pill topbar-user">
               <div
-                className="badge badge--teal"
-                style={{ width: 34, height: 34, borderRadius: 14, paddingInline: 0, display: 'grid', placeItems: 'center' }}
+                className="badge badge--teal topbar-user__avatar"
                 title={T(user, 'name')}
               >
                 {user?.avatar || 'U'}
               </div>
-              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 850, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+              <div className="topbar-user__copy">
+                <span className="topbar-user__name">
                   {T(user, 'name')}
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--txt-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                <span className="topbar-user__role">
                   {T(user, 'role')}
                 </span>
               </div>
