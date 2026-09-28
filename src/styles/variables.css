@@ -1,62 +1,150 @@
 :root {
   /* ==========================================================
-     GOV-SA (Saudi Government Design System) — LIGHT theme tokens
+     "Financial Imagination" visual language — LIGHT theme tokens
+     Palette/typography extracted from financial-imagination.vercel.app/#/planning
      ========================================================== */
 
   /* Brand */
-  --primary: #26634B;    /* government green */
-  --primary-2: #225B45;  /* green hover */
-  --secondary: #005A96;  /* blue */
-  --success: #006604;
-  --warning: #FFC107;
-  --danger: #AF0818;
+  --primary: #1B8354;    /* brand green */
+  --primary-2: #156a44;  /* green hover (darker) */
+  --primary-light: #2f9d67; /* lighter green, used for glow/hover accents */
+  --accent: #0d9668;     /* mint accent, page-title color */
+  --secondary: #0A6FA6;  /* blue, desaturated to sit beside the green-dominant palette */
+  --success: #3E8540;
+  --warning: #8c5f00;
+  --danger: #C4514C;
+  --low: #8a978f;        /* 4th neutral "no/low data" status */
 
   /* Text */
-  --heading: #000000;
-  --txt: #323232;
-  --txt-dim: #4A4A4A;
-  --txt-mute: #6B7280;
+  --heading: #062a1e;
+  --txt: #0f2a20;
+  --txt-dim: #17402f;
+  --txt-mute: #436254;
+  --txt-mute-2: #557563;
 
   /* Surfaces / backgrounds */
-  --bg-0: #F5F6FA;   /* page background */
-  --bg-1: #FFFFFF;   /* surface */
+  --bg-0: #eef3f0;    /* page background base */
+  --bg-0-rgb: 238, 243, 240;
+  --bg-1: #FFFFFF;
   --bg-2: #FFFFFF;
-  --panel: #FFFFFF;
+  --panel: rgba(255, 255, 255, 0.72);   /* glassy card fill */
   --panel-solid: #FFFFFF;
+  --appbg: radial-gradient(1200px 720px at 80% -10%, #dcece4 0%, #eef3f0 46%, #e7efea 100%);
 
   /* Aliases consumed by global.css (previously dark var names) */
-  --bg: #F5F6FA;
+  --bg: #eef3f0;
   --surface: #FFFFFF;
-  --card: #FFFFFF;
+  --card: rgba(255, 255, 255, 0.72);
 
-  /* Lines / borders */
-  --line: #EAEAEA;
-  --line-strong: #D9D9D9;
+  /* Lines / borders — brand-tinted hairlines */
+  --line: rgba(27, 131, 84, 0.16);
+  --line-strong: rgba(27, 131, 84, 0.3);
 
-  /* Elevation */
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  /* Elevation — reference cards are flat/glassy, not elevated */
+  --shadow: none;
   --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.05);
+  --glow-primary: 0 8px 24px -8px rgba(0, 0, 0, 0.5), 0 0 18px -6px rgba(94, 234, 212, 0.5);
 
   /* Legacy color aliases used across markup / inline styles / JS */
   --teal: var(--primary);
-  --teal-2: #1F523D;
+  --teal-2: var(--primary-2);
   --indigo: var(--secondary);
   --gold: var(--warning);
   --green: var(--success);
   --red: var(--danger);
-  --orange: #C88700;
+  --orange: #9A5C00;
   --purple: #6B57A6;
   --blue: var(--secondary);
-  --grey: #8B93A1;
+  --grey: var(--low);
 
   /* Geometry */
-  --radius: 8px;        /* cards / panels */
-  --radius-sm: 6px;     /* inputs */
-  --radius-pill: 3rem;  /* buttons */
+  --radius: 14px;       /* cards / panels */
+  --radius-sm: 10px;    /* inputs */
+  --radius-pill: 999px; /* buttons / badges / tabs */
 
-  /* System font stack — covers Latin, Arabic and CJK on every platform */
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-          'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
+  /* Font stacks — IBM Plex Sans Arabic/Mono for the new look, falling back to the
+     existing system stack so Latin/Arabic pick up the new face while Chinese text
+     (which IBM Plex Sans Arabic has no glyphs for) silently falls through per-glyph
+     to the CJK system fonts already in the stack. */
+  --font: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', 'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
           'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
           sans-serif;
+  --num: 'IBM Plex Mono', var(--font), ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #2f9d67;
+    --primary-2: #3fb47a;
+    --primary-light: #4bcf8e;
+    --accent: #35c996;
+    --secondary: #4FA3D1;
+    --success: #5fb85f;
+    --warning: #d1a53d;
+    --danger: #e08a85;
+    --low: #6b7a72;
+
+    --heading: #eaf6ef;
+    --txt: #d7ece1;
+    --txt-dim: #b7d6c6;
+    --txt-mute: #8fac9c;
+    --txt-mute-2: #7a9689;
+
+    --bg-0: #0d1712;
+    --bg-0-rgb: 13, 23, 18;
+    --bg-1: #142019;
+    --bg-2: #16241c;
+    --panel: rgba(22, 36, 28, 0.72);
+    --panel-solid: #16241c;
+    --appbg: radial-gradient(1200px 720px at 80% -10%, #16261e 0%, #0d1712 46%, #101c15 100%);
+
+    --bg: #0d1712;
+    --surface: #16241c;
+    --card: rgba(22, 36, 28, 0.72);
+
+    --line: rgba(95, 184, 140, 0.22);
+    --line-strong: rgba(95, 184, 140, 0.38);
+
+    --orange: #c98a3d;
+    --purple: #a396d6;
+    --grey: var(--low);
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary: #2f9d67;
+  --primary-2: #3fb47a;
+  --primary-light: #4bcf8e;
+  --accent: #35c996;
+  --secondary: #4FA3D1;
+  --success: #5fb85f;
+  --warning: #d1a53d;
+  --danger: #e08a85;
+  --low: #6b7a72;
+
+  --heading: #eaf6ef;
+  --txt: #d7ece1;
+  --txt-dim: #b7d6c6;
+  --txt-mute: #8fac9c;
+  --txt-mute-2: #7a9689;
+
+  --bg-0: #0d1712;
+  --bg-0-rgb: 13, 23, 18;
+  --bg-1: #142019;
+  --bg-2: #16241c;
+  --panel: rgba(22, 36, 28, 0.72);
+  --panel-solid: #16241c;
+  --appbg: radial-gradient(1200px 720px at 80% -10%, #16261e 0%, #0d1712 46%, #101c15 100%);
+
+  --bg: #0d1712;
+  --surface: #16241c;
+  --card: rgba(22, 36, 28, 0.72);
+
+  --line: rgba(95, 184, 140, 0.22);
+  --line-strong: rgba(95, 184, 140, 0.38);
+
+  --orange: #c98a3d;
+  --purple: #a396d6;
+  --grey: var(--low);
 }

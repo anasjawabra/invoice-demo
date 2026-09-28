@@ -64,12 +64,12 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale,
       plugins: {
-        legend: { display: false, rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
+        legend: { display: false, rtl: isRtl, labels: { color: '#6b8578', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
         tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y: { beginAtZero: true, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y: { beginAtZero: true, ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
   }, [isRtl, lang]);
@@ -91,7 +91,7 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale: lang === 'ar' ? 'ar' : lang === 'zh' ? 'zh-CN' : 'en-US',
       plugins: {
-        legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
+        legend: { position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
         tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       }
     };
@@ -121,7 +121,7 @@ function InlineChart({ type }) {
       ...common,
       scales: {
         x: { ...common.scales.x, reverse: isRtl },
-        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
+        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` } }
       }
     };
     return (
@@ -177,7 +177,7 @@ function InlineChart({ type }) {
     };
     return (
       <div style={{ height: 220 }}>
-        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }} />
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` } } } }} />
       </div>
     );
   }
@@ -197,7 +197,7 @@ function InlineChart({ type }) {
     };
     return (
       <div style={{ height: 220 }}>
-        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) } } } }} />
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { color: '#6b8578', callback: (v) => fmtMoney(v) } } } }} />
       </div>
     );
   }
@@ -222,7 +222,7 @@ function InlineChart({ type }) {
         <Bar
           ref={ref}
           data={data}
-          options={{ ...common, indexAxis: 'y', scales: { ...common.scales, x: { ...common.scales.x, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }}
+          options={{ ...common, indexAxis: 'y', scales: { ...common.scales, x: { ...common.scales.x, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` } } } }}
         />
       </div>
     );
@@ -232,14 +232,14 @@ function InlineChart({ type }) {
     const counts = Object.keys(STATUS)
       .map((key) => ({ key, ...STATUS[key], count: INVOICES.filter((i) => i.status === key).length }))
       .filter((s) => s.count > 0);
-    const colorMap = { blue: '#005A96', green: '#006604', red: '#AF0818', gold: '#FFC107', orange: '#C88700', grey: '#8B93A1' };
+    const colorMap = { blue: '#0A6FA6', green: '#3E8540', red: '#C4514C', gold: '#C79A2A', orange: '#9A5C00', grey: '#8B93A1' };
     const data = {
       labels: counts.map((s) => T(s, 'label')),
       datasets: [
         {
           data: counts.map((s) => s.count),
-          backgroundColor: counts.map((s) => `${colorMap[s.color] || '#26634B'}CC`),
-          borderColor: counts.map((s) => colorMap[s.color] || '#26634B'),
+          backgroundColor: counts.map((s) => `${colorMap[s.color] || '#1B8354'}CC`),
+          borderColor: counts.map((s) => colorMap[s.color] || '#1B8354'),
           borderWidth: 1,
           borderRadius: 8
         }
@@ -271,7 +271,7 @@ function InlineChart({ type }) {
     ...common,
     scales: {
       x: { ...common.scales.x, reverse: isRtl },
-      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
+      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: '#6b8578', callback: (v) => `${v}%` } }
     }
   };
 

@@ -2,8 +2,10 @@ import React, { useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ORGS } from '../data/mock';
 import { ToastProvider, useToast } from './Toast';
+import FloatingAssistantButton from './FloatingAssistantButton';
 
 function Icon({ name }) {
   // Minimal inline icons (no external deps)
@@ -64,11 +66,32 @@ function Icon({ name }) {
           <path d="M20 7v4M20 7h-4" />
         </svg>
       );
+    case 'decision-room':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="9" />
+          <circle cx="12" cy="12" r="5" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+        </svg>
+      );
     case 'bell':
       return (
         <svg {...common}>
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      );
+    case 'sun':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="4" />
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+        </svg>
+      );
+    case 'moon':
+      return (
+        <svg {...common}>
+          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
         </svg>
       );
     default:
@@ -84,39 +107,26 @@ function Icon({ name }) {
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
   const { user, orgScoped, logout, switchOrg } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
 
   const org = user?.org || ORGS[0];
 
-  const groups = useMemo(() => {
-    return [
-      {
-        title: t('nav_overview'),
-        items: [{ to: '/dashboard', icon: 'dashboard', label: t('dashboard') }]
-      },
-      {
-        title: t('nav_proc'),
-        items: [{ to: '/invoices', icon: 'invoices', label: t('invoices') }]
-      },
-      {
-        title: t('nav_risk'),
-        items: [
-          { to: '/risk', icon: 'risk', label: t('risk') },
-          { to: '/collection', icon: 'collection', label: t('collection') }
-        ]
-      },
-      {
-        title: t('nav_hub'),
-        items: [
-          { to: '/assistant', icon: 'assistant', label: t('assistant') },
-          { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') },
-          { to: '/what-if', icon: 'what-if', label: t('what_if_nav') }
-        ]
-      }
-    ];
-  }, [t]);
+  const tabs = useMemo(
+    () => [
+      { to: '/dashboard', icon: 'dashboard', label: t('dashboard'), end: true },
+      { to: '/invoices', icon: 'invoices', label: t('invoices') },
+      { to: '/risk', icon: 'risk', label: t('risk') },
+      { to: '/collection', icon: 'collection', label: t('collection') },
+      { to: '/decision-room', icon: 'decision-room', label: t('decision_room_nav') },
+      { to: '/assistant', icon: 'assistant', label: t('assistant') },
+      { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') },
+      { to: '/what-if', icon: 'what-if', label: t('what_if_nav') }
+    ],
+    [t]
+  );
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
@@ -124,6 +134,7 @@ function LayoutInner() {
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
+    if (p.startsWith('/decision-room')) return t('decision_room_nav');
     if (p.startsWith('/assistant')) return t('assistant');
     if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
     if (p.startsWith('/what-if')) return t('what_if_nav');
@@ -136,51 +147,30 @@ function LayoutInner() {
       <div className="bg-fx" />
       <div className="bg-grid" />
 
-      <aside className="sidebar">
-        <NavLink to="/dashboard" className="side-brand">
-          <div className="side-brand__logo">IB</div>
-          <div className="side-brand__text">
-            <b>{t('side_brand')}</b>
-            <span>{t('brand_tagline')}</span>
-          </div>
-        </NavLink>
-
-        <nav className="side-nav" aria-label="Main navigation">
-          {groups.map((g) => (
-            <div className="nav-group" key={g.title}>
-              <div className="nav-group__title">{g.title}</div>
-              {g.items.map((it) => (
-                <div className="nav-item" key={it.to}>
-                  <NavLink
-                    to={it.to}
-                    className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-                    end={it.to === '/dashboard'}
-                  >
-                    <div className="nav-link__icon">
-                      <Icon name={it.icon} />
-                    </div>
-                    <div className="nav-link__text">{it.label}</div>
-                  </NavLink>
-                </div>
-              ))}
-            </div>
-          ))}
-        </nav>
-      </aside>
-
       <main className="main">
         <header className="topbar">
           <div className="topbar-left">
+            <NavLink to="/dashboard" className="side-brand">
+              <div className="side-brand__logo">IB</div>
+              <div className="side-brand__text">
+                <b>{t('side_brand')}</b>
+                <span>{t('brand_tagline')}</span>
+              </div>
+            </NavLink>
             <div className="topbar-title">{pageTitle}</div>
-            <div className="pill" title={t('org_scope_note')}>
-              <span className="badge badge--indigo">{org.code}</span>
-              <span style={{ color: 'var(--txt-dim)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 320 }}>
-                {T(org, 'name')}
-              </span>
-            </div>
           </div>
 
           <div className="topbar-right">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm theme-toggle"
+              onClick={toggleTheme}
+              aria-label={t('theme_toggle')}
+              title={t('theme_toggle')}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+            </button>
+
             <div className="pill" aria-label="Language">
               <button
                 type="button"
@@ -305,9 +295,27 @@ function LayoutInner() {
           </div>
         </header>
 
+        <nav className="tabbar" aria-label="Main navigation">
+          {tabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+            >
+              <span className="tab__icon">
+                <Icon name={tab.icon} />
+              </span>
+              <span className="tab__text">{tab.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
         <section className="content">
           <Outlet />
         </section>
+
+        <FloatingAssistantButton />
       </main>
     </div>
   );

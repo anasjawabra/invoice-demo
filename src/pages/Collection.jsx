@@ -88,8 +88,8 @@ export default function Collection() {
         tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
       },
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => `${v}${t('unit_day')}` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } },
+        y: { beginAtZero: true, ticks: { color: '#6b8578', callback: (v) => `${v}${t('unit_day')}` }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
   }, [isRtl, lang, t]);
@@ -127,13 +127,13 @@ export default function Collection() {
       scales: {
         x: {
           reverse: isRtl,
-          ticks: { color: '#4A4A4A' },
+          ticks: { color: '#6b8578' },
           grid: { color: 'rgba(0,0,0,0.06)' }
         },
         y: {
           min: 0,
           max: 100,
-          ticks: { color: '#4A4A4A', callback: (v) => `${v}%` },
+          ticks: { color: '#6b8578', callback: (v) => `${v}%` },
           grid: { color: 'rgba(0,0,0,0.06)' }
         }
       }

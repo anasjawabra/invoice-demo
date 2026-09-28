@@ -9,7 +9,8 @@ import Risk from './pages/Risk';
 import Collection from './pages/Collection';
 import Assistant from './pages/Assistant';
 import SmartReports from './pages/SmartReports';
-import WhatIf from './pages/WhatIf';
+import StrategicDashboard from './pages/StrategicDashboard';
+import DecisionRoom from './pages/decisionRoom/DecisionRoom';
 import SanadOrders from './pages/SanadOrders';
 import SanadOrderDetail from './pages/SanadOrderDetail';
 import InvestmentInvoices from './pages/InvestmentInvoices';
@@ -33,7 +34,9 @@ export default function App() {
         <Route path="collection" element={<Collection />} />
         <Route path="assistant" element={<Assistant />} />
         <Route path="smart-reports" element={<SmartReports />} />
-        <Route path="what-if" element={<WhatIf />} />
+        <Route path="what-if" element={<StrategicDashboard />} />
+        <Route path="decision-room" element={<DecisionRoom />} />
+        <Route path="planning" element={<Navigate to="/decision-room" replace />} />
         <Route path="sanad-orders" element={<SanadOrders />} />
         <Route path="sanad-orders/:enforceNum" element={<SanadOrderDetail />} />
         <Route path="investment-invoices" element={<InvestmentInvoices />} />

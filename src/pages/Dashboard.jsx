@@ -4,7 +4,9 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, T
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { INVOICES, fmtMoney, gfsForInvoice, SANAD_ENFORCEMENT } from '../data/mock';
+import { computeRevenueByYear } from '../data/reportAnalytics';
 import { KSA_PROVINCES_VIEWBOX, KSA_PROVINCES } from '../data/ksaProvinces';
+import ProvinceMap from '../components/ProvinceMap';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
@@ -67,7 +69,7 @@ function RingGauge({ pct, target = 70, size = 84 }) {
   const ty2 = cy + 49 * Math.sin(tickAngle);
   return (
     <svg viewBox="0 0 100 100" width={size} height={size}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="10" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line-strong)" strokeWidth="10" />
       <circle
         cx={cx}
         cy={cy}
@@ -80,8 +82,8 @@ function RingGauge({ pct, target = 70, size = 84 }) {
         strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
       />
-      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="#2A2A2A" strokeWidth="2" />
-      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="#1A1A1A">{Math.round(clamped)}%</text>
+      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="var(--txt-mute)" strokeWidth="2" />
+      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="var(--heading)">{Math.round(clamped)}%</text>
     </svg>
   );
 }
@@ -188,6 +190,11 @@ export default function Dashboard() {
     return cats;
   }, [filteredInvoices]);
 
+  // Revenue by source, this year vs. last — real invoice data already spans
+  // both years, grouped by the same GFS classification used everywhere else
+  // in this file (map coloring, province drill-down), not a separate dataset.
+  const revenueByYear = useMemo(() => computeRevenueByYear(INVOICES), []);
+
   // ---------- Amanah-level indicator table (map/table wishlist item; table chosen) ----------
   const byAmanah = useMemo(() => {
     const groups = new Map();
@@ -226,12 +233,12 @@ export default function Dashboard() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } },
+      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 12, font: { size: 11 } } },
       tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
     },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: '#6b8578', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [isRtl]);
 
@@ -239,7 +246,7 @@ export default function Dashboard() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } },
+      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 12, font: { size: 11 } } },
       tooltip: {
         rtl: isRtl,
         backgroundColor: '#FFFFFF',
@@ -314,10 +321,10 @@ export default function Dashboard() {
     // genuine worst-performer, which is exactly the map-contrast confusion
     // fixed earlier this session for the metric-specific floors below.
     if (!p.hasData || p.count === 0) return 'rgba(120, 120, 120, 0.10)';
-    if (mapMetric === 'gross') return `rgba(0, 90, 150, ${(0.15 + (p.gross / maxProvinceGross) * 0.65).toFixed(2)})`;
+    if (mapMetric === 'gross') return `rgba(10, 111, 166, ${(0.15 + (p.gross / maxProvinceGross) * 0.65).toFixed(2)})`;
     if (mapMetric === 'revenue') return p.dominantRevenue ? GFS_COLOR[p.dominantRevenue.code] : 'rgba(120, 120, 120, 0.10)';
-    if (mapMetric === 'violations') return `rgba(175, 8, 24, ${(0.04 + (p.violationCount / maxViolationCount) * 0.76).toFixed(2)})`;
-    if (mapMetric === 'enforcement') return `rgba(0, 90, 150, ${(0.04 + (p.enforcementCount / maxEnforcementCount) * 0.76).toFixed(2)})`;
+    if (mapMetric === 'violations') return `rgba(196, 81, 76, ${(0.04 + (p.violationCount / maxViolationCount) * 0.76).toFixed(2)})`;
+    if (mapMetric === 'enforcement') return `rgba(10, 111, 166, ${(0.04 + (p.enforcementCount / maxEnforcementCount) * 0.76).toFixed(2)})`;
     return p.rate >= 70 ? 'var(--green)' : p.rate >= 40 ? 'var(--gold)' : 'var(--red)';
   };
 
@@ -615,6 +622,46 @@ export default function Dashboard() {
         <div style={{ height: 200, maxWidth: 340 }}>
           <Doughnut data={exclusionChartData} options={doughnutOptions} />
         </div>
+      </div>
+
+      {/* Revenue by source — year over year */}
+      <div className="card card-pad">
+        <div className="page-head" style={{ marginBottom: 10 }}>
+          <div>
+            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_revenue_year_title')}</div>
+            <div className="page-sub">{t('dash_revenue_year_sub')}</div>
+          </div>
+        </div>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t('dash_revenue_year_th_category')}</th>
+                <th dir="ltr">{revenueByYear[0]?.priorYear}</th>
+                <th dir="ltr">{revenueByYear[0]?.latestYear}</th>
+                <th>{t('dash_revenue_year_th_growth')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {revenueByYear.map((r) => (
+                <tr key={r.code}>
+                  <td>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: GFS_COLOR[r.code], display: 'inline-block', marginInlineEnd: 6 }} />
+                    {lang === 'zh' ? r.name : lang === 'ar' ? r.nameAr : r.nameEn}
+                  </td>
+                  <td dir="ltr">{fmtMoney(r.prior.collected)} SAR</td>
+                  <td dir="ltr">{fmtMoney(r.latest.collected)} SAR</td>
+                  <td dir="ltr">
+                    {r.growthPct == null ? '—' : (
+                      <span className={`badge ${r.growthPct >= 0 ? 'badge--green' : 'badge--red'}`}>{r.growthPct >= 0 ? '+' : ''}{r.growthPct}%</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="muted" style={{ fontSize: 11, marginTop: 10 }}>{t('dash_revenue_year_note')}</p>
       </div>
 
       {/* Amanah-level indicators */}
@@ -958,22 +1005,14 @@ export default function Dashboard() {
             )}
           </div>
 
-          <svg viewBox={KSA_PROVINCES_VIEWBOX} style={{ width: '100%', height: 'auto', display: 'block' }}>
-            {byProvince.map((p) => (
-              <path
-                key={p.iso}
-                d={p.path}
-                fill={provinceFill(p)}
-                stroke={selectedProvinceIso === p.iso ? 'var(--primary)' : 'rgba(42, 42, 42, 0.35)'}
-                strokeWidth={selectedProvinceIso === p.iso ? 3 : 1}
-                strokeLinejoin="round"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setSelectedProvinceIso(p.iso === selectedProvinceIso ? null : p.iso)}
-              >
-                <title>{provinceName(p)}{p.hasData && p.count > 0 ? ` — ${p.rate}%` : ''}</title>
-              </path>
-            ))}
-          </svg>
+          <ProvinceMap
+            provinces={byProvince}
+            viewBox={KSA_PROVINCES_VIEWBOX}
+            fillFor={provinceFill}
+            selectedIso={selectedProvinceIso}
+            onSelect={setSelectedProvinceIso}
+            titleFor={(p) => `${provinceName(p)}${p.hasData && p.count > 0 ? ` — ${p.rate}%` : ''}`}
+          />
         </div>
 
         <div className="muted" style={{ fontSize: 10.5, textAlign: 'center', marginTop: 8 }}>
@@ -1119,26 +1158,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-
-      <button
-        type="button"
-        className="btn btn-primary"
-        onClick={() => nav('/assistant')}
-        style={{
-          position: 'fixed',
-          insetBlockEnd: 24,
-          insetInlineEnd: 24,
-          borderRadius: 999,
-          padding: '12px 20px',
-          boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
-          zIndex: 40,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8
-        }}
-      >
-        {t('dash_float_assistant')}
-      </button>
     </div>
   );
 }

@@ -417,7 +417,7 @@ export default function SmartReports() {
   // Chart.js configs — every dataset reads straight from `report.charts`, the
   // same numbers driving the text sections above, so a chart can never
   // contradict the sentence next to it.
-  const legendOpts = useMemo(() => ({ position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } }), [isRtl]);
+  const legendOpts = useMemo(() => ({ position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 12, font: { size: 11 } } }), [isRtl]);
   const tooltipBase = useMemo(() => ({ rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }), [isRtl]);
 
   const compositionChartData = useMemo(() => ({
@@ -445,8 +445,8 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)} SAR` } } },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: '#6b8578', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [legendOpts, tooltipBase, isRtl]);
 
@@ -472,8 +472,8 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: tooltipBase },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: '#6b8578', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [legendOpts, tooltipBase, isRtl]);
 
@@ -502,8 +502,8 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } } },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
+      y: { ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [legendOpts, tooltipBase, isRtl]);
 
@@ -781,7 +781,7 @@ export default function SmartReports() {
           <div style={{ height: 240 }}>
             <Bar
               data={{ labels: report.charts.provinceBar.labels, datasets: [{ label: pick(lang, 'Collection Rate %', 'معدل التحصيل %', '收缴率 %'), data: report.charts.provinceBar.rate, backgroundColor: report.charts.provinceBar.rate.map((r) => (r >= 70 ? 'rgba(0,102,4,0.75)' : r >= 40 ? 'rgba(255,193,7,0.75)' : 'rgba(175,8,24,0.75)')), borderRadius: 4 }] }}
-              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.parsed.y}%` } } }, scales: { x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } } } }}
+              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.parsed.y}%` } } }, scales: { x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } } } }}
             />
           </div>
         )}
@@ -823,7 +823,7 @@ export default function SmartReports() {
         <div className="grid" style={{ gap: 8 }}>
           {report.discoveries.map((d, i) => (
             <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary, #005A96)', marginTop: 6, flexShrink: 0 }} />
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary, #0A6FA6)', marginTop: 6, flexShrink: 0 }} />
               <span style={{ fontSize: 13, lineHeight: 1.7 }}>{d}</span>
             </div>
           ))}

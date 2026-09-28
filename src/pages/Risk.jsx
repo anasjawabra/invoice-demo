@@ -148,8 +148,8 @@ export default function Risk() {
       tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
     },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10.5 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10.5 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: '#6b8578', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
     }
   }), [isRtl]);
 

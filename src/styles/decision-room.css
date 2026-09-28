@@ -1,0 +1,23 @@
+/* Strategic Financial Decision Room — page-specific rules only.
+   Everything else (cards, badges, buttons, grids, KPI blocks, tables) comes
+   straight from global.css/variables.css, same as every other page. */
+.dr-page .kpi__value { font-size: 20px; }
+.dr-page details summary::-webkit-details-marker { display: none; }
+
+/* Second-level "CFO journey" tab bar — reuses the app's own .tab/.tab.active
+   pill styling from global.css, but as a plain (non-sticky) in-page row so
+   it doesn't collide with the sticky top-level app nav above it. */
+.dr-subtabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.dr-subtab {
+  padding-inline: 12px;
+}
+
+.dr-subtab .tab__text {
+  display: inline;
+}

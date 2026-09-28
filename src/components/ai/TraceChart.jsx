@@ -65,8 +65,8 @@ export default function TraceChart({ chartType, payload }) {
         ...baseOptions,
         indexAxis: 'y',
         scales: {
-          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { position: isRtl ? 'right' : 'left', ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } }
+          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { position: isRtl ? 'right' : 'left', ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } }
         }
       };
       return { title: t('chart_factor'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -87,8 +87,8 @@ export default function TraceChart({ chartType, payload }) {
       const options = {
         ...baseOptions,
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { min: 0, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { min: 0, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
       };
       return { title: t('chart_collection'), node: <Line ref={ref} data={data} options={options} /> };
@@ -104,10 +104,10 @@ export default function TraceChart({ chartType, payload }) {
       };
       const options = {
         ...baseOptions,
-        plugins: { ...baseOptions.plugins, legend: { display: true, position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 8, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
+        plugins: { ...baseOptions.plugins, legend: { display: true, position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 8, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
       };
       return { title: t('chart_bench'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -128,8 +128,8 @@ export default function TraceChart({ chartType, payload }) {
     const options = {
       ...baseOptions,
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
     return { title: t('chart_vat'), node: <Bar ref={ref} data={data} options={options} /> };
