@@ -489,11 +489,11 @@ const ROUTE_OK_BUNDLE = {
         think({ zh: '按金额与部门在授权矩阵中定位审批层级并生成审批卡片。', en: 'Locating the approval level in the authorization matrix by amount and department and generating the approval card.', ar: 'تحديد المستوى في مصفوفة التفويض وإنشاء بطاقة الموافقة.' }),
         tool('routing.match_authority', { amount: 1250000, department: 'Procurement' }, { chain_levels: 3, requires: ['Invoice Clerk', 'Finance Manager', 'Budget & Finance'] }, 190),
         obs({ zh: '金额触发三级审批链，风险低且完全匹配。', en: 'Amount triggers a 3-level chain; risk is low with a full match.', ar: 'المبلغ يطلق سلسلة من 3 مستويات؛ مخاطر منخفضة ومطابقة كاملة.' }, 'ok'),
-        decide({ zh: 'AI 建议批准；推送人工确认（HITL）。', en: 'AI recommends approve; pushed to human confirm (HITL).', ar: 'يوصي الذكاء بالموافقة؛ أُرسل للتأكيد البشري (HITL).' }, 'ok', false, { zh: '低风险 → 人工确认', en: 'low risk → human confirm', ar: 'مخاطر منخفضة → تأكيد بشري' })
+        decide({ zh: 'AI 建议批准；推送人工确认（HITL）。', en: 'AI recommends approve; pushed to human confirm (HITL).', ar: 'توصية الذكاء الاصطناعي: الموافقة؛ أُحيلت المعاملة للتأكيد البشري (HITL).' }, 'ok', false, { zh: '低风险 → 人工确认', en: 'low risk → human confirm', ar: 'مخاطر منخفضة → تأكيد بشري' })
       ]
     }
   ],
-  conclusion: { text: { zh: '三级审批链已分发，AI 建议批准，等待人工确认。', en: '3-level chain dispatched; AI recommends approve, awaiting human confirm.', ar: 'توزيع سلسلة من 3 مستويات؛ يوصي الذكاء بالموافقة بانتظار التأكيد.' }, confidence: 95, tone: 'ok', action: { zh: '推送人工确认（HITL）', en: 'Push to human confirm (HITL)', ar: 'الدفع للتأكيد البشري (HITL)' } }
+  conclusion: { text: { zh: '三级审批链已分发，AI 建议批准，等待人工确认。', en: '3-level chain dispatched; AI recommends approve, awaiting human confirm.', ar: 'وُزّعت سلسلة اعتماد من 3 مستويات؛ توصية الذكاء الاصطناعي هي الموافقة، بانتظار التأكيد البشري.' }, confidence: 95, tone: 'ok', action: { zh: '推送人工确认（HITL）', en: 'Push to human confirm (HITL)', ar: 'الإحالة للتأكيد البشري (HITL)' } }
 };
 
 /* ================================================================ Forecasting */
@@ -729,7 +729,7 @@ export const APPROVAL_BASIS = {
     { zh: 'Aramco 后勤 · 3.18M SAR', en: 'Aramco Logistics · 3.18M SAR', ar: 'Aramco · 3.18M' },
     3180000, 6, ['Center Director', 'CFO'], 68, 'warn', false,
     { zh: '置信度 68% < 75% → 人工决策', en: 'confidence 68% < 75% → human decides', ar: 'الثقة 68٪ < 75٪ → قرار بشري' },
-    { zh: 'AI 建议：退回补正税号/催收单差异后再审批。人工做最终决策。', en: 'AI recommends: return for tax/Collection-Order correction before approval. Human decides.', ar: 'يوصي الذكاء: الإرجاع للتصحيح قبل الموافقة. القرار للبشر.' },
+    { zh: 'AI 建议：退回补正税号/催收单差异后再审批。人工做最终决策。', en: 'AI recommends: return for tax/Collection-Order correction before approval. Human decides.', ar: 'توصية الذكاء الاصطناعي: إعادة المعاملة لتصحيح الرقم الضريبي وفارق أمر التحصيل قبل الموافقة. القرار النهائي للمختص.' },
     { zh: '退回 / 升级 / 批准（人工选择）', en: 'Return / Escalate / Approve (human choice)', ar: 'إرجاع / تصعيد / موافقة' },
     [tool('sla.check', { invoice: 'INV-2026-0727', sla_hours: 4 }, { elapsed_hours: 12, overrun: true, escalated_to: 'Center Director' }, 180),
       evid([{ source: 'Compliance · match_confidence', detail: { zh: '上游合规置信度 68%，单价与催收单差异导致总额 +2.4%，税号校验失败。', en: 'Upstream compliance confidence 68%; unit-price vs Collection-Order gap drives total +2.4%, tax-ID failed.', ar: 'ثقة الامتثال 68٪؛ فرق السعر يرفع الإجمالي +2.4٪، وفشل الرقم الضريبي.' }, tone: 'danger' }])]
@@ -738,7 +738,7 @@ export const APPROVAL_BASIS = {
     { zh: 'Bahri 海运物流 · 2.26M SAR', en: 'Bahri Maritime · 2.26M SAR', ar: 'البحري · 2.26M' },
     2260000, 4, ['Center Director'], 90, 'ok', false,
     { zh: '置信度 90% ≥ 75%，低风险 → 人工确认即可', en: 'confidence 90% ≥ 75%, low risk → human confirm', ar: 'الثقة 90٪ ≥ 75٪، مخاطر منخفضة → تأكيد بشري' },
-    { zh: 'AI 建议：批准。匹配完整、风险低。人工确认即可。', en: 'AI recommends: approve. Full match, low risk. Human to confirm.', ar: 'يوصي الذكاء: الموافقة. مطابقة كاملة ومخاطر منخفضة.' },
+    { zh: 'AI 建议：批准。匹配完整、风险低。人工确认即可。', en: 'AI recommends: approve. Full match, low risk. Human to confirm.', ar: 'توصية الذكاء الاصطناعي: الموافقة. المطابقة مكتملة والمخاطر منخفضة، بانتظار التأكيد البشري.' },
     { zh: '批准征收', en: 'Approve collection', ar: 'اعتماد التحصيل' },
     [obs({ zh: '三单完全匹配，风险评分 33（中低），无异常触发。', en: 'Full 3-way match, risk 33 (low-mid), no anomaly.', ar: 'مطابقة كاملة، درجة 33، لا انحراف.' }, 'ok')]
   ),
@@ -746,7 +746,7 @@ export const APPROVAL_BASIS = {
     { zh: 'Al-Rajhi 建设 · 1.25M SAR', en: 'Al-Rajhi Construction · 1.25M SAR', ar: 'الراجحي · 1.25M' },
     1250000, 3, ['Budget & Finance'], 95, 'ok', false,
     { zh: '置信度 95% ≥ 75%，低风险且合规 → 人工确认即可', en: 'confidence 95% ≥ 75%, low risk & compliant → human confirm', ar: 'الثقة 95٪ ≥ 75٪، متوافق → تأكيد بشري' },
-    { zh: 'AI 建议：批准。低风险且合规。人工做最终决策。', en: 'AI recommends: approve. Low risk & compliant. Human decides.', ar: 'يوصي الذكاء: الموافقة. مخاطر منخفضة ومتوافق.' },
+    { zh: 'AI 建议：批准。低风险且合规。人工做最终决策。', en: 'AI recommends: approve. Low risk & compliant. Human decides.', ar: 'توصية الذكاء الاصطناعي: الموافقة. المخاطر منخفضة ومتطلبات الامتثال مستوفاة. القرار النهائي للمختص.' },
     { zh: '批准征收', en: 'Approve collection', ar: 'اعتماد التحصيل' },
     [obs({ zh: '三单完全匹配，风险评分 12（低），税务合规。', en: 'Full match, risk 12 (low), tax compliant.', ar: 'مطابقة كاملة، درجة 12، متوافق.' }, 'ok')]
   )

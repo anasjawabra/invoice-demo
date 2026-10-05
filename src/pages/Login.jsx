@@ -78,7 +78,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div className="muted" style={{ marginTop: 18, fontSize: 12, lineHeight: 1.6 }}>
+        <div className="muted" style={{ marginTop: 'var(--spacing-xl)', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
           <div dangerouslySetInnerHTML={{ __html: t('demo_hint') }} />
         </div>
       </section>
@@ -87,38 +87,26 @@ export default function Login() {
         <div className="card login-card">
           <div className="brand-row">
             <div className="brand-left">
-              <div className="brand-logo">IM</div>
+              <div className="brand-logo">IB</div>
               <div className="brand-name">
-                <b>{t('side_brand')}</b>
+                <b>INTELLIBILL</b>
+                <small>{t('brand_tagline')}</small>
               </div>
             </div>
 
-            <div className="pill" aria-label="Language">
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'en' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setLang('en')}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setLang('zh')}
-              >
-                中文
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setLang('ar')}
-              >
-                العربية
-              </button>
-            </div>
+            <select
+              className="select language-select"
+              value={lang}
+              aria-label={t('language_label')}
+              onChange={(event) => setLang(event.target.value)}
+            >
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="ar">العربية</option>
+            </select>
           </div>
 
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>{t('welcome')}</h2>
+          <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('welcome')}</h2>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>
@@ -144,8 +132,9 @@ export default function Login() {
 
               <div className={`org-collapse ${scopeByOrg ? 'org-collapse--open' : ''}`} aria-hidden={!scopeByOrg}>
                 <div className="org-collapse__inner">
-                  <label className="org-select-label">{t('org_label')}</label>
+                  <label className="org-select-label" htmlFor="login-org">{t('org_label')}</label>
                   <select
+                    id="login-org"
                     className="select"
                     value={orgId}
                     onChange={(e) => setOrgId(e.target.value)}
@@ -160,17 +149,17 @@ export default function Login() {
                       </option>
                     ))}
                   </select>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                  <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-md)' }}>
                     {t('org_login_hint')}
                   </div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
+                  <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)', lineHeight: 1.5 }}>
                     {t('rbac_note')}
                   </div>
                 </div>
               </div>
 
               {!scopeByOrg ? (
-                <div className="muted org-scope-off" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+                <div className="muted org-scope-off" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-md)', lineHeight: 1.5 }}>
                   {t('org_scope_off_note')}
                 </div>
               ) : null}
@@ -178,8 +167,9 @@ export default function Login() {
 
             <div className="row">
               <div className="field">
-                <label>{t('label_user')}</label>
+                <label htmlFor="login-username">{t('label_user')}</label>
                 <input
+                  id="login-username"
                   className="input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -188,8 +178,9 @@ export default function Login() {
                 />
               </div>
               <div className="field">
-                <label>{t('label_pass')}</label>
+                <label htmlFor="login-password">{t('label_pass')}</label>
                 <input
+                  id="login-password"
                   className="input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -208,16 +199,16 @@ export default function Login() {
             </div>
 
             <div className="field">
-              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-md)' }}>
                 {t('or_sso')}
               </div>
               <div className="sso-reserved" aria-disabled="true">
                 <span>{t('sso_reserved')}</span>
-                <span className="pill" style={{ fontSize: 11 }}>{t('sso_coming')}</span>
+                <span className="pill" style={{ fontSize: 'var(--text-2xs)' }}>{t('sso_coming')}</span>
               </div>
             </div>
 
-            <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-md)' }}>
               {t('org_scope')} · {t('org_scope_note')}
             </div>
           </form>

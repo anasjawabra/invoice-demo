@@ -16,6 +16,8 @@ import { Bar, Line, Doughnut, Radar } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { analyzeScenario, DEFAULT_SCENARIO, LEVERS, OPERATING_PROFILE, PORTFOLIO_TOTAL, trajectory } from '../data/strategicModel';
 import { COLLECTIONS } from '../data/mock.js';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartLegend, chartSeries, chartTooltip, getChartTheme } from '../utils/chartTheme';
 import '../styles/strategic-dashboard.css';
 
 ChartJS.register(
@@ -95,7 +97,7 @@ const copy = {
     invoicing: 'حجم / مبلغ الفوترة', collections: 'التحصيل / معدل التحصيل', exclusions: 'معالجة الاستثناءات', statusMix: 'مزيج حالات الفواتير', uncollectible: 'المبالغ غير القابلة للتحصيل',
     invoicingDesc: 'قدرة فوترة صالحة إضافية داخل الفترة.', collectionsDesc: 'كثافة المتابعة التشغيلية لتحسين التحصيل.', exclusionsDesc: 'تقليل المكررات والنزاعات والحالات غير الصالحة والمحالة للتنفيذ.', statusMixDesc: 'تحويل الفواتير نحو حالات معتمدة ومستحقة وقابلة للتحصيل.', uncollectibleDesc: 'تقليل المبالغ المصنفة كغير قابلة للتحصيل.',
     run: 'تحليل السيناريو', reset: 'إعادة ضبط', ready: 'جاهز لنمذجة الاستدامة؟', readyDesc: 'اختر نوع الهدف وأدخل القيمة وعدّل المتغيرات الأولية ثم شغّل النموذج.',
-    thinking: 'الذكاء الاصطناعي يفكر', thinkingDesc: 'جارٍ نمذجة المتغيرات والحساسية وإجراءات الأولوية للسيناريو الخاص بك…',
+    thinking: 'جارٍ تحليل السيناريو', thinkingDesc: 'جارٍ نمذجة المتغيرات والحساسية وإجراءات الأولوية للسيناريو الخاص بك…',
     thinkingSteps: ['قراءة معلمات السيناريو', 'نمذجة آثار المتغيرات', 'ترتيب إجراءات الأولوية', 'تجهيز النتائج'],
     portfolio: 'أساس الفوترة الحالي', opex: 'مصروفات فترة التخطيط', targetAmount: 'الهدف المحسوب', baseline: 'التحصيل الأساسي', projected: 'تحصيل السيناريو', maximum: 'أقصى تحصيل قابل للتحقيق',
     results: 'تحليل السيناريو', met: 'السيناريو الحالي يحقق الهدف', possible: 'قابل للتحقيق مع تغييرات إضافية', impossible: 'يتجاوز الحد الأقصى للنموذج', metDesc: 'الإعدادات الحالية تحقق الهدف ضمن النموذج. يلزم التحقق من الافتراضات قبل التنفيذ.', possibleDesc: 'الإعدادات الحالية غير كافية. تعرض التغييرات أدناه مساراً تقديرياً لتحقيق الهدف.', impossibleDesc: 'حتى عند رفع المتغيرات المختارة للحد الأعلى يبقى الهدف فوق السقف المقدر. زد الفوترة أو مدد الفترة أو راجع الهدف.',
@@ -116,18 +118,15 @@ const copy = {
 };
 
 const BRAND = {
-  primary: '#26634B',
-  secondary: '#005A96',
-  success: '#006604',
-  warning: '#FFC107',
-  danger: '#AF0818',
-  grey: '#8B93A1',
-  muted: '#EAEAEA'
+  primary: chartColor('primary'),
+  secondary: chartColor('info'),
+  success: chartColor('success'),
+  warning: chartColor('warning'),
+  danger: chartColor('danger'),
+  grey: chartColor('neutral')
 };
 
-const MIX_COLORS = [
-  '#26634B', '#005A96', '#C88700', '#6B57A6', '#AF0818', '#3D8B8B', '#8B5A3C', '#5A5A5A'
-];
+const MIX_COLORS = chartSeries;
 
 function localeFor(lang) {
   if (lang === 'ar') return 'ar-SA';
@@ -150,13 +149,15 @@ function compact(value) {
 }
 
 function CoverageGauge({ projected, targetAmount, money, isRtl }) {
+  const { theme } = useTheme();
+  const chartColors = getChartTheme(theme);
   const coverage = projected.sustainabilityCoverage;
   const targetPct = targetAmount ? Math.min(100, (targetAmount / projected.opex) * 100) : 0;
   const data = {
     labels: ['Covered', 'Gap'],
     datasets: [{
       data: [Math.min(100, coverage), Math.max(0, 100 - coverage)],
-      backgroundColor: [coverage >= targetPct ? BRAND.success : coverage >= targetPct * 0.7 ? BRAND.warning : BRAND.danger, '#EAEAEA'],
+      backgroundColor: [coverage >= targetPct ? BRAND.success : coverage >= targetPct * 0.7 ? BRAND.warning : BRAND.danger, chartColors.grid],
       borderWidth: 0,
       cutout: '78%'
     }]
@@ -173,6 +174,8 @@ function CoverageGauge({ projected, targetAmount, money, isRtl }) {
 }
 
 function ScenarioCompareChart({ baseline, projected, maximum, targetAmount, money, c, isRtl }) {
+  const { theme } = useTheme();
+  const chartColors = getChartTheme(theme);
   const data = {
     labels: [c.baseline, c.projected, c.maximum],
     datasets: [
@@ -195,23 +198,25 @@ function ScenarioCompareChart({ baseline, projected, maximum, targetAmount, mone
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: false, rtl: isRtl }, tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw)}%` } } },
+    plugins: { legend: { display: false, rtl: isRtl }, tooltip: chartTooltip(theme, isRtl, { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Math.round(ctx.raw)}%` } }) },
     scales: {
-      x: { grid: { display: false } },
+      x: { ticks: { color: chartColors.text }, grid: { display: false } },
       y: { display: false, min: 0 },
-      y1: { position: 'right', beginAtZero: true, max: 100, ticks: { callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      y1: { position: isRtl ? 'left' : 'right', beginAtZero: true, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` }, grid: { color: chartColors.grid } }
     }
   };
   return <Bar data={data} options={options} />;
 }
 
 function WaterfallChart({ projected, money, c, isRtl }) {
+  const { theme } = useTheme();
+  const chartColors = getChartTheme(theme);
   const { grossInvoiced, excludedAmount, netInvoiced, statusReadyAmount, uncollectibleAmount, collected } = projected;
   const items = [
     { key: 'gross', start: 0, end: grossInvoiced, color: BRAND.secondary },
-    { key: 'excluded', start: grossInvoiced - excludedAmount, end: grossInvoiced, color: '#C88700' },
-    { key: 'net', start: 0, end: netInvoiced, color: '#6B57A6' },
-    { key: 'readyStatus', start: 0, end: statusReadyAmount, color: '#3D8B8B' },
+    { key: 'excluded', start: grossInvoiced - excludedAmount, end: grossInvoiced, color: chartColor('orange') },
+    { key: 'net', start: 0, end: netInvoiced, color: chartColor('purple') },
+    { key: 'readyStatus', start: 0, end: statusReadyAmount, color: chartColor('teal') },
     { key: 'uncollectibleAmount', start: statusReadyAmount - uncollectibleAmount, end: statusReadyAmount, color: BRAND.danger },
     { key: 'collected', start: 0, end: collected, color: BRAND.primary }
   ];
@@ -230,17 +235,19 @@ function WaterfallChart({ projected, money, c, isRtl }) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false, rtl: isRtl },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, callbacks: { label: (ctx) => money(ctx.raw[1] - ctx.raw[0]) } }
+      tooltip: chartTooltip(theme, isRtl, { callbacks: { label: (ctx) => money(ctx.raw[1] - ctx.raw[0]) } })
     },
     scales: {
-      x: { grid: { display: false } },
-      y: { beginAtZero: true, ticks: { callback: (v) => compact(v) } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, callback: (v) => compact(v) }, grid: { color: chartColors.grid } }
     }
   };
   return <Bar data={data} options={options} />;
 }
 
 function SensitivityRadar({ sensitivity, recommended, c, isRtl }) {
+  const { theme } = useTheme();
+  const chartColors = getChartTheme(theme);
   const labels = sensitivity.map(s => c[s.key]);
   const current = sensitivity.map(s => s.value);
   const rec = sensitivity.map(s => (recommended[s.key] ?? s.value));
@@ -251,7 +258,7 @@ function SensitivityRadar({ sensitivity, recommended, c, isRtl }) {
         label: c.current,
         data: current,
         borderColor: BRAND.primary,
-        backgroundColor: 'rgba(38, 99, 75, 0.12)',
+        backgroundColor: chartColor('primary', 0.12),
         pointBackgroundColor: BRAND.primary,
         borderWidth: 2,
         pointRadius: 3
@@ -260,7 +267,7 @@ function SensitivityRadar({ sensitivity, recommended, c, isRtl }) {
         label: c.recommended,
         data: rec,
         borderColor: BRAND.warning,
-        backgroundColor: 'rgba(255, 193, 7, 0.18)',
+        backgroundColor: chartColor('warning', 0.18),
         pointBackgroundColor: BRAND.warning,
         borderWidth: 2,
         pointRadius: 3
@@ -270,14 +277,15 @@ function SensitivityRadar({ sensitivity, recommended, c, isRtl }) {
   const options = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 }, rtl: isRtl }, tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 } },
+    plugins: { legend: chartLegend(theme, { position: 'bottom', labels: { boxWidth: 12 }, rtl: isRtl }), tooltip: chartTooltip(theme, isRtl) },
     scales: {
       r: {
         beginAtZero: true,
         max: 100,
-        ticks: { stepSize: 25, callback: (v) => `${v}%`, backdropColor: 'transparent' },
-        pointLabels: { font: { size: 11 } },
-        grid: { color: 'rgba(0,0,0,0.08)' }
+        ticks: { color: chartColors.text, stepSize: 25, callback: (v) => `${v}%`, backdropColor: 'transparent' },
+        pointLabels: { color: chartColors.text, font: { size: 11 } },
+        angleLines: { color: chartColors.grid },
+        grid: { color: chartColors.grid }
       }
     }
   };
@@ -285,6 +293,8 @@ function SensitivityRadar({ sensitivity, recommended, c, isRtl }) {
 }
 
 function TrajectoryChart({ run, c, isRtl }) {
+  const { theme } = useTheme();
+  const chartColors = getChartTheme(theme);
   const { days, values, enabled } = run.input;
   const { recommended } = run.result;
   const upper = Object.fromEntries(LEVERS.map(key => [key, enabled[key] ? 100 : 0]));
@@ -319,16 +329,17 @@ function TrajectoryChart({ run, c, isRtl }) {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12 }, rtl: isRtl }, tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 } },
+    plugins: { legend: chartLegend(theme, { position: 'bottom', labels: { boxWidth: 12 }, rtl: isRtl }), tooltip: chartTooltip(theme, isRtl) },
     scales: {
-      x: { grid: { display: false }, ticks: { maxTicksLimit: 6 } },
-      y: { beginAtZero: true, ticks: { callback: (v) => compact(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, grid: { display: false }, ticks: { color: chartColors.text, maxTicksLimit: 6 } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, callback: (v) => compact(v) }, grid: { color: chartColors.grid } }
     }
   };
   return <Line data={data} options={options} />;
 }
 
 function ReceivableMixChart({ projected, lang, isRtl }) {
+  const { theme } = useTheme();
   const total = projected.collected;
   const shares = COLLECTIONS.map(row => {
     const share = total * (row.amount / PORTFOLIO_TOTAL);
@@ -347,8 +358,8 @@ function ReceivableMixChart({ projected, lang, isRtl }) {
     maintainAspectRatio: false,
     cutout: '55%',
     plugins: {
-      legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } }, rtl: isRtl },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, callbacks: { label: (ctx) => `${ctx.label}: ${compact(ctx.raw)} SAR` } }
+      legend: chartLegend(theme, { position: 'right', labels: { boxWidth: 12, font: { size: 11 } }, rtl: isRtl }),
+      tooltip: chartTooltip(theme, isRtl, { callbacks: { label: (ctx) => `${ctx.label}: ${compact(ctx.raw)} SAR` } })
     }
   };
   return <Doughnut data={data} options={options} />;
@@ -395,10 +406,8 @@ export default function StrategicDashboard() {
     }, c.thinkingSteps.length * 600 + 300);
   };
 
-  const rtlPlugin = useMemo(() => ({ legend: { rtl: isRtl }, tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1, padding: 10 } }), [isRtl]);
-
   return <div className="strategic-page">
-    <div className="page-head"><div><div className="page-title">{c.title}</div><div className="page-sub">{c.sub}</div></div><span className="badge badge--teal">{c.agent}</span></div>
+    <div className="page-head"><div><h1 className="page-title">{c.title}</h1><div className="page-sub">{c.sub}</div></div><span className="badge badge--teal">{c.agent}</span></div>
     <form className="card card-pad strategic-form strategic-form--horizontal" onSubmit={submit} noValidate>
       <div className="strategic-form__head"><h2>{c.setup}</h2></div>
       <div className="strategic-form__basics">
@@ -506,7 +515,7 @@ export default function StrategicDashboard() {
             </section>
           </div>
 
-          <section className="card card-pad"><h2>{c.sensitivity}</h2><p className="strategic-muted">{c.sensitivityHelp}</p><div className="strategic-table-wrap"><table className="strategic-table"><thead><tr>{[c.variable, c.current, c.recommended, c.impact].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{result.sensitivity.map(item => <tr key={item.key}><th scope="row">{c[item.key]}</th><td>{item.value}%</td><td>{item.enabled ? `${result.recommended[item.key]}%` : c.locked}</td><td>{item.enabled ? money(item.impact) : '—'}</td></tr>)}</tbody></table></div></section>
+          <section className="card card-pad"><h2>{c.sensitivity}</h2><p className="strategic-muted">{c.sensitivityHelp}</p><div className="strategic-table-wrap" tabIndex={0}><table className="strategic-table" aria-label={c.sensitivity}><thead><tr>{[c.variable, c.current, c.recommended, c.impact].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{result.sensitivity.map(item => <tr key={item.key}><th scope="row">{c[item.key]}</th><td>{item.value}%</td><td>{item.enabled ? `${result.recommended[item.key]}%` : c.locked}</td><td>{item.enabled ? money(item.impact) : '—'}</td></tr>)}</tbody></table></div></section>
           <section className="card card-pad"><h2>{c.actions}</h2><p className="strategic-muted">{c.actionHelp}</p>{result.actions.length ? <ol className="strategic-actions">{result.actions.map(item => <li key={item.key}><div><strong>{c[item.key]}</strong><p>{c.action}: {item.from}% → {item.to}%</p></div><div className="strategic-action-gain"><strong>+{money(item.gain)}</strong><small>{c.gain}</small></div></li>)}</ol> : <p>{c.noActions}</p>}<div className="strategic-outcome"><span>{c.outcome}</span><strong>{money(result.roadmapOutcome.collected)}</strong></div>{!result.achievable && <small>{c.maxInvoicingNeededHelp}: {money(result.maxAdditionalInvoicingNeeded)}</small>}</section>
           <section className="card card-pad"><h2>{c.roadmap}</h2><p className="strategic-muted">{c.roadmapHelp}</p><div className="strategic-roadmap">{[[1, 1, Math.ceil(run.input.days * .15)], [2, Math.ceil(run.input.days * .15) + 1, Math.ceil(run.input.days * .75)], [3, Math.ceil(run.input.days * .75) + 1, run.input.days]].map(([phase, from, to]) => <div key={phase}><span className="strategic-phase">0{phase}</span><small>{c.day} {from}–{to} {lang === 'zh' ? '天' : ''}</small><h3>{c[`phase${phase}`]}</h3><p>{c[`phase${phase}Desc`]}</p>{phase === 2 && result.actions.map(item => <div className="strategic-roadmap-change" key={item.key}>{c[item.key]}: {item.from}% → {item.to}%</div>)}</div>)}</div></section>
         </>}

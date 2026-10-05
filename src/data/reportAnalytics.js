@@ -98,6 +98,36 @@ export function computeByProvince(invoices) {
   }).filter((p) => p.hasData);
 }
 
+// Revenue by GFS source, this year vs. last — real per-invoice data already
+// spans both years (no separate/parallel dataset invented for this), grouped
+// by the same gfsForInvoice() classification used everywhere else, so a
+// change to one can never drift out of sync with the other.
+export function computeRevenueByYear(invoices) {
+  const byCategory = new Map();
+  const years = new Set();
+  for (const inv of invoices) {
+    const gfs = gfsForInvoice(inv);
+    if (!gfs) continue;
+    const year = inv.date.slice(0, 4);
+    years.add(year);
+    const entry = byCategory.get(gfs.code) || { code: gfs.code, name: gfs.name, nameEn: gfs.nameEn, nameAr: gfs.nameAr, byYear: {} };
+    const y = entry.byYear[year] || { gross: 0, collected: 0 };
+    y.gross += inv.amount;
+    if (inv.status === 'approved') y.collected += inv.amount;
+    entry.byYear[year] = y;
+    byCategory.set(gfs.code, entry);
+  }
+  const sortedYears = [...years].sort();
+  const priorYear = sortedYears[sortedYears.length - 2];
+  const latestYear = sortedYears[sortedYears.length - 1];
+  return [...byCategory.values()].map((c) => {
+    const prior = c.byYear[priorYear] || { gross: 0, collected: 0 };
+    const latest = c.byYear[latestYear] || { gross: 0, collected: 0 };
+    const growthPct = prior.collected ? Math.round(((latest.collected - prior.collected) / prior.collected) * 1000) / 10 : null;
+    return { ...c, priorYear, latestYear, prior, latest, growthPct };
+  }).sort((a, b) => b.latest.gross - a.latest.gross);
+}
+
 export function computeWorklist(invoices, anchorDate, valueWeight = 60) {
   if (!invoices.length) return [];
   const ageDays = (d) => Math.max(0, Math.round((new Date(`${anchorDate}T00:00:00Z`) - new Date(`${d}T00:00:00Z`)) / 86400000));

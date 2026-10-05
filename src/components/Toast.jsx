@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
+import UIIcon from './UIIcon';
 
 const ToastContext = createContext(null);
 
@@ -10,26 +12,26 @@ function uid() {
 function iconFor(type) {
   switch (type) {
     case 'success':
-      return '✓';
+      return CheckmarkCircle02Icon;
     case 'error':
-      return '!';
+      return Alert02Icon;
     case 'warning':
-      return '!';
+      return Alert02Icon;
     default:
-      return 'i';
+      return InformationCircleIcon;
   }
 }
 
 function iconBg(type) {
   switch (type) {
     case 'success':
-      return { background: 'rgba(53, 208, 127, 0.16)', color: 'var(--green)' };
+      return { background: 'var(--surface-success-subtle)', color: 'var(--success)' };
     case 'error':
-      return { background: 'rgba(255, 106, 106, 0.14)', color: 'var(--red)' };
+      return { background: 'var(--surface-danger-subtle)', color: 'var(--danger)' };
     case 'warning':
-      return { background: 'rgba(255, 159, 67, 0.14)', color: 'var(--orange)' };
+      return { background: 'var(--surface-warning-subtle)', color: 'var(--text-warning)' };
     default:
-      return { background: 'rgba(74, 168, 255, 0.12)', color: 'var(--blue)' };
+      return { background: 'var(--surface-info-subtle)', color: 'var(--secondary)' };
   }
 }
 
@@ -95,7 +97,7 @@ export function ToastProvider({ children }) {
               <div key={t.id} className="toast" role="status" onClick={() => remove(t.id)}>
                 <div className="toast__inner">
                   <div className="toast__icon" style={{ background: bg.background, color: bg.color }}>
-                    {iconFor(t.type)}
+                    <UIIcon icon={iconFor(t.type)} size={20} />
                   </div>
                   <div style={{ minWidth: 0 }}>
                     <div className="toast__title">{t.title}</div>
@@ -111,7 +113,7 @@ export function ToastProvider({ children }) {
                     aria-label="Close"
                     type="button"
                   >
-                    ×
+                    <UIIcon icon={Cancel01Icon} size={18} />
                   </button>
                 </div>
                 <div className="toast__bar">

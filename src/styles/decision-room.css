@@ -1,0 +1,59 @@
+/* Strategic Financial Decision Room — page-specific rules only.
+   Everything else (cards, badges, buttons, grids, KPI blocks, tables) comes
+   straight from global.css/variables.css, same as every other page. */
+.dr-page .kpi__value { font-size: var(--text-xl); }
+.dr-page details summary::-webkit-details-marker { display: none; }
+
+/* Second-level "CFO journey" tab bar — reuses the app's own .tab/.tab.active
+   pill styling from global.css, but as a plain (non-sticky) in-page row so
+   it doesn't collide with the sticky top-level app nav above it. */
+.dr-subtabbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) 0;
+}
+
+.dr-subtab {
+  min-height: 44px;
+  padding-inline: var(--spacing-lg);
+}
+
+.dr-subtab .tab__text {
+  display: inline;
+}
+
+.dr-scope-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-lg);
+}
+
+@media (max-width: 599px) {
+  .dr-subtabbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: var(--spacing-md) var(--spacing-lg);
+    scrollbar-width: thin;
+    scroll-padding-inline: var(--container-padding-mobile);
+    scroll-snap-type: inline proximity;
+    overscroll-behavior-inline: contain;
+    touch-action: pan-x;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  }
+
+  .dr-subtabbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .dr-subtab {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+  }
+
+  .dr-scope-row > .select {
+    width: 100% !important;
+  }
+}

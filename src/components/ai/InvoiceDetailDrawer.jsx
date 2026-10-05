@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../context/I18nContext';
@@ -8,6 +8,10 @@ import ReconciliationTable from './ReconciliationTable';
 import { fmtMoney, RECON, STATUS, PAYER_MASTER, gfsForInvoice, SANAD_ENFORCEMENT } from '../../data/mock';
 import { OCR_SAMPLES } from '../../data/aiProcess';
 import AgentThinking from './AgentThinking';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
+import AIContentLabel from './AIContentLabel';
+import useDialogA11y from '../../hooks/useDialogA11y';
 
 /* Detail-drawer copy (tri-lingual, same {zh,en,ar} pattern as the AI data). */
 const TX = {
@@ -104,6 +108,14 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
   const nav = useNavigate();
   const closeRef = useRef(null);
   const scanTimer = useRef(null);
+  const titleId = useId();
+  const subtitleId = useId();
+  const dialogRef = useDialogA11y({
+    open: open && Boolean(inv),
+    onClose,
+    enabled: !suppressClose,
+    initialFocusRef: closeRef
+  });
 
   const [sanadLink, setSanadLink] = useState(null);
   useEffect(() => {
@@ -123,24 +135,6 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
       setSanadLink({ status: 'matched', order });
     }, 1100);
   }
-
-  const onEsc = useCallback((e) => {
-    if (e.key === 'Escape' && !suppressClose) onClose?.();
-  }, [onClose, suppressClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
-  }, [open, onEsc]);
-
-  // Move focus into the drawer when it opens (focus returns to the trigger row
-  // in the parent on close).
-  useEffect(() => {
-    if (!open) return undefined;
-    const id = window.setTimeout(() => closeRef.current?.focus(), 0);
-    return () => window.clearTimeout(id);
-  }, [open, inv]);
 
   if (!open || !inv) return null;
 
@@ -168,17 +162,17 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
   return createPortal(
     <>
       <div className="ai-drawer-overlay" onClick={() => { if (!suppressClose) onClose?.(); }} />
-      <aside className="ai-drawer idd" role="dialog" aria-modal="true" aria-label={`${L(TX.detail, lang)} · ${inv.id}`}>
+      <aside className="ai-drawer idd" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={subtitleId} ref={dialogRef} tabIndex={-1}>
         <div className="ai-drawer__head">
           <div style={{ minWidth: 0 }}>
-            <div className="ai-drawer__title">
+            <div className="ai-drawer__title" id={titleId}>
               <span className={`badge ${SOURCE_BADGE[inv.source] || 'badge--teal'}`}>{inv.source}</span>
               <span dir="ltr">{inv.id}</span>
             </div>
-            <div className="ai-drawer__sub">{L(TX.detail, lang)}</div>
+            <div className="ai-drawer__sub" id={subtitleId}>{L(TX.detail, lang)}</div>
           </div>
           <button type="button" className="ai-drawer__close" onClick={onClose} aria-label={t('close')} ref={closeRef}>
-            ×
+            <UIIcon icon={Cancel01Icon} size={20} />
           </button>
         </div>
 
@@ -234,8 +228,8 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
             </div>
 
             {(!sanadLink || sanadLink.status === 'notfound') && (
-              <div className="grid" style={{ gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
+                <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
                   <input
                     type="file"
                     id={`idd-sanad-file-${inv.id}`}
@@ -250,14 +244,14 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
                     📎 {L(TX.sanadAttach, lang)}
                   </label>
                   {sanadLink?.status === 'notfound' && (
-                    <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 800 }}>✗ {L(TX.sanadNotFound, lang)}</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--red)', fontWeight: 700 }}>✗ {L(TX.sanadNotFound, lang)}</span>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 10.5 }} onClick={() => handleSanadFile('enforcement-notice-2607714.pdf')}>
+                <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 'var(--text-2xs)' }} onClick={() => handleSanadFile('enforcement-notice-2607714.pdf')}>
                     {L(TX.sanadTryMatch, lang)}
                   </button>
-                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 10.5 }} onClick={() => handleSanadFile('scanned-notice.pdf')}>
+                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 'var(--text-2xs)' }} onClick={() => handleSanadFile('scanned-notice.pdf')}>
                     {L(TX.sanadTryNone, lang)}
                   </button>
                 </div>
@@ -267,10 +261,10 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
             {sanadLink?.status === 'scanning' && <AgentThinking label={L(TX.sanadScanning, lang)} variant="spinner" />}
 
             {sanadLink?.status === 'matched' && (
-              <div style={{ fontSize: 12.5 }}>
-                <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓ {L(TX.sanadMatchedPrefix, lang)}</span>{' '}
-                <span dir="ltr" style={{ fontWeight: 800 }}>{sanadLink.order.enforceNum}</span>
-                <button type="button" className="btn btn-sm btn-ghost" style={{ marginInlineStart: 8 }} onClick={() => setSanadLink(null)}>
+              <div style={{ fontSize: 'var(--text-xs)' }}>
+                <span style={{ color: 'var(--green)', fontWeight: 700 }}>✓ {L(TX.sanadMatchedPrefix, lang)}</span>{' '}
+                <span dir="ltr" style={{ fontWeight: 700 }}>{sanadLink.order.enforceNum}</span>
+                <button type="button" className="btn btn-sm btn-ghost" style={{ marginInlineStart: 'var(--spacing-md)' }} onClick={() => setSanadLink(null)}>
                   {L(TX.sanadTryAgain, lang)}
                 </button>
               </div>
@@ -286,14 +280,14 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
             {recon ? (
               <ReconciliationTable recon={recon} tolerance={0.02} />
             ) : (
-              <div className="muted" style={{ fontSize: 12 }}>{L(TX.noRecon, lang)}</div>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)' }}>{L(TX.noRecon, lang)}</div>
             )}
           </div>
 
           {/* AI assessment strip */}
           <div className="idd-section">
             <div className="idd-section__head">
-              <div className="idd-section__title">{L(TX.aiTitle, lang)}</div>
+              <div className="idd-section__title"><AIContentLabel /> {L(TX.aiTitle, lang)}</div>
             </div>
             <div className="idd-grid">
               <Cell label={L(TX.risk, lang)} ltr>

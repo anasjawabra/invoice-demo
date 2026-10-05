@@ -15,6 +15,8 @@ import { fmtMoney, COLLECTIONS, KPIS, PENALTY_STATUS, TREND } from '../data/mock
 import { FORECAST_BASIS } from '../data/aiProcess';
 import AIProcessDrawer from '../components/ai/AIProcessDrawer';
 import CollectionDetailDrawer from '../components/ai/CollectionDetailDrawer';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartTooltip, getChartTheme } from '../utils/chartTheme';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend);
 
@@ -26,6 +28,8 @@ function badgeForDelay(k) {
 
 export default function Collection() {
   const { t, lang, T, isRtl } = useI18n();
+  const { theme } = useTheme();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
   const [drawer, setDrawer] = useState(null);
   const [detail, setDetail] = useState(null);
 
@@ -67,8 +71,8 @@ export default function Collection() {
         {
           label: t('col_lifetime_title'),
           data: TREND.invoiceLifetimeDays,
-          borderColor: 'rgba(0, 90, 150, 0.95)',
-          backgroundColor: 'rgba(0, 90, 150, 0.10)',
+          borderColor: chartColor('info', 0.95),
+          backgroundColor: chartColor('info', 0.10),
           tension: 0.35,
           pointRadius: 2,
           fill: true
@@ -85,14 +89,14 @@ export default function Collection() {
       locale,
       plugins: {
         legend: { display: false },
-        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+        tooltip: chartTooltip(theme, isRtl)
       },
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => `${v}${t('unit_day')}` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: chartColors.text }, grid: { color: chartColors.grid } },
+        y: { beginAtZero: true, ticks: { color: chartColors.text, callback: (v) => `${v}${t('unit_day')}` }, grid: { color: chartColors.grid } }
       }
     };
-  }, [isRtl, lang, t]);
+  }, [chartColors, isRtl, lang, t, theme]);
 
   const data = useMemo(() => {
     return {
@@ -102,10 +106,10 @@ export default function Collection() {
           label: t('chart_recovery'),
           data: sorted.map((c) => c.prob),
           backgroundColor: sorted.map((c) =>
-            c.prob >= 80 ? 'rgba(0, 102, 4,0.35)' : c.prob >= 50 ? 'rgba(255, 193, 7,0.35)' : 'rgba(175, 8, 24,0.28)'
+            chartColor(c.prob >= 80 ? 'success' : c.prob >= 50 ? 'warning' : 'danger', c.prob >= 50 ? 0.35 : 0.28)
           ),
           borderColor: sorted.map((c) =>
-            c.prob >= 80 ? 'rgba(0, 102, 4,0.95)' : c.prob >= 50 ? 'rgba(255, 193, 7,0.95)' : 'rgba(175, 8, 24,0.95)'
+            chartColor(c.prob >= 80 ? 'success' : c.prob >= 50 ? 'warning' : 'danger', 0.95)
           ),
           borderWidth: 1,
           borderRadius: 10
@@ -122,29 +126,29 @@ export default function Collection() {
       locale,
       plugins: {
         legend: { display: false, rtl: isRtl },
-        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+        tooltip: chartTooltip(theme, isRtl)
       },
       scales: {
         x: {
           reverse: isRtl,
-          ticks: { color: '#4A4A4A' },
-          grid: { color: 'rgba(0,0,0,0.06)' }
+          ticks: { color: chartColors.text },
+          grid: { color: chartColors.grid }
         },
         y: {
           min: 0,
           max: 100,
-          ticks: { color: '#4A4A4A', callback: (v) => `${v}%` },
-          grid: { color: 'rgba(0,0,0,0.06)' }
+          ticks: { color: chartColors.text, callback: (v) => `${v}%` },
+          grid: { color: chartColors.grid }
         }
       }
     };
-  }, [isRtl, lang]);
+  }, [chartColors, isRtl, lang, theme]);
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('collection')}</div>
+          <h1 className="page-title">{t('collection')}</h1>
           <div className="page-sub">{t('col_prob_sub')}</div>
         </div>
       </div>
@@ -170,17 +174,17 @@ export default function Collection() {
 
       <div className="grid grid-2">
         <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 16 }}>{t('col_opportunity_title')}</div>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('col_opportunity_title')}</div>
           <div className="page-sub">{t('col_opportunity_sub')}</div>
           <div className="hr" />
-          <div style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
             {opportunities.map((c) => (
-              <div className="card" key={c.id} style={{ padding: 10, background: 'rgba(0, 102, 4, 0.05)' }}>
+              <div className="card" key={c.id} style={{ padding: 'var(--spacing-md)', background: 'var(--surface-primary-subtle)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 900, fontSize: 12 }}>{c.id} · {T(c, 'entity')}</div>
+                  <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }}>{c.id} · {T(c, 'entity')}</div>
                   <span className="badge badge--green">{c.prob}%</span>
                 </div>
-                <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+                <div className="muted" style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                   {fmtMoney(c.amount)} SAR · {t('col_opportunity_hint')}
                 </div>
               </div>
@@ -189,9 +193,9 @@ export default function Collection() {
         </div>
 
         <div className="card chart-box" style={{ height: 260 }}>
-          <div className="page-head" style={{ marginBottom: 8 }}>
+          <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
             <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('col_lifetime_title')}</div>
+              <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('col_lifetime_title')}</div>
               <div className="page-sub">{t('col_lifetime_sub')}</div>
             </div>
           </div>
@@ -203,9 +207,9 @@ export default function Collection() {
 
       <div className="grid grid-2">
         <div className="card chart-box" style={{ height: 360 }}>
-          <div className="page-head" style={{ marginBottom: 8 }}>
+          <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
             <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('col_prob_dist')}</div>
+              <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('col_prob_dist')}</div>
               <div className="page-sub">{t('col_prob_sub')}</div>
             </div>
           </div>
@@ -215,11 +219,11 @@ export default function Collection() {
         </div>
 
         <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 16 }}>{t('col_penalty')}</div>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('col_penalty')}</div>
           <div className="page-sub">{t('col_list_sub')}</div>
           <div className="hr" />
 
-          <div className="table-wrap">
+          <div className="table-wrap" tabIndex={0}>
             <table className="table" aria-label="Overdue collections">
               <thead>
                 <tr>
@@ -241,14 +245,14 @@ export default function Collection() {
                       key={c.id}
                       style={{
                         cursor: 'pointer',
-                        background: c.delayKey === 'high' ? 'rgba(175, 8, 24, 0.06)' : undefined
+                        background: c.delayKey === 'high' ? 'var(--danger-soft)' : undefined
                       }}
                       onClick={() => setDetail(c)}
                       role="button"
                       tabIndex={0}
                       onKeyDown={(e) => { if (e.key === 'Enter') setDetail(c); }}
                     >
-                      <td style={{ fontWeight: 900 }}>{c.id}</td>
+                      <td style={{ fontWeight: 700 }}>{c.id}</td>
                       <td>{T(c, 'entity')}</td>
                       <td>{c.overdue} {t('unit_day')}</td>
                       <td>{fmtMoney(c.amount)} SAR</td>
@@ -268,23 +272,23 @@ export default function Collection() {
             </table>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <div className="muted" style={{ fontSize: 12, fontWeight: 800 }}>{t('th_strategy')}</div>
-            <div style={{ marginTop: 6, display: 'grid', gap: 10 }}>
+          <div style={{ marginTop: 'var(--spacing-lg)' }}>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{t('th_strategy')}</div>
+            <div style={{ marginTop: 'var(--spacing-xs)', display: 'grid', gap: 'var(--spacing-md)' }}>
               {sorted.map((c) => (
                 <div
                   className="card"
                   key={c.id}
                   style={{
-                    padding: 10,
-                    background: c.delayKey === 'high' ? 'rgba(175, 8, 24, 0.06)' : 'rgba(255,255,255,0.03)'
+                    padding: 'var(--spacing-md)',
+                    background: c.delayKey === 'high' ? 'var(--danger-soft)' : 'var(--surface-subtle)'
                   }}
                 >
-                  <div style={{ fontWeight: 900, fontSize: 12 }}>{c.id}</div>
-                  <div className="muted" style={{ marginTop: 6, fontSize: 12, lineHeight: 1.6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }}>{c.id}</div>
+                  <div className="muted" style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
                     {lang === 'zh' ? c.strategy : lang === 'ar' ? c.strategyAr : c.strategyEn}
                   </div>
-                  <div style={{ marginTop: 10 }}>
+                  <div style={{ marginTop: 'var(--spacing-md)' }}>
                     <button className="btn btn-ghost btn-sm" type="button" onClick={() => setDrawer(FORECAST_BASIS[c.id])}>
                       {t('ai_basis_btn')}
                     </button>

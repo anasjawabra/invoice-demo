@@ -7,6 +7,8 @@ import { APPROVAL_BASIS, NODE_DRAWERS, RISK_ANALYSIS } from '../data/aiProcess';
 import { L } from '../components/ai/util';
 import InvoiceDetailDrawer from '../components/ai/InvoiceDetailDrawer';
 import AIProcessDrawer from '../components/ai/AIProcessDrawer';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../components/UIIcon';
 
 function badgeForStatusColor(c) {
   switch (c) {
@@ -132,29 +134,30 @@ export default function Invoices() {
   const viewLabel = L({ zh: '查看详情', en: 'View details', ar: 'عرض التفاصيل' }, lang);
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('invoices')}</div>
+          <h1 className="page-title">{t('invoices')}</h1>
           <div className="page-sub">{t('recent_sub')}</div>
         </div>
       </div>
 
-      <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <div className="card card-pad filter-toolbar">
         <input
           className="input"
           style={{ flex: '1 1 200px', height: 32, minWidth: 160 }}
           placeholder={t('inv_filter_search_placeholder')}
+          aria-label={t('inv_filter_search_placeholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className="select" style={{ height: 32, width: 'auto', minWidth: 180, paddingInline: 10, fontSize: 12.5 }} value={amanahFilter} onChange={(e) => setAmanahFilter(e.target.value)}>
+        <select className="select" aria-label={t('inv_filter_amanah_all')} style={{ height: 32, width: 'auto', minWidth: 180, paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }} value={amanahFilter} onChange={(e) => setAmanahFilter(e.target.value)}>
           <option value="all">{t('inv_filter_amanah_all')}</option>
           {amanahOptions.map((o) => (
             <option key={o.key} value={o.key}>{amanahLabel(o)}</option>
           ))}
         </select>
-        <select className="select" style={{ height: 32, width: 'auto', minWidth: 160, paddingInline: 10, fontSize: 12.5 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
+        <select className="select" aria-label={t('inv_filter_status_all')} style={{ height: 32, width: 'auto', minWidth: 160, paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
           <option value="all">{t('inv_filter_status_all')}</option>
           {Object.keys(COLLECTION_STATUS).map((k) => (
             <option key={k} value={k}>{lang === 'zh' ? COLLECTION_STATUS[k].label : lang === 'ar' ? COLLECTION_STATUS[k].labelAr : COLLECTION_STATUS[k].labelEn}</option>
@@ -164,12 +167,12 @@ export default function Invoices() {
           <button
             type="button"
             className="btn btn-sm btn-ghost"
-            onClick={() => { setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); }}
+            onClick={() => { setAmanahFilter('all'); setCollectionFilter('all'); setSourceFilter('all'); setSearch(''); }}
           >
-            {t('inv_filter_clear')} ({activeFilterCount}) ×
+            {t('inv_filter_clear')} ({activeFilterCount}) <UIIcon icon={Cancel01Icon} size={16} />
           </button>
         )}
-        <span className="muted" style={{ fontSize: 11.5, marginInlineStart: 'auto' }}>
+        <span className="muted" style={{ fontSize: 'var(--text-xs)', marginInlineStart: 'auto' }}>
           {t('inv_filter_showing').replace('{n}', visibleInvoices.length).replace('{total}', INVOICES.length)}
         </span>
       </div>
@@ -190,19 +193,19 @@ export default function Invoices() {
       </div>
 
       <div className="card card-pad">
-        <div className="muted" style={{ fontSize: 11.5, marginBottom: 8 }}>{t('inv_makeen_note')}</div>
+        <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-md)' }}>{t('inv_makeen_note')}</div>
         {filterMode === 'problem' && (
           <div
             className="card"
-            style={{ padding: '8px 12px', marginBottom: 10, background: 'rgba(175, 8, 24, 0.06)', border: '1px solid rgba(175, 8, 24, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}
+            style={{ padding: 'var(--spacing-md) var(--spacing-lg)', marginBottom: 'var(--spacing-md)', background: 'var(--danger-soft)', border: '1px solid var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}
           >
-            <span style={{ fontSize: 12.5, fontWeight: 800 }}>{t('inv_filter_problem_title')}</span>
+            <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{t('inv_filter_problem_title')}</span>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('filter'); return n; })}>
-              {t('inv_filter_clear')} ×
+              {t('inv_filter_clear')} <UIIcon icon={Cancel01Icon} size={16} />
             </button>
           </div>
         )}
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table className="table" aria-label="Invoice library">
             <thead>
               <tr>
@@ -233,12 +236,12 @@ export default function Invoices() {
                     aria-label={`${viewLabel} · ${inv.id}`}
                     onClick={(e) => openDetail(inv, e)}
                     onKeyDown={(e) => onRowKey(inv, e)}
-                    style={highlightCo && inv.co === highlightCo ? { background: 'rgba(0, 128, 255, 0.08)' } : undefined}
+                    style={highlightCo && inv.co === highlightCo ? { background: 'var(--info-soft)' } : undefined}
                   >
-                    <td style={{ fontWeight: 900 }} dir="ltr">{inv.id}</td>
+                    <td style={{ fontWeight: 700 }} dir="ltr">{inv.id}</td>
                     <td>{T(inv, 'entity')}</td>
                     <td>{T(inv, 'amanah')}</td>
-                    <td title={gfs?.code}>{gfsLabel}</td>
+                    <td data-tooltip={gfs?.code} tabIndex={gfs?.code ? 0 : undefined}>{gfsLabel}</td>
                     <td>
                       <span className={`badge ${csBadge}`}>{csLabel}</span>
                     </td>

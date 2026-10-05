@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
@@ -7,6 +7,10 @@ import AgentThinking from './AgentThinking';
 import EvidenceList from './EvidenceList';
 import TraceBlock from './TraceBlock';
 import { AGENTS } from '../../data/mock';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
+import AIContentLabel from './AIContentLabel';
+import useDialogA11y from '../../hooks/useDialogA11y';
 
 /* Full localized agent name for an internal agent id. */
 function agentName(id, lang) {
@@ -146,20 +150,14 @@ function Step(props) {
 export default function AIProcessDrawer({ open, onClose, data }) {
   const { t, lang } = useI18n();
   const [active, setActive] = useState(0);
+  const closeRef = useRef(null);
+  const titleId = useId();
+  const subtitleId = useId();
+  const dialogRef = useDialogA11y({ open: open && Boolean(data), onClose, initialFocusRef: closeRef });
 
   useEffect(() => {
     if (open) setActive(0);
   }, [open, data]);
-
-  const onEsc = useCallback((e) => {
-    if (e.key === 'Escape') onClose?.();
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
-  }, [open, onEsc]);
 
   if (!open || !data) return null;
 
@@ -171,17 +169,26 @@ export default function AIProcessDrawer({ open, onClose, data }) {
   return createPortal(
     <>
       <div className="ai-drawer-overlay" onClick={onClose} />
-      <aside className="ai-drawer ai-drawer--wide" role="dialog" aria-modal="true" aria-label={L(data.title, lang) || t('ai_drawer_title')}>
+      <aside
+        className="ai-drawer ai-drawer--wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={data.subtitle ? subtitleId : undefined}
+        ref={dialogRef}
+        tabIndex={-1}
+      >
         <div className="ai-drawer__head">
           <div style={{ minWidth: 0 }}>
-            <div className="ai-drawer__title">
+            <div className="ai-drawer__title" id={titleId}>
+              <AIContentLabel state={stepsDone ? 'generated' : 'refining'} />
               {data.agentTag ? <span className="badge badge--teal">{agentName(data.agentTag, lang)}</span> : null}
               <span>{L(data.title, lang) || t('ai_drawer_title')}</span>
             </div>
-            {data.subtitle ? <div className="ai-drawer__sub">{L(data.subtitle, lang)}</div> : null}
+            {data.subtitle ? <div className="ai-drawer__sub" id={subtitleId}>{L(data.subtitle, lang)}</div> : null}
           </div>
-          <button type="button" className="ai-drawer__close" onClick={onClose} aria-label={t('close')}>
-            ×
+          <button type="button" className="ai-drawer__close" onClick={onClose} aria-label={t('close')} ref={closeRef}>
+            <UIIcon icon={Cancel01Icon} size={20} />
           </button>
         </div>
 

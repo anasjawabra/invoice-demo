@@ -6,6 +6,9 @@ import { fmtMoney, TREND } from '../data/mock';
 import { buildReportData, computeRecoveryTrend } from '../data/reportAnalytics';
 import { exportReportToDocx, exportReportToXlsx, exportReportToPptx } from '../utils/exportReport';
 import AgentThinking from '../components/ai/AgentThinking';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartLegend, chartTooltip, getChartTheme } from '../utils/chartTheme';
+import AIContentLabel from '../components/ai/AIContentLabel';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend);
 
@@ -64,7 +67,7 @@ function useSmartReport(t, lang, focus) {
       enforcement: pick(lang, 'Enforcement & Compliance', 'التنفيذ والامتثال', '执行与合规'),
       investment: pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')
     };
-    const generatedOn = `${pick(lang, 'Generated', 'تاريخ الإنشاء', '生成时间')}: ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : lang === 'zh' ? 'zh-CN' : 'en-US', { numberingSystem: 'latn' })}`;
+    const generatedOn = `${pick(lang, 'Generated', 'تاريخ الإنشاء', '生成时间')}: ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : lang === 'zh' ? 'zh-CN' : 'en-US')}`;
 
     const executiveSummary = pick(
       lang,
@@ -407,6 +410,8 @@ function useSmartReport(t, lang, focus) {
 
 export default function SmartReports() {
   const { t, lang, isRtl } = useI18n();
+  const { theme } = useTheme();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
   const [focus, setFocus] = useState('revenue');
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState('');
@@ -417,12 +422,12 @@ export default function SmartReports() {
   // Chart.js configs — every dataset reads straight from `report.charts`, the
   // same numbers driving the text sections above, so a chart can never
   // contradict the sentence next to it.
-  const legendOpts = useMemo(() => ({ position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } }), [isRtl]);
-  const tooltipBase = useMemo(() => ({ rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }), [isRtl]);
+  const legendOpts = useMemo(() => chartLegend(theme, { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }), [isRtl, theme]);
+  const tooltipBase = useMemo(() => chartTooltip(theme, isRtl), [isRtl, theme]);
 
   const compositionChartData = useMemo(() => ({
     labels: report.charts.composition.labels,
-    datasets: [{ data: report.charts.composition.values, backgroundColor: ['rgba(0, 102, 4, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(120, 120, 120, 0.55)'], borderWidth: 0 }]
+    datasets: [{ data: report.charts.composition.values, backgroundColor: [chartColor('success', 0.85), chartColor('orange', 0.85), chartColor('neutral', 0.55)], borderWidth: 0 }]
   }), [report]);
   const compositionOptions = useMemo(() => ({
     responsive: true,
@@ -436,8 +441,8 @@ export default function SmartReports() {
   const provinceBarData = useMemo(() => ({
     labels: report.charts.provinceBar.labels,
     datasets: [
-      { label: pick(lang, 'Gross', 'الإجمالي', '总额'), data: report.charts.provinceBar.gross, backgroundColor: 'rgba(0, 90, 150, 0.75)', borderRadius: 4 },
-      { label: pick(lang, 'Collected', 'المحصَّل', '已收缴'), data: report.charts.provinceBar.collected, backgroundColor: 'rgba(0, 102, 4, 0.75)', borderRadius: 4 }
+      { label: pick(lang, 'Gross', 'الإجمالي', '总额'), data: report.charts.provinceBar.gross, backgroundColor: chartColor('info', 0.75), borderRadius: 4 },
+      { label: pick(lang, 'Collected', 'المحصَّل', '已收缴'), data: report.charts.provinceBar.collected, backgroundColor: chartColor('success', 0.75), borderRadius: 4 }
     ]
   }), [report, lang]);
   const provinceBarOptions = useMemo(() => ({
@@ -445,14 +450,14 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)} SAR` } } },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, callback: (v) => fmtMoney(v) }, grid: { color: chartColors.grid } }
     }
-  }), [legendOpts, tooltipBase, isRtl]);
+  }), [chartColors, legendOpts, tooltipBase, isRtl]);
 
   const revenueMixData = useMemo(() => ({
     labels: report.charts.revenueMix.labels,
-    datasets: [{ data: report.charts.revenueMix.values, backgroundColor: ['rgba(0, 90, 150, 0.85)', 'rgba(38, 99, 75, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(175, 8, 24, 0.85)'], borderWidth: 0 }]
+    datasets: [{ data: report.charts.revenueMix.values, backgroundColor: [chartColor('info', 0.85), chartColor('primary', 0.85), chartColor('orange', 0.85), chartColor('danger', 0.85)], borderWidth: 0 }]
   }), [report]);
   const revenueMixOptions = useMemo(() => ({
     responsive: true,
@@ -463,8 +468,8 @@ export default function SmartReports() {
   const enforcementBarData = useMemo(() => ({
     labels: report.charts.enforcementBar.labels,
     datasets: [
-      { label: pick(lang, 'Violations', 'المخالفات', '违规数'), data: report.charts.enforcementBar.violations, backgroundColor: 'rgba(175, 8, 24, 0.75)', borderRadius: 4 },
-      { label: pick(lang, 'Enforcement Cases', 'حالات التنفيذ', '执行案件数'), data: report.charts.enforcementBar.enforcement, backgroundColor: 'rgba(0, 90, 150, 0.75)', borderRadius: 4 }
+      { label: pick(lang, 'Violations', 'المخالفات', '违规数'), data: report.charts.enforcementBar.violations, backgroundColor: chartColor('danger', 0.75), borderRadius: 4 },
+      { label: pick(lang, 'Enforcement Cases', 'حالات التنفيذ', '执行案件数'), data: report.charts.enforcementBar.enforcement, backgroundColor: chartColor('info', 0.75), borderRadius: 4 }
     ]
   }), [report, lang]);
   const enforcementBarOptions = useMemo(() => ({
@@ -472,14 +477,14 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: tooltipBase },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, precision: 0 }, grid: { color: chartColors.grid } }
     }
-  }), [legendOpts, tooltipBase, isRtl]);
+  }), [chartColors, legendOpts, tooltipBase, isRtl]);
 
   const investmentData = useMemo(() => ({
     labels: report.charts.investment.labels,
-    datasets: [{ data: report.charts.investment.values, backgroundColor: ['rgba(0, 102, 4, 0.85)', 'rgba(175, 8, 24, 0.85)'], borderWidth: 0 }]
+    datasets: [{ data: report.charts.investment.values, backgroundColor: [chartColor('success', 0.85), chartColor('danger', 0.85)], borderWidth: 0 }]
   }), [report]);
   const investmentOptions = useMemo(() => ({
     responsive: true,
@@ -493,8 +498,8 @@ export default function SmartReports() {
   const trendLineData = useMemo(() => ({
     labels: report.charts.trend.labels,
     datasets: [
-      { label: pick(lang, 'Actual recovery rate', 'معدل التحصيل الفعلي', '实际回收率'), data: report.charts.trend.actual, borderColor: 'rgba(0, 102, 4, 0.9)', backgroundColor: 'rgba(0, 102, 4, 0.15)', pointRadius: 3, tension: 0.3 },
-      { label: pick(lang, 'Forecast', 'تقديري', '预测'), data: report.charts.trend.forecast, borderColor: 'rgba(0, 90, 150, 0.9)', borderDash: [6, 4], pointRadius: 3, tension: 0.3 }
+      { label: pick(lang, 'Actual recovery rate', 'معدل التحصيل الفعلي', '实际回收率'), data: report.charts.trend.actual, borderColor: chartColor('success', 0.9), backgroundColor: chartColor('success', 0.15), pointRadius: 3, tension: 0.3 },
+      { label: pick(lang, 'Forecast', 'تقديري', '预测'), data: report.charts.trend.forecast, borderColor: chartColor('info', 0.9), borderDash: [6, 4], pointRadius: 3, tension: 0.3 }
     ]
   }), [report, lang]);
   const trendLineOptions = useMemo(() => ({
@@ -502,10 +507,10 @@ export default function SmartReports() {
     maintainAspectRatio: false,
     plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } } },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 11 } }, grid: { display: false } },
+      y: { ticks: { color: chartColors.text, callback: (v) => `${v}%` }, grid: { color: chartColors.grid } }
     }
-  }), [legendOpts, tooltipBase, isRtl]);
+  }), [chartColors, legendOpts, tooltipBase, isRtl]);
 
   const focusLabels = {
     revenue: pick(lang, 'Revenue & Collection Performance', 'أداء الإيرادات والتحصيل', '收入与收缴绩效'),
@@ -592,16 +597,16 @@ export default function SmartReports() {
   }
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('smart_reports_title')}</div>
+          <h1 className="page-title">{t('smart_reports_title')}</h1>
           <div className="page-sub">{t('smart_reports_sub')}</div>
         </div>
       </div>
 
       <div className="card card-pad">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginBottom: 'var(--spacing-md)' }}>
           <input
             className="input"
             style={{ flex: 1, minWidth: 220 }}
@@ -614,7 +619,7 @@ export default function SmartReports() {
             {t('smart_reports_generate')}
           </button>
         </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
           {FOCUS_OPTIONS.map((key) => (
             <button
               key={key}
@@ -629,16 +634,17 @@ export default function SmartReports() {
       </div>
 
       {phase === 'idle' && (
-        <div className="card card-pad" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div className="page-title" style={{ fontSize: 15 }}>{t('smart_reports_idle_title')}</div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{t('smart_reports_idle_sub')}</div>
+        <div className="card card-pad" style={{ textAlign: 'center', padding: 'var(--spacing-5xl) var(--spacing-2xl)' }}>
+          <div className="page-title" style={{ fontSize: 'var(--text-sm)' }}>{t('smart_reports_idle_title')}</div>
+          <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)' }}>{t('smart_reports_idle_sub')}</div>
         </div>
       )}
 
       {phase === 'analyzing' && (
         <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 15, marginBottom: 4 }}>{t('smart_reports_analyzing_title')}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>{report.subtitle}</div>
+          <AIContentLabel state="refining" />
+          <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-xs)' }}>{t('smart_reports_analyzing_title')}</div>
+          <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-lg)' }}>{report.subtitle}</div>
           <div className="ai-timeline">
             {analysisSteps.slice(0, activeStepIndex + 1).map((step, i) => {
               const isActive = i === activeStepIndex;
@@ -662,16 +668,16 @@ export default function SmartReports() {
 
       {phase === 'done' && (
       <div className="card card-pad">
-        <div className="ai-conclusion" style={{ marginBottom: 14 }}>
-          <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
+        <div className="ai-conclusion" style={{ marginBottom: 'var(--spacing-lg)' }}>
+          <div className="ai-conclusion__label"><AIContentLabel /> {t('ai_conclusion')}</div>
           <div className="ai-conclusion__text">{t('smart_reports_ready')}</div>
         </div>
-        <div className="page-head" style={{ marginBottom: 6 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-xs)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 18 }}>{report.title}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-lg)' }}>{report.title}</div>
             <div className="page-sub">{report.subtitle} · {report.generatedOn}</div>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
             <button className="btn btn-sm" type="button" disabled={busy === 'docx'} onClick={() => handleExport('docx')}>
               {busy === 'docx' ? t('smart_reports_exporting') : t('smart_reports_export_word')}
             </button>
@@ -685,40 +691,40 @@ export default function SmartReports() {
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15 }}>{report.labels.executiveSummary}</div>
-        <p className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginTop: 6 }}>{report.executiveSummary}</p>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)' }}>{report.labels.executiveSummary}</div>
+        <p className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.8, marginTop: 'var(--spacing-xs)' }}>{report.executiveSummary}</p>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.keyMetrics}</div>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.keyMetrics}</div>
         <div className="grid grid-5">
           {report.keyMetrics.map((m) => (
-            <div key={m.label} className="card card-pad" title={m.caption}>
-              <div className="kpi__value" style={{ fontSize: 18 }}>{m.value}</div>
+            <div key={m.label} className="card card-pad" data-tooltip={m.caption} aria-label={`${m.label}: ${m.caption}`} tabIndex={0}>
+              <div className="kpi__value" style={{ fontSize: 'var(--text-lg)' }}>{m.value}</div>
               <div className="kpi__label">{m.label}</div>
             </div>
           ))}
         </div>
-        <div className="grid" style={{ gap: 4, marginTop: 8, marginBottom: 12 }}>
+        <div className="grid" style={{ gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-md)', marginBottom: 'var(--spacing-lg)' }}>
           {report.keyMetrics.map((m) => (
-            <div key={m.label} className="muted" style={{ fontSize: 11.5 }}><strong>{m.label}:</strong> {m.caption}</div>
+            <div key={m.label} className="muted" style={{ fontSize: 'var(--text-xs)' }}><strong>{m.label}:</strong> {m.caption}</div>
           ))}
         </div>
-        <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
+        <div className="grid grid-2" style={{ gap: 'var(--spacing-lg)', alignItems: 'center' }}>
           <div style={{ height: 220 }}>
             <Doughnut data={compositionChartData} options={compositionOptions} />
           </div>
-          <div className="grid" style={{ gap: 8 }}>
-            <div className="muted" style={{ fontSize: 11.5, fontWeight: 800 }}>
+          <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>
               {pick(lang, 'Gross invoicing split by outcome', 'توزيع إجمالي الفوترة حسب النتيجة', '按结果划分的总开票额分布')}
             </div>
             {report.charts.composition.labels.map((label, i) => (
               <div key={label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-xs)' }}>
                   <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">{report.charts.composition.pct[i]}%</span>
+                  <span style={{ fontWeight: 700 }} dir="ltr">{report.charts.composition.pct[i]}%</span>
                 </div>
-                <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                  <div style={{ width: `${report.charts.composition.pct[i]}%`, height: '100%', background: ['var(--green)', 'var(--gold)', '#787878'][i] }} />
+                <div style={{ height: 8, borderRadius: 4, background: 'var(--surface-muted)', overflow: 'hidden' }}>
+                  <div style={{ width: `${report.charts.composition.pct[i]}%`, height: '100%', background: ['var(--success)', 'var(--warning)', 'var(--low)'][i] }} />
                 </div>
               </div>
             ))}
@@ -726,12 +732,12 @@ export default function SmartReports() {
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15 }}>{report.labels.detailedAnalysis}</div>
-        <p className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginTop: 6, marginBottom: 10 }}>{report.detailedAnalysis.intro}</p>
-        <div style={{ height: 240, marginBottom: 14 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)' }}>{report.labels.detailedAnalysis}</div>
+        <p className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.8, marginTop: 'var(--spacing-xs)', marginBottom: 'var(--spacing-md)' }}>{report.detailedAnalysis.intro}</p>
+        <div style={{ height: 240, marginBottom: 'var(--spacing-lg)' }}>
           <Bar data={provinceBarData} options={provinceBarOptions} />
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table className="table" aria-label="Province analysis">
             <thead>
               <tr>{report.detailedAnalysis.table.headers.map((h) => <th key={h}>{h}</th>)}</tr>
@@ -744,11 +750,11 @@ export default function SmartReports() {
                     const rate = report.detailedAnalysis.table.rateByRow[i];
                     return (
                       <td key={j} dir="ltr">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                          <div style={{ flex: 1, height: 7, borderRadius: 4, background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', minWidth: 120 }}>
+                          <div style={{ flex: 1, height: 7, borderRadius: 4, background: 'var(--surface-muted)', overflow: 'hidden' }}>
                             <div style={{ width: `${Math.min(rate, 100)}%`, height: '100%', background: rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)' }} />
                           </div>
-                          <span style={{ fontWeight: 900, fontSize: 12 }}>{c}</span>
+                          <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }}>{c}</span>
                         </div>
                       </td>
                     );
@@ -760,18 +766,18 @@ export default function SmartReports() {
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 4 }}>{focusLabels[focus]}</div>
-        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-xs)' }}>{focusLabels[focus]}</div>
+        <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-md)' }}>
           {pick(lang, 'Chart focused on this report’s selected business area.', 'رسم بياني مرتبط بمجال العمل المحدد لهذا التقرير.', '与本报告所选业务领域相关的图表。')}
         </div>
         {focus === 'revenue' && (
-          <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
+          <div className="grid grid-2" style={{ gap: 'var(--spacing-lg)', alignItems: 'center' }}>
             <div style={{ height: 220 }}><Doughnut data={revenueMixData} options={revenueMixOptions} /></div>
-            <div className="grid" style={{ gap: 6 }}>
+            <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
               {report.charts.revenueMix.labels.map((label, i) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
                   <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">{fmtMoney(report.charts.revenueMix.values[i])} SAR · {report.charts.revenueMix.pct[i]}%</span>
+                  <span style={{ fontWeight: 700 }} dir="ltr">{fmtMoney(report.charts.revenueMix.values[i])} SAR · {report.charts.revenueMix.pct[i]}%</span>
                 </div>
               ))}
             </div>
@@ -780,36 +786,36 @@ export default function SmartReports() {
         {focus === 'province' && (
           <div style={{ height: 240 }}>
             <Bar
-              data={{ labels: report.charts.provinceBar.labels, datasets: [{ label: pick(lang, 'Collection Rate %', 'معدل التحصيل %', '收缴率 %'), data: report.charts.provinceBar.rate, backgroundColor: report.charts.provinceBar.rate.map((r) => (r >= 70 ? 'rgba(0,102,4,0.75)' : r >= 40 ? 'rgba(255,193,7,0.75)' : 'rgba(175,8,24,0.75)')), borderRadius: 4 }] }}
-              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.parsed.y}%` } } }, scales: { x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } } } }}
+              data={{ labels: report.charts.provinceBar.labels, datasets: [{ label: pick(lang, 'Collection Rate %', 'معدل التحصيل %', '收缴率 %'), data: report.charts.provinceBar.rate, backgroundColor: report.charts.provinceBar.rate.map((r) => chartColor(r >= 70 ? 'success' : r >= 40 ? 'warning' : 'danger', 0.75)), borderRadius: 4 }] }}
+              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.parsed.y}%` } } }, scales: { x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` }, grid: { color: chartColors.grid } } } }}
             />
           </div>
         )}
         {focus === 'enforcement' && (
-          <div className="grid" style={{ gap: 14 }}>
+          <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
             <div style={{ height: 220 }}><Bar data={enforcementBarData} options={enforcementBarOptions} /></div>
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-xs)' }}>
                 <span>{pick(lang, 'Sanad enforcement orders linked to a source invoice', 'أوامر تنفيذ سند المرتبطة بفاتورة مصدر', '已关联原始发票的 Sanad 执行令')}</span>
-                <span style={{ fontWeight: 900 }} dir="ltr">{report.charts.sanadLinkage.linkedPct}%</span>
+                <span style={{ fontWeight: 700 }} dir="ltr">{report.charts.sanadLinkage.linkedPct}%</span>
               </div>
-              <div style={{ height: 10, borderRadius: 5, background: 'rgba(175,8,24,0.15)', overflow: 'hidden' }}>
+              <div style={{ height: 10, borderRadius: 5, background: 'var(--danger-soft)', overflow: 'hidden' }}>
                 <div style={{ width: `${report.charts.sanadLinkage.linkedPct}%`, height: '100%', background: 'var(--green)' }} />
               </div>
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }} dir="ltr">
+              <div className="muted" style={{ fontSize: 'var(--text-2xs)', marginTop: 'var(--spacing-xs)' }} dir="ltr">
                 {report.charts.sanadLinkage.ordersUnlinked} / {report.charts.sanadLinkage.ordersIssued} {pick(lang, 'orders unlinked', 'أمر غير مرتبط', '份执行令未关联')} · {fmtMoney(report.charts.sanadLinkage.unlinkedValue)} SAR
               </div>
             </div>
           </div>
         )}
         {focus === 'investment' && (
-          <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
+          <div className="grid grid-2" style={{ gap: 'var(--spacing-lg)', alignItems: 'center' }}>
             <div style={{ height: 220 }}><Doughnut data={investmentData} options={investmentOptions} /></div>
-            <div className="grid" style={{ gap: 6 }}>
+            <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
               {report.charts.investment.labels.map((label, i) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--text-xs)' }}>
                   <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">
+                  <span style={{ fontWeight: 700 }} dir="ltr">
                     {report.charts.investment.values[i]} · {report.charts.investment.total ? Math.round((report.charts.investment.values[i] / report.charts.investment.total) * 100) : 0}%
                   </span>
                 </div>
@@ -819,76 +825,76 @@ export default function SmartReports() {
         )}
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.aiDiscoveries}</div>
-        <div className="grid" style={{ gap: 8 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.aiDiscoveries}</div>
+        <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
           {report.discoveries.map((d, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary, #005A96)', marginTop: 6, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, lineHeight: 1.7 }}>{d}</span>
+            <div key={i} style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'flex-start' }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary)', marginTop: 'var(--spacing-xs)', flexShrink: 0 }} />
+              <span style={{ fontSize: 'var(--text-xs)', lineHeight: 1.7 }}>{d}</span>
             </div>
           ))}
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.risksAlerts}</div>
-        <div className="grid" style={{ gap: 8 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.risksAlerts}</div>
+        <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
           {report.risks.map((r, i) => (
             <div key={i} className="card card-pad" style={{ borderInlineStart: `4px solid var(--red)` }}>
               <span className="badge badge--red">{r.priority}</span>
-              <div style={{ fontWeight: 900, fontSize: 13, marginTop: 6 }}>{r.title}</div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>{r.rationale}</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)' }}>{r.title}</div>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)', lineHeight: 1.6 }}>{r.rationale}</div>
             </div>
           ))}
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.predictions}</div>
-        <div style={{ height: 220, marginBottom: 12 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.predictions}</div>
+        <div style={{ height: 220, marginBottom: 'var(--spacing-lg)' }}>
           <Line data={trendLineData} options={trendLineOptions} />
         </div>
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
           {report.predictions.map((p, i) => (
             <div key={i} className="card card-pad">
-              <div style={{ fontWeight: 900, fontSize: 13 }}>{p.prediction}</div>
-              <div className="grid grid-2" style={{ gap: 4, marginTop: 8 }}>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.timeframe}:</strong> {p.timeframe}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.confidence}:</strong> {p.confidence}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.supportingFactors}:</strong> {p.supporting}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.changingFactors}:</strong> {p.changing}</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }}>{p.prediction}</div>
+              <div className="grid grid-2" style={{ gap: 'var(--spacing-xs)', marginTop: 'var(--spacing-md)' }}>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)' }}><strong>{report.labels.timeframe}:</strong> {p.timeframe}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)' }}><strong>{report.labels.confidence}:</strong> {p.confidence}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)' }}><strong>{report.labels.supportingFactors}:</strong> {p.supporting}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)' }}><strong>{report.labels.changingFactors}:</strong> {p.changing}</div>
               </div>
             </div>
           ))}
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.additionalReports}</div>
-        <div className="grid grid-2" style={{ gap: 8 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.additionalReports}</div>
+        <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
           {report.additionalReports.map((a, i) => (
             <div key={i} className="card card-pad">
-              <div style={{ fontWeight: 900, fontSize: 12.5 }}>{a.title}</div>
-              <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{a.description}</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }}>{a.title}</div>
+              <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)' }}>{a.description}</div>
             </div>
           ))}
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.recommendations}</div>
-        <div className="grid" style={{ gap: 6 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.recommendations}</div>
+        <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
           {report.recommendations.map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
               <span className={`badge ${r.priority === (lang === 'ar' ? 'حرجة' : lang === 'zh' ? '严重' : 'Critical') ? 'badge--red' : r.priority === (lang === 'ar' ? 'عالية' : lang === 'zh' ? '高' : 'High') ? 'badge--orange' : r.priority === (lang === 'ar' ? 'متوسطة' : lang === 'zh' ? '中' : 'Medium') ? 'badge--gold' : 'badge--teal'}`}>
                 {r.priority}
               </span>
-              <span style={{ fontSize: 13 }}>{r.text}</span>
+              <span style={{ fontSize: 'var(--text-xs)' }}>{r.text}</span>
             </div>
           ))}
         </div>
 
         <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.dataAssumptions}</div>
-        <div className="grid" style={{ gap: 6 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-sm)', marginBottom: 'var(--spacing-md)' }}>{report.labels.dataAssumptions}</div>
+        <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
           {report.assumptions.map((a, i) => (
-            <div key={i} className="muted" style={{ fontSize: 11.5, lineHeight: 1.6 }}>• {a}</div>
+            <div key={i} className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>• {a}</div>
           ))}
         </div>
       </div>

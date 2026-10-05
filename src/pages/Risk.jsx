@@ -5,16 +5,18 @@ import { useI18n } from '../context/I18nContext';
 import { fmtMoney } from '../data/mock';
 import { computeAllRiskFlags, CATEGORY_LABELS, CATEGORY_COLOR, RISK_CATEGORIES } from '../data/riskAnalysis';
 import AgentThinking from '../components/ai/AgentThinking';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartTooltip, getChartTheme } from '../utils/chartTheme';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
 
 const CHART_COLOR = {
-  duplicate: 'rgba(175, 8, 24, 0.65)',
-  struck_off_registry: 'rgba(255, 193, 7, 0.75)',
-  deceased_person: 'rgba(230, 126, 34, 0.75)',
-  value_anomaly: 'rgba(111, 66, 193, 0.7)'
+  duplicate: chartColor('danger', 0.65),
+  struck_off_registry: chartColor('warning', 0.75),
+  deceased_person: chartColor('orange', 0.75),
+  value_anomaly: chartColor('purple', 0.7)
 };
 const CATEGORY_ORDER = RISK_CATEGORIES;
 const categoryLabel = (c, lang) => (lang === 'ar' ? CATEGORY_LABELS[c].ar : lang === 'zh' ? CATEGORY_LABELS[c].zh : CATEGORY_LABELS[c].en);
@@ -108,6 +110,8 @@ function actionTextFor(f, lang) {
 
 export default function Risk() {
   const { t, lang, isRtl } = useI18n();
+  const { theme } = useTheme();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
 
   const flags = useMemo(() => computeAllRiskFlags(), []);
 
@@ -145,13 +149,13 @@ export default function Risk() {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+      tooltip: chartTooltip(theme, isRtl)
     },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10.5 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', precision: 0, callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 10.5 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, precision: 0 }, grid: { color: chartColors.grid } }
     }
-  }), [isRtl]);
+  }), [chartColors, isRtl, theme]);
 
   const [openId, setOpenId] = useState(null);
   const [phase, setPhase] = useState('idle'); // idle | analyzing | done
@@ -206,10 +210,10 @@ export default function Risk() {
   }
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('risk')}</div>
+          <h1 className="page-title">{t('risk')}</h1>
           <div className="page-sub">
             {pick(lang, 'Four MoMAH-confirmed risk categories, detected live from the invoice data — not a fixed list.', 'أربع فئات مخاطر مؤكدة من الوزارة، تُكتشف مباشرةً من بيانات الفواتير — وليست قائمة ثابتة.', '四类经部委确认的风险，直接从发票数据中实时检测——并非固定清单。')}
           </div>
@@ -227,9 +231,9 @@ export default function Risk() {
 
       <div className="grid grid-2">
         <div className="card chart-box" style={{ height: 320 }}>
-          <div className="page-head" style={{ marginBottom: 8 }}>
+          <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
             <div>
-              <div className="page-title" style={{ fontSize: 16 }}>
+              <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>
                 {pick(lang, 'Flags by Category', 'الأعلام حسب الفئة', '按类别统计的风险')}
               </div>
               <div className="page-sub">
@@ -243,29 +247,29 @@ export default function Risk() {
         </div>
 
         <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 16 }}>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>
             {pick(lang, 'Flagged Invoices', 'الفواتير الموسومة', '已标记发票')}
           </div>
           <div className="page-sub">
             {pick(lang, 'Ranked by severity · click "AI Analysis" for the evidence behind each flag', 'مرتبة حسب الخطورة · اضغط "تحليل الذكاء الاصطناعي" لعرض الأدلة وراء كل علم', '按严重程度排序 · 点击"AI 分析"查看每个标记背后的证据')}
           </div>
           <div className="hr" />
-          <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
             {grouped.map((g) => {
               const inv = g.invoice;
               const beneficiary = lang === 'zh' ? inv.entity : lang === 'ar' ? inv.entityAr : inv.entityEn;
               const isOpen = openId === inv.id;
               return (
-                <div className="card" style={{ padding: 12, background: 'rgba(255,255,255,0.03)' }} key={inv.id}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                <div className="card" style={{ padding: 'var(--spacing-lg)', background: 'var(--surface-subtle)' }} key={inv.id}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--spacing-md)' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 950 }} dir="ltr">{inv.id}</div>
-                      <div className="muted" style={{ marginTop: 4, fontSize: 12 }}>{beneficiary}</div>
+                      <div className="muted" style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>{beneficiary}</div>
                     </div>
                     <span className={`badge ${badgeClass(g.flags[0] ? CATEGORY_COLOR[g.flags[0].category] : 'red')}`}>{g.score}</span>
                   </div>
 
-                  <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  <div style={{ marginTop: 'var(--spacing-md)', display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)' }}>
                     {g.flags.map((f) => (
                       <span key={f.category} className={`badge ${badgeClass(CATEGORY_COLOR[f.category])}`}>
                         {categoryLabel(f.category, lang)}
@@ -275,7 +279,7 @@ export default function Risk() {
                   </div>
 
                   {!isOpen && (
-                    <div style={{ marginTop: 12 }}>
+                    <div style={{ marginTop: 'var(--spacing-lg)' }}>
                       <button className="btn btn-ghost btn-sm" type="button" onClick={() => openAnalysis(inv.id)}>
                         {pick(lang, 'AI Analysis', 'تحليل الذكاء الاصطناعي', 'AI 分析')}
                       </button>
@@ -283,7 +287,7 @@ export default function Risk() {
                   )}
 
                   {isOpen && phase === 'analyzing' && (
-                    <div className="ai-timeline" style={{ marginTop: 12 }}>
+                    <div className="ai-timeline" style={{ marginTop: 'var(--spacing-lg)' }}>
                       {steps.slice(0, activeStepIndex + 1).map((step, i) => {
                         const isActive = i === activeStepIndex;
                         const revealed = !isActive || activeRevealed;
@@ -301,9 +305,9 @@ export default function Risk() {
                   )}
 
                   {isOpen && phase === 'done' && (
-                    <div className="ai-conclusion" style={{ marginTop: 12 }}>
+                    <div className="ai-conclusion" style={{ marginTop: 'var(--spacing-lg)' }}>
                       <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
-                      <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 12.5, lineHeight: 1.7 }}>
+                      <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 'var(--text-xs)', lineHeight: 1.7 }}>
                         {steps.map((s) => s.detail).join(' ')}
                       </div>
                       <div className="ai-conclusion__action">

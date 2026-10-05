@@ -17,10 +17,10 @@ export default function InvestmentInvoices() {
   const linked = investmentInvoices.length - flagged.length;
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')}</div>
+          <h1 className="page-title">{pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')}</h1>
           <div className="page-sub">{pick(lang, 'Investment invoices with no linked Furas contract, each with an AI risk assessment', 'الفواتير الاستثمارية غير المرتبطة بعقد فرص، مع تقييم مخاطر بالذكاء الاصطناعي لكل فاتورة', '未关联 Furas 合同的投资类发票，每张均附带 AI 风险评估')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
@@ -40,24 +40,24 @@ export default function InvestmentInvoices() {
       </div>
 
       <div className="card card-pad">
-        <div className="page-title" style={{ fontSize: 16, marginBottom: 4 }}>
+        <div className="page-title" style={{ fontSize: 'var(--text-md)', marginBottom: 'var(--spacing-xs)' }}>
           {pick(lang, 'Flagged Investment Invoices', 'الفواتير الاستثمارية الموسومة', '已标记的投资类发票')}
         </div>
-        <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
+        <div className="muted" style={{ fontSize: 'var(--text-xs)', marginBottom: 'var(--spacing-md)' }}>
           {pick(lang, 'Each record has no matching contract in the Furas registry.', 'كل سجل لا يملك عقدًا مطابقًا في سجل فرص.', '每条记录在 Furas 合同登记中均无匹配合同。')}
         </div>
-        <div className="grid" style={{ gap: 8 }}>
+        <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
           {flagged.map((inv) => {
             const beneficiary = lang === 'zh' ? inv.entity : lang === 'ar' ? inv.entityAr : inv.entityEn;
             const amanah = lang === 'zh' ? inv.amanah : lang === 'ar' ? inv.amanahAr : inv.amanahEn;
             return (
-              <div key={inv.id} className="card" style={{ padding: 10, background: 'rgba(175, 8, 24, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div key={inv.id} className="card" style={{ padding: 'var(--spacing-md)', background: 'var(--danger-soft)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{inv.id}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)' }}>
+                    <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }} dir="ltr">{inv.id}</span>
                     <span className="badge badge--red">{fmtMoney(inv.amount)} SAR</span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{beneficiary} · {amanah}</div>
+                  <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)' }}>{beneficiary} · {amanah}</div>
                 </div>
                 <button type="button" className="btn btn-sm btn-primary" onClick={() => nav(`/investment-invoices/${encodeURIComponent(inv.id)}`)}>
                   {pick(lang, 'Details', 'التفاصيل', '详情')}
@@ -66,7 +66,7 @@ export default function InvestmentInvoices() {
             );
           })}
           {!flagged.length && (
-            <div className="muted" style={{ fontSize: 12.5 }}>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)' }}>
               {pick(lang, 'No unlinked investment invoices under the current data.', 'لا توجد فواتير استثمارية غير مرتبطة ضمن البيانات الحالية.', '当前数据中没有未关联的投资类发票。')}
             </div>
           )}

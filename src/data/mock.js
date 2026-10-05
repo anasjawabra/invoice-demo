@@ -6,13 +6,13 @@ export const CREDENTIALS = [
   {
     user: 'demo',
     pass: 'demo123',
-    name: '奥马尔·拉希德',
-    nameEn: 'Omar Al-Rashid',
-    nameAr: 'عمر الرشيد',
+    name: '李芳军',
+    nameEn: 'Li Fangjun',
+    nameAr: 'طارق',
     role: '财务共享中心 · 主管',
     roleEn: 'Shared Service Center · Manager',
     roleAr: 'مركز الخدمات المشتركة · مدير',
-    avatar: 'OA'
+    avatar: 'LF'
   },
   {
     user: 'auditor',
@@ -982,7 +982,7 @@ export const APPROVALS = [
       'Invoice Clerk → Finance Manager → Budget & Finance → Revenue Assurance Review → Center Director → CFO',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مراجعة ضمان الإيرادات ← مدير المركز ← الرئيس المالي',
     assignee: '李芳军',
-    assigneeEn: 'Omar Al-Rashid',
+    assigneeEn: 'Li Fangjun',
     assigneeAr: 'طارق',
     priority: '高',
     priorityEn: 'High',
@@ -1013,7 +1013,7 @@ export const APPROVALS = [
     chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance → Center Director',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مدير المركز',
     assignee: '李芳军',
-    assigneeEn: 'Omar Al-Rashid',
+    assigneeEn: 'Li Fangjun',
     assigneeAr: 'طارق',
     priority: '中',
     priorityEn: 'Medium',
@@ -1041,7 +1041,7 @@ export const APPROVALS = [
     chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance',
     chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية',
     assignee: '李芳军',
-    assigneeEn: 'Omar Al-Rashid',
+    assigneeEn: 'Li Fangjun',
     assigneeAr: 'طارق',
     priority: '中',
     priorityEn: 'Medium',
@@ -1401,7 +1401,15 @@ export const REVENUE_BENCHMARK_SAMPLE = {
   }
 };
 
+/* ---------- Illustrative operational-expenditure baseline (What-If Modeling) ----------
+   Fictional target figure, same SAR scale as the per-invoice INVOICES array (NOT the
+   SAR-millions REVENUE_BENCHMARK_SAMPLE above). Per the 10-Sep Smart Invoicing MOM, the
+   exact operational-expenditure calculation methodology was explicitly flagged as
+   "not finalized — requires further validation" before the real Prototype. This number
+   exists only so the demo can show the shape of an opex-coverage scenario. */
+export const OPEX_BASELINE = 17000000;
+
 /* ---------- Utility ---------- */
 export function fmtMoney(n) {
-  return n.toLocaleString('en-US', { numberingSystem: 'latn' });
+  return n.toLocaleString('en-US');
 }

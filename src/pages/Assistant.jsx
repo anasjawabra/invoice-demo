@@ -14,6 +14,9 @@ import { Bar, Doughnut, Line } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { APPROVALS, COLLECTIONS, DEFAULT_ANSWER, INVOICES, KPIS, QA, SOURCES, STATUS, TREND, fmtMoney, REVENUE_BENCHMARK_SAMPLE } from '../data/mock';
 import { computeGroupedRiskFlags } from '../data/riskAnalysis';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartLegend, chartTooltip, getChartTheme } from '../utils/chartTheme';
+import AIContentLabel from '../components/ai/AIContentLabel';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, ArcElement, Tooltip, Legend);
 
@@ -38,13 +41,15 @@ function fillTemplate(str, vars) {
 }
 
 function badgeColor(v) {
-  if (v >= 80) return { bg: 'rgba(0, 102, 4,0.65)', border: 'rgba(0, 102, 4,1)' };
-  if (v >= 50) return { bg: 'rgba(255, 193, 7,0.65)', border: 'rgba(255, 193, 7,1)' };
-  return { bg: 'rgba(175, 8, 24,0.65)', border: 'rgba(175, 8, 24,1)' };
+  if (v >= 80) return { bg: chartColor('success', 0.65), border: chartColor('success') };
+  if (v >= 50) return { bg: chartColor('warning', 0.65), border: chartColor('warning') };
+  return { bg: chartColor('danger', 0.65), border: chartColor('danger') };
 }
 
 function InlineChart({ type }) {
   const { lang, isRtl, t, T } = useI18n();
+  const { theme } = useTheme();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -64,15 +69,15 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale,
       plugins: {
-        legend: { display: false, rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+        legend: chartLegend(theme, { display: false, rtl: isRtl }),
+        tooltip: chartTooltip(theme, isRtl)
       },
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-        y: { beginAtZero: true, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: chartColors.text }, grid: { color: chartColors.grid } },
+        y: { beginAtZero: true, ticks: { color: chartColors.text }, grid: { color: chartColors.grid } }
       }
     };
-  }, [isRtl, lang]);
+  }, [chartColors, isRtl, lang, theme]);
 
   if (type === 'source') {
     const data = {
@@ -80,8 +85,8 @@ function InlineChart({ type }) {
       datasets: [
         {
           data: SOURCES.map((s) => s.count),
-          backgroundColor: ['rgba(38, 99, 75,0.65)', 'rgba(0, 90, 150,0.65)', 'rgba(0, 102, 4,0.65)', 'rgba(255, 193, 7,0.65)'],
-          borderColor: ['rgba(38, 99, 75,1)', 'rgba(0, 90, 150,1)', 'rgba(0, 102, 4,1)', 'rgba(255, 193, 7,1)'],
+          backgroundColor: ['primary', 'info', 'success', 'warning'].map((color) => chartColor(color, 0.65)),
+          borderColor: ['primary', 'info', 'success', 'warning'].map((color) => chartColor(color)),
           borderWidth: 1
         }
       ]
@@ -91,8 +96,8 @@ function InlineChart({ type }) {
       maintainAspectRatio: false,
       locale: lang === 'ar' ? 'ar' : lang === 'zh' ? 'zh-CN' : 'en-US',
       plugins: {
-        legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 10, usePointStyle: true, pointStyle: 'circle' } },
-        tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+        legend: chartLegend(theme, { position: 'bottom', rtl: isRtl }),
+        tooltip: chartTooltip(theme, isRtl)
       }
     };
     return (
@@ -109,8 +114,8 @@ function InlineChart({ type }) {
         {
           label: t('chart_automation'),
           data: TREND.automation,
-          borderColor: 'rgba(0, 90, 150, 0.95)',
-          backgroundColor: 'rgba(0, 90, 150, 0.12)',
+          borderColor: chartColor('info', 0.95),
+          backgroundColor: chartColor('info', 0.12),
           tension: 0.35,
           pointRadius: 2,
           fill: true
@@ -121,7 +126,7 @@ function InlineChart({ type }) {
       ...common,
       scales: {
         x: { ...common.scales.x, reverse: isRtl },
-        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
+        y: { ...common.scales.y, min: 80, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` } }
       }
     };
     return (
@@ -147,8 +152,8 @@ function InlineChart({ type }) {
       datasets: [
         {
           data: counts,
-          backgroundColor: ['rgba(0, 102, 4,0.35)', 'rgba(255, 193, 7,0.35)', 'rgba(200, 135, 0,0.35)', 'rgba(175, 8, 24,0.35)', 'rgba(175, 8, 24,0.60)'],
-          borderColor: ['rgba(0, 102, 4,0.95)', 'rgba(255, 193, 7,0.95)', 'rgba(200, 135, 0,0.95)', 'rgba(175, 8, 24,0.95)', 'rgba(175, 8, 24,0.95)'],
+          backgroundColor: [chartColor('success', 0.35), chartColor('warning', 0.35), chartColor('orange', 0.35), chartColor('danger', 0.35), chartColor('danger', 0.60)],
+          borderColor: [chartColor('success', 0.95), chartColor('warning', 0.95), chartColor('orange', 0.95), chartColor('danger', 0.95), chartColor('danger', 0.95)],
           borderWidth: 1,
           borderRadius: 8
         }
@@ -177,7 +182,7 @@ function InlineChart({ type }) {
     };
     return (
       <div style={{ height: 220 }}>
-        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }} />
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` } } } }} />
       </div>
     );
   }
@@ -188,8 +193,8 @@ function InlineChart({ type }) {
       datasets: [
         {
           data: APPROVALS.map((a) => a.amount),
-          backgroundColor: 'rgba(38, 99, 75,0.5)',
-          borderColor: 'rgba(38, 99, 75,1)',
+          backgroundColor: chartColor('primary', 0.5),
+          borderColor: chartColor('primary'),
           borderWidth: 1,
           borderRadius: 8
         }
@@ -197,7 +202,7 @@ function InlineChart({ type }) {
     };
     return (
       <div style={{ height: 220 }}>
-        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) } } } }} />
+        <Bar ref={ref} data={data} options={{ ...common, scales: { ...common.scales, y: { ...common.scales.y, ticks: { color: chartColors.text, callback: (v) => fmtMoney(v) } } } }} />
       </div>
     );
   }
@@ -222,7 +227,7 @@ function InlineChart({ type }) {
         <Bar
           ref={ref}
           data={data}
-          options={{ ...common, indexAxis: 'y', scales: { ...common.scales, x: { ...common.scales.x, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } } } }}
+          options={{ ...common, indexAxis: 'y', scales: { ...common.scales, x: { ...common.scales.x, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` } } } }}
         />
       </div>
     );
@@ -232,14 +237,14 @@ function InlineChart({ type }) {
     const counts = Object.keys(STATUS)
       .map((key) => ({ key, ...STATUS[key], count: INVOICES.filter((i) => i.status === key).length }))
       .filter((s) => s.count > 0);
-    const colorMap = { blue: '#005A96', green: '#006604', red: '#AF0818', gold: '#FFC107', orange: '#C88700', grey: '#8B93A1' };
+    const colorMap = { blue: chartColor('info'), green: chartColor('success'), red: chartColor('danger'), gold: chartColor('warning'), orange: chartColor('orange'), grey: chartColor('neutral') };
     const data = {
       labels: counts.map((s) => T(s, 'label')),
       datasets: [
         {
           data: counts.map((s) => s.count),
-          backgroundColor: counts.map((s) => `${colorMap[s.color] || '#26634B'}CC`),
-          borderColor: counts.map((s) => colorMap[s.color] || '#26634B'),
+          backgroundColor: counts.map((s) => colorMap[s.color] || chartColor('primary', 0.8)),
+          borderColor: counts.map((s) => colorMap[s.color] || chartColor('primary')),
           borderWidth: 1,
           borderRadius: 8
         }
@@ -259,8 +264,8 @@ function InlineChart({ type }) {
       {
         label: t('chart_recovery'),
         data: TREND.recovery,
-        borderColor: 'rgba(0, 102, 4, 0.95)',
-        backgroundColor: 'rgba(0, 102, 4, 0.10)',
+        borderColor: chartColor('success', 0.95),
+        backgroundColor: chartColor('success', 0.10),
         tension: 0.35,
         pointRadius: 2,
         fill: true
@@ -271,7 +276,7 @@ function InlineChart({ type }) {
     ...common,
     scales: {
       x: { ...common.scales.x, reverse: isRtl },
-      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` } }
+      y: { ...common.scales.y, min: 70, max: 95, ticks: { color: chartColors.text, callback: (v) => `${v}%` } }
     }
   };
 
@@ -448,10 +453,10 @@ export default function Assistant() {
   }, [msgs]);
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('assistant')}</div>
+          <h1 className="page-title">{t('assistant')}</h1>
           <div className="page-sub">{t('ast_sub')}</div>
         </div>
         <span className="badge badge--green">{t('ast_online')}</span>
@@ -459,9 +464,9 @@ export default function Assistant() {
 
       <div className="chat-shell">
         <div className="card chat-side">
-          <div style={{ fontWeight: 900, fontSize: 14 }}>{t('ast_rec_q')}</div>
-          <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>{t('ast_rec_sub')}</div>
-          <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }}>{t('ast_rec_q')}</div>
+          <div className="muted" style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>{t('ast_rec_sub')}</div>
+          <div style={{ marginTop: 'var(--spacing-lg)', display: 'grid', gap: 'var(--spacing-md)' }}>
             {suggestions.map((s) => (
               <button key={s} className="btn" type="button" onClick={() => ask(s)}>
                 {s}
@@ -475,6 +480,7 @@ export default function Assistant() {
           <div id="chat_scroll" className="chat-list" aria-label="Chat messages">
             {msgs.map((m) => (
               <div key={m.id} className={`msg msg--${m.role}`}>
+                {m.role === 'assistant' ? <AIContentLabel state={m.typing ? 'refining' : 'generated'} /> : null}
                 <div dangerouslySetInnerHTML={{ __html: m.html || (m.typing ? '…' : '') }} />
                 {m.chart ? (
                   <div className="msg-chart">

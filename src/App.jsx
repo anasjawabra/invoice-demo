@@ -1,15 +1,16 @@
-import React, { lazy, Suspense } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
-const StrategicDashboard = lazy(() => import('./pages/StrategicDashboard'));
 import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import Collection from './pages/Collection';
 import Assistant from './pages/Assistant';
-const SmartReports = lazy(() => import('./pages/SmartReports'));
+import SmartReports from './pages/SmartReports';
+import StrategicDashboard from './pages/StrategicDashboard';
+import DecisionRoom from './pages/decisionRoom/DecisionRoom';
 import SanadOrders from './pages/SanadOrders';
 import SanadOrderDetail from './pages/SanadOrderDetail';
 import InvestmentInvoices from './pages/InvestmentInvoices';
@@ -28,12 +29,14 @@ export default function App() {
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
-        <Route path="strategic-dashboard" element={<Suspense fallback={<div role="status" aria-label="Loading">…</div>}><StrategicDashboard /></Suspense>} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />
         <Route path="assistant" element={<Assistant />} />
-        <Route path="smart-reports" element={<Suspense fallback={<div role="status" aria-label="Loading">…</div>}><SmartReports /></Suspense>} />
+        <Route path="smart-reports" element={<SmartReports />} />
+        <Route path="what-if" element={<StrategicDashboard />} />
+        <Route path="decision-room" element={<DecisionRoom />} />
+        <Route path="planning" element={<Navigate to="/decision-room" replace />} />
         <Route path="sanad-orders" element={<SanadOrders />} />
         <Route path="sanad-orders/:enforceNum" element={<SanadOrderDetail />} />
         <Route path="investment-invoices" element={<InvestmentInvoices />} />

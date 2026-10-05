@@ -1,10 +1,16 @@
 import React, { useMemo, useState } from 'react';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../components/UIIcon';
 import { useNavigate } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
 import { useI18n } from '../context/I18nContext';
 import { INVOICES, fmtMoney, gfsForInvoice, SANAD_ENFORCEMENT } from '../data/mock';
+import { computeRevenueByYear } from '../data/reportAnalytics';
 import { KSA_PROVINCES_VIEWBOX, KSA_PROVINCES } from '../data/ksaProvinces';
+import ProvinceMap from '../components/ProvinceMap';
+import { useTheme } from '../context/ThemeContext';
+import { chartColor, chartLegend, chartTooltip, getChartTheme } from '../utils/chartTheme';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend);
 
@@ -44,31 +50,6 @@ const EXCL_LABEL_KEY = {
 };
 const EXCL_COLOR = { duplicate: 'gold', appeal: 'orange', invalid_debtor: 'red', enforcement: 'indigo' };
 
-
-const DEMO_TARGET_ACHIEVEMENT = {
-  'Eastern Province Amanah': 64,
-  'Riyadh Amanah': 78,
-  'Jeddah Amanah': 74,
-  'Tabuk Amanah': 58,
-  'Al Madinah Amanah': 100,
-  'Asir Amanah': 42,
-  'Jazan Amanah': 71,
-  "Ha'il Amanah": 83,
-  'Makkah Amanah': 88,
-  'Najran Amanah': 100,
-  'Al-Qassim Amanah': 69,
-  'Al Jawf Amanah': 76,
-  'Northern Borders Amanah': 36,
-  'Al Bahah Amanah': 73,
-  'Al-Ahsa Amanah': 55
-};
-
-function demoTargetAchievement(key) {
-  if (DEMO_TARGET_ACHIEVEMENT[key]) return DEMO_TARGET_ACHIEVEMENT[key];
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = (hash * 31 + key.charCodeAt(i)) % 997;
-  return 62 + (hash % 35);
-}
 function badgeForColor(c) {
   const map = { teal: 'badge--teal', indigo: 'badge--indigo', gold: 'badge--gold', green: 'badge--green', red: 'badge--red', orange: 'badge--orange', blue: 'badge--blue', purple: 'badge--purple' };
   return map[c] || '';
@@ -92,7 +73,7 @@ function RingGauge({ pct, target = 70, size = 84 }) {
   const ty2 = cy + 49 * Math.sin(tickAngle);
   return (
     <svg viewBox="0 0 100 100" width={size} height={size}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="10" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--line-strong)" strokeWidth="10" />
       <circle
         cx={cx}
         cy={cy}
@@ -105,15 +86,17 @@ function RingGauge({ pct, target = 70, size = 84 }) {
         strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
       />
-      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="var(--orange)" strokeWidth="3" strokeLinecap="round" />
-      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="#1A1A1A">{Math.round(clamped)}%</text>
+      <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="var(--txt-mute)" strokeWidth="2" />
+      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="var(--heading)">{Math.round(clamped)}%</text>
     </svg>
   );
 }
 
 export default function Dashboard() {
   const { t, lang, isRtl } = useI18n();
+  const { theme } = useTheme();
   const nav = useNavigate();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
 
   // Period filter — same real selectable-range pattern used throughout the
   // app (fiscal year, previous month, trailing 3/6/12 months, custom range).
@@ -213,6 +196,11 @@ export default function Dashboard() {
     return cats;
   }, [filteredInvoices]);
 
+  // Revenue by source, this year vs. last — real invoice data already spans
+  // both years, grouped by the same GFS classification used everywhere else
+  // in this file (map coloring, province drill-down), not a separate dataset.
+  const revenueByYear = useMemo(() => computeRevenueByYear(INVOICES), []);
+
   // ---------- Amanah-level indicator table (map/table wishlist item; table chosen) ----------
   const byAmanah = useMemo(() => {
     const groups = new Map();
@@ -233,8 +221,8 @@ export default function Dashboard() {
   const amanahChartData = useMemo(() => ({
     labels: byAmanah.map((g) => g.label),
     datasets: [
-      { label: t('dash_th_gross'), data: byAmanah.map((g) => g.gross), backgroundColor: 'rgba(0, 90, 150, 0.75)', borderRadius: 4 },
-      { label: t('dash_amanah_chart_collected'), data: byAmanah.map((g) => g.collected), backgroundColor: 'rgba(0, 102, 4, 0.75)', borderRadius: 4 }
+      { label: t('dash_th_gross'), data: byAmanah.map((g) => g.gross), backgroundColor: chartColor('info', 0.75), borderRadius: 4 },
+      { label: t('dash_amanah_chart_collected'), data: byAmanah.map((g) => g.collected), backgroundColor: chartColor('success', 0.75), borderRadius: 4 }
     ]
   }), [byAmanah, t]);
 
@@ -242,7 +230,7 @@ export default function Dashboard() {
     labels: Object.keys(EXCL_LABEL_KEY).map((k) => t(EXCL_LABEL_KEY[k])),
     datasets: [{
       data: Object.keys(EXCL_LABEL_KEY).map((k) => exclusionBreakdown[k].value),
-      backgroundColor: ['rgba(255, 193, 7, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(175, 8, 24, 0.85)', 'rgba(0, 90, 150, 0.85)'],
+      backgroundColor: [chartColor('warning', 0.85), chartColor('orange', 0.85), chartColor('danger', 0.85), chartColor('info', 0.85)],
       borderWidth: 0
     }]
   }), [exclusionBreakdown, t]);
@@ -251,31 +239,25 @@ export default function Dashboard() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+      legend: chartLegend(theme, { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }),
+      tooltip: chartTooltip(theme, isRtl)
     },
     scales: {
-      x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#4A4A4A', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
+      x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 11 } }, grid: { display: false } },
+      y: { beginAtZero: true, ticks: { color: chartColors.text, callback: (v) => fmtMoney(v) }, grid: { color: chartColors.grid } }
     }
-  }), [isRtl]);
+  }), [chartColors, isRtl, theme]);
 
   const doughnutOptions = useMemo(() => ({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 12, font: { size: 11 } } },
-      tooltip: {
-        rtl: isRtl,
-        backgroundColor: '#FFFFFF',
-        titleColor: '#000000',
-        bodyColor: '#323232',
-        borderColor: '#EAEAEA',
-        borderWidth: 1,
+      legend: chartLegend(theme, { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }),
+      tooltip: chartTooltip(theme, isRtl, {
         callbacks: { label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} SAR` }
-      }
+      })
     }
-  }), [isRtl]);
+  }), [isRtl, theme]);
 
   // ---------- Provincial collection map: real KSA province boundaries, aggregated straight from filteredInvoices, click for filtered detail ----------
   const byProvince = useMemo(() => {
@@ -338,11 +320,11 @@ export default function Dashboard() {
     // provinces — otherwise a filtered-out province with rate=0 looks like a
     // genuine worst-performer, which is exactly the map-contrast confusion
     // fixed earlier this session for the metric-specific floors below.
-    if (!p.hasData || p.count === 0) return 'rgba(120, 120, 120, 0.10)';
-    if (mapMetric === 'gross') return `rgba(0, 90, 150, ${(0.15 + (p.gross / maxProvinceGross) * 0.65).toFixed(2)})`;
-    if (mapMetric === 'revenue') return p.dominantRevenue ? GFS_COLOR[p.dominantRevenue.code] : 'rgba(120, 120, 120, 0.10)';
-    if (mapMetric === 'violations') return `rgba(175, 8, 24, ${(0.04 + (p.violationCount / maxViolationCount) * 0.76).toFixed(2)})`;
-    if (mapMetric === 'enforcement') return `rgba(0, 90, 150, ${(0.04 + (p.enforcementCount / maxEnforcementCount) * 0.76).toFixed(2)})`;
+    if (!p.hasData || p.count === 0) return chartColor('neutral', 0.10);
+    if (mapMetric === 'gross') return chartColor('info', Number((0.15 + (p.gross / maxProvinceGross) * 0.65).toFixed(2)));
+    if (mapMetric === 'revenue') return p.dominantRevenue ? GFS_COLOR[p.dominantRevenue.code] : chartColor('neutral', 0.10);
+    if (mapMetric === 'violations') return chartColor('danger', Number((0.04 + (p.violationCount / maxViolationCount) * 0.76).toFixed(2)));
+    if (mapMetric === 'enforcement') return chartColor('info', Number((0.04 + (p.enforcementCount / maxEnforcementCount) * 0.76).toFixed(2)));
     return p.rate >= 70 ? 'var(--green)' : p.rate >= 40 ? 'var(--gold)' : 'var(--red)';
   };
 
@@ -466,10 +448,11 @@ export default function Dashboard() {
   }, [byProvince, flaggedNoContract, lang, t]);
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
-      <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontWeight: 900, fontSize: 12, color: 'var(--muted)' }}>{t('dash_period_label')}</span>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
+      <h1 className="sr-only">{t('dashboard')}</h1>
+      <div className="card card-pad filter-toolbar">
+        <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>{t('dash_period_label')}</span>
+        <div className="filter-toolbar__chips">
           {[
             ['all', 'dash_period_alltime'],
             ['prevMonth', 'dash_period_prev_month'],
@@ -489,7 +472,8 @@ export default function Dashboard() {
         </div>
         <select
           className="select"
-          style={{ height: 32, width: 'auto', minWidth: 110, fontSize: 12.5 }}
+          aria-label={t('dash_period_year_placeholder')}
+          style={{ height: 32, width: 'auto', paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}
           value={dateFilter.mode === 'year' ? dateFilter.year : ''}
           onChange={(e) => setDateFilter({ mode: 'year', year: e.target.value, from: '', to: '' })}
         >
@@ -506,36 +490,39 @@ export default function Dashboard() {
           {t('dash_period_custom')}
         </button>
         {dateFilter.mode === 'custom' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="filter-toolbar__range">
             <input
               type="date"
               className="input"
-              style={{ height: 32, width: 'auto', paddingInline: 10, fontSize: 12.5 }}
+              aria-label={t('pln_period_from')}
+              style={{ height: 32, width: 'auto', paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}
               value={dateFilter.from}
               max={dateFilter.to || undefined}
               onChange={(e) => setDateFilter((f) => ({ ...f, mode: 'custom', from: e.target.value }))}
             />
-            <span className="muted" style={{ fontSize: 12 }}>{t('dash_period_to')}</span>
+            <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('dash_period_to')}</span>
             <input
               type="date"
               className="input"
-              style={{ height: 32, width: 'auto', paddingInline: 10, fontSize: 12.5 }}
+              aria-label={t('pln_period_to')}
+              style={{ height: 32, width: 'auto', paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}
               value={dateFilter.to}
               min={dateFilter.from || undefined}
               onChange={(e) => setDateFilter((f) => ({ ...f, mode: 'custom', to: e.target.value }))}
             />
           </div>
         )}
-        <span className="muted" style={{ fontSize: 11.5, marginInlineStart: 'auto' }}>
+        <span className="muted" style={{ fontSize: 'var(--text-xs)', marginInlineStart: 'auto' }}>
           {rangeStart || rangeEnd ? `${rangeStart || '…'} → ${rangeEnd || '…'}` : t('dash_period_alltime')}
         </span>
       </div>
 
-      <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontWeight: 900, fontSize: 12, color: 'var(--muted)' }}>{t('dash_amanah_filter_label')}</span>
+      <div className="card card-pad filter-toolbar">
+        <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)', color: 'var(--muted)' }}>{t('dash_amanah_filter_label')}</span>
         <select
           className="select"
-          style={{ height: 32, width: 'auto', minWidth: 160, fontSize: 12.5 }}
+          aria-label={t('dash_amanah_filter_label')}
+          style={{ height: 32, width: 'auto', minWidth: 220, paddingInline: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}
           value={amanahFilter}
           onChange={(e) => setAmanahFilter(e.target.value)}
         >
@@ -569,7 +556,7 @@ export default function Dashboard() {
           <div className="kpi__value">{fmtMoney(kpi.collectedValue)}</div>
           <div className="kpi__label">{t('dash_kpi_collected')}</div>
         </div>
-        <div className="card card-pad" style={{ borderInlineStart: '4px solid var(--green)' }} title={t('kpi_rate_info')}>
+        <div className="card card-pad" style={{ borderInlineStart: '4px solid var(--green)' }} data-tooltip={t('kpi_rate_info')} aria-label={t('kpi_rate_info')} tabIndex={0}>
           <div className="kpi__value">{kpi.collectionRate}%</div>
           <div className="kpi__label">{t('dash_kpi_collection_rate')}</div>
         </div>
@@ -581,32 +568,32 @@ export default function Dashboard() {
 
       {/* Decisions Awaiting You */}
       <div className="card card-pad">
-        <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_decisions_title')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_decisions_title')}</div>
             <div className="page-sub">{t('dash_decisions_sub')}</div>
           </div>
         </div>
-        <div className="grid" style={{ gap: 10 }}>
+        <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
           {decisions.map((d) => (
             <div key={d.key} className="card card-pad" style={{ borderInlineStart: `4px solid var(--${d.priority === 'high' ? 'red' : 'gold'})` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 220 }}>
                   <span className={`badge ${d.priority === 'high' ? 'badge--red' : 'badge--gold'}`}>
                     {d.priority === 'high' ? t('dash_decisions_priority_high') : t('dash_decisions_priority_medium')}
                   </span>
-                  <div style={{ fontWeight: 900, fontSize: 14, marginTop: 6 }}>{d.title}</div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>{d.rationale}</div>
+                  <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)', marginTop: 'var(--spacing-xs)' }}>{d.title}</div>
+                  <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)', lineHeight: 1.6 }}>{d.rationale}</div>
                 </div>
                 {d.beforeLabel && (
                   <div style={{ textAlign: 'center', flexShrink: 0 }}>
-                    <div className="muted" style={{ fontSize: 10.5 }}>{t('dash_decisions_now')} → {t('dash_decisions_after')}</div>
-                    <div style={{ fontWeight: 900, fontSize: 14 }} dir="ltr">{d.beforeLabel} → {d.afterLabel}</div>
+                    <div className="muted" style={{ fontSize: 'var(--text-2xs)' }}>{t('dash_decisions_now')} → {t('dash_decisions_after')}</div>
+                    <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }} dir="ltr">{d.beforeLabel} → {d.afterLabel}</div>
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-                <span className="badge" style={{ background: 'rgba(120,120,120,0.12)', color: '#666666', borderColor: 'rgba(120,120,120,0.25)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'var(--spacing-md)' }}>
+                <span className="badge" style={{ background: 'var(--surface-muted)', color: 'var(--txt-mute)', borderColor: 'var(--line-strong)' }}>
                   {t('dash_decisions_pending')}
                 </span>
                 <button className="btn btn-sm btn-primary" type="button" onClick={d.action}>
@@ -620,9 +607,9 @@ export default function Dashboard() {
 
       {/* Exclusion breakdown */}
       <div className="card card-pad">
-        <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_excl_title')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_excl_title')}</div>
             <div className="page-sub">{t('dash_excl_sub')}</div>
           </div>
         </div>
@@ -631,91 +618,124 @@ export default function Dashboard() {
             <div key={key} className="card card-pad" style={{ borderInlineStart: `4px solid var(--${EXCL_COLOR[key]})` }}>
               <div className="kpi__value">{exclusionBreakdown[key].count}</div>
               <div className="kpi__label">{t(EXCL_LABEL_KEY[key])}</div>
-              <div style={{ fontSize: 12, fontWeight: 800, marginTop: 3 }}>{fmtMoney(exclusionBreakdown[key].value)} SAR</div>
+              <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginTop: 'var(--spacing-xs)' }}>{fmtMoney(exclusionBreakdown[key].value)} SAR</div>
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="dashboard-chart-row">
-        <div className="card chart-box dashboard-chart-box">
-          <div className="page-head" style={{ marginBottom: 8 }}>
-            <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_excl_by_value')}</div>
-              <div className="page-sub">{t('dash_excl_sub')}</div>
-            </div>
-          </div>
-          <div className="dashboard-chart-box__canvas dashboard-chart-box__canvas--donut">
-            <Doughnut data={exclusionChartData} options={doughnutOptions} />
-          </div>
-        </div>
-
-        <div className="card chart-box dashboard-chart-box">
-          <div className="page-head" style={{ marginBottom: 8 }}>
-            <div>
-              <div className="page-title" style={{ fontSize: 16 }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
-              <div className="page-sub">{t('dash_amanah_sub')}</div>
-            </div>
-          </div>
-          <div className="dashboard-chart-box__canvas">
-            <Bar data={amanahChartData} options={barOptions} />
-          </div>
+        <div className="hr" />
+        <div className="page-sub" style={{ marginBottom: 'var(--spacing-md)' }}>{t('dash_excl_by_value')}</div>
+        <div style={{ height: 200, maxWidth: 340 }}>
+          <Doughnut data={exclusionChartData} options={doughnutOptions} />
         </div>
       </div>
 
-      {/* Amanah-level indicators */}
+      {/* Revenue by source — year over year */}
       <div className="card card-pad">
-        <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_amanah_title')}</div>
-            <div className="page-sub">{t('dash_amanah_sub')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_revenue_year_title')}</div>
+            <div className="page-sub">{t('dash_revenue_year_sub')}</div>
           </div>
-          <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
-            {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
-          </button>
         </div>
-        <div className="table-wrap">
-          <table className="table" aria-label="Amanah-level indicators">
+        <div className="table-wrap" tabIndex={0}>
+          <table className="table" aria-label={t('dash_revenue_year_title')}>
             <thead>
               <tr>
-                <th>{t('th_amanah')}</th>
-                <th>{t('th_id')}#</th>
-                <th>{t('dash_th_gross')}</th>
-                <th>{t('dash_th_rate')}</th>
+                <th>{t('dash_revenue_year_th_category')}</th>
+                <th dir="ltr">{revenueByYear[0]?.priorYear}</th>
+                <th dir="ltr">{revenueByYear[0]?.latestYear}</th>
+                <th>{t('dash_revenue_year_th_growth')}</th>
               </tr>
             </thead>
             <tbody>
-              {byAmanah.map((g) => (
-                <tr key={g.key}>
-                  <td>{g.label}</td>
-                  <td dir="ltr">{g.count}</td>
-                  <td dir="ltr">{fmtMoney(g.gross)} SAR</td>
+              {revenueByYear.map((r) => (
+                <tr key={r.code}>
                   <td>
-                    <span className={`badge ${g.rate >= 70 ? 'badge--green' : g.rate >= 40 ? 'badge--gold' : 'badge--red'}`}>{g.rate}%</span>
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: GFS_COLOR[r.code], display: 'inline-block', marginInlineEnd: 'var(--spacing-xs)' }} />
+                    {lang === 'zh' ? r.name : lang === 'ar' ? r.nameAr : r.nameEn}
+                  </td>
+                  <td dir="ltr">{fmtMoney(r.prior.collected)} SAR</td>
+                  <td dir="ltr">{fmtMoney(r.latest.collected)} SAR</td>
+                  <td dir="ltr">
+                    {r.growthPct == null ? '—' : (
+                      <span className={`badge ${r.growthPct >= 0 ? 'badge--green' : 'badge--red'}`}>{r.growthPct >= 0 ? '+' : ''}{r.growthPct}%</span>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        <p className="muted" style={{ fontSize: 'var(--text-2xs)', marginTop: 'var(--spacing-md)' }}>{t('dash_revenue_year_note')}</p>
+      </div>
+
+      {/* Amanah-level indicators */}
+      <div className="grid grid-2">
+        <div className="card card-pad">
+          <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div>
+              <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_amanah_title')}</div>
+              <div className="page-sub">{t('dash_amanah_sub')}</div>
+            </div>
+            <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
+              {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
+            </button>
+          </div>
+          <div className="table-wrap" tabIndex={0}>
+            <table className="table" aria-label="Amanah-level indicators">
+              <thead>
+                <tr>
+                  <th>{t('th_amanah')}</th>
+                  <th>{t('th_id')}#</th>
+                  <th>{t('dash_th_gross')}</th>
+                  <th>{t('dash_th_rate')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {byAmanah.map((g) => (
+                  <tr key={g.key}>
+                    <td>{g.label}</td>
+                    <td dir="ltr">{g.count}</td>
+                    <td dir="ltr">{fmtMoney(g.gross)} SAR</td>
+                    <td>
+                      <span className={`badge ${g.rate >= 70 ? 'badge--green' : g.rate >= 40 ? 'badge--gold' : 'badge--red'}`}>{g.rate}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card chart-box">
+          <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
+            <div>
+              <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_th_gross')} / {t('dash_amanah_chart_collected')}</div>
+              <div className="page-sub">{t('dash_amanah_sub')}</div>
+            </div>
+          </div>
+          <div style={{ height: 280 }}>
+            <Bar data={amanahChartData} options={barOptions} />
+          </div>
+        </div>
       </div>
 
       {/* Target achievement — ring gauges, one per Amanah, actual rate vs the 70% target */}
       <div className="card card-pad">
-        <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-md)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_amanah_target_title')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_amanah_target_title')}</div>
             <div className="page-sub">{t('dash_amanah_target_sub')}</div>
           </div>
-          <span className="badge" style={{ background: 'rgba(232, 139, 47, 0.14)', color: 'var(--orange)', borderColor: 'rgba(232, 139, 47, 0.38)', boxShadow: '0 0 0 3px rgba(232, 139, 47, 0.08)' }}>
+          <span className="badge" style={{ background: 'var(--surface-muted)', color: 'var(--txt-mute)', borderColor: 'var(--line-strong)' }}>
             {t('dash_map_target_label')}
           </span>
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-2xl)', justifyContent: 'center' }}>
           {byAmanah.map((g) => (
-            <div key={g.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 104 }}>
-              <RingGauge pct={demoTargetAchievement(g.key)} target={70} size={88} />
-              <span style={{ fontSize: 11.5, fontWeight: 800, textAlign: 'center', lineHeight: 1.3 }}>{g.label}</span>
+            <div key={g.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--spacing-xs)', width: 104 }}>
+              <RingGauge pct={g.rate} target={70} size={88} />
+              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, textAlign: 'center', lineHeight: 1.3 }}>{g.label}</span>
             </div>
           ))}
         </div>
@@ -723,9 +743,9 @@ export default function Dashboard() {
 
       {/* Provincial collection map */}
       <div className="card card-pad" id="provincial-map-card">
-        <div className="page-head" style={{ marginBottom: 6 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-xs)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_map_title')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_map_title')}</div>
             <div className="page-sub">{t('dash_map_sub')}</div>
           </div>
         </div>
@@ -734,18 +754,18 @@ export default function Dashboard() {
           <div
             className="card"
             style={{
-              padding: '10px 14px',
-              marginBottom: 10,
-              background: 'rgba(175, 8, 24, 0.06)',
-              border: '1px solid rgba(175, 8, 24, 0.22)',
+              padding: 'var(--spacing-md) var(--spacing-lg)',
+              marginBottom: 'var(--spacing-md)',
+              background: 'var(--danger-soft)',
+              border: '1px solid var(--danger)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 10,
+              gap: 'var(--spacing-md)',
               flexWrap: 'wrap'
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0 }} />
               <strong>{t('dash_map_alert_prefix')}</strong> {provinceName(worstProvince)} — {t('dash_th_rate')} {worstProvince.rate}%
             </span>
@@ -762,9 +782,9 @@ export default function Dashboard() {
         {mapMetric === 'violations' && violationsTop && (
           <div
             className="card"
-            style={{ padding: '10px 14px', marginBottom: 10, background: 'rgba(175, 8, 24, 0.06)', border: '1px solid rgba(175, 8, 24, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}
+            style={{ padding: 'var(--spacing-md) var(--spacing-lg)', marginBottom: 'var(--spacing-md)', background: 'var(--danger-soft)', border: '1px solid var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red)', display: 'inline-block', flexShrink: 0 }} />
               <strong>{t('dash_map_alert_violations_prefix')}</strong> {provinceName(violationsTop)} — {violationsTop.violationCount} {t('dash_map_alert_unit_violations')}
             </span>
@@ -777,9 +797,9 @@ export default function Dashboard() {
         {mapMetric === 'enforcement' && enforcementTop && (
           <div
             className="card"
-            style={{ padding: '10px 14px', marginBottom: 10, background: 'rgba(0, 90, 150, 0.06)', border: '1px solid rgba(0, 90, 150, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}
+            style={{ padding: 'var(--spacing-md) var(--spacing-lg)', marginBottom: 'var(--spacing-md)', background: 'var(--info-soft)', border: '1px solid var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--blue)', display: 'inline-block', flexShrink: 0 }} />
               <strong>{t('dash_map_alert_enforcement_prefix')}</strong> {provinceName(enforcementTop)} — {enforcementTop.enforcementCount} {t('dash_map_alert_unit_enforcement')}
             </span>
@@ -792,9 +812,9 @@ export default function Dashboard() {
         {mapMetric === 'gross' && grossTop && (
           <div
             className="card"
-            style={{ padding: '10px 14px', marginBottom: 10, background: 'rgba(0, 90, 150, 0.06)', border: '1px solid rgba(0, 90, 150, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}
+            style={{ padding: 'var(--spacing-md) var(--spacing-lg)', marginBottom: 'var(--spacing-md)', background: 'var(--info-soft)', border: '1px solid var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', fontSize: 'var(--text-xs)' }}>
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--blue)', display: 'inline-block', flexShrink: 0 }} />
               <strong>{t('dash_map_alert_gross_prefix')}</strong> {provinceName(grossTop)} — {fmtMoney(grossTop.gross)} SAR
             </span>
@@ -804,7 +824,7 @@ export default function Dashboard() {
           </div>
         )}
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--spacing-xs)', marginBottom: 'var(--spacing-md)' }}>
           {[
             ['rate', 'dash_map_metric_rate'],
             ['gross', 'dash_map_metric_gross'],
@@ -823,7 +843,7 @@ export default function Dashboard() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
           {mapMetric === 'rate' && (
             <>
               <span className="badge badge--green">{t('dash_map_legend_high')}</span>
@@ -831,103 +851,103 @@ export default function Dashboard() {
               <span className="badge badge--red">{t('dash_map_legend_low')}</span>
             </>
           )}
-          {mapMetric === 'gross' && <span className="muted" style={{ fontSize: 11.5 }}>{t('dash_map_legend_gross')}</span>}
-          {mapMetric === 'violations' && <span className="muted" style={{ fontSize: 11.5 }}>{t('dash_map_legend_violations')}</span>}
-          {mapMetric === 'enforcement' && <span className="muted" style={{ fontSize: 11.5 }}>{t('dash_map_legend_enforcement')}</span>}
+          {mapMetric === 'gross' && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('dash_map_legend_gross')}</span>}
+          {mapMetric === 'violations' && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('dash_map_legend_violations')}</span>}
+          {mapMetric === 'enforcement' && <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('dash_map_legend_enforcement')}</span>}
           {mapMetric === 'revenue' && Object.entries(GFS_COLOR).map(([code, color]) => {
             const sample = byProvince.flatMap((p) => p.revenue).find((r) => r.code === code);
             if (!sample) return null;
             const label = lang === 'zh' ? sample.name : lang === 'ar' ? sample.nameAr : sample.nameEn;
             return (
-              <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5 }}>
+              <span key={code} style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block' }} />
                 {label}
               </span>
             );
           })}
-          <span className="badge" style={{ background: 'rgba(120,120,120,0.12)', color: '#666666', borderColor: 'rgba(120,120,120,0.25)' }}>
+          <span className="badge" style={{ background: 'var(--surface-muted)', color: 'var(--txt-mute)', borderColor: 'var(--line-strong)' }}>
             {t('dash_map_legend_none')}
           </span>
         </div>
 
         {mapMetric === 'rate' && provinceInsight && (
-          <div className="card" style={{ padding: '10px 14px', marginBottom: 10, background: 'rgba(0, 90, 150, 0.05)', border: '1px solid rgba(0, 90, 150, 0.16)' }}>
+          <div className="card" style={{ padding: 'var(--spacing-md) var(--spacing-lg)', marginBottom: 'var(--spacing-md)', background: 'var(--info-soft)', border: '1px solid var(--secondary)' }}>
             {provinceInsight.same ? (
-              <div style={{ fontSize: 12.5, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
                 <strong>{provinceName(provinceInsight.biggest)}</strong> {t('dash_map_insight_same')}
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                <span style={{ fontSize: 12.5 }}>
+              <div style={{ display: 'flex', gap: 'var(--spacing-2xl)', flexWrap: 'wrap', alignItems: 'baseline' }}>
+                <span style={{ fontSize: 'var(--text-xs)' }}>
                   <span className="muted">{t('dash_map_insight_biggest')}:</span>{' '}
                   <strong>{provinceName(provinceInsight.biggest)}</strong>{' '}
                   <span dir="ltr">({fmtMoney(provinceInsight.biggest.uncollected)} SAR)</span>
                 </span>
-                <span style={{ fontSize: 12.5 }}>
+                <span style={{ fontSize: 'var(--text-xs)' }}>
                   <span className="muted">{t('dash_map_insight_worst')}:</span>{' '}
                   <strong>{provinceName(provinceInsight.worst)}</strong>{' '}
                   <span dir="ltr">({provinceInsight.worst.rate}%)</span>
                 </span>
-                <span className="muted" style={{ fontSize: 11.5, width: '100%' }}>{t('dash_map_insight_diff')}</span>
+                <span className="muted" style={{ fontSize: 'var(--text-xs)', width: '100%' }}>{t('dash_map_insight_diff')}</span>
               </div>
             )}
           </div>
         )}
 
         <div className="grid grid-2" style={{ alignItems: 'start' }}>
-          <div className="card" style={{ padding: 14, minHeight: 240 }}>
+          <div className="card" style={{ padding: 'var(--spacing-lg)', minHeight: 240 }}>
             {selectedProvince ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div className="page-title" style={{ fontSize: 15 }}>{provinceName(selectedProvince)}</div>
-                  <button className="btn btn-sm btn-ghost" type="button" onClick={() => setSelectedProvinceIso(null)} aria-label="Close">×</button>
+                  <div className="page-title" style={{ fontSize: 'var(--text-sm)' }}>{provinceName(selectedProvince)}</div>
+                  <button className="btn btn-sm btn-ghost btn-icon" type="button" onClick={() => setSelectedProvinceIso(null)} aria-label="Close"><UIIcon icon={Cancel01Icon} size={18} /></button>
                 </div>
                 {selectedProvince.hasData ? (
-                  <div className="grid" style={{ gap: 16, marginTop: 12 }}>
+                  <div className="grid" style={{ gap: 'var(--spacing-xl)', marginTop: 'var(--spacing-lg)' }}>
                     {/* Executive summary */}
                     <div>
-                      <div className="muted" style={{ fontSize: 11.5, fontWeight: 800, marginBottom: 6 }}>{t('dash_map_exec_summary')}</div>
-                      <div className="grid" style={{ gap: 6 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', border: '1px solid var(--line, #EAEAEA)', borderRadius: 6 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                      <div className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>{t('dash_map_exec_summary')}</div>
+                      <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) var(--spacing-md)', border: '1px solid var(--line)', borderRadius: 6 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: selectedProvince.rate >= 70 ? 'var(--green)' : selectedProvince.rate >= 40 ? 'var(--gold)' : 'var(--red)', display: 'inline-block', flexShrink: 0 }} />
                             {t('dash_th_rate')}
                           </span>
-                          <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{selectedProvince.rate}%</span>
+                          <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }} dir="ltr">{selectedProvince.rate}%</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', border: '1px solid var(--line, #EAEAEA)', borderRadius: 6 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) var(--spacing-md)', border: '1px solid var(--line)', borderRadius: 6 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: selectedProvince.uncollected > 0 ? 'var(--red)' : 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
                             {t('dash_map_exec_uncollected')}
                           </span>
-                          <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{fmtMoney(selectedProvince.uncollected)} SAR</span>
+                          <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }} dir="ltr">{fmtMoney(selectedProvince.uncollected)} SAR</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', border: '1px solid var(--line, #EAEAEA)', borderRadius: 6 }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-xs) var(--spacing-md)', border: '1px solid var(--line)', borderRadius: 6 }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                             <span style={{ width: 8, height: 8, borderRadius: '50%', background: selectedProvince.enforcementCount > 0 ? 'var(--red)' : 'var(--green)', display: 'inline-block', flexShrink: 0 }} />
                             {t('dash_map_stat_enforcement')}
                           </span>
-                          <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{selectedProvince.enforcementCount}</span>
+                          <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }} dir="ltr">{selectedProvince.enforcementCount}</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Invoiced breakdown bar */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                        <span className="muted" style={{ fontSize: 11.5, fontWeight: 800 }}>{t('dash_map_bar_title')}</span>
-                        <span style={{ fontSize: 11.5, fontWeight: 800 }} dir="ltr">{fmtMoney(selectedProvince.gross)} SAR</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-xs)' }}>
+                        <span className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{t('dash_map_bar_title')}</span>
+                        <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }} dir="ltr">{fmtMoney(selectedProvince.gross)} SAR</span>
                       </div>
-                      <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: 'rgba(0,0,0,0.06)' }}>
+                      <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: 'var(--surface-muted)' }}>
                         <div style={{ width: `${selectedProvince.rate}%`, background: 'var(--green)' }} />
                         <div style={{ width: `${100 - selectedProvince.rate}%`, background: 'var(--gold)' }} />
                       </div>
-                      <div style={{ display: 'flex', gap: 14, marginTop: 6, flexWrap: 'wrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+                      <div style={{ display: 'flex', gap: 'var(--spacing-lg)', marginTop: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-2xs)' }}>
                           <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--green)', display: 'inline-block' }} />
                           {t('dash_amanah_chart_collected')} {fmtMoney(selectedProvince.collected)} SAR
                         </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-2xs)' }}>
                           <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--gold)', display: 'inline-block' }} />
                           {t('dash_map_bar_uncollected')} {fmtMoney(selectedProvince.uncollected)} SAR
                         </span>
@@ -936,42 +956,42 @@ export default function Dashboard() {
 
                     {/* Collection rate vs 70% target */}
                     <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                        <span className="muted" style={{ fontSize: 11.5, fontWeight: 800 }}>{t('dash_map_target_title')}</span>
-                        <span className={`badge ${selectedProvince.rate >= 70 ? 'badge--green' : 'badge--red'}`} style={{ fontSize: 10.5 }} dir="ltr">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--spacing-xs)' }}>
+                        <span className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}>{t('dash_map_target_title')}</span>
+                        <span className={`badge ${selectedProvince.rate >= 70 ? 'badge--green' : 'badge--red'}`} style={{ fontSize: 'var(--text-2xs)' }} dir="ltr">
                           {selectedProvince.rate >= 70 ? '+' : ''}{selectedProvince.rate - 70}
                         </span>
                       </div>
-                      <div style={{ position: 'relative', height: 10, borderRadius: 5, background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+                      <div style={{ position: 'relative', height: 10, borderRadius: 5, background: 'var(--surface-muted)', overflow: 'hidden' }}>
                         <div style={{ width: `${Math.min(selectedProvince.rate, 100)}%`, height: '100%', background: selectedProvince.rate >= 70 ? 'var(--green)' : 'var(--red)' }} />
-                        <div style={{ position: 'absolute', insetInlineStart: '70%', top: 0, bottom: 0, width: 2, background: '#2A2A2A' }} />
+                        <div style={{ position: 'absolute', insetInlineStart: '70%', top: 0, bottom: 0, width: 2, background: 'var(--heading)' }} />
                       </div>
-                      <div className="muted" style={{ fontSize: 10.5, marginTop: 4 }}>{t('dash_map_target_label')}</div>
+                      <div className="muted" style={{ fontSize: 'var(--text-2xs)', marginTop: 'var(--spacing-xs)' }}>{t('dash_map_target_label')}</div>
                     </div>
 
                     {/* Quick stats */}
-                    <div style={{ display: 'flex', gap: 16 }}>
+                    <div style={{ display: 'flex', gap: 'var(--spacing-xl)' }}>
                       <div style={{ flex: 1 }}>
-                        <div className="muted" style={{ fontSize: 11 }}>{t('dash_map_stat_count')}</div>
-                        <div style={{ fontWeight: 900, fontSize: 14 }} dir="ltr">{selectedProvince.count}</div>
+                        <div className="muted" style={{ fontSize: 'var(--text-2xs)' }}>{t('dash_map_stat_count')}</div>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }} dir="ltr">{selectedProvince.count}</div>
                       </div>
                       <div style={{ flex: 1 }}>
-                        <div className="muted" style={{ fontSize: 11 }}>{t('dash_map_stat_violations')}</div>
-                        <div style={{ fontWeight: 900, fontSize: 14 }} dir="ltr">{selectedProvince.violationCount}</div>
+                        <div className="muted" style={{ fontSize: 'var(--text-2xs)' }}>{t('dash_map_stat_violations')}</div>
+                        <div style={{ fontWeight: 700, fontSize: 'var(--text-sm)' }} dir="ltr">{selectedProvince.violationCount}</div>
                       </div>
                     </div>
 
                     {selectedProvince.revenue.length > 0 && (
                       <div>
-                        <div className="muted" style={{ fontSize: 11.5, fontWeight: 800, marginBottom: 6 }}>{t('dash_map_revenue_mix')}</div>
-                        <div className="grid" style={{ gap: 6 }}>
+                        <div className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, marginBottom: 'var(--spacing-xs)' }}>{t('dash_map_revenue_mix')}</div>
+                        <div className="grid" style={{ gap: 'var(--spacing-xs)' }}>
                           {selectedProvince.revenue.map((r) => (
                             <div key={r.code} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>
                                 <span style={{ width: 9, height: 9, borderRadius: '50%', background: GFS_COLOR[r.code], display: 'inline-block' }} />
                                 {lang === 'zh' ? r.name : lang === 'ar' ? r.nameAr : r.nameEn}
                               </span>
-                              <span style={{ fontSize: 11.5, fontWeight: 800 }} dir="ltr">{fmtMoney(r.value)} SAR</span>
+                              <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }} dir="ltr">{fmtMoney(r.value)} SAR</span>
                             </div>
                           ))}
                         </div>
@@ -979,75 +999,67 @@ export default function Dashboard() {
                     )}
                   </div>
                 ) : (
-                  <div className="muted" style={{ fontSize: 12.5, marginTop: 12 }}>{t('dash_map_no_data')}</div>
+                  <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-lg)' }}>{t('dash_map_no_data')}</div>
                 )}
               </>
             ) : (
               <>
-                <div className="muted" style={{ fontSize: 12.5 }}>{t('dash_map_select_prompt')}</div>
-                <div className="muted" style={{ fontSize: 11.5, marginTop: 6, lineHeight: 1.6 }}>{t('dash_map_select_hint')}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('dash_map_select_prompt')}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)', lineHeight: 1.6 }}>{t('dash_map_select_hint')}</div>
               </>
             )}
           </div>
 
-          <svg viewBox={KSA_PROVINCES_VIEWBOX} style={{ width: '100%', height: 'auto', display: 'block' }}>
-            {byProvince.map((p) => (
-              <path
-                key={p.iso}
-                d={p.path}
-                fill={provinceFill(p)}
-                stroke={selectedProvinceIso === p.iso ? 'var(--primary)' : 'rgba(42, 42, 42, 0.35)'}
-                strokeWidth={selectedProvinceIso === p.iso ? 3 : 1}
-                strokeLinejoin="round"
-                style={{ cursor: 'pointer' }}
-                onClick={() => setSelectedProvinceIso(p.iso === selectedProvinceIso ? null : p.iso)}
-              >
-                <title>{provinceName(p)}{p.hasData && p.count > 0 ? ` — ${p.rate}%` : ''}</title>
-              </path>
-            ))}
-          </svg>
+          <ProvinceMap
+            provinces={byProvince}
+            viewBox={KSA_PROVINCES_VIEWBOX}
+            fillFor={provinceFill}
+            selectedIso={selectedProvinceIso}
+            onSelect={setSelectedProvinceIso}
+            titleFor={(p) => `${provinceName(p)}${p.hasData && p.count > 0 ? ` — ${p.rate}%` : ''}`}
+          />
         </div>
 
-        <div className="muted" style={{ fontSize: 10.5, textAlign: 'center', marginTop: 8 }}>
+        <div className="muted" style={{ fontSize: 'var(--text-2xs)', textAlign: 'center', marginTop: 'var(--spacing-md)' }}>
           Boundaries: geoBoundaries.org (OpenStreetMap contributors), ODbL 1.0
         </div>
       </div>
 
       {/* Risk-ranked worklist */}
       <div className="card card-pad">
-        <div className="page-head" style={{ marginBottom: 6 }}>
+        <div className="page-head" style={{ marginBottom: 'var(--spacing-xs)' }}>
           <div>
-            <div className="page-title" style={{ fontSize: 16 }}>{t('dash_worklist_title')}</div>
+            <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_worklist_title')}</div>
             <div className="page-sub">{t('dash_worklist_sub')}</div>
           </div>
         </div>
-        <div className="grid" style={{ gap: 8, marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 800, minWidth: 110 }}>{t('dash_worklist_slider_value')} {valueWeight}%</span>
+        <div className="grid" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, minWidth: 110 }}>{t('dash_worklist_slider_value')} {valueWeight}%</span>
             <input
               type="range"
               min="0"
               max="100"
               value={valueWeight}
               onChange={(e) => setValueWeight(Number(e.target.value))}
-              style={{ flex: 1, minWidth: 160, accentColor: 'var(--primary, #1d6349)' }}
+              style={{ flex: 1, minWidth: 160, accentColor: 'var(--primary)' }}
               aria-label={t('dash_worklist_slider_value')}
             />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <span className="muted" style={{ fontSize: 12, fontWeight: 800, minWidth: 110 }}>{t('dash_worklist_slider_age')} {ageWeight}%</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
+            <span className="muted" style={{ fontSize: 'var(--text-xs)', fontWeight: 700, minWidth: 110 }}>{t('dash_worklist_slider_age')} {ageWeight}%</span>
             <input
               type="range"
               min="0"
               max="100"
               value={ageWeight}
               onChange={(e) => setValueWeight(100 - Number(e.target.value))}
-              style={{ flex: 1, minWidth: 160, accentColor: 'var(--gold, #caa000)' }}
+              style={{ flex: 1, minWidth: 160, accentColor: 'var(--warning)' }}
               aria-label={t('dash_worklist_slider_age')}
             />
           </div>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap" tabIndex={0}>
           <table className="table" aria-label="Risk-ranked worklist">
             <thead>
               <tr>
@@ -1065,7 +1077,7 @@ export default function Dashboard() {
                 const amanah = lang === 'zh' ? inv.amanah : lang === 'ar' ? inv.amanahAr : inv.amanahEn;
                 return (
                   <tr key={inv.id}>
-                    <td style={{ fontWeight: 900 }} dir="ltr">{inv.id}</td>
+                    <td style={{ fontWeight: 700 }} dir="ltr">{inv.id}</td>
                     <td>{beneficiary}</td>
                     <td>{amanah}</td>
                     <td dir="ltr">{fmtMoney(inv.amount)} SAR</td>
@@ -1084,10 +1096,10 @@ export default function Dashboard() {
       <div className="grid grid-2">
         {/* Sanad matching snapshot */}
         <div className="card card-pad" id="sanad-panel">
-          <div className="page-title" style={{ fontSize: 16 }}>{t('dash_sanad_title')}</div>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_sanad_title')}</div>
           <div className="page-sub">{t('dash_sanad_sub')}</div>
           <div className="hr" />
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap' }}>
             <div style={{ flex: 1, minWidth: 120 }}>
               <div className="kpi__value">{fmtMoney(SANAD_ENFORCEMENT.recordsReviewed)}</div>
               <div className="kpi__label">{t('dash_sanad_stat_reviewed')}</div>
@@ -1097,20 +1109,20 @@ export default function Dashboard() {
               <div className="kpi__label">{t('dash_sanad_stat_missing')}</div>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
             <div style={{ flex: 1, minWidth: 120 }}>
               <div className="kpi__value">{fmtMoney(SANAD_ENFORCEMENT.ordersIssued)}</div>
               <div className="kpi__label">{t('dash_sanad_stat_orders')}</div>
             </div>
             <div style={{ flex: 1, minWidth: 120 }}>
               <div className="kpi__value" style={{ color: 'var(--red)' }}>
-                {fmtMoney(SANAD_ENFORCEMENT.ordersUnlinked)}<span style={{ fontSize: 13, fontWeight: 700 }}> / {fmtMoney(SANAD_ENFORCEMENT.ordersIssued)}</span>
+                {fmtMoney(SANAD_ENFORCEMENT.ordersUnlinked)}<span style={{ fontSize: 'var(--text-xs)', fontWeight: 700 }}> / {fmtMoney(SANAD_ENFORCEMENT.ordersIssued)}</span>
               </div>
               <div className="kpi__label">{t('dash_sanad_stat_unlinked')}</div>
             </div>
           </div>
-          <div className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.6 }}>{t('dash_sanad_note_orders')}</div>
-          <div style={{ marginTop: 12 }}>
+          <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-md)', lineHeight: 1.6 }}>{t('dash_sanad_note_orders')}</div>
+          <div style={{ marginTop: 'var(--spacing-lg)' }}>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
               {t('dash_sanad_view_enforcement_invoices')}
             </button>
@@ -1119,10 +1131,10 @@ export default function Dashboard() {
 
         {/* Investment / Furas contract-linkage flag */}
         <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 16 }}>{t('dash_invest_title')}</div>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dash_invest_title')}</div>
           <div className="page-sub">{t('dash_invest_sub')}</div>
           <div className="hr" />
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginBottom: 'var(--spacing-md)' }}>
             <div style={{ flex: 1, minWidth: 140 }}>
               <div className="kpi__value">{investmentInvoices.length - flaggedNoContract.length}</div>
               <div className="kpi__label">{t('dash_invest_ok')}</div>
@@ -1135,23 +1147,22 @@ export default function Dashboard() {
           {flaggedNoContract.map((inv) => {
             const beneficiary = lang === 'zh' ? inv.entity : lang === 'ar' ? inv.entityAr : inv.entityEn;
             return (
-              <div key={inv.id} className="card" style={{ padding: 10, background: 'rgba(175, 8, 24, 0.06)' }}>
+              <div key={inv.id} className="card" style={{ padding: 'var(--spacing-md)', background: 'var(--danger-soft)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{inv.id}</span>
+                  <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)' }} dir="ltr">{inv.id}</span>
                   <span className="badge badge--red">{fmtMoney(inv.amount)} SAR</span>
                 </div>
-                <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{beneficiary}</div>
+                <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-xs)' }}>{beneficiary}</div>
               </div>
             );
           })}
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 'var(--spacing-lg)' }}>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
               {lang === 'ar' ? 'تصفّح الفواتير الاستثمارية غير المرتبطة ←' : lang === 'zh' ? '浏览未关联的投资类发票 →' : 'Browse unlinked investment invoices →'}
             </button>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

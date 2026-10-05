@@ -97,9 +97,9 @@ export default function SanadOrderDetail() {
 
   if (!order) {
     return (
-      <div className="grid" style={{ gap: 14 }}>
+      <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
         <div className="page-head">
-          <div className="page-title">{t('sanad_order_not_found')}</div>
+          <h1 className="page-title">{t('sanad_order_not_found')}</h1>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
           {isRtl ? `${t('sanad_orders_back')} ←` : `${t('sanad_orders_back')} →`}
@@ -112,10 +112,10 @@ export default function SanadOrderDetail() {
   const defendant = lang === 'zh' ? order.defendant.zh : lang === 'ar' ? order.defendant.ar : order.defendant.en;
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title" dir="ltr">{order.enforceNum}</div>
+          <h1 className="page-title" dir="ltr">{order.enforceNum}</h1>
           <div className="page-sub">{t('sanad_order_detail_sub')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
@@ -147,13 +147,13 @@ export default function SanadOrderDetail() {
       </div>
 
       <div className="card card-pad">
-        <div className="page-title" style={{ fontSize: 16 }}>{t('sanad_order_ocr_title')}</div>
+        <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('sanad_order_ocr_title')}</div>
         <div className="page-sub">{t('sanad_order_ocr_sub')}</div>
         <div className="hr" />
 
         {phase === 'idle' && (
-          <div className="grid" style={{ gap: 8 }}>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="grid" style={{ gap: 'var(--spacing-md)' }}>
+            <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', alignItems: 'center' }}>
               <input
                 type="file"
                 id="sanad-order-file"
@@ -168,15 +168,15 @@ export default function SanadOrderDetail() {
                 📎 {t('dash_sanad_attach_btn')}
               </label>
             </div>
-            <div className="muted" style={{ fontSize: 11, fontWeight: 800 }}>{t('sanad_order_try_examples')}</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => startScan(`enforcement-notice-${order.enforceNum.replace('EN-', '')}.pdf`)}>
+            <div className="muted" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700 }}>{t('sanad_order_try_examples')}</div>
+            <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
+              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 'var(--text-2xs)' }} onClick={() => startScan(`enforcement-notice-${order.enforceNum.replace('EN-', '')}.pdf`)}>
                 {t('dash_sanad_try_match')}
               </button>
-              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => startScan('enforcement-notice-2607714-4482210-7765531.pdf')}>
+              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 'var(--text-2xs)' }} onClick={() => startScan('enforcement-notice-2607714-4482210-7765531.pdf')}>
                 {t('dash_sanad_try_multi')}
               </button>
-              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 11 }} onClick={() => startScan('scanned-notice.pdf')}>
+              <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 'var(--text-2xs)' }} onClick={() => startScan('scanned-notice.pdf')}>
                 {t('dash_sanad_try_none')}
               </button>
             </div>
@@ -223,7 +223,7 @@ export default function SanadOrderDetail() {
                 : `✗ ${t('sanad_order_notfound')}`}
             </div>
             {scan.invoices.length > 0 && (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
                 {scan.invoices.map((inv) => (
                   <button
                     key={inv.id}
@@ -231,14 +231,14 @@ export default function SanadOrderDetail() {
                     className="btn btn-sm btn-primary"
                     dir="ltr"
                     onClick={() => nav(`/invoices?co=${inv.co}`)}
-                    title={t('dash_sanad_view_invoice')}
+                    data-tooltip={t('dash_sanad_view_invoice')}
                   >
                     {inv.id} · {fmtMoney(inv.amount)} SAR →
                   </button>
                 ))}
               </div>
             )}
-            <div className="ai-conclusion__action" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <div className="ai-conclusion__action" style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => { setPhase('idle'); setScan(null); }}>
                 {t('dash_sanad_try_again')}
               </button>

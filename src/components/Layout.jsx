@@ -2,219 +2,133 @@ import React, { useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ORGS } from '../data/mock';
 import { ToastProvider, useToast } from './Toast';
+import FloatingAssistantButton from './FloatingAssistantButton';
+import UIIcon from './UIIcon';
+import {
+  Analytics01Icon,
+  ChartLineData01Icon,
+  Chatting01Icon,
+  DashboardSquare01Icon,
+  File02Icon,
+  Invoice01Icon,
+  Moon02Icon,
+  Notification03Icon,
+  SecurityCheckIcon,
+  Sun03Icon,
+  Target01Icon
+} from '@hugeicons/core-free-icons';
 
-function Icon({ name, size = 18 }) {
-  // Minimal inline icons (no external deps)
-  const common = { width: size, height: size, style: { width: size, height: size }, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
-  switch (name) {
-    case 'strategic':
-      return <svg {...common}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><path d="m12 12 8-8M16 4h4v4" /></svg>;
-    case 'dashboard':
-      return (
-        <svg {...common}>
-          <path d="M4 13h7V4H4v9z" />
-          <path d="M13 20h7V11h-7v9z" />
-          <path d="M13 4h7v5h-7V4z" />
-          <path d="M4 20h7v-5H4v5z" />
-        </svg>
-      );
-    case 'invoices':
-      return (
-        <svg {...common}>
-          <path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z" />
-          <path d="M8 7h8" />
-          <path d="M8 11h8" />
-          <path d="M8 15h6" />
-        </svg>
-      );
-    case 'risk':
-      return (
-        <svg {...common}>
-          <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z" />
-          <path d="M12 8v4" />
-          <path d="M12 16h.01" />
-        </svg>
-      );
-    case 'collection':
-      return (
-        <svg {...common}>
-          <path d="M3 3v18h18" />
-          <path d="M7 14l4-4 3 3 6-6" />
-        </svg>
-      );
-    case 'assistant':
-      return (
-        <svg {...common}>
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z" />
-        </svg>
-      );
-    case 'smart-reports':
-      return (
-        <svg {...common}>
-          <path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-          <path d="M9 12l2 2 4-4" />
-        </svg>
-      );
-    case 'bell':
-      return (
-        <svg {...common} strokeWidth={2.5}>
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...common}>
-          <path d="M12 2v20" />
-          <path d="M2 12h20" />
-        </svg>
-      );
-  }
+const ICONS = {
+  dashboard: DashboardSquare01Icon,
+  invoices: Invoice01Icon,
+  risk: SecurityCheckIcon,
+  collection: ChartLineData01Icon,
+  assistant: Chatting01Icon,
+  'smart-reports': File02Icon,
+  'what-if': Analytics01Icon,
+  'decision-room': Target01Icon,
+  bell: Notification03Icon,
+  sun: Sun03Icon,
+  moon: Moon02Icon
+};
+
+function Icon({ name }) {
+  return <UIIcon icon={ICONS[name] || DashboardSquare01Icon} />;
 }
 
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
   const { user, orgScoped, logout, switchOrg } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
 
   const org = user?.org || ORGS[0];
 
-  const groups = useMemo(() => {
-    return [
-      {
-        title: t('nav_overview'),
-        items: [{ to: '/dashboard', icon: 'dashboard', label: t('dashboard') },
-          { to: '/strategic-dashboard', icon: 'strategic', label: t('what_if_nav') }]
-      },
-      {
-        title: t('nav_proc'),
-        items: [{ to: '/invoices', icon: 'invoices', label: t('invoices') }]
-      },
-      {
-        title: t('nav_risk'),
-        items: [
-          { to: '/risk', icon: 'risk', label: t('risk') },
-          { to: '/collection', icon: 'collection', label: t('collection') }
-        ]
-      },
-      {
-        title: t('nav_hub'),
-        items: [
-          { to: '/assistant', icon: 'assistant', label: t('assistant') },
-          { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') }
-        ]
-      }
-    ];
-  }, [t]);
+  const tabs = useMemo(
+    () => [
+      { to: '/dashboard', icon: 'dashboard', label: t('dashboard'), end: true },
+      { to: '/invoices', icon: 'invoices', label: t('invoices') },
+      { to: '/risk', icon: 'risk', label: t('risk') },
+      { to: '/collection', icon: 'collection', label: t('collection') },
+      { to: '/decision-room', icon: 'decision-room', label: t('decision_room_nav') },
+      { to: '/assistant', icon: 'assistant', label: t('assistant') },
+      { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') },
+      { to: '/what-if', icon: 'what-if', label: t('what_if_nav') }
+    ],
+    [t]
+  );
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
-    if (p.startsWith('/strategic-dashboard')) return t('what_if_nav');
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/risk')) return t('risk');
     if (p.startsWith('/collection')) return t('collection');
+    if (p.startsWith('/decision-room')) return t('decision_room_nav');
     if (p.startsWith('/assistant')) return t('assistant');
     if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
+    if (p.startsWith('/what-if')) return t('what_if_nav');
     if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
-    if (p.startsWith('/investment-invoices')) return t('dash_invest_title');
     return 'INTELLIBILL';
   }, [loc.pathname, t]);
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        {t('skip_to_content')}
+      </a>
       <div className="bg-fx" />
       <div className="bg-grid" />
-
-      <aside className="sidebar">
-        <NavLink to="/dashboard" className="side-brand">
-          <div className="side-brand__logo">IM</div>
-          <div className="side-brand__text">
-            <b>{t('side_brand')}</b>
-          </div>
-        </NavLink>
-
-        <nav className="side-nav" aria-label="Main navigation">
-          {groups.map((g) => (
-            <div className="nav-group" key={g.title}>
-              <div className="nav-group__title">{g.title}</div>
-              {g.items.map((it) => (
-                <div className="nav-item" key={it.to}>
-                  <NavLink
-                    to={it.to}
-                    className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-                    end={it.to === '/dashboard'}
-                  >
-                    <div className="nav-link__icon">
-                      <Icon name={it.icon} />
-                    </div>
-                    <div className="nav-link__text">{it.label}</div>
-                  </NavLink>
-                </div>
-              ))}
-            </div>
-          ))}
-        </nav>
-
-        <div className="sidebar-fab">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => nav('/assistant')}
-          >
-            <Icon name="assistant" size={18} />
-            {t('dash_float_assistant')}
-          </button>
-        </div>
-      </aside>
 
       <main className="main">
         <header className="topbar">
           <div className="topbar-left">
+            <NavLink to="/dashboard" className="side-brand">
+              <div className="side-brand__logo">IB</div>
+              <div className="side-brand__text">
+                <b>{t('side_brand')}</b>
+                <span>{t('brand_tagline')}</span>
+              </div>
+            </NavLink>
             <div className="topbar-title">{pageTitle}</div>
           </div>
 
           <div className="topbar-right">
-            <div className="pill topbar-language" aria-label="Language">
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'en' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setLang('en');
-                  toast.info(t('switched_en'));
-                }}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setLang('zh');
-                  toast.info(t('switched_zh'));
-                }}
-              >
-                中文
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setLang('ar');
-                  toast.info(t('switched_ar'));
-                }}
-              >
-                العربية
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm theme-toggle"
+              onClick={toggleTheme}
+              aria-pressed={theme === 'dark'}
+              aria-label={t('theme_toggle')}
+              data-tooltip={t('theme_toggle')}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
+            </button>
+
+            <select
+              className="select language-select"
+              value={lang}
+              aria-label={t('language_label')}
+              onChange={(event) => {
+                const nextLang = event.target.value;
+                setLang(nextLang);
+                toast.info(t(nextLang === 'ar' ? 'switched_ar' : nextLang === 'zh' ? 'switched_zh' : 'switched_en'));
+              }}
+            >
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="ar">العربية</option>
+            </select>
 
             {orgScoped ? (
               <select
-                className="select topbar-org-select"
+                className="select"
+                style={{ width: 270 }}
                 value={org.id}
                 onChange={(e) => {
                   switchOrg(e.target.value);
@@ -230,18 +144,18 @@ function LayoutInner() {
               </select>
             ) : (
               <div
-                className="pill org-consolidated topbar-org-select"
+                className="pill org-consolidated"
                 role="group"
                 tabIndex={0}
                 aria-label={t('data_scope_consolidated')}
-                title={t('data_scope_consolidated')}
-                style={{ maxWidth: 340, gap: 8 }}
+                data-tooltip={t('data_scope_consolidated')}
+                style={{ maxWidth: 340, gap: 'var(--spacing-md)' }}
               >
                 <span className="badge badge--indigo">{org.code}</span>
                 <span
                   style={{
-                    fontSize: 12,
-                    fontWeight: 800,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 700,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -258,27 +172,31 @@ function LayoutInner() {
 
             <button
               type="button"
-              className="btn topbar-notification"
+              className="btn"
               onClick={() => toast.info(t('notif_msg'))}
               aria-label={t('notif')}
-              title={t('notif')}
+              data-tooltip={t('notif')}
             >
-              <Icon name="bell" size={21} />
-              <span className="topbar-notification__dot" aria-hidden="true" />
+              <Icon name="bell" />
+              <span style={{ fontSize: 'var(--text-xs)' }}>{t('notif')}</span>
             </button>
 
-            <div className="pill topbar-user">
+            <div className="pill" style={{ gap: 'var(--spacing-md)' }}>
               <div
-                className="badge badge--teal topbar-user__avatar"
-                title={T(user, 'name')}
+                className="badge badge--teal"
+                style={{ width: 34, height: 34, borderRadius: 14, paddingInline: '0', display: 'grid', placeItems: 'center' }}
+                data-tooltip={T(user, 'name')}
+                aria-label={T(user, 'name')}
+                role="img"
+                tabIndex={0}
               >
                 {user?.avatar || 'U'}
               </div>
-              <div className="topbar-user__copy">
-                <span className="topbar-user__name">
+              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--text-xs)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                   {T(user, 'name')}
                 </span>
-                <span className="topbar-user__role">
+                <span style={{ fontSize: 'var(--text-2xs)', color: 'var(--txt-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                   {T(user, 'role')}
                 </span>
               </div>
@@ -289,21 +207,40 @@ function LayoutInner() {
                   logout();
                   nav('/login', { replace: true });
                 }}
-                title={t('logout')}
+                data-tooltip={t('logout')}
               >
                 {t('logout')}
               </button>
             </div>
 
             {isRtl ? (
-              <span className="badge" title="RTL">RTL</span>
+              <span className="badge" aria-label="Right-to-left layout">RTL</span>
             ) : null}
           </div>
         </header>
 
-        <section className="content">
+        <nav className="tabbar" aria-label="Main navigation">
+          {tabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              aria-label={tab.label}
+              className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
+            >
+              <span className="tab__icon">
+                <Icon name={tab.icon} />
+              </span>
+              <span className="tab__text">{tab.label}</span>
+            </NavLink>
+          ))}
+        </nav>
+
+        <section className="content" id="main-content" tabIndex={-1}>
           <Outlet />
         </section>
+
+        <FloatingAssistantButton />
       </main>
     </div>
   );

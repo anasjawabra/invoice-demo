@@ -87,9 +87,9 @@ export default function InvestmentInvoiceDetail() {
 
   if (!inv) {
     return (
-      <div className="grid" style={{ gap: 14 }}>
+      <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
         <div className="page-head">
-          <div className="page-title">{pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</div>
+          <h1 className="page-title">{pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</h1>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
           {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
@@ -99,10 +99,10 @@ export default function InvestmentInvoiceDetail() {
   }
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 'var(--spacing-lg)' }}>
       <div className="page-head">
         <div>
-          <div className="page-title" dir="ltr">{inv.id}</div>
+          <h1 className="page-title" dir="ltr">{inv.id}</h1>
           <div className="page-sub">{pick(lang, 'Investment contract-linkage detail', 'تفاصيل ربط العقد الاستثماري', '投资合同关联详情')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
@@ -132,7 +132,7 @@ export default function InvestmentInvoiceDetail() {
       </div>
 
       <div className="card card-pad">
-        <div className="page-title" style={{ fontSize: 16 }}>{pick(lang, 'AI Risk Analysis', 'تحليل المخاطر بالذكاء الاصطناعي', 'AI 风险分析')}</div>
+        <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{pick(lang, 'AI Risk Analysis', 'تحليل المخاطر بالذكاء الاصطناعي', 'AI 风险分析')}</div>
         <div className="page-sub">{pick(lang, 'Runs automatically for every unlinked investment invoice', 'يعمل تلقائيًا لكل فاتورة استثمارية غير مرتبطة', '对每张未关联的投资类发票自动运行')}</div>
         <div className="hr" />
 
@@ -157,10 +157,10 @@ export default function InvestmentInvoiceDetail() {
         {phase === 'done' && (
           <div className="ai-conclusion">
             <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
-            <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 12.5, lineHeight: 1.7 }}>
+            <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 'var(--text-xs)', lineHeight: 1.7 }}>
               {steps.map((s) => s.detail).join(' ')}
             </div>
-            <div className="ai-conclusion__action" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+            <div className="ai-conclusion__action" style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
               <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
                 {pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')}
               </button>

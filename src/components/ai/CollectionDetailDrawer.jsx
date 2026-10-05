@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
 import { fmtMoney } from '../../data/mock';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
+import useDialogA11y from '../../hooks/useDialogA11y';
 
 const TITLE = { zh: '催收案例详情', en: 'Collection Case Detail', ar: 'تفاصيل حالة التحصيل' };
 const STRATEGY_LABEL = { zh: '建议策略', en: 'Recommended Strategy', ar: 'الإستراتيجية الموصى بها' };
@@ -38,22 +41,9 @@ function Cell({ label, children, ltr }) {
 export default function CollectionDetailDrawer({ c, open, onClose, onOpenAI }) {
   const { t, lang } = useI18n();
   const closeRef = useRef(null);
-
-  const onEsc = useCallback((e) => {
-    if (e.key === 'Escape') onClose?.();
-  }, [onClose]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    window.addEventListener('keydown', onEsc);
-    return () => window.removeEventListener('keydown', onEsc);
-  }, [open, onEsc]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const id = window.setTimeout(() => closeRef.current?.focus(), 0);
-    return () => window.clearTimeout(id);
-  }, [open, c]);
+  const titleId = useId();
+  const subtitleId = useId();
+  const dialogRef = useDialogA11y({ open: open && Boolean(c), onClose, initialFocusRef: closeRef });
 
   if (!open || !c) return null;
 
@@ -65,17 +55,17 @@ export default function CollectionDetailDrawer({ c, open, onClose, onOpenAI }) {
   return createPortal(
     <>
       <div className="ai-drawer-overlay" onClick={onClose} />
-      <aside className="ai-drawer idd" role="dialog" aria-modal="true" aria-label={`${L(TITLE, lang)} · ${c.id}`}>
+      <aside className="ai-drawer idd" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-describedby={subtitleId} ref={dialogRef} tabIndex={-1}>
         <div className="ai-drawer__head">
           <div style={{ minWidth: 0 }}>
-            <div className="ai-drawer__title">
+            <div className="ai-drawer__title" id={titleId}>
               <span className={`badge ${badgeForDelay(c.delayKey)}`}>{delayLabel}</span>
               <span dir="ltr">{c.id}</span>
             </div>
-            <div className="ai-drawer__sub">{L(TITLE, lang)}</div>
+            <div className="ai-drawer__sub" id={subtitleId}>{L(TITLE, lang)}</div>
           </div>
           <button type="button" className="ai-drawer__close" onClick={onClose} aria-label={t('close')} ref={closeRef}>
-            ×
+            <UIIcon icon={Cancel01Icon} size={20} />
           </button>
         </div>
 
@@ -98,7 +88,7 @@ export default function CollectionDetailDrawer({ c, open, onClose, onOpenAI }) {
             <div className="idd-section__head">
               <div className="idd-section__title">{L(STRATEGY_LABEL, lang)}</div>
             </div>
-            <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.6 }}>{strategy}</div>
+            <div className="muted" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>{strategy}</div>
           </div>
 
           <div className="idd-actions">

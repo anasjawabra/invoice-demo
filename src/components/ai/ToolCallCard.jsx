@@ -588,7 +588,7 @@ function formatValue(v, key = '', lang) {
   if (typeof v === 'number') {
     // Bare years (e.g. since_year: 2026) shouldn't get a thousands separator.
     if (/year/i.test(key) && Number.isInteger(v) && v >= 1000 && v <= 9999) return String(v);
-    return v.toLocaleString('en-US', { numberingSystem: 'latn' });
+    return v.toLocaleString('en-US');
   }
   if (typeof v === 'object') {
     return Object.entries(v)
@@ -695,7 +695,7 @@ export default function ToolCallCard({ tool, request, response, latency, running
       {running ? (
         <div className="tool-call__section">
           <div className="tool-call__label">
-            <span className="ai-spinner" aria-hidden="true" style={{ marginInlineEnd: 6 }} />
+            <span className="ai-spinner" aria-hidden="true" style={{ marginInlineEnd: 'var(--spacing-xs)' }} />
             {t('trace_running')}
           </div>
           <SkeletonGrid cells={Math.max(2, Object.keys(request || {}).length)} />

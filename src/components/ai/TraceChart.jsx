@@ -13,15 +13,17 @@ import {
 import { Bar, Line } from 'react-chartjs-2';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
+import { useTheme } from '../../context/ThemeContext';
+import { chartColor, chartLegend, chartTooltip, getChartTheme } from '../../utils/chartTheme';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend, Filler);
 
-const GREEN = 'rgba(38, 99, 75, 0.85)';
-const GREEN_SOFT = 'rgba(38, 99, 75, 0.30)';
-const BLUE = 'rgba(0, 90, 150, 0.85)';
-const BLUE_SOFT = 'rgba(0, 90, 150, 0.28)';
-const RED = 'rgba(175, 8, 24, 0.80)';
-const GOLD = 'rgba(200, 135, 0, 0.80)';
+const GREEN = chartColor('primary', 0.85);
+const GREEN_SOFT = chartColor('primary', 0.30);
+const BLUE = chartColor('info', 0.85);
+const BLUE_SOFT = chartColor('info', 0.28);
+const RED = chartColor('danger', 0.80);
+const GOLD = chartColor('warning', 0.80);
 
 /**
  * TraceChart — compact, on-theme (green/blue) chart embedded inside an AI
@@ -35,6 +37,8 @@ const GOLD = 'rgba(200, 135, 0, 0.80)';
  */
 export default function TraceChart({ chartType, payload }) {
   const { t, lang, isRtl } = useI18n();
+  const { theme } = useTheme();
+  const chartColors = useMemo(() => getChartTheme(theme), [theme]);
   const ref = useRef(null);
   useEffect(() => () => ref.current?.destroy?.(), []);
 
@@ -43,9 +47,9 @@ export default function TraceChart({ chartType, payload }) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false, rtl: isRtl },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+      tooltip: chartTooltip(theme, isRtl)
     }
-  }), [isRtl]);
+  }), [isRtl, theme]);
 
   const { title, node } = useMemo(() => {
     const resolveLabels = (arr) => (arr || []).map((x) => L(x, lang));
@@ -65,8 +69,8 @@ export default function TraceChart({ chartType, payload }) {
         ...baseOptions,
         indexAxis: 'y',
         scales: {
-          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { position: isRtl ? 'right' : 'left', ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } }
+          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: chartColors.text }, grid: { color: chartColors.grid } },
+          y: { position: isRtl ? 'right' : 'left', ticks: { color: chartColors.text, font: { size: 10 } }, grid: { display: false } }
         }
       };
       return { title: t('chart_factor'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -87,8 +91,8 @@ export default function TraceChart({ chartType, payload }) {
       const options = {
         ...baseOptions,
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { min: 0, max: 100, ticks: { color: '#4A4A4A', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 10 } }, grid: { color: chartColors.grid } },
+          y: { min: 0, max: 100, ticks: { color: chartColors.text, callback: (v) => `${v}%` }, grid: { color: chartColors.grid } }
         }
       };
       return { title: t('chart_collection'), node: <Line ref={ref} data={data} options={options} /> };
@@ -104,10 +108,10 @@ export default function TraceChart({ chartType, payload }) {
       };
       const options = {
         ...baseOptions,
-        plugins: { ...baseOptions.plugins, legend: { display: true, position: 'bottom', rtl: isRtl, labels: { color: '#4A4A4A', boxWidth: 8, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
+        plugins: { ...baseOptions.plugins, legend: chartLegend(theme, { display: true, position: 'bottom', rtl: isRtl, labels: { boxWidth: 8, font: { size: 10 } } }) },
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: chartColors.text }, grid: { color: chartColors.grid } }
         }
       };
       return { title: t('chart_bench'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -128,12 +132,12 @@ export default function TraceChart({ chartType, payload }) {
     const options = {
       ...baseOptions,
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#4A4A4A', font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: '#4A4A4A' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: chartColors.text, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: chartColors.text }, grid: { color: chartColors.grid } }
       }
     };
     return { title: t('chart_vat'), node: <Bar ref={ref} data={data} options={options} /> };
-  }, [chartType, payload, baseOptions, isRtl, lang, t]);
+  }, [baseOptions, chartColors, chartType, isRtl, lang, payload, t, theme]);
 
   return (
     <div className="trace-chart">

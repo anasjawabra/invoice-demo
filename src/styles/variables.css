@@ -1,62 +1,303 @@
 :root {
   /* ==========================================================
-     GOV-SA (Saudi Government Design System) — LIGHT theme tokens
+     "Financial Imagination" visual language — LIGHT theme tokens
+     Palette/typography extracted from financial-imagination.vercel.app/#/planning
      ========================================================== */
 
   /* Brand */
-  --primary: #26634B;    /* government green */
-  --primary-2: #225B45;  /* green hover */
-  --secondary: #005A96;  /* blue */
-  --success: #006604;
-  --warning: #FFC107;
-  --danger: #AF0818;
+  --primary: #1B8354;    /* brand green */
+  --primary-2: #166A45;  /* green hover (darker) */
+  --primary-light: #54C08A;
+  --on-primary: #FFFFFF;
+  --focus-ring: #0A6FA6;
+  --accent: #1B8354;
+  --secondary: #0A6FA6;  /* semantic information blue */
+  --success: #3E8540;
+  --warning: #8c5f00;
+  --danger: #C4514C;
+  --low: #8a978f;        /* 4th neutral "no/low data" status */
 
   /* Text */
-  --heading: #000000;
-  --txt: #323232;
-  --txt-dim: #4A4A4A;
-  --txt-mute: #6B7280;
+  --heading: #101828;
+  --txt: #1D2939;
+  --txt-dim: #344054;
+  --txt-mute: #667085;
+  --txt-mute-2: #98A2B3;
+
+  /* Neutral and semantic surfaces. */
+  --neutral-25: #FCFCFD;
+  --neutral-50: #F9FAFB;
+  --neutral-100: #F2F4F7;
+  --neutral-200: #EAECF0;
+  --neutral-300: #D0D5DD;
+  --neutral-500: #667085;
+  --neutral-700: #344054;
+  --neutral-900: #101828;
+  --surface-subtle: var(--neutral-50);
+  --surface-muted: var(--neutral-100);
+  --surface-primary-subtle: #F0F9F4;
+  --surface-info-subtle: #EFF8FF;
+  --surface-success-subtle: #ECFDF3;
+  --surface-warning-subtle: #FFFAEB;
+  --surface-danger-subtle: #FEF3F2;
+  --surface-disabled: #F3F5F4;
+  --surface-overlay: rgba(16, 24, 40, 0.42);
+  --primary-soft: rgba(27, 131, 84, 0.08);
+  --primary-soft-hover: rgba(27, 131, 84, 0.12);
+  --primary-border: rgba(27, 131, 84, 0.30);
+  --info-soft: rgba(10, 111, 166, 0.08);
+  --warning-soft: rgba(181, 71, 8, 0.08);
+  --danger-soft: rgba(196, 81, 76, 0.08);
+  --text-warning: #B54708;
+  --text-danger: #B42318;
+  --chart-text: #667085;
+  --chart-grid: rgba(16, 24, 40, 0.08);
+  --skeleton-shimmer: rgba(255, 255, 255, 0.65);
 
   /* Surfaces / backgrounds */
-  --bg-0: #F5F6FA;   /* page background */
-  --bg-1: #FFFFFF;   /* surface */
+  --bg-0: #F7F9F8;    /* DGA-style neutral page background */
+  --bg-0-rgb: 247, 249, 248;
+  --bg-1: #FFFFFF;
   --bg-2: #FFFFFF;
   --panel: #FFFFFF;
   --panel-solid: #FFFFFF;
+  --appbg: #F7F9F8;
 
   /* Aliases consumed by global.css (previously dark var names) */
-  --bg: #F5F6FA;
+  --bg: #F7F9F8;
   --surface: #FFFFFF;
   --card: #FFFFFF;
 
-  /* Lines / borders */
-  --line: #EAEAEA;
-  --line-strong: #D9D9D9;
+  /* Lines / borders — brand-tinted hairlines */
+  --line: var(--neutral-200);
+  --line-strong: var(--neutral-300);
 
-  /* Elevation */
-  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-soft: 0 1px 4px rgba(0, 0, 0, 0.05);
+  /* Elevation — reference cards are flat/glassy, not elevated */
+  --shadow: 0 1px 2px rgba(16, 24, 20, 0.04);
+  --shadow-soft: 0 2px 8px rgba(16, 24, 20, 0.06);
+  --glow-primary: 0 8px 20px rgba(27, 131, 84, 0.20);
 
   /* Legacy color aliases used across markup / inline styles / JS */
   --teal: var(--primary);
-  --teal-2: #1F523D;
+  --teal-2: var(--primary-2);
   --indigo: var(--secondary);
   --gold: var(--warning);
   --green: var(--success);
   --red: var(--danger);
-  --orange: #C88700;
+  --orange: #9A5C00;
   --purple: #6B57A6;
   --blue: var(--secondary);
-  --grey: #8B93A1;
+  --grey: var(--low);
 
   /* Geometry */
   --radius: 8px;        /* cards / panels */
   --radius-sm: 6px;     /* inputs */
-  --radius-pill: 3rem;  /* buttons */
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-featured: 24px;
+  --radius-pill: 999px; /* buttons / badges / tabs */
 
-  /* System font stack — covers Latin, Arabic and CJK on every platform */
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
-          'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
+  /* Platforms Code spacing scale (px-authoritative). */
+  --spacing-none: 0;
+  --spacing-xxs: 4px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-2xl: 20px;
+  --spacing-3xl: 24px;
+  --spacing-4xl: 32px;
+  --spacing-5xl: 40px;
+  --spacing-6xl: 48px;
+  --spacing-7xl: 64px;
+  --spacing-8xl: 80px;
+  --spacing-9xl: 96px;
+  --spacing-10xl: 128px;
+  --spacing-11xl: 160px;
+
+  /* Compact aliases used by the existing application. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* Platforms Code responsive container guidance. */
+  --container-max: 1280px;
+  --container-padding-mobile: 16px;
+  --container-padding-desktop: 32px;
+  --paragraph-max: 720px;
+  --breakpoint-sm: 600px;
+  --breakpoint-md: 960px;
+  --breakpoint-lg: 1280px;
+
+  /* Typography scale. */
+  --text-2xs: 10px;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --display-xs: 24px;
+  --display-sm: 30px;
+  --display-md: 36px;
+
+  /* Font stacks — IBM Plex Sans Arabic/Mono for the new look, falling back to the
+     existing system stack so Latin/Arabic pick up the new face while Chinese text
+     (which IBM Plex Sans Arabic has no glyphs for) silently falls through per-glyph
+     to the CJK system fonts already in the stack. */
+  --font: 'IBM Plex Sans', 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', 'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
           'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
           sans-serif;
+  --num: 'IBM Plex Mono', var(--font), ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #2f9d67;
+    --primary-2: #3fb47a;
+    --primary-light: #4bcf8e;
+    --on-primary: #07130C;
+    --focus-ring: #73C7F0;
+    --accent: #35c996;
+    --secondary: #4FA3D1;
+    --success: #5fb85f;
+    --warning: #d1a53d;
+    --danger: #e08a85;
+    --low: #6b7a72;
+
+    --heading: #eaf6ef;
+    --txt: #d7ece1;
+    --txt-dim: #b7d6c6;
+    --txt-mute: #8fac9c;
+    --txt-mute-2: #7a9689;
+
+    --neutral-25: #0F1913;
+    --neutral-50: #132019;
+    --neutral-100: #192820;
+    --neutral-200: #294236;
+    --neutral-300: #3B5A4A;
+    --neutral-500: #8FAC9C;
+    --neutral-700: #C0D8CC;
+    --neutral-900: #F0F7F3;
+    --surface-subtle: var(--neutral-50);
+    --surface-muted: var(--neutral-100);
+    --surface-primary-subtle: #123021;
+    --surface-info-subtle: #102B3A;
+    --surface-success-subtle: #183A24;
+    --surface-warning-subtle: #332A13;
+    --surface-danger-subtle: #351D1D;
+    --surface-disabled: #1B2921;
+    --surface-overlay: rgba(0, 0, 0, 0.62);
+    --primary-soft: rgba(47, 157, 103, 0.12);
+    --primary-soft-hover: rgba(47, 157, 103, 0.18);
+    --primary-border: rgba(47, 157, 103, 0.38);
+    --info-soft: rgba(79, 163, 209, 0.14);
+    --warning-soft: rgba(209, 165, 61, 0.14);
+    --danger-soft: rgba(224, 138, 133, 0.14);
+    --text-warning: #F4C46B;
+    --text-danger: #FDA29B;
+    --chart-text: #A7C1B4;
+    --chart-grid: rgba(215, 236, 225, 0.12);
+    --skeleton-shimmer: rgba(143, 172, 156, 0.20);
+
+    --bg-0: #0d1712;
+    --bg-0-rgb: 13, 23, 18;
+    --bg-1: #142019;
+    --bg-2: #16241c;
+    --panel: rgba(22, 36, 28, 0.72);
+    --panel-solid: #16241c;
+    --appbg: radial-gradient(1200px 720px at 80% -10%, #16261e 0%, #0d1712 46%, #101c15 100%);
+
+    --bg: #0d1712;
+    --surface: #16241c;
+    --card: rgba(22, 36, 28, 0.72);
+
+    --line: rgba(95, 184, 140, 0.22);
+    --line-strong: rgba(95, 184, 140, 0.38);
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.26);
+
+    --orange: #c98a3d;
+    --purple: #a396d6;
+    --grey: var(--low);
+  }
+}
+
+:root[data-theme="dark"] {
+  --primary: #2f9d67;
+  --primary-2: #3fb47a;
+  --primary-light: #4bcf8e;
+  --on-primary: #07130C;
+  --focus-ring: #73C7F0;
+  --accent: #35c996;
+  --secondary: #4FA3D1;
+  --success: #5fb85f;
+  --warning: #d1a53d;
+  --danger: #e08a85;
+  --low: #6b7a72;
+
+  --heading: #eaf6ef;
+  --txt: #d7ece1;
+  --txt-dim: #b7d6c6;
+  --txt-mute: #8fac9c;
+  --txt-mute-2: #7a9689;
+
+  --neutral-25: #0F1913;
+  --neutral-50: #132019;
+  --neutral-100: #192820;
+  --neutral-200: #294236;
+  --neutral-300: #3B5A4A;
+  --neutral-500: #8FAC9C;
+  --neutral-700: #C0D8CC;
+  --neutral-900: #F0F7F3;
+  --surface-subtle: var(--neutral-50);
+  --surface-muted: var(--neutral-100);
+  --surface-primary-subtle: #123021;
+  --surface-info-subtle: #102B3A;
+  --surface-success-subtle: #183A24;
+  --surface-warning-subtle: #332A13;
+  --surface-danger-subtle: #351D1D;
+  --surface-disabled: #1B2921;
+  --surface-overlay: rgba(0, 0, 0, 0.62);
+  --primary-soft: rgba(47, 157, 103, 0.12);
+  --primary-soft-hover: rgba(47, 157, 103, 0.18);
+  --primary-border: rgba(47, 157, 103, 0.38);
+  --info-soft: rgba(79, 163, 209, 0.14);
+  --warning-soft: rgba(209, 165, 61, 0.14);
+  --danger-soft: rgba(224, 138, 133, 0.14);
+  --text-warning: #F4C46B;
+  --text-danger: #FDA29B;
+  --chart-text: #A7C1B4;
+  --chart-grid: rgba(215, 236, 225, 0.12);
+  --skeleton-shimmer: rgba(143, 172, 156, 0.20);
+
+  --bg-0: #0d1712;
+  --bg-0-rgb: 13, 23, 18;
+  --bg-1: #142019;
+  --bg-2: #16241c;
+  --panel: rgba(22, 36, 28, 0.72);
+  --panel-solid: #16241c;
+  --appbg: radial-gradient(1200px 720px at 80% -10%, #16261e 0%, #0d1712 46%, #101c15 100%);
+
+  --bg: #0d1712;
+  --surface: #16241c;
+  --card: rgba(22, 36, 28, 0.72);
+
+  --line: rgba(95, 184, 140, 0.22);
+  --line-strong: rgba(95, 184, 140, 0.38);
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.26);
+
+  --orange: #c98a3d;
+  --purple: #a396d6;
+  --grey: var(--low);
 }
