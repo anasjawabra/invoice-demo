@@ -8,8 +8,9 @@ import ReconciliationTable from './ReconciliationTable';
 import { fmtMoney, RECON, STATUS, PAYER_MASTER, gfsForInvoice, SANAD_ENFORCEMENT } from '../../data/mock';
 import { OCR_SAMPLES } from '../../data/aiProcess';
 import AgentThinking from './AgentThinking';
-import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Attachment01Icon, Cancel01Icon, CancelCircleIcon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import UIIcon from '../UIIcon';
+import DirectionalIcon from '../DirectionalIcon';
 import AIContentLabel from './AIContentLabel';
 import useDialogA11y from '../../hooks/useDialogA11y';
 
@@ -241,10 +242,10 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
                     }}
                   />
                   <label htmlFor={`idd-sanad-file-${inv.id}`} className="btn btn-sm btn-primary" style={{ cursor: 'pointer' }}>
-                    📎 {L(TX.sanadAttach, lang)}
+                    <UIIcon icon={Attachment01Icon} size={16} /> {L(TX.sanadAttach, lang)}
                   </label>
                   {sanadLink?.status === 'notfound' && (
-                    <span style={{ fontSize: 'var(--text-xs)', color: 'var(--red)', fontWeight: 700 }}>✗ {L(TX.sanadNotFound, lang)}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', fontSize: 'var(--text-xs)', color: 'var(--red)', fontWeight: 700 }}><UIIcon icon={CancelCircleIcon} size={16} /> {L(TX.sanadNotFound, lang)}</span>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap' }}>
@@ -262,7 +263,7 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
 
             {sanadLink?.status === 'matched' && (
               <div style={{ fontSize: 'var(--text-xs)' }}>
-                <span style={{ color: 'var(--green)', fontWeight: 700 }}>✓ {L(TX.sanadMatchedPrefix, lang)}</span>{' '}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--spacing-xs)', color: 'var(--green)', fontWeight: 700 }}><UIIcon icon={CheckmarkCircle02Icon} size={16} /> {L(TX.sanadMatchedPrefix, lang)}</span>{' '}
                 <span dir="ltr" style={{ fontWeight: 700 }}>{sanadLink.order.enforceNum}</span>
                 <button type="button" className="btn btn-sm btn-ghost" style={{ marginInlineStart: 'var(--spacing-md)' }} onClick={() => setSanadLink(null)}>
                   {L(TX.sanadTryAgain, lang)}
@@ -306,7 +307,7 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
                   className="btn btn-ghost idd-aibtn"
                   onClick={() => { onClose?.(); nav(nextAction.path); }}
                 >
-                  {t(nextAction.labelKey)} →
+                  {t(nextAction.labelKey)} <DirectionalIcon />
                 </button>
               ) : null}
             </div>

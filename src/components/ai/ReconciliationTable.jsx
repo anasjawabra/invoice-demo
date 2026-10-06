@@ -2,6 +2,8 @@ import React from 'react';
 import { useI18n } from '../../context/I18nContext';
 import { L } from './util';
 import { fmtMoney } from '../../data/mock';
+import { Alert02Icon, CancelCircleIcon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
 
 /** Derive a per-line 3-way status from raw invoice/collection-order/accrual values. */
 function lineStatus(line, tol) {
@@ -13,12 +15,12 @@ function lineStatus(line, tol) {
   return { key: 'mismatch', tone: 'danger' };
 }
 
-const STATUS_ICON = { match: '✓', tolerance: '⚠', mismatch: '✗' };
+const STATUS_ICON = { match: CheckmarkCircle02Icon, tolerance: Alert02Icon, mismatch: CancelCircleIcon };
 
 /**
  * ReconciliationTable — a real 3-way verification table (Invoice ↔ Collection
- * Order ↔ Accrual Confirmation) built from concrete values, with per-line status chips (match ✓ / within-
- * tolerance ⚠ / mismatch ✗), a subtotal, a ZATCA 15% VAT-recompute row
+ * Order ↔ Accrual Confirmation) built from concrete values, with per-line status chips
+ * (match / within-tolerance / mismatch), a subtotal, a ZATCA 15% VAT-recompute row
  * (declared vs computed vs expected) and a tax-ID validity row.
  *
  * Props:
@@ -72,7 +74,7 @@ export default function ReconciliationTable({ recon, tolerance = 0.02 }) {
               </span>
               <span className="recon__c" dir="ltr">{fmtMoney(ln.qty * ln.invUnit)}</span>
               <span className="recon__c recon__c--st">
-                <span className={`recon__chip recon__chip--${st.tone}`}>{STATUS_ICON[st.key]} {statusLabel[st.key]}</span>
+                <span className={`recon__chip recon__chip--${st.tone}`}><UIIcon icon={STATUS_ICON[st.key]} size={14} /> {statusLabel[st.key]}</span>
               </span>
             </div>
           );
@@ -96,7 +98,8 @@ export default function ReconciliationTable({ recon, tolerance = 0.02 }) {
             <span className="recon__kv"><i>{t('recon_computed')}</i><b dir="ltr">{fmtMoney(computed)}</b></span>
             <span className="recon__kv"><i>{t('recon_expected')}</i><b dir="ltr">{fmtMoney(vat.expected)}</b></span>
             <span className={`recon__chip recon__chip--${vatOk ? 'ok' : 'danger'}`}>
-              {vatOk ? '✓' : `✗ ${t('recon_variance')} ${vatVariance > 0 ? '+' : ''}${fmtMoney(vatVariance)}`}
+              <UIIcon icon={vatOk ? CheckmarkCircle02Icon : CancelCircleIcon} size={14} />
+              {vatOk ? t('recon_valid') : `${t('recon_variance')} ${vatVariance > 0 ? '+' : ''}${fmtMoney(vatVariance)}`}
             </span>
           </span>
         </div>
@@ -105,7 +108,8 @@ export default function ReconciliationTable({ recon, tolerance = 0.02 }) {
           <span className="recon__footvals">
             <code dir="ltr" className="recon__taxid">{recon.taxId?.value}</code>
             <span className={`recon__chip recon__chip--${recon.taxId?.valid ? 'ok' : 'danger'}`}>
-              {recon.taxId?.valid ? `✓ ${t('recon_valid')}` : `✗ ${t('recon_invalid')}`}
+              <UIIcon icon={recon.taxId?.valid ? CheckmarkCircle02Icon : CancelCircleIcon} size={14} />
+              {recon.taxId?.valid ? t('recon_valid') : t('recon_invalid')}
             </span>
           </span>
         </div>

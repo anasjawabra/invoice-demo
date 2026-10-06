@@ -1,15 +1,15 @@
 const DGA_CHART_HEX = Object.freeze({
   primary: '#1B8354',
-  info: '#0A6FA6',
-  success: '#3E8540',
-  warning: '#C79A2A',
-  danger: '#C4514C',
-  orange: '#9A5C00',
+  info: '#175CD3',
+  success: '#067647',
+  warning: '#B54708',
+  danger: '#B42318',
+  orange: '#DC6803',
   purple: '#6B57A6',
   teal: '#3D8B8B',
   brown: '#8B5A3C',
-  neutral: '#8B93A1',
-  charcoal: '#5A5A5A'
+  neutral: '#6C737F',
+  charcoal: '#384250'
 });
 
 export function chartColor(name, alpha = 1) {
@@ -37,16 +37,16 @@ export function getChartTheme(theme) {
   const dark = theme === 'dark';
 
   return {
-    text: dark ? '#A7C1B4' : '#667085',
-    heading: dark ? '#F0F7F3' : '#101828',
-    grid: dark ? 'rgba(215, 236, 225, 0.12)' : 'rgba(16, 24, 40, 0.08)',
+    text: dark ? '#A7C1B4' : '#4D5761',
+    heading: dark ? '#F0F7F3' : '#111927',
+    grid: dark ? 'rgba(215, 236, 225, 0.12)' : 'rgba(17, 25, 39, 0.08)',
     tooltip: {
       backgroundColor: dark ? '#16241C' : '#FFFFFF',
-      titleColor: dark ? '#F0F7F3' : '#101828',
-      bodyColor: dark ? '#D7ECE1' : '#344054',
-      borderColor: dark ? '#3B5A4A' : '#D0D5DD',
+      titleColor: dark ? '#F0F7F3' : '#111927',
+      bodyColor: dark ? '#D7ECE1' : '#384250',
+      borderColor: dark ? '#3B5A4A' : '#D2D6DB',
       borderWidth: 1,
-      padding: 10,
+      padding: 12,
       cornerRadius: 8,
       displayColors: true
     }
@@ -60,10 +60,10 @@ export function chartLegend(theme, overrides = {}) {
     ...rest,
     labels: {
       color: colors.text,
-      boxWidth: 10,
+      boxWidth: 12,
       usePointStyle: true,
       pointStyle: 'circle',
-      padding: 14,
+      padding: 16,
       ...labels
     }
   };

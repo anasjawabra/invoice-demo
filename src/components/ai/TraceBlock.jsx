@@ -7,6 +7,8 @@ import ReconciliationTable from './ReconciliationTable';
 import TraceChart from './TraceChart';
 import { SkeletonBar, SkeletonBlock, SkeletonLine, SkeletonRow } from './Skeleton';
 import { RECON } from '../../data/mock';
+import { AiSparklesIcon, CheckmarkCircle02Icon, Flag02Icon, ReloadIcon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
 
 // How long a block stays in its "running" state before auto-resolving.
 // CRITICAL: every block type has a bounded, deterministic resolution so a
@@ -84,7 +86,7 @@ export default function TraceBlock({ block, running, done, onDone }) {
       case 'thought':
         return (
           <div className="trace-thought">
-            <span className="trace-block__icon" aria-hidden="true">✦</span>
+            <span className="trace-block__icon"><UIIcon icon={AiSparklesIcon} size={16} /></span>
             <div className="trace-thought__text">
               {active ? <Typewriter text={L(block.text, lang)} onDone={typewriterDone} /> : <span>{L(block.text, lang)}</span>}
             </div>
@@ -212,24 +214,26 @@ export default function TraceBlock({ block, running, done, onDone }) {
             <div className="trace-decision__head">
               <span className="trace-decision__tag">{t('trace_decision')}</span>
               <span className={`trace-decision__gate trace-decision__gate--${block.auto ? 'auto' : 'human'}`}>
-                {block.auto ? `✓ ${t('trace_auto')}` : `⚑ ${t('trace_human')}`}
+                <UIIcon icon={block.auto ? CheckmarkCircle02Icon : Flag02Icon} size={14} />
+                {block.auto ? t('trace_auto') : t('trace_human')}
               </span>
             </div>
             <div className="trace-decision__text">{L(block.text, lang)}</div>
             {!block.auto ? (
               feedback ? (
                 <div className="trace-decision__feedback trace-decision__feedback--done">
-                  {feedback === 'confirmed' ? `✓ ${t('trace_feedback_confirmed')}` : `↺ ${t('trace_feedback_rejected')}`}
+                  <UIIcon icon={feedback === 'confirmed' ? CheckmarkCircle02Icon : ReloadIcon} size={16} />
+                  {feedback === 'confirmed' ? t('trace_feedback_confirmed') : t('trace_feedback_rejected')}
                 </div>
               ) : (
                 <div className="trace-decision__feedback">
                   <span className="trace-decision__feedback-label">{t('trace_feedback_prompt')}</span>
                   <div className="trace-decision__feedback-actions">
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFeedback('confirmed')}>
-                      ✓ {t('trace_feedback_confirm')}
+                      <UIIcon icon={CheckmarkCircle02Icon} size={16} /> {t('trace_feedback_confirm')}
                     </button>
                     <button type="button" className="btn btn-sm btn-ghost" onClick={() => setFeedback('rejected')}>
-                      ↺ {t('trace_feedback_reject')}
+                      <UIIcon icon={ReloadIcon} size={16} /> {t('trace_feedback_reject')}
                     </button>
                   </div>
                 </div>

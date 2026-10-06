@@ -51,7 +51,7 @@ export function TargetSliders({
         <button type="button" className="btn btn-sm btn-ghost" onClick={onReset}>{t('cfo_reset_actual')}</button>
       </div>
 
-      <div className="hr" style={{ margin: '14px 0' }} />
+      <div className="hr" style={{ margin: 'var(--spacing-xl) 0' }} />
 
       <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center', flexWrap: 'wrap' }}>
         <input className="input" style={{ maxWidth: 260 }} placeholder={t('cfo_scenario_name_placeholder')} value={name} onChange={(e) => setName(e.target.value)} />

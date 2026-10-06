@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { fmtMoney, INVOICES } from '../data/mock';
+import DirectionalIcon from '../components/DirectionalIcon';
 
 const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
 
@@ -9,7 +10,7 @@ const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en
 // contract — moved out of the Dashboard's compact card so each one can get
 // its own AI risk analysis instead of just a plain amount/beneficiary line.
 export default function InvestmentInvoices() {
-  const { t, lang, isRtl } = useI18n();
+  const { t, lang } = useI18n();
   const nav = useNavigate();
 
   const investmentInvoices = INVOICES.filter((i) => i.source === 'Foras');
@@ -24,7 +25,7 @@ export default function InvestmentInvoices() {
           <div className="page-sub">{pick(lang, 'Investment invoices with no linked Furas contract, each with an AI risk assessment', 'الفواتير الاستثمارية غير المرتبطة بعقد فرص، مع تقييم مخاطر بالذكاء الاصطناعي لكل فاتورة', '未关联 Furas 合同的投资类发票，每张均附带 AI 风险评估')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
-          {isRtl ? `${pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')} ←` : `${pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')} →`}
+          <DirectionalIcon direction="back" /> {pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')}
         </button>
       </div>
 

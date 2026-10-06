@@ -18,6 +18,8 @@ import { analyzeScenario, DEFAULT_SCENARIO, LEVERS, OPERATING_PROFILE, PORTFOLIO
 import { COLLECTIONS } from '../data/mock.js';
 import { useTheme } from '../context/ThemeContext';
 import { chartColor, chartLegend, chartSeries, chartTooltip, getChartTheme } from '../utils/chartTheme';
+import { CheckmarkCircle02Icon, Target02Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../components/UIIcon';
 import '../styles/strategic-dashboard.css';
 
 ChartJS.register(
@@ -455,9 +457,9 @@ export default function StrategicDashboard() {
           <div className="strategic-thinking-orb" aria-hidden="true"><span></span><span></span><span></span></div>
           <h2>{c.thinking}<span className="strategic-thinking-ellipsis" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></h2>
           <p>{c.thinkingDesc}</p>
-          <ul className="strategic-thinking-steps">{c.thinkingSteps.map((label, i) => i <= step ? <li key={label} className={i < step ? 'is-done' : 'is-active'}>{label}</li> : null)}</ul>
+          <ul className="strategic-thinking-steps">{c.thinkingSteps.map((label, i) => i <= step ? <li key={label} className={i < step ? 'is-done' : 'is-active'}>{i < step ? <UIIcon className="strategic-thinking-step-icon" icon={CheckmarkCircle02Icon} size={14} /> : null}{label}</li> : null)}</ul>
           <div className="strategic-thinking-bars" aria-hidden="true"><div></div><div></div><div></div></div>
-        </div> : !result ? <div className="card strategic-empty"><div className="strategic-empty-icon" aria-hidden="true">◎</div><h2>{c.ready}</h2><p>{c.readyDesc}</p><div className="strategic-preview-tags">{[c.targetType, c.sensitivity, c.actions, c.roadmap].map(label => <span className="badge" key={label}>{label}</span>)}</div></div> : <>
+        </div> : !result ? <div className="card strategic-empty"><div className="strategic-empty-icon"><UIIcon icon={Target02Icon} size={40} /></div><h2>{c.ready}</h2><p>{c.readyDesc}</p><div className="strategic-preview-tags">{[c.targetType, c.sensitivity, c.actions, c.roadmap].map(label => <span className="badge" key={label}>{label}</span>)}</div></div> : <>
           {stale && <div className="strategic-stale" role="status">{c.stale}</div>}
           <section className={`card card-pad strategic-verdict ${result.meetsTarget ? 'met' : result.achievable ? 'possible' : 'impossible'}`}>
             <div className="strategic-eyebrow">{c.results} · {run.input.days} {c.days} · {c.targetAmount}: {money(result.targetAmount)}</div>

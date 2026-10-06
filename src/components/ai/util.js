@@ -11,13 +11,13 @@ export function L(obj, lang) {
 // good when LOW (green) and bad when high (red) — same tiers Risk Radar uses.
 export function confTone(v) {
   if (v >= 75) return 'var(--primary)';
-  if (v >= 50) return '#C88700';
+  if (v >= 50) return '#DC6803';
   return 'var(--danger)';
 }
 
 export function riskTone(v) {
   if (v >= 80) return 'var(--danger)';
-  if (v >= 60) return '#C88700';
+  if (v >= 60) return '#DC6803';
   if (v >= 40) return 'var(--warning)';
   return 'var(--success)';
 }

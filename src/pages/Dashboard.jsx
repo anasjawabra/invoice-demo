@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Cancel01Icon } from '@hugeicons/core-free-icons';
 import UIIcon from '../components/UIIcon';
+import DirectionalIcon from '../components/DirectionalIcon';
 import { useNavigate } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
@@ -87,7 +88,7 @@ function RingGauge({ pct, target = 70, size = 84 }) {
         transform={`rotate(-90 ${cx} ${cy})`}
       />
       <line x1={tx1} y1={ty1} x2={tx2} y2={ty2} stroke="var(--txt-mute)" strokeWidth="2" />
-      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="900" fill="var(--heading)">{Math.round(clamped)}%</text>
+      <text x={cx} y={cy + 6} textAnchor="middle" fontSize="20" fontWeight="700" fill="var(--heading)">{Math.round(clamped)}%</text>
     </svg>
   );
 }
@@ -597,7 +598,7 @@ export default function Dashboard() {
                   {t('dash_decisions_pending')}
                 </span>
                 <button className="btn btn-sm btn-primary" type="button" onClick={d.action}>
-                  {t('dash_decisions_cta')}
+                  {t('dash_decisions_cta')} <DirectionalIcon />
                 </button>
               </div>
             </div>
@@ -678,7 +679,7 @@ export default function Dashboard() {
               <div className="page-sub">{t('dash_amanah_sub')}</div>
             </div>
             <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
-              {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
+              {t('link_details')} <DirectionalIcon />
             </button>
           </div>
           <div className="table-wrap" tabIndex={0}>
@@ -774,7 +775,7 @@ export default function Dashboard() {
               type="button"
               onClick={() => setSelectedProvinceIso(worstProvince.iso)}
             >
-              {t('dash_map_alert_open')} {isRtl ? '←' : '→'}
+              {t('dash_map_alert_open')} <DirectionalIcon />
             </button>
           </div>
         )}
@@ -789,7 +790,7 @@ export default function Dashboard() {
               <strong>{t('dash_map_alert_violations_prefix')}</strong> {provinceName(violationsTop)} — {violationsTop.violationCount} {t('dash_map_alert_unit_violations')}
             </span>
             <button className="btn btn-sm btn-ghost" type="button" onClick={() => setSelectedProvinceIso(violationsTop.iso)}>
-              {t('dash_map_alert_open')} {isRtl ? '←' : '→'}
+              {t('dash_map_alert_open')} <DirectionalIcon />
             </button>
           </div>
         )}
@@ -804,7 +805,7 @@ export default function Dashboard() {
               <strong>{t('dash_map_alert_enforcement_prefix')}</strong> {provinceName(enforcementTop)} — {enforcementTop.enforcementCount} {t('dash_map_alert_unit_enforcement')}
             </span>
             <button className="btn btn-sm btn-ghost" type="button" onClick={() => setSelectedProvinceIso(enforcementTop.iso)}>
-              {t('dash_map_alert_open')} {isRtl ? '←' : '→'}
+              {t('dash_map_alert_open')} <DirectionalIcon />
             </button>
           </div>
         )}
@@ -819,7 +820,7 @@ export default function Dashboard() {
               <strong>{t('dash_map_alert_gross_prefix')}</strong> {provinceName(grossTop)} — {fmtMoney(grossTop.gross)} SAR
             </span>
             <button className="btn btn-sm btn-ghost" type="button" onClick={() => setSelectedProvinceIso(grossTop.iso)}>
-              {t('dash_map_alert_open')} {isRtl ? '←' : '→'}
+              {t('dash_map_alert_open')} <DirectionalIcon />
             </button>
           </div>
         )}
@@ -1124,7 +1125,7 @@ export default function Dashboard() {
           <div className="muted" style={{ fontSize: 'var(--text-xs)', marginTop: 'var(--spacing-md)', lineHeight: 1.6 }}>{t('dash_sanad_note_orders')}</div>
           <div style={{ marginTop: 'var(--spacing-lg)' }}>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
-              {t('dash_sanad_view_enforcement_invoices')}
+              {t('dash_sanad_view_enforcement_invoices')} <DirectionalIcon />
             </button>
           </div>
         </div>
@@ -1158,7 +1159,7 @@ export default function Dashboard() {
           })}
           <div style={{ marginTop: 'var(--spacing-lg)' }}>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-              {lang === 'ar' ? 'تصفّح الفواتير الاستثمارية غير المرتبطة ←' : lang === 'zh' ? '浏览未关联的投资类发票 →' : 'Browse unlinked investment invoices →'}
+              {lang === 'ar' ? 'تصفّح الفواتير الاستثمارية غير المرتبطة' : lang === 'zh' ? '浏览未关联的投资类发票' : 'Browse unlinked investment invoices'} <DirectionalIcon />
             </button>
           </div>
         </div>

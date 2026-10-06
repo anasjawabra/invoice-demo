@@ -263,7 +263,7 @@ export default function Risk() {
                 <div className="card" style={{ padding: 'var(--spacing-lg)', background: 'var(--surface-subtle)' }} key={inv.id}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 'var(--spacing-md)' }}>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontWeight: 950 }} dir="ltr">{inv.id}</div>
+                      <div style={{ fontWeight: 700 }} dir="ltr">{inv.id}</div>
                       <div className="muted" style={{ marginTop: 'var(--spacing-xs)', fontSize: 'var(--text-xs)' }}>{beneficiary}</div>
                     </div>
                     <span className={`badge ${badgeClass(g.flags[0] ? CATEGORY_COLOR[g.flags[0].category] : 'red')}`}>{g.score}</span>

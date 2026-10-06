@@ -131,7 +131,7 @@ export const OCR_SAMPLES = {
       ocrField('vat', '3005566778800002', 88)
     ],
     diff: [
-      { label: { zh: '增值税', en: 'VAT', ar: 'الضريبة' }, raw: 'VAT# 300556677880000 2', std: '3005566778800002 (⚠ 校验失败)' },
+      { label: { zh: '增值税', en: 'VAT', ar: 'الضريبة' }, raw: 'VAT# 300556677880000 2', std: '3005566778800002 (校验失败)' },
       { label: { zh: '金额', en: 'Amount', ar: 'المبلغ' }, raw: 'SAR 3.18M', std: '3180000.00 SAR' }
     ]
   }

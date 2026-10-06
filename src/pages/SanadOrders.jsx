@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { fmtMoney, SANAD_ENFORCEMENT } from '../data/mock';
+import DirectionalIcon from '../components/DirectionalIcon';
 
 const PAGE_SIZE = 5;
 
@@ -10,7 +11,7 @@ const PAGE_SIZE = 5;
 // the Dashboard's Sanad snapshot card so the list has room to grow into its
 // own worklist instead of living inline in a summary widget.
 export default function SanadOrders() {
-  const { t, lang, isRtl } = useI18n();
+  const { t, lang } = useI18n();
   const nav = useNavigate();
   const [page, setPage] = useState(0);
 
@@ -28,7 +29,7 @@ export default function SanadOrders() {
           <div className="page-sub">{t('sanad_orders_sub')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
-          {isRtl ? `${t('back_to_dashboard')} ←` : `${t('back_to_dashboard')} →`}
+          <DirectionalIcon direction="back" /> {t('back_to_dashboard')}
         </button>
       </div>
 
@@ -85,11 +86,11 @@ export default function SanadOrders() {
         {pageCount > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-lg)' }}>
             <button type="button" className="btn btn-sm btn-ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-              {isRtl ? `→ ${t('pagination_prev')}` : `← ${t('pagination_prev')}`}
+              <DirectionalIcon direction="back" /> {t('pagination_prev')}
             </button>
             <span className="muted" style={{ fontSize: 'var(--text-xs)' }} dir="ltr">{page + 1} / {pageCount}</span>
             <button type="button" className="btn btn-sm btn-ghost" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
-              {isRtl ? `${t('pagination_next')} ←` : `${t('pagination_next')} →`}
+              {t('pagination_next')} <DirectionalIcon />
             </button>
           </div>
         )}

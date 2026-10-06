@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { fmtMoney, INVOICES } from '../data/mock';
 import AgentThinking from '../components/ai/AgentThinking';
+import DirectionalIcon from '../components/DirectionalIcon';
 
 const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
 
@@ -10,7 +11,7 @@ const anchorToday = INVOICES.reduce((max, i) => (i.date > max ? i.date : max), I
 const ageInDays = (dateStr) => Math.max(0, Math.round((new Date(`${anchorToday}T00:00:00Z`) - new Date(`${dateStr}T00:00:00Z`)) / 86400000));
 
 export default function InvestmentInvoiceDetail() {
-  const { t, lang, isRtl } = useI18n();
+  const { t, lang } = useI18n();
   const nav = useNavigate();
   const { id } = useParams();
   const inv = INVOICES.find((i) => i.id === id);
@@ -92,7 +93,7 @@ export default function InvestmentInvoiceDetail() {
           <h1 className="page-title">{pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</h1>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-          {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
+          <DirectionalIcon direction="back" /> {pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')}
         </button>
       </div>
     );
@@ -106,7 +107,7 @@ export default function InvestmentInvoiceDetail() {
           <div className="page-sub">{pick(lang, 'Investment contract-linkage detail', 'تفاصيل ربط العقد الاستثماري', '投资合同关联详情')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-          {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
+          <DirectionalIcon direction="back" /> {pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')}
         </button>
       </div>
 

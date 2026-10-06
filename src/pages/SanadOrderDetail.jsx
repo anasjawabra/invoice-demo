@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { fmtMoney, INVOICES, SANAD_ENFORCEMENT } from '../data/mock';
 import AgentThinking from '../components/ai/AgentThinking';
+import { Attachment01Icon, CancelCircleIcon, CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../components/UIIcon';
+import DirectionalIcon from '../components/DirectionalIcon';
 
 const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
 
@@ -26,7 +29,7 @@ function matchInvoicesForOrder(order, fileName) {
 }
 
 export default function SanadOrderDetail() {
-  const { t, lang, isRtl } = useI18n();
+  const { t, lang } = useI18n();
   const nav = useNavigate();
   const { enforceNum } = useParams();
   const order = SANAD_ENFORCEMENT.sample.find((s) => s.enforceNum === enforceNum);
@@ -102,7 +105,7 @@ export default function SanadOrderDetail() {
           <h1 className="page-title">{t('sanad_order_not_found')}</h1>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
-          {isRtl ? `${t('sanad_orders_back')} ←` : `${t('sanad_orders_back')} →`}
+          <DirectionalIcon direction="back" /> {t('sanad_orders_back')}
         </button>
       </div>
     );
@@ -119,7 +122,7 @@ export default function SanadOrderDetail() {
           <div className="page-sub">{t('sanad_order_detail_sub')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
-          {isRtl ? `${t('sanad_orders_back')} ←` : `${t('sanad_orders_back')} →`}
+          <DirectionalIcon direction="back" /> {t('sanad_orders_back')}
         </button>
       </div>
 
@@ -165,7 +168,7 @@ export default function SanadOrderDetail() {
                 }}
               />
               <label htmlFor="sanad-order-file" className="btn btn-primary" style={{ cursor: 'pointer' }}>
-                📎 {t('dash_sanad_attach_btn')}
+                <UIIcon icon={Attachment01Icon} size={16} /> {t('dash_sanad_attach_btn')}
               </label>
             </div>
             <div className="muted" style={{ fontSize: 'var(--text-2xs)', fontWeight: 700 }}>{t('sanad_order_try_examples')}</div>
@@ -218,9 +221,10 @@ export default function SanadOrderDetail() {
           <div className={`ai-conclusion${scan.invoices.length ? '' : ' ai-conclusion--danger'}`}>
             <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
             <div className="ai-conclusion__text">
-              {scan.invoices.length
-                ? `✓ ${scan.invoices.length > 1 ? t('sanad_order_matched_prefix_multi') : t('sanad_order_matched_prefix')}`
-                : `✗ ${t('sanad_order_notfound')}`}
+              <UIIcon icon={scan.invoices.length ? CheckmarkCircle02Icon : CancelCircleIcon} size={16} />
+              <span>{scan.invoices.length
+                ? (scan.invoices.length > 1 ? t('sanad_order_matched_prefix_multi') : t('sanad_order_matched_prefix'))
+                : t('sanad_order_notfound')}</span>
             </div>
             {scan.invoices.length > 0 && (
               <div style={{ display: 'flex', gap: 'var(--spacing-md)', flexWrap: 'wrap', marginTop: 'var(--spacing-md)' }}>
@@ -233,7 +237,7 @@ export default function SanadOrderDetail() {
                     onClick={() => nav(`/invoices?co=${inv.co}`)}
                     data-tooltip={t('dash_sanad_view_invoice')}
                   >
-                    {inv.id} · {fmtMoney(inv.amount)} SAR →
+                    {inv.id} · {fmtMoney(inv.amount)} SAR <DirectionalIcon />
                   </button>
                 ))}
               </div>

@@ -565,9 +565,9 @@ function amanahMetricScore(p, metric) {
 }
 
 export function mapFillForMetric(p, metric) {
-  if (!p.hasData || p.count === 0) return 'rgba(120,120,120,0.10)';
+  if (!p.hasData || p.count === 0) return 'rgba(108,115,127,0.10)';
   const score = amanahMetricScore(p, metric);
-  if (score == null) return 'rgba(120,120,120,0.10)';
+  if (score == null) return 'rgba(108,115,127,0.10)';
   return score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--gold)' : 'var(--red)';
 }
 

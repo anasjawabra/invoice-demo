@@ -22,7 +22,7 @@ export default function DecisionRoomTab({
         <div className="card card-pad">
           <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dr_map_title')}</div>
           <div className="page-sub">{t('dr_map_sub')}</div>
-          <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap', margin: '10px 0' }}>
+          <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap', margin: 'var(--spacing-md) 0' }}>
             <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('cfo_map_metric_label')}</span>
             {MAP_METRICS.map((m) => (
               <button key={m} type="button" className={`btn btn-sm ${mapMetric === m ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setMapMetric(m)}>
@@ -49,7 +49,7 @@ export default function DecisionRoomTab({
           <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('cfo_amanah_title')}</div>
           <AmanahDetailPanel amanah={selectedAmanah} money={money} t={t} />
 
-          <div className="hr" style={{ margin: '14px 0' }} />
+          <div className="hr" style={{ margin: 'var(--spacing-xl) 0' }} />
 
           <div style={{ display: 'flex', gap: 'var(--spacing-xs)', flexWrap: 'wrap', marginBottom: 'var(--spacing-md)' }}>
             <span className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('cfo_rank_criterion')}</span>

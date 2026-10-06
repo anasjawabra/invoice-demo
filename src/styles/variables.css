@@ -9,62 +9,66 @@
   --primary-2: #166A45;  /* green hover (darker) */
   --primary-light: #54C08A;
   --on-primary: #FFFFFF;
-  --focus-ring: #0A6FA6;
+  --focus-ring: #175CD3;
   --accent: #1B8354;
-  --secondary: #0A6FA6;  /* semantic information blue */
-  --success: #3E8540;
-  --warning: #8c5f00;
-  --danger: #C4514C;
-  --low: #8a978f;        /* 4th neutral "no/low data" status */
+  --secondary: #175CD3;  /* semantic information blue */
+  --success: #067647;
+  --warning: #B54708;
+  --danger: #B42318;
+  --low: #6C737F;        /* 4th neutral "no/low data" status */
 
   /* Text */
-  --heading: #101828;
-  --txt: #1D2939;
-  --txt-dim: #344054;
-  --txt-mute: #667085;
-  --txt-mute-2: #98A2B3;
+  --heading: #111927;
+  --txt: #1F2A37;
+  --txt-dim: #384250;
+  --txt-mute: #4D5761;
+  --txt-mute-2: #6C737F;
 
   /* Neutral and semantic surfaces. */
   --neutral-25: #FCFCFD;
   --neutral-50: #F9FAFB;
-  --neutral-100: #F2F4F7;
-  --neutral-200: #EAECF0;
-  --neutral-300: #D0D5DD;
-  --neutral-500: #667085;
-  --neutral-700: #344054;
-  --neutral-900: #101828;
+  --neutral-100: #F3F4F6;
+  --neutral-200: #E5E7EB;
+  --neutral-300: #D2D6DB;
+  --neutral-400: #9DA4AE;
+  --neutral-500: #6C737F;
+  --neutral-600: #4D5761;
+  --neutral-700: #384250;
+  --neutral-800: #1F2A37;
+  --neutral-900: #111927;
+  --neutral-950: #0D121C;
   --surface-subtle: var(--neutral-50);
   --surface-muted: var(--neutral-100);
-  --surface-primary-subtle: #F0F9F4;
-  --surface-info-subtle: #EFF8FF;
+  --surface-primary-subtle: #F3FCF6;
+  --surface-info-subtle: #F5FAFF;
   --surface-success-subtle: #ECFDF3;
-  --surface-warning-subtle: #FFFAEB;
+  --surface-warning-subtle: #FFFAE8;
   --surface-danger-subtle: #FEF3F2;
-  --surface-disabled: #F3F5F4;
-  --surface-overlay: rgba(16, 24, 40, 0.42);
+  --surface-disabled: #F3F4F6;
+  --surface-overlay: rgba(17, 25, 39, 0.42);
   --primary-soft: rgba(27, 131, 84, 0.08);
   --primary-soft-hover: rgba(27, 131, 84, 0.12);
   --primary-border: rgba(27, 131, 84, 0.30);
-  --info-soft: rgba(10, 111, 166, 0.08);
+  --info-soft: rgba(23, 92, 211, 0.08);
   --warning-soft: rgba(181, 71, 8, 0.08);
-  --danger-soft: rgba(196, 81, 76, 0.08);
+  --danger-soft: rgba(180, 35, 24, 0.08);
   --text-warning: #B54708;
   --text-danger: #B42318;
-  --chart-text: #667085;
-  --chart-grid: rgba(16, 24, 40, 0.08);
+  --chart-text: #4D5761;
+  --chart-grid: rgba(17, 25, 39, 0.08);
   --skeleton-shimmer: rgba(255, 255, 255, 0.65);
 
   /* Surfaces / backgrounds */
-  --bg-0: #F7F9F8;    /* DGA-style neutral page background */
-  --bg-0-rgb: 247, 249, 248;
+  --bg-0: #F9FAFB;    /* DGA neutral page background */
+  --bg-0-rgb: 249, 250, 251;
   --bg-1: #FFFFFF;
   --bg-2: #FFFFFF;
   --panel: #FFFFFF;
   --panel-solid: #FFFFFF;
-  --appbg: #F7F9F8;
+  --appbg: #F9FAFB;
 
   /* Aliases consumed by global.css (previously dark var names) */
-  --bg: #F7F9F8;
+  --bg: #F9FAFB;
   --surface: #FFFFFF;
   --card: #FFFFFF;
 
@@ -84,7 +88,7 @@
   --gold: var(--warning);
   --green: var(--success);
   --red: var(--danger);
-  --orange: #9A5C00;
+  --orange: #B54708;
   --purple: #6B57A6;
   --blue: var(--secondary);
   --grey: var(--low);
@@ -137,7 +141,7 @@
   --breakpoint-lg: 1280px;
 
   /* Typography scale. */
-  --text-2xs: 10px;
+  --text-2xs: 12px;
   --text-xs: 12px;
   --text-sm: 14px;
   --text-md: 16px;
@@ -176,7 +180,7 @@
     --txt: #d7ece1;
     --txt-dim: #b7d6c6;
     --txt-mute: #8fac9c;
-    --txt-mute-2: #7a9689;
+    --txt-mute-2: #8FAC9C;
 
     --neutral-25: #0F1913;
     --neutral-50: #132019;
@@ -248,7 +252,7 @@
   --txt: #d7ece1;
   --txt-dim: #b7d6c6;
   --txt-mute: #8fac9c;
-  --txt-mute-2: #7a9689;
+  --txt-mute-2: #8FAC9C;
 
   --neutral-25: #0F1913;
   --neutral-50: #132019;

@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useI18n } from '../../context/I18nContext';
 import { SkeletonGrid } from './Skeleton';
+import { InformationCircleIcon } from '@hugeicons/core-free-icons';
+import UIIcon from '../UIIcon';
 
 /* What each field means and, where it's derived rather than raw input, how
    it's calculated — shown in a click-to-reveal tooltip on the cell. Keys not
@@ -583,7 +585,11 @@ function humanize(str, lang) {
 
 function formatValue(v, key = '', lang) {
   if (v === null || v === undefined) return '—';
-  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  if (typeof v === 'boolean') {
+    if (lang === 'ar') return v ? 'نعم' : 'لا';
+    if (lang === 'zh') return v ? '是' : '否';
+    return v ? 'Yes' : 'No';
+  }
   if (Array.isArray(v)) return v.map((x) => formatValue(x, key, lang)).join('، ');
   if (typeof v === 'number') {
     // Bare years (e.g. since_year: 2026) shouldn't get a thousands separator.
@@ -645,7 +651,7 @@ function KeyValueGrid({ value, lang }) {
               onBlur={() => closeIfSelf(k)}
               onClick={() => setOpenKey((cur) => (cur === k ? null : k))}
             >
-              <span className="idd-cell__k">{humanize(k, lang)} <span className="idd-cell__info-dot">ⓘ</span></span>
+              <span className="idd-cell__k">{humanize(k, lang)} <UIIcon className="idd-cell__info-dot" icon={InformationCircleIcon} size={14} /></span>
               <span className="idd-cell__v" dir={HAS_ARABIC.test(formatted) ? 'rtl' : 'ltr'}>{formatted}</span>
             </button>
             {open ? (

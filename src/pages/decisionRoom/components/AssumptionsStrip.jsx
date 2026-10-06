@@ -1,4 +1,5 @@
 import React from 'react';
+import DirectionalIcon from '../../../components/DirectionalIcon';
 
 // Read-only "current assumptions" pill strip shown on every tab that isn't
 // Strategic Targets — a single source of truth for the live assumptions,
@@ -17,7 +18,7 @@ export default function AssumptionsStrip({ assumptions, scenarioKey, onJumpToTar
       {pills.map((p) => <span key={p} className="pill" style={{ fontSize: 'var(--text-xs)' }}>{p}</span>)}
       <span className="badge badge--indigo">{t('cfo_assumptions_strip_scenario')}: {t(`cfo_scenario_${scenarioKey === 'custom' ? 'management_plan' : scenarioKey}`)}</span>
       <button type="button" className="btn btn-sm btn-ghost" style={{ marginInlineStart: 'auto' }} onClick={onJumpToTargets}>
-        {t('cfo_assumptions_strip_edit')} →
+        {t('cfo_assumptions_strip_edit')} <DirectionalIcon />
       </button>
     </div>
   );
