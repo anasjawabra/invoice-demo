@@ -52,6 +52,7 @@ export default function CopilotPanel({ t, money, model, assumptions, onAssumptio
       <div style={{ display: 'flex', gap: 'var(--spacing-md)', marginTop: 'var(--spacing-md)' }}>
         <input
           className="input" value={input} placeholder={t('cfo_copilot_placeholder')}
+          aria-label={t('cfo_copilot_placeholder')}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && ask()}
         />

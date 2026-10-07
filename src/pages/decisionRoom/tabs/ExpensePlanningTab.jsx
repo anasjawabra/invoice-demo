@@ -34,7 +34,7 @@ export default function ExpensePlanningTab({
         </div>
         <div className="table-wrap" style={{ marginTop: 'var(--spacing-md)' }} tabIndex={0}>
           <table className="table" aria-label={t('cfo_chapters_advanced')}>
-            <thead><tr><th></th><th>Budget</th><th>Actual</th><th>Committed</th><th>{t('cfo_chapter_adjusted')}</th></tr></thead>
+            <thead><tr><th></th><th>{t('dr_expense_th_budget')}</th><th>{t('dr_expense_th_actual')}</th><th>{t('dr_expense_th_committed')}</th><th>{t('cfo_chapter_adjusted')}</th></tr></thead>
             <tbody>
               {model.chapters.map((c) => (
                 <tr key={c.id}>

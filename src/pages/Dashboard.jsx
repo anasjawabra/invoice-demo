@@ -683,7 +683,7 @@ export default function Dashboard() {
             </button>
           </div>
           <div className="table-wrap" tabIndex={0}>
-            <table className="table" aria-label="Amanah-level indicators">
+            <table className="table" aria-label={t('a11y_amanah_indicators')}>
               <thead>
                 <tr>
                   <th>{t('th_amanah')}</th>
@@ -901,7 +901,7 @@ export default function Dashboard() {
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div className="page-title" style={{ fontSize: 'var(--text-sm)' }}>{provinceName(selectedProvince)}</div>
-                  <button className="btn btn-sm btn-ghost btn-icon" type="button" onClick={() => setSelectedProvinceIso(null)} aria-label="Close"><UIIcon icon={Cancel01Icon} size={18} /></button>
+                  <button className="btn btn-sm btn-ghost btn-icon" type="button" onClick={() => setSelectedProvinceIso(null)} aria-label={t('close')}><UIIcon icon={Cancel01Icon} size={18} /></button>
                 </div>
                 {selectedProvince.hasData ? (
                   <div className="grid" style={{ gap: 'var(--spacing-xl)', marginTop: 'var(--spacing-lg)' }}>
@@ -1061,7 +1061,7 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="table-wrap" tabIndex={0}>
-          <table className="table" aria-label="Risk-ranked worklist">
+          <table className="table" aria-label={t('a11y_risk_worklist')}>
             <thead>
               <tr>
                 <th>{t('th_id')}</th>

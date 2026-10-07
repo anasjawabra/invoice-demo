@@ -610,6 +610,7 @@ export default function SmartReports() {
           <input
             className="input"
             style={{ flex: 1, minWidth: 220 }}
+            aria-label={t('smart_reports_placeholder')}
             placeholder={t('smart_reports_placeholder')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -738,7 +739,7 @@ export default function SmartReports() {
           <Bar data={provinceBarData} options={provinceBarOptions} />
         </div>
         <div className="table-wrap" tabIndex={0}>
-          <table className="table" aria-label="Province analysis">
+          <table className="table" aria-label={t('a11y_province_analysis')}>
             <thead>
               <tr>{report.detailedAnalysis.table.headers.map((h) => <th key={h}>{h}</th>)}</tr>
             </thead>

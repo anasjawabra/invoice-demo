@@ -12,7 +12,7 @@ export default function ReportsBoardPackTab({ t, money, model }) {
             <div className="page-title" style={{ fontSize: 'var(--text-lg)' }}>{t('cfo_boardpack_title')}</div>
             <div className="page-sub">{t('cfo_boardpack_sub')}</div>
           </div>
-          <button type="button" className="btn btn-sm btn-primary" onClick={() => window.print()}>Print</button>
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => window.print()}>{t('print')}</button>
         </div>
       </div>
 

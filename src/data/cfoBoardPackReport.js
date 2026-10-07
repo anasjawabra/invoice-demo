@@ -16,10 +16,10 @@ export function buildCFOBoardPackReport(model, t, money) {
       { label: t('cfo_kpi_coverage'), value: model.expenseCoverage == null ? '—' : `${model.expenseCoverage}%` }
     ],
     risks: model.risks.map((r) => ({
-      category: t(`cfo_risk_${r.category}`), severity: r.severity, impact: money(r.impactSAR), action: t(`cfo_action_${r.action}`)
+      category: t(`cfo_risk_${r.category}`), severity: t(`priority_${r.severity}`), impact: money(r.impactSAR), action: t(`cfo_action_${r.action}`)
     })),
     recommendations: model.recommendations.map((r) => ({
-      category: t(`cfo_risk_${r.riskCategory}`), priority: r.priority, action: t(`cfo_action_${r.action}`), impact: money(r.impactSAR)
+      category: t(`cfo_risk_${r.riskCategory}`), priority: t(`priority_${r.priority}`), action: t(`cfo_action_${r.action}`), impact: money(r.impactSAR)
     }))
   };
 }

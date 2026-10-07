@@ -224,7 +224,7 @@ export default function Collection() {
           <div className="hr" />
 
           <div className="table-wrap" tabIndex={0}>
-            <table className="table" aria-label="Overdue collections">
+            <table className="table" aria-label={t('a11y_overdue_collections')}>
               <thead>
                 <tr>
                   <th>{t('th_id')}</th>

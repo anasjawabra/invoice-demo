@@ -83,7 +83,7 @@ export default function ExecutiveOverviewTab({
 
       <div className="card card-pad">
         <div className="page-title" style={{ fontSize: 'var(--text-lg)' }}>{t('cfo_tab_overview')}</div>
-        <div className="page-sub">Where we are today, and where the current plan takes us.</div>
+        <div className="page-sub">{t('cfo_overview_sub')}</div>
       </div>
 
       <div className="card card-pad">
@@ -128,7 +128,7 @@ export default function ExecutiveOverviewTab({
         </div>
         <div className="table-wrap" style={{ marginTop: 'var(--spacing-md)' }} tabIndex={0}>
           <table className="table" aria-label={t('dash_kpi_excluded')}>
-            <thead><tr><th>Category</th><th>Count</th><th>Amount</th></tr></thead>
+            <thead><tr><th>{t('dr_schedule_th_category')}</th><th>{t('cfo_th_count')}</th><th>{t('th_amount')}</th></tr></thead>
             <tbody>
               {EXCLUSION_CATEGORIES.map((cat) => (
                 <tr key={cat}>
@@ -149,22 +149,22 @@ export default function ExecutiveOverviewTab({
           <div className="card card-pad">
             <div className="kpi__value" dir="ltr">{money(model.expectedCollections)}</div>
             <div className="kpi__label">{t('cfo_kpi_expected_collections')}</div>
-            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>Scenario</span>
+            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>{t('cfo_tag_scenario')}</span>
           </div>
           <div className="card card-pad">
             <div className="kpi__value" dir="ltr">{money(model.expectedExpenses)}</div>
             <div className="kpi__label">{t('cfo_kpi_expected_expenses')}</div>
-            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>Scenario</span>
+            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>{t('cfo_tag_scenario')}</span>
           </div>
           <div className="card card-pad">
             <div className="kpi__value" dir="ltr">{money(model.netPosition)}</div>
             <div className="kpi__label">{t('cfo_kpi_net_position')}</div>
-            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>Scenario</span>
+            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>{t('cfo_tag_scenario')}</span>
           </div>
           <div className="card card-pad">
             <div className="kpi__value" dir="ltr">{model.expenseCoverage == null ? '—' : `${model.expenseCoverage}%`}</div>
             <div className="kpi__label">{t('cfo_kpi_coverage')}</div>
-            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>Scenario</span>
+            <span className="badge badge--indigo" style={{ marginTop: 'var(--spacing-xs)' }}>{t('cfo_tag_scenario')}</span>
           </div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 'var(--spacing-md)' }} onClick={onJumpToTargets}>{t('cfo_how_calculated')}</button>

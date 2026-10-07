@@ -63,7 +63,7 @@ export default function InvoiceCollectionTab({
         {openBucket && (
           <div className="table-wrap" style={{ marginTop: 'var(--spacing-lg)' }} tabIndex={0}>
             <table className="table" aria-label={t('cfo_invcoll_aging_title')}>
-              <thead><tr><th>ID</th><th>{t('cfo_invcoll_age_days')}</th><th>Amount</th></tr></thead>
+              <thead><tr><th>ID</th><th>{t('cfo_invcoll_age_days')}</th><th>{t('th_amount')}</th></tr></thead>
               <tbody>
                 {(agingBuckets.find((b) => b.key === openBucket)?.rows || []).slice(0, 25).map((r) => (
                   <tr key={r.id}>

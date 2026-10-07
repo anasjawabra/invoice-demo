@@ -77,7 +77,7 @@ a {
   padding: var(--spacing-md) var(--spacing-xl);
   border-radius: var(--radius-sm);
   background: var(--heading);
-  color: #ffffff;
+  color: var(--on-primary);
   font-size: var(--text-sm);
   font-weight: 600;
   transform: translateY(-160%);
@@ -142,7 +142,10 @@ button {
 .side-brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-3);
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   flex: none;
 }
@@ -154,7 +157,7 @@ button {
   display: grid;
   place-items: center;
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
   box-shadow: none;
   font-weight: 700;
   letter-spacing: 0.5px;
@@ -210,7 +213,8 @@ button {
   align-items: center;
   gap: var(--space-2);
   flex: none;
-  min-height: 40px;
+  min-width: 44px;
+  min-height: 44px;
   padding: var(--spacing-md) var(--spacing-lg);
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
@@ -260,17 +264,18 @@ button {
    Floating assistant launcher + theme toggle
    -------------------------------------------------------------------------- */
 
-.floating-assistant {
+button.floating-assistant {
   position: fixed;
   inset-block-end: 24px;
   inset-inline-end: 24px;
   z-index: 40;
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--spacing-md) var(--spacing-xl);
-  border-radius: var(--radius-sm);
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--primary-2);
   background: var(--primary);
   color: var(--on-primary);
@@ -283,6 +288,12 @@ button {
 .floating-assistant:hover {
   transform: translateY(-1px);
   background: var(--primary-2);
+}
+
+@media (max-width: 820px) {
+  button.floating-assistant {
+    display: none;
+  }
 }
 
 .theme-toggle {
@@ -362,6 +373,10 @@ button {
   .content {
     padding: var(--container-padding-mobile);
   }
+}
+
+button.pill {
+  min-height: 44px;
 }
 
 .page-head {
@@ -764,7 +779,7 @@ textarea:disabled {
 }
 
 .badge--teal {
-  color: var(--primary);
+  color: var(--primary-2);
   background: rgba(27, 131, 84, 0.08);
   border-color: rgba(27, 131, 84, 0.18);
 }
@@ -782,13 +797,13 @@ textarea:disabled {
 }
 
 .badge--gold {
-  color: var(--warning);
+  color: #8A3605;
   background: rgba(181, 71, 8, 0.18);
   border-color: rgba(181, 71, 8, 0.30);
 }
 
 .badge--orange {
-  color: var(--orange);
+  color: #8A3605;
   background: rgba(181, 71, 8, 0.14);
   border-color: rgba(181, 71, 8, 0.26);
 }
@@ -934,7 +949,7 @@ textarea:disabled {
 }
 
 .login-hero .muted {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.84);
 }
 
 .hero-badge {
@@ -988,7 +1003,7 @@ textarea:disabled {
 .hero-stat span {
   display: block;
   margin-top: var(--spacing-xs);
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.84);
   font-size: var(--text-xs);
 }
 
@@ -1048,7 +1063,7 @@ textarea:disabled {
   display: grid;
   place-items: center;
   background: var(--primary);
-  color: #ffffff;
+  color: var(--on-primary);
   font-weight: 700;
   box-shadow: none;
 }
@@ -1894,6 +1909,15 @@ html[dir='rtl'] .msg--assistant {
   color: #C8BDF0;
   background: rgba(163, 150, 214, 0.16);
   border-color: rgba(163, 150, 214, 0.30);
+}
+
+:root[data-theme='dark'] .login-hero {
+  background: #14573A;
+}
+
+:root[data-theme='dark'] .badge--gold,
+:root[data-theme='dark'] .badge--orange {
+  color: var(--text-warning);
 }
 
 :root[data-theme='dark'] .btn-primary:active {

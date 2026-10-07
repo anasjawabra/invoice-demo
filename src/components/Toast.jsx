@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { createPortal } from 'react-dom';
 import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon, InformationCircleIcon } from '@hugeicons/core-free-icons';
 import UIIcon from './UIIcon';
+import { useI18n } from '../context/I18nContext';
 
 const ToastContext = createContext(null);
 
@@ -36,6 +37,7 @@ function iconBg(type) {
 }
 
 export function ToastProvider({ children }) {
+  const { t: translate } = useI18n();
   const [items, setItems] = useState([]);
   const timers = useRef(new Map());
 
@@ -55,7 +57,7 @@ export function ToastProvider({ children }) {
     const item = {
       id,
       type: toast?.type || 'info',
-      title: toast?.title || (toast?.type === 'success' ? 'Success' : toast?.type === 'error' ? 'Error' : 'Notice'),
+      title: toast?.title || translate(`toast_${toast?.type === 'warning' ? 'warning' : toast?.type === 'success' ? 'success' : toast?.type === 'error' ? 'error' : 'notice'}`),
       message: toast?.message || '',
       duration
     };
@@ -66,16 +68,16 @@ export function ToastProvider({ children }) {
     timers.current.set(id, tm);
 
     return id;
-  }, [remove]);
+  }, [remove, translate]);
 
   const api = useMemo(() => {
     return {
       push,
       remove,
-      success: (message, opts) => push({ type: 'success', title: opts?.title || 'Success', message, duration: opts?.duration }),
-      error: (message, opts) => push({ type: 'error', title: opts?.title || 'Error', message, duration: opts?.duration }),
-      info: (message, opts) => push({ type: 'info', title: opts?.title || 'Notice', message, duration: opts?.duration }),
-      warning: (message, opts) => push({ type: 'warning', title: opts?.title || 'Warning', message, duration: opts?.duration })
+      success: (message, opts) => push({ type: 'success', title: opts?.title, message, duration: opts?.duration }),
+      error: (message, opts) => push({ type: 'error', title: opts?.title, message, duration: opts?.duration }),
+      info: (message, opts) => push({ type: 'info', title: opts?.title, message, duration: opts?.duration }),
+      warning: (message, opts) => push({ type: 'warning', title: opts?.title, message, duration: opts?.duration })
     };
   }, [push]);
 
@@ -90,7 +92,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={api}>
       {children}
       {createPortal(
-        <div className="toast-stack" role="region" aria-label="Notifications">
+        <div className="toast-stack" role="region" aria-label={translate('notif')}>
           {items.map((t) => {
             const bg = iconBg(t.type);
             return (
@@ -110,7 +112,7 @@ export function ToastProvider({ children }) {
                       e.stopPropagation();
                       remove(t.id);
                     }}
-                    aria-label="Close"
+                    aria-label={translate('close')}
                     type="button"
                   >
                     <UIIcon icon={Cancel01Icon} size={18} />

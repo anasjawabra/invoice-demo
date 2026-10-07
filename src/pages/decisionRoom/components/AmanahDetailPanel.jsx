@@ -4,7 +4,7 @@ import React from 'react';
 // — every figure here is already computed by cfoModel.computeCFOModel's
 // `perAmanah` (a real-share apportionment of the scope-wide totals), this
 // component only lays it out.
-export default function AmanahDetailPanel({ amanah, money, t }) {
+export default function AmanahDetailPanel({ amanah, money, t, lang }) {
   if (!amanah) {
     return <p className="muted" style={{ fontSize: 'var(--text-xs)' }}>{t('cfo_amanah_sub')}</p>;
   }
@@ -12,7 +12,7 @@ export default function AmanahDetailPanel({ amanah, money, t }) {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
         <span className="badge badge--indigo">{t('cfo_amanah_badge')}</span>
-        <span style={{ fontWeight: 700 }}>{amanah.en}</span>
+        <span style={{ fontWeight: 700 }}>{lang === 'ar' ? (amanah.nameAr || amanah.ar || amanah.en) : lang === 'zh' ? (amanah.name || amanah.zh || amanah.en) : (amanah.nameEn || amanah.en)}</span>
       </div>
       <div className="grid grid-2" style={{ gap: 'var(--spacing-md)' }}>
         <div className="card card-pad">

@@ -72,7 +72,7 @@ export default function Login() {
           <div className="hero-agents">
             {AGENTS.map((a) => (
               <span key={a.id} className="hero-chip">
-                {T(a, 'en') || a.en}
+                {T(a, 'short') || T(a, 'name')}
               </span>
             ))}
           </div>
@@ -106,7 +106,7 @@ export default function Login() {
             </select>
           </div>
 
-          <h2 style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('welcome')}</h2>
+          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('welcome')}</h1>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>

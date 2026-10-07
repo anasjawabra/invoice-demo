@@ -206,7 +206,7 @@ export default function Invoices() {
           </div>
         )}
         <div className="table-wrap" tabIndex={0}>
-          <table className="table" aria-label="Invoice library">
+          <table className="table" aria-label={t('a11y_invoice_library')}>
             <thead>
               <tr>
                 <th>{t('th_id')}</th>

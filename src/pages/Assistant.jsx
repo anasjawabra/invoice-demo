@@ -477,7 +477,7 @@ export default function Assistant() {
         </div>
 
         <div className="card chat-main">
-          <div id="chat_scroll" className="chat-list" aria-label="Chat messages">
+          <div id="chat_scroll" className="chat-list" aria-label={t('a11y_chat_messages')}>
             {msgs.map((m) => (
               <div key={m.id} className={`msg msg--${m.role}`}>
                 {m.role === 'assistant' ? <AIContentLabel state={m.typing ? 'refining' : 'generated'} /> : null}

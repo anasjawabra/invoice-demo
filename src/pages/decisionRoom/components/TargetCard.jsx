@@ -116,7 +116,7 @@ export default function TargetCard({
 
       <div className="hr" />
       <div style={{ display: 'flex', gap: 'var(--spacing-md)', alignItems: 'center', flexWrap: 'wrap' }}>
-        <input className="input" style={{ maxWidth: 260 }} placeholder={t('cfo_targetcard_name_placeholder')} value={targetName} onChange={(e) => setTargetName(e.target.value)} />
+        <input className="input" style={{ maxWidth: 260 }} placeholder={t('cfo_targetcard_name_placeholder')} aria-label={t('cfo_targetcard_name_placeholder')} value={targetName} onChange={(e) => setTargetName(e.target.value)} />
         <button type="button" className="btn btn-sm btn-primary"
           onClick={() => { if (targetName.trim()) { onSaveScenario(targetName.trim()); setTargetName(''); } }}>
           {t('cfo_targetcard_save')}

@@ -52,12 +52,12 @@ export default function FundingCoverageTab({
 
       <div className="card card-pad">
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xs)' }}>
-          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>Investment Contracts</div>
+          <div className="page-title" style={{ fontSize: 'var(--text-md)' }}>{t('dr_investment_contracts_title')}</div>
           <DemoDataBadge />
         </div>
         <div className="table-wrap" style={{ marginTop: 'var(--spacing-xs)' }} tabIndex={0}>
-          <table className="table" aria-label="Investment Contracts">
-            <thead><tr><th></th><th>Value</th><th>Paid</th><th>Remaining</th><th>Next Payment</th></tr></thead>
+          <table className="table" aria-label={t('dr_investment_contracts_title')}>
+            <thead><tr><th></th><th>{t('dr_investment_th_value')}</th><th>{t('dr_investment_th_paid')}</th><th>{t('dr_investment_th_remaining')}</th><th>{t('dr_investment_th_next_payment')}</th></tr></thead>
             <tbody>
               {DEMO_INVESTMENT_CONTRACTS.map((r) => (
                 <tr key={r.id}>
@@ -80,15 +80,15 @@ export default function FundingCoverageTab({
         </div>
         <div className="table-wrap" style={{ marginTop: 'var(--spacing-xs)' }} tabIndex={0}>
           <table className="table" aria-label={t('cfo_investment_opportunities_title')}>
-            <thead><tr><th></th><th>Value</th><th>Expected Return</th><th>Priority</th><th>Status</th></tr></thead>
+            <thead><tr><th></th><th>{t('dr_investment_th_value')}</th><th>{t('dr_investment_th_return')}</th><th>{t('dr_investment_th_priority')}</th><th>{t('dr_investment_th_status')}</th></tr></thead>
             <tbody>
               {DEMO_INVESTMENT_OPPORTUNITIES.map((r) => (
                 <tr key={r.id}>
                   <td>{name(r)}</td>
                   <td dir="ltr">{money(r.value)}</td>
                   <td dir="ltr">{Math.round(r.expectedReturn * 100)}%</td>
-                  <td>{r.priority}</td>
-                  <td>{r.status}</td>
+                  <td>{t(`priority_${r.priority}`)}</td>
+                  <td>{t(`cfo_opportunity_status_${r.status}`)}</td>
                 </tr>
               ))}
             </tbody>

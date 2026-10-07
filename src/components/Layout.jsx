@@ -214,12 +214,12 @@ function LayoutInner() {
             </div>
 
             {isRtl ? (
-              <span className="badge" aria-label="Right-to-left layout">RTL</span>
+              <span className="badge" aria-label={t('a11y_rtl_layout')}>RTL</span>
             ) : null}
           </div>
         </header>
 
-        <nav className="tabbar" aria-label="Main navigation">
+        <nav className="tabbar" aria-label={t('a11y_main_navigation')}>
           {tabs.map((tab) => (
             <NavLink
               key={tab.to}
