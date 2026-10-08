@@ -94,19 +94,26 @@ export default function Login() {
               </div>
             </div>
 
-            <select
-              className="select language-select"
-              value={lang}
-              aria-label={t('language_label')}
-              onChange={(event) => setLang(event.target.value)}
-            >
-              <option value="en">English</option>
-              <option value="zh">中文</option>
-              <option value="ar">العربية</option>
-            </select>
+            <div className="login-language" role="group" aria-label={t('language_label')}>
+              {[
+                ['en', 'EN'],
+                ['zh', '中文'],
+                ['ar', 'العربية']
+              ].map(([code, label]) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={`login-language__option${lang === code ? ' is-active' : ''}`}
+                  aria-pressed={lang === code}
+                  onClick={() => setLang(code)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{t('welcome')}</h1>
+          <h1 className="login-title">{t('welcome')}</h1>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>
@@ -192,7 +199,7 @@ export default function Login() {
             </div>
 
             <div className="field">
-              <button className="btn btn-primary" style={{ width: '100%', height: 46 }} disabled={busy} type="submit">
+              <button className="btn btn-primary login-submit" disabled={busy} type="submit">
                 {busy ? t('logging_in') : t('btn_login')}
               </button>
               <div className="login-err">{err}</div>
