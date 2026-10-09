@@ -148,3 +148,82 @@ F-02… were closed in Phase 0 round 1. Open: D-03 wording on all screens; D-10 
 
 ## Remaining business decisions
 EQ2 grace periods (collection reporting vs enforcement referral — two parameters, neither set) · EQ3 exclusions on unapproved rules · EQ4 approval authority (who approves plans, objectives, actions) · EQ5 official coverage definition · EQ6 fiscal year and target approval · EQ9 new July report types (enforcement referral first; income participation and e-invoice need data sources) · logo and Figma assets (D1, G-01).
+
+# Round 3 — content, dates, shared design, accessibility, functional verification
+
+**Implemented ≠ verified.** «Implemented» means code changed; «verified» names the method. Screenshots: `docs/screenshots/before-*.jpg` (before this round) and `after-*.jpg` (after; 1280 px, Arabic). Closed only against the stated acceptance criteria; partial items are split.
+
+## 1. Content and user experience (C-02 – C-10, journey issues)
+
+| Finding | Implemented | Verified | Status |
+|---|---|---|---|
+| **C-02** one name per concept | Glossary applied on the main screens: «غير المحصّل» (period invoices), «الرصيد القائم» (all unpaid invoices at a date; replaces «صافي غير المحصل» and «الإجمالي القائم»), «المتبقي» no longer used for uncollected; «ريال» replaces «SAR» in Arabic text (SAR kept in English UI, ids and exact-amount columns) | Screenshots + string search of the touched pages; `npm test` (unit labels) | **Split.** Fixed on Dashboard, Fixed reports, Planning, Invoices, Collection, Noncollection labels. Still open: long caveat sentences in the metric dictionary, rule registry and some assistant answers still say «صافي غير المحصل»; «المقبوض/المقبوضات» vs «المحصّل» not audited page by page |
+| **C-03** technical detail exposed | Rule version, reconciliation flag, grace note, reference date and data label moved into a «حالة البيانات» details block (operational pages) with a warning chip **only** when relevant (failed reconciliation; unapproved-rule exclusions amount); KPI «?» panel now shows what / how / what it does not mean, with technical details folded and the undefined «اكتمال البيانات» removed; the one «Grace days: 0 (unresolved)» chip now reads «لا تُطبَّق حالياً (السياسة غير محسومة)» — an unset grace is **not** shown as zero | Screenshot of the Invoices page; code for the popover | **Split.** Action-id pills in the register, `housing_sales`-style keys in some lists, «Σ» in a few dictionary entries remain |
+| **C-04** repeated disclaimers | One global «بيانات تجريبية» marker in the header (with a short explanation, compact-sample size and Riyadh-time note); removed the per-page demo badges, the synthetic tags in the Dashboard / Planning headers, the repeated target disclaimers (one banner «المستهدفات الحالية تجريبية وغير معتمدة» + «تجريبي» chips), the plan-bar approval sentence (now a tooltip) and the per-answer assistant footer | Screenshots (Dashboard, Planning, Invoices) | **Split.** Page subtitles on some operational pages still repeat «بيانات تجريبية…» |
+| **C-05** buried information | Dashboard: one status sentence, then tiles, then a «يحتاج انتباهاً» block (top three action insights); Fixed reports: catalogue in three groups without numbers, report header reduced to one summary line with «تفاصيل التقرير» expandable, assumptions / findings / forecast sections collapsed; Planning: plan bar reduced to plan, version, status and actions with the edit fields in an expandable block | Screenshots: first KPI visible in the first screen of the monthly report; Planning no longer opens with a 23-control block | **Split.** G1 thresholds (≤ 450 words, first KPI within 450 px, ≤ 6 pills) were **not measured** |
+| **C-06** rhetorical headers | Removed the five-question Planning subtitle, the Dashboard slogan with the false «same numbers» claim, the tab sub-lines, the «يُفتح مباشرة» tags; headers now state the live period and scope | Screenshots | Fixed |
+| **C-07** dense assistant text | Smart banner shortened (examples and «about the assistant» expandable); replies say what was understood instead of «prepared from system data»; unsupported reply = one line + three examples; proposal card details expandable | Browser: clarification and unsupported flows seen earlier; banner screenshot. Report-reply text checked in code only | **Split** (reply wording for a finished report not re-screenshotted) |
+| **C-08** language and unit style | «ريال», «نقطة مئوية» instead of «pp», dates written as «9 أكتوبر 2026» / «1 يناير – 9 أكتوبر 2026» in headers, chips, notes, delta lines, Planning, Smart chips, invoice date columns, chart months | Browser DOM check: **0 ISO dates** in the Dashboard text; screenshots elsewhere | **Split.** Fixed-report tables and export context rows keep ISO dates on purpose (files/URLs) |
+| **C-09** tooltips carry essential information | KPI definition is a click/focus panel (already keyboard-operable) with a visible short definition; `title` attributes unchanged elsewhere | Not exercised this round | **Open (partly implemented)** |
+| **C-10** references to unseen material | Suggestion «…مشابهاً للتقارير المرفقة» → «جهّز تقريراً شهرياً بالمقارنة مع العام الماضي»; report purposes and assumptions no longer cite the monthly reports / «الديمو» | Code + screenshots of the catalogue | Fixed |
+
+Journey issues also closed: unknown fixed-report key now says so; the Smart conversation notice for scope differences (earlier round); header duplicated page title removed.
+
+## 2. Dates and filters
+
+| Finding | Implemented | Verified | Status |
+|---|---|---|---|
+| **D-10** date format | `fmtDateText` / `fmtRangeText` / `fmtMonthText` (Gregorian, Western digits, Arabic month names); coverage and validation messages in words | Browser: 0 ISO dates on the Dashboard; messages seen earlier | **Split** (export contexts keep ISO) |
+| **D-11** date columns | Invoice ledger: «تاريخ الإصدار», «تاريخ الاستحقاق», «أيام التأخر بعد الاستحقاق» | Browser: header cells read | Fixed for the ledger; aging labels elsewhere unchanged |
+| **D-12** day rollover | A notice «تغيّر التاريخ منذ فتح الصفحة…» with «تحديث الآن» when Riyadh's date differs from the date the page loaded (checked on focus, visibility change and every 5 minutes; skipped in time-travel mode) | Browser, with `Date` stubbed one day ahead: banner appears | Fixed (simulated, not waited out) |
+| **D-14** comparison dates | The delta line now names the comparison period: «+6.7 نقطة مئوية عن العام الماضي (1 يناير – 9 أكتوبر 2025)» | Browser DOM text | Fixed |
+| **F-13** hidden drill-down filter | `/invoices?src=fines` writes the source into the shared filter and drops the URL parameter | Browser: shared scope source = fines, selector shows «الغرامات والجزاءات», URL clean, KPI strip 122 invoices (was 386 national) | Fixed + verified |
+| Reset and persistence | «مرشحات مفعّلة (n)» + «إعادة الضبط» (earlier round) | Browser journey: set last month + Riyadh on the Dashboard → full page loads of the Fixed report, Invoices, Planning, Dashboard: filters persisted on all shared pages, **Planning stayed on its own plan scope**, reset returned to year-to-date/all | Verified |
+| Reporting vs planning periods | The plan period (may end in the future, capped at the cut-off for computation) is edited in the plan; reporting filters cannot select future dates | Browser (earlier round: Planning text identical under two filters) | Verified |
+| D-13, D-15 | – | – | **Open**: fiscal-year definition (EQ6); typed-range apply-on-Enter not changed |
+
+## 3. Shared visual design (MOMAH / DGA reference)
+
+Implemented: IBM Plex Sans Arabic **self-hosted** (`@fontsource`, weights 400/500/600/700; the Google request and Plex Mono were removed) as the only family; light-theme tokens rewritten to the DGA scales (Saudi Green 600 primary, Info 700, Success 700, Warning 700, Error 600/700, Gray 100–900 ground, text and lines); every raw hex in CSS/JSX snapped to the nearest DGA colour (143 of 143 remaining hex values are DGA/white/black) and every rgba base likewise; font sizes collapsed to {12, 13, 14, 16, 18, 20+}, weights to ≤ 700, radii to {4, 8, 12, 16, 24}; flat page ground; tab strip reduced from eleven entries to three (the two management areas plus one «وحدات تشغيلية» menu — no new pages).
+Verified: browser computed styles — one font family on all 930 text nodes of a page, only Plex Arabic faces loaded; screenshots; contrast re-measured after the palette change (see §4).
+**Not claimed:** exact Figma conformance (no Figma specification was supplied; the DGA scales come from the published system), logo/identity (candidate asset only), icon set (Hugeicons licence unresolved; inline SVG icons unchanged), 4-px spacing grid (not normalised), chart palettes beyond the colour snapping, dark theme (not required).
+
+## 4. Accessibility and navigation
+
+| Check | Method | Result |
+|---|---|---|
+| WCAG contrast | custom computed-style script on 15 routes; re-run on Dashboard, monthly report, Planning, Invoices, Collection **after** the palette change | 0 failures on those five (and on all routes measured before the palette change) |
+| Automated accessibility | `axe-core` 4.x injected in the browser pane (WCAG 2 A/AA, 2.1 A/AA, 2.2 AA, best practice) on 15 routes + the 404 page + the open operations menu | Initial violations fixed (names on chart canvases, size-bar roles, focusable scroll regions, heading order, empty table headers, duplicate navigation labels, label-in-name on clickable invoice rows). Final runs: **0 violations** on Dashboard (also with the menu open), Fixed list, monthly report, Smart, Planning, Invoices, Collection, Risk, Contracts, Metrics, Sanad, Investment invoices, 404; **Data sources and Exclusions were fixed after their last run and not re-run** |
+| Keyboard | real key presses in the browser pane | Tab order on the Dashboard header is skip link → brand → demo note → theme → language buttons → organisation (matches the visual RTL order); operations menu opens with Enter, Tab enters it, Escape closes and returns focus; Planning assistant overlay: focus enters, Escape closes, focus returns to the opener; invoice detail opens from the id button with Enter. Date controls (typing, validation messages) verified in earlier rounds. **Not done:** a full keyboard walk-through of all five main journeys |
+| Target size | computed 24 px floor | Re-measured after changes: Dashboard 3, Collection 2, Invoices 1, others 0–1 controls below 24 px → AC-G4 «100 %» **not met yet** |
+| 404 | `NotFound` page inside the shell (links to the two management areas); unknown report key message | axe clean; content not screenshotted |
+| Responsive | 390 px: no horizontal overflow on Dashboard, Planning, Invoices, Smart; header no longer sticky on phones | The header is still ~263 px tall at 390 px (31 % of the screen) — scrolls away but is not compact |
+| Screen readers | – | **Not performed** (no NVDA / JAWS / VoiceOver / TalkBack run). Arabic announcement order, live-region behaviour of the data-status and rollover notices and chart alternatives therefore remain unverified |
+
+## 5. Remaining functional verification
+
+| Item | Result | Status |
+|---|---|---|
+| **Backup download** (EQ10) | Browser: the button hands the page's blob to the browser (captured by intercepting `createObjectURL`/anchor): file name `revenue-demo-backup-2026-10-09.json`, `format`/`version` correct, contents byte-equal to the stored plans/actions/conversations (15,873 bytes with two plan versions) | Verified (download observed through interception, not a saved file) |
+| **Restore** | Browser: after the backup, a throwaway proposal was added; the backup was fed through the real file input → «replace the current data» confirmation (counts shown) → confirm → page reloaded → all three records equal the backup, the throwaway proposal gone, 2 plan versions present. Invalid file refused earlier. The original pre-test state was then restored | Verified with a programmatic `File` (not an OS picker) in an isolated test state |
+| **Saved-version comparison** | New «مقارنة إصدارين محفوظين»: lever values, stored context and **saved** results side by side (tagged «نتائج محفوظة وقت الحفظ»); «إعادة الاحتساب بالبيانات الحالية» recalculates one version's scenario under its own period/scope on today's data and shows it tagged «محسوب الآن» with a match / differs note; only rate and collected are recalculated (the funding balance stays as saved, and says so). Browser: v2 saved with a different lever → comparison highlights the lever and the three results; recalculation reproduced both saved versions exactly | **Split:** the *match* path is verified; the *differs* path (after the data or configuration actually changes) was not exercised in the browser; AC-B2's «reopen reproduces results» is met only through this explicit recalculation |
+| **Named side-by-side scenarios** (assessment, not implemented) | Feasible inside the existing Scenarios section without a new page: store `plan.scenarios = [{id, name, levers}]` next to the working scenario, run `runScenario` for each plus the baseline, and render the existing comparison table (≥ 6 outputs and deltas, AC-B6) reusing `VersionCompare`. Needs: schema addition (explicit documented migration), a name field, ≤ 4 scenarios, export of the comparison. Risk: the proposal and approval flow must say which scenario a proposal came from. Nothing blocks it except a decision on how many scenarios to keep and whether an approver must see them | **Open (assessed)** |
+| **Interpreter, fresh held-out set** | 65 phrases written **before** looking at how the interpreter handles them (`tests/interpreter-corpus-heldout.mjs`): **first run 55/65 = 84.6 %** (`docs/interpreter-heldout-first-run.txt`). Failures: colloquial «اللي فات», «الأشهر الثلاثة الأخيرة», half-year, «last two weeks», English Amanah names without «Al», **«غير المسددة» read as «collected»**, «جودة بيانات», comparatives, reset wording. Fixed afterwards → 65/65, and the earlier 162 + 47 sets still pass. Combined regression corpus: 274 phrases enforced by `npm test` | The 84.6 % is the independent estimate; the 100 % is a regression guard (same author fixed the failures) |
+
+## Other findings in this round
+* The stored action `ACT-MV0XEEXSR21` was found with status `done` (it was `in_progress` in the earlier backup). I did not change it; it was preserved as found.
+* `proposed: []` and the first-plan draft are no longer written on load (round 2); backups and restores go through `localBackup.js`.
+* Plan names stored earlier («… (مسودة)») and the Chinese author names in old history entries were left untouched (stored data).
+
+## Business decisions still required
+
+| ID | Decision | Recommended | Blocks |
+|---|---|---|---|
+| EQ2 | Grace period for collection reporting vs enforcement referral (two parameters; both unset — nothing is assumed) | One named parameter per use, values from the official policy | After-grace rates, referral eligibility |
+| EQ3 | Treatment of exclusions under unapproved rules | Keep the calculation and show the unapproved-rule band (band shown on operational pages) | Final net-billed treatment |
+| EQ4 (rest) | Who approves plans, objectives and actions | Proposer ≠ approver, two configurable roles | Approval records, E2 |
+| EQ5 | Official operating-spending coverage definition | The ministry reports' prorated-appropriation basis, payments basis labelled separately | Coverage card/report |
+| EQ6 | Fiscal year and target approval | Calendar year; targets stay «غير معتمد» until documented | Objective statuses, D-13 |
+| EQ9 | New July report types | Enforcement referral first; the other two need data sources | Three new reports |
+| – | Logo, Figma specification, icon licence | Supply official files / confirm Hugeicons licence | Exact identity conformance |
+| – | How many named scenarios and whether an approver sees them | ≤ 4 per plan | Named scenarios (B6) |
