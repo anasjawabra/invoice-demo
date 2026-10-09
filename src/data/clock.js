@@ -59,3 +59,20 @@ export function lastCompleteMonths(today, n = 3) {
   const startIdx = y * 12 + m - n; const sy = Math.floor(startIdx / 12); const sm = (startIdx % 12) + 1;
   return { from: `${sy}-${String(sm).padStart(2, '0')}-01`, to: prevMonthEnd(today) };
 }
+
+// ---- dates written for people (D-10): «9 أكتوبر 2026», ranges «1 يناير – 9 أكتوبر 2026». ISO stays in URLs, storage and file columns. ----
+const AR_MONTH_NAMES = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export function fmtDateText(iso, lang = 'ar', { year = true } = {}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return iso || '—';
+  const y = iso.slice(0, 4); const m = Number(iso.slice(5, 7)) - 1; const d = Number(iso.slice(8, 10));
+  return lang === 'ar' ? `${d} ${AR_MONTH_NAMES[m]}${year ? ` ${y}` : ''}` : `${d} ${EN_MONTH_NAMES[m]}${year ? ` ${y}` : ''}`;
+}
+export function fmtRangeText(from, to, lang = 'ar') {
+  if (!from || !to) return '—';
+  if (from === to) return fmtDateText(from, lang);
+  const sameYear = from.slice(0, 4) === to.slice(0, 4); const sameMonth = sameYear && from.slice(5, 7) === to.slice(5, 7);
+  const d = (iso, o) => fmtDateText(iso, lang, o);
+  if (sameMonth) return lang === 'ar' ? `${Number(from.slice(8, 10))} – ${d(to)}` : `${Number(from.slice(8, 10))} – ${d(to)}`;
+  return `${d(from, { year: !sameYear })} – ${d(to)}`;
+}

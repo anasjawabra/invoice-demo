@@ -142,14 +142,14 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
       <div className="rv-card__head">
         <div>
           <h3 className="rv-sec-title">{L('Amanah map', 'خريطة الأمانات')}</h3>
-          <p className="rv-sec-sub">{L('Rate, amount and trend together, with each Amanah\'s size (net billed) beside them — amount alone would just rank the biggest.', 'النسبة والمبلغ والاتجاه معاً، مع حجم كل أمانة (صافي المفوتر) بجانبها — فالمبلغ وحده يرتب الأكبر فقط.')}</p>
+
         </div>
         <label className="rv-inline">{L('Sort', 'الترتيب')}
           <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={L('Sort Amanahs', 'ترتيب الأمانات')}>
-            <option value="attention">{L('Needs attention (outstanding ÷ own net)', 'الأحوج للانتباه (المتبقي ÷ صافيها)')}</option>
+            <option value="attention">{L('Needs attention (uncollected ÷ own net)', 'الأحوج للانتباه (غير المحصّل ÷ صافيها)')}</option>
             <option value="amount">{L('Outstanding amount', 'مبلغ غير المحصّل')}</option>
             <option value="rate">{L('Lowest rate', 'أدنى نسبة')}</option>
-            <option value="trend">{L('Worst trend', 'أسوأ اتجاه')}</option>
+            <option value="trend">{L('Largest decline', 'أكبر تراجع')}</option>
           </select>
         </label>
       </div>
@@ -159,15 +159,15 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
             <th>{L('Amanah', 'الأمانة')}</th>
             <th>{L('Size (net billed)', 'الحجم (صافي المفوتر)')}</th>
             <th className="num">{L('Collected ÷ net', 'المحصّل ÷ الصافي')}</th>
-            <th className="num">{L('Trend (pp)', 'الاتجاه (نقطة)')}</th>
+            <th className="num">{L('Change vs last year (pp)', 'التغير عن العام الماضي (نقطة)')}</th>
             <th className="num">{L('Uncollected', 'غير المحصّل')}</th>
-            <th className="num">{L('% of own net', '% من صافيها')}</th>
-            <th className="num">{L('% of total', '% من الإجمالي')}</th>
+            <th className="num">{L('Uncollected share of its net', 'نسبة غير المحصّل من صافيها')}</th>
+            <th className="num">{L('Share of all uncollected', 'حصتها من غير المحصّل')}</th>
           </tr></thead>
           <tbody>
             {sorted.map(({ g, rate, trend, ownShare, share, small }) => (
               <tr key={g.key}>
-                <td><button type="button" className="rv-link" onClick={() => onPick?.(g.key)}>{pickBi(g.label, ar ? 'ar' : 'en')}</button>{small && <span className="rv-tag" style={{ marginInlineStart: 6 }} title={L('Fewer than 8 invoices: the rate is volatile', 'أقل من 8 فواتير: النسبة متقلبة')}>{L('small n', 'عينة صغيرة')}</span>}</td>
+                <td><button type="button" className="rv-link" onClick={() => onPick?.(g.key)}>{pickBi(g.label, ar ? 'ar' : 'en')}</button>{small && <span className="rv-tag" style={{ marginInlineStart: 6 }} title={L('Fewer than 8 invoices: the rate is volatile', 'أقل من 8 فواتير: النسبة متقلبة')}>{L('under 8 invoices', 'أقل من 8 فواتير')}</span>}</td>
                 <td><span className="rv-sizebar" aria-label={short(g.net)}><i style={{ width: `${Math.max(3, (g.net / maxNet) * 100)}%` }} /></span> <small className="muted" dir="ltr">{short(g.net)} · {count(g.count)}</small></td>
                 <td className="num">{ratioText(rate, ar, 0)}</td>
                 <td className="num" dir="ltr">{trend == null ? '—' : <span className={trend < 0 ? 'rv-neg' : 'rv-pos'}>{trend > 0 ? '+' : ''}{trend}</span>}</td>

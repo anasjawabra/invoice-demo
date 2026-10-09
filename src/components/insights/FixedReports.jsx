@@ -6,7 +6,7 @@ import { useAr } from '../../utils/useAr';
 import ReportView from '../smart/ReportView';
 import { ToDateFigure } from '../revenue/RevenueUI';
 import { AsyncBlock } from '../strategic/AsyncState';
-import { FIXED_REPORTS } from '../../data/fixedReports';
+import { FIXED_REPORTS, FIXED_GROUPS } from '../../data/fixedReports';
 import { buildReportModel } from '../../data/reportModel';
 import { generateFinance, financeCompatible } from '../../data/syntheticFinance';
 import { forecastReceipts } from '../../data/revenueOutlook';
@@ -71,16 +71,19 @@ export default function FixedReports({ reportKey, setReport }) {
   }
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <div className="muted" style={{ fontSize: 13 }}>{L('صيغ قياسية تُفتح مباشرة دون طلب، بالمرشحات الحالية، وتُصدَّر بالأرقام نفسها المعروضة. لتحليل مخصص استخدم «التقارير الذكية».', 'Established formats that open directly under the current filters and export the figures shown. For custom analysis use “Smart reports”.')}</div>
-      <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-        {FIXED_REPORTS.map((r, i) => (
-          <button key={r.key} type="button" className="card st-card sr-fixed" onClick={() => setReport(r.key)} aria-label={B({ ar: r.ar, en: r.en })}>
-            <b>{i + 1}. {B({ ar: r.ar, en: r.en })}</b>
-            <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>{B(r.purpose)}</span>
-            <span className="st-tag" style={{ marginTop: 4 }}>{L('يُفتح مباشرة', 'opens directly')}</span>
-          </button>
-        ))}
-      </div>
+      {FIXED_GROUPS.map((g) => (
+        <section key={g.ar} style={{ display: 'grid', gap: 8 }} aria-label={B(g)}>
+          <h2 className="rv-sec-title" style={{ margin: 0 }}>{B(g)}</h2>
+          <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+            {g.keys.map((k) => FIXED_REPORTS.find((r) => r.key === k)).map((r) => (
+              <button key={r.key} type="button" className="card st-card sr-fixed" onClick={() => setReport(r.key)}>
+                <b>{B({ ar: r.ar, en: r.en })}</b>
+                <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>{B(r.purpose)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

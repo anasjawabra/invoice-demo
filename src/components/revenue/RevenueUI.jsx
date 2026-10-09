@@ -51,17 +51,21 @@ export function DefinitionButton({ metric }) {
         <div id={popId} role="dialog" className="rv-def__pop">
           <b>{B(entry.label)}</b>
           <dl>
-            <dt>{L('Definition', 'التعريف')}</dt><dd>{B(entry.definition)}</dd>
-            <dt>{L('Formula', 'المعادلة')}</dt><dd>{B(entry.formula)}</dd>
-            <dt>{L('Period', 'الفترة')}</dt><dd>{B(entry.period)}</dd>
-            <dt>{L('Date basis', 'أساس التاريخ')}</dt><dd>{B(entry.dateBasis)}</dd>
-            <dt>{L('Scope', 'النطاق')}</dt><dd dir="auto">{B(entry.scope)}</dd>
-            <dt>{L('Sources', 'المصادر')}</dt><dd>{entry.sourceLabels.map((x) => B(x)).join(ar ? '، ' : ', ')}</dd>
-            <dt>{L('Updated', 'آخر تحديث')}</dt><dd dir="ltr">{entry.updatedAt}</dd>
-            <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{entry.ruleVersion}</dd>
-            <dt>{L('Data completeness', 'اكتمال البيانات')}</dt><dd>{comp.calculable ? `${Math.round(comp.value * 100)}%` : L('Not calculable', 'غير قابل للاحتساب')}</dd>
-            {entry.caveat && (<><dt>{L('Caution', 'تنبيه')}</dt><dd>{B(entry.caveat)}</dd></>)}
+            <dt>{L('What is it?', 'ما هو؟')}</dt><dd>{B(entry.definition)}</dd>
+            <dt>{L('How is it calculated?', 'كيف يُحسب؟')}</dt><dd>{B(entry.formula).replace(/Σ\s*/g, ar ? 'مجموع ' : 'sum of ')}</dd>
+            {entry.caveat && (<><dt>{L('What it does not mean', 'ما الذي لا يعنيه؟')}</dt><dd>{B(entry.caveat)}</dd></>)}
           </dl>
+          <details className="rv-def__more">
+            <summary>{L('Technical details', 'تفاصيل تقنية')}</summary>
+            <dl>
+              <dt>{L('Period', 'الفترة')}</dt><dd>{B(entry.period)}</dd>
+              <dt>{L('Date basis', 'أساس التاريخ')}</dt><dd>{B(entry.dateBasis)}</dd>
+              <dt>{L('Scope', 'النطاق')}</dt><dd dir="auto">{B(entry.scope)}</dd>
+              <dt>{L('Source systems', 'الأنظمة المصدر')}</dt><dd>{entry.sourceLabels.map((x) => B(x)).join(ar ? '، ' : ', ')}</dd>
+              <dt>{L('Updated', 'آخر تحديث')}</dt><dd dir="ltr">{entry.updatedAt}</dd>
+              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{entry.ruleVersion}</dd>
+            </dl>
+          </details>
           <small><Link to="/metrics">{L('Open the metric dictionary', 'فتح قاموس المقاييس')}</Link></small>
         </div>
       )}
@@ -92,8 +96,8 @@ export function PpDelta({ change, comparable = true, label }) {
   const v = change.value;
   const dir = v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
   return (
-    <div className={`rv-delta rv-delta--${dir}`} dir="ltr" title={L('Each period is measured at its own end date (same age), so the comparison is like for like.', 'تُقاس كل فترة عند نهايتها (العمر نفسه) فالمقارنة مماثلة.')}>
-      {v > 0 ? '▲' : v < 0 ? '▼' : '■'} {v > 0 ? '+' : ''}{v.toFixed(1)} pp {label ? <span className="rv-delta__lbl">{label}</span> : null}
+    <div className={`rv-delta rv-delta--${dir}`} dir="auto" title={L('Each period is measured at its own end date (same age), so the comparison is like for like.', 'تُقاس كل فترة عند نهايتها (العمر نفسه) فالمقارنة مماثلة.')}>
+      {v > 0 ? '▲' : v < 0 ? '▼' : '■'} {v > 0 ? '+' : ''}{v.toFixed(1)} {L('pp', 'نقطة مئوية')} {label ? <span className="rv-delta__lbl">{label}</span> : null}
     </div>
   );
 }

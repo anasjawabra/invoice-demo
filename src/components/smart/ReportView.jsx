@@ -8,7 +8,7 @@ import { useL } from '../../utils/bi';
 import { fmtMoney, fmtSar } from '../../utils/money';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../../data/reportFormat';
 import FinancialRelations from '../revenue/FinancialRelations';
-import { fmtRiyadh } from '../../data/clock';
+import { fmtRiyadh, fmtRangeText } from '../../data/clock';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -80,17 +80,29 @@ function Block({ b }) {
 }
 
 export default function ReportView({ model }) {
-  const { ar } = useL(); const L = (a, e) => (ar ? a : e);
+  const { ar, lang } = useL(); const L = (a, e) => (ar ? a : e);
+  const hum = (v) => String(v ?? '').replace(/(\d{4}-\d{2}-\d{2}) → (\d{4}-\d{2}-\d{2})/g, (_, a, b) => fmtRangeText(a, b, lang));
+  const ctx = (k) => model.context.find((c) => c.k === k)?.value;
+  const summaryLine = [hum(ctx('period')), ctx('amanah'), ctx('source'), ctx('basis') ? hum(ctx('basis')) : null].filter(Boolean).join(' · ');
+  const FOLD = ['assumptions', 'findings', 'forecast']; // secondary explanations are expandable
   return (
     <div className="sr-report" data-report-id={model.id}>
       <div className="sr-report__head">
         <h3 className="sr-report__title">{model.title}</h3>
-        <div className="muted" style={{ fontSize: 12 }}>{model.subtitle} · {L('أُعدّ في', 'Prepared')} {fmtRiyadh(model.generatedAt)} ({L('بتوقيت الرياض', 'Riyadh time')})</div>
-        <div className="sr-chips" aria-label={L('سياق التقرير', 'Report context')}>{model.context.filter((c) => c.k !== 'basis' && c.k !== 'data').map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
-        <div className="sr-note"><b>{L('أساس التقرير', 'Basis')}:</b> {model.context.find((c) => c.k === 'basis')?.value} · <b>{L('البيانات', 'Data')}:</b> {model.context.find((c) => c.k === 'data')?.value}</div>
+        <p className="rv-line">{summaryLine}</p>
+        <details className="rv-more">
+          <summary>{L('تفاصيل التقرير', 'Report details')}</summary>
+          <div className="sr-chips" aria-label={L('سياق التقرير', 'Report context')}>{model.context.filter((c) => c.k !== 'basis' && c.k !== 'data').map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{hum(c.value)}</bdi></span>)}</div>
+          <div className="sr-note"><b>{L('أساس التقرير', 'Basis')}:</b> {hum(model.context.find((c) => c.k === 'basis')?.value)} · <b>{L('البيانات', 'Data')}:</b> {model.context.find((c) => c.k === 'data')?.value} · {L('أُعدّ في', 'Prepared')} {fmtRiyadh(model.generatedAt)} ({L('بتوقيت الرياض', 'Riyadh time')})</div>
+        </details>
       </div>
       {model.headline.map((b, i) => <Block key={`h${i}`} b={b} />)}
-      {model.sections.map((sec) => (
+      {model.sections.map((sec) => FOLD.includes(sec.key) ? (
+        <details key={sec.key} className="sr-section rv-more">
+          <summary>{sec.title}</summary>
+          <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} />)}</div>
+        </details>
+      ) : (
         <section key={sec.key} className="sr-section" aria-label={sec.title}>
           <h4 className="sr-section__title">{sec.title}</h4>
           {sec.purpose && <div className="muted" style={{ fontSize: 12.5 }}>{sec.purpose}</div>}

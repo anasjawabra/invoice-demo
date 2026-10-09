@@ -18,7 +18,7 @@ export function PlanTable({ fyMonths, outlook, fin, financeOk, narrowed, year, t
   const u = unitOfValues([...revT.filter((v) => v != null), ...plan.map((p) => p.planned)]);
   return (
     <div className="card st-card">
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><span className="st-tag st-tag--target">{L('مستهدف الإيرادات — غير معتمد', 'Revenue target — unapproved')}</span>{financeOk && <span className="st-tag st-tag--warn">{L('الميزانية — تجريبية اصطناعية', 'Budget — synthetic')}</span>}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}><span className="st-tag st-tag--target">{L('مستهدف تجريبي', 'Demo target')}</span></div>
       <div className="st-table-wrap"><table className="table" aria-label={L('الخطة الشهرية', 'Monthly plan')}>
         <thead><tr><th>{L('الشهر', 'Month')}</th><th>{L('مستهدف المقبوضات', 'Receipts target')} ({unitLabel(u, lang)})</th><th>{L('تنبؤ المقبوضات (تقدير)', 'Receipts forecast (estimate)')}</th><th>{L('الميزانية المعتمدة للإنفاق', 'Approved expenditure budget')} ({unitLabel(u, lang)})</th></tr></thead>
         <tbody>{fyMonths.map((m, i) => <tr key={m}><td dir="ltr">{m}</td><td dir="ltr">{revT[i] == null ? NA(L) : scaled(revT[i], u)}</td><td dir="ltr">{outlook.forecast[i] == null ? '—' : `${scaled(outlook.forecast[i], u)}`}</td><td dir="ltr">{financeOk ? scaled(plan[i].planned, u) : NA(L)}</td></tr>)}
@@ -45,7 +45,7 @@ export function VarianceBlock({ ach, achAvail, fin, financeOk, fyReceiptsYtd }) 
         <div className="muted" style={{ fontSize: 12 }}>{L('انحراف الإيرادات (مقبوضات) وانحراف الإنفاق (صرف نقدي) على أساسين مختلفين ولا يُجمعان في رقم واحد.', 'Revenue variance (receipts) and expenditure variance (cash payments) are on different bases and are not combined into one figure.')}</div>
       </div>
       <div className="card st-card">
-        <b>{L('تنفيذ الميزانية حسب الباب', 'Budget execution by chapter')} <span className="st-tag st-tag--warn">{L('تجريبية اصطناعية', 'synthetic')}</span></b>
+        <b>{L('تنفيذ الميزانية حسب الباب', 'Budget execution by chapter')}</b>
         {ex ? <div className="st-table-wrap"><table className="table" aria-label={L('تنفيذ الميزانية', 'Budget execution')}><thead><tr><th>{L('الباب', 'Chapter')}</th><th>{L('الميزانية المتناسبة', 'Prorated budget')}</th><th>{L('الالتزام', 'Commitment')}</th><th>{L('المستحق', 'Accrued')}</th><th>{L('المصروف', 'Paid')}</th><th>{L('صرف ÷ ميزانية', 'Paid ÷ budget')}</th></tr></thead>
           <tbody>{ex.rows.map((r) => { const uu = unitOfValues(ex.rows.flatMap((x) => [x.budgetToDate, x.commitments, x.accrued, x.paid])); return <tr key={r.key}><td>{B(r.label)}</td><td dir="ltr">{scaled(r.budgetToDate, uu)}</td><td dir="ltr">{scaled(r.commitments, uu)}</td><td dir="ltr">{scaled(r.accrued, uu)}</td><td dir="ltr">{scaled(r.paid, uu)}</td><td dir="ltr">{pct(r.execution)}</td></tr>; })}</tbody></table></div>
           : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b></div>}
@@ -74,7 +74,7 @@ export function ForecastGaps({ outlook, fyMonths, forecast, tvf, gaps, snapshot,
           <b>{L('أكبر فجوات التحصيل (أمانة × مصدر)', 'Largest collection gaps (Amanah × source)')}</b>
           {gaps.length ? <div className="st-table-wrap"><table className="table" aria-label={L('فجوات التحصيل', 'Collection gaps')}><thead><tr><th>{L('الأمانة', 'Amanah')}</th><th>{L('المصدر', 'Source')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uG, lang)})</th><th>{L('الفجوة للمستهدف*', 'Gap to target*')}</th><th /></tr></thead>
             <tbody>{gaps.map((g) => <tr key={`${g.amanah}|${g.source}`}><td>{B(g.label)}</td><td>{ar ? sourceAr(g.source) : sourceEn(g.source)}</td><td dir="ltr">{scaled(g.outstanding, uG)}</td><td dir="ltr">{scaled(g.gap, uG)}</td><td><Link className="btn btn-sm btn-ghost" to={`/invoices?amanah=${encodeURIComponent(g.amanah)}&src=${g.source}`}>{L('الفواتير', 'Invoices')}</Link></td></tr>)}</tbody></table></div> : <div className="rv-empty" style={{ padding: 12 }}>{L('لا فجوات مقابل المستهدف التجريبي في هذا الاختيار.', 'No gaps against the demo target in this selection.')}</div>}
-          <div className="muted" style={{ fontSize: 11.5 }}>{L('* مقابل مستهدف معدل التحصيل التجريبي غير المعتمد؛ تقدير وليس مبلغاً مؤكد التحصيل.', '* against the unapproved demo collection-rate target; an estimate, not a known-collectible amount.')}</div>
+          <div className="muted" style={{ fontSize: 11.5 }}>{L('* تقدير مقابل المستهدف التجريبي، وليس مبلغاً مؤكد التحصيل.', '* an estimate against the demo target, not a confirmed collectible amount.')}</div>
         </div>
         <div className="card st-card">
           <b>{L('توقع التمويل لنهاية الفترة (مقبوضات − مدفوعات)', 'Funding outlook to the planning date (receipts − payments)')}</b>

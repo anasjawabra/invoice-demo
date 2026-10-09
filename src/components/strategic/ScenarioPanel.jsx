@@ -11,12 +11,12 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 const LEVERS = [
   { k: 'billing', ar: 'تغيّر الفوترة المتوقع', en: 'Expected billing change', unit: '%', step: 1, hint: { ar: 'يغيّر صافي المفوتر؛ ويُحصَّل الجديد بمعدل التحصيل الحالي فقط (الفوترة ليست تحصيلاً).', en: 'Changes net billed; the added billing is collected only at the current rate (billing is not collection).' }, cash: true },
-  { k: 'resolve', ar: 'حسم الحالات المعلقة', en: 'Pending cases resolved', unit: '%', step: 5, hint: { ar: 'نسبة استبعادات المرشحين التي تُحسم. الحسم لا يعني نقداً محصّلاً.', en: 'Share of pending exclusion candidates that get decided. Deciding is not cash.' }, cash: false },
-  { k: 'approve', ar: 'منها تُحسم كاستبعاد', en: '…of which approved as exclusions', unit: '%', step: 5, hint: { ar: 'المحسوم كاستبعاد يخفض صافي المفوتر فتتحرك النسبة حسابياً بلا نقد؛ وما عداه يبقى ضمن الصافي بلا تغيير في المبلغ.', en: 'Approved cases reduce net billed so the rate moves arithmetically with no cash; the rest stays in net unchanged.' }, cash: false },
+  { k: 'resolve', ar: 'مراجعة الاستبعادات المعلّقة', en: 'Pending cases resolved', unit: '%', step: 5, hint: { ar: 'نسبة استبعادات المرشحين التي تُحسم. الحسم لا يعني نقداً محصّلاً.', en: 'Share of pending exclusion candidates that get decided. Deciding is not cash.' }, cash: false },
+  { k: 'approve', ar: 'نسبة ما يُقبل استبعاده', en: '…of which approved as exclusions', unit: '%', step: 5, hint: { ar: 'المحسوم كاستبعاد يخفض صافي المفوتر فتتحرك النسبة حسابياً بلا نقد؛ وما عداه يبقى ضمن الصافي بلا تغيير في المبلغ.', en: 'Approved cases reduce net billed so the rate moves arithmetically with no cash; the rest stays in net unchanged.' }, cash: false },
   { k: 'dRate', ar: 'تغيير معدل التحصيل', en: 'Collection-rate change', unit: 'pp', step: 0.5, hint: { ar: 'بالنقاط المئوية من صافي المفوتر (وليس نسبة نسبية).', en: 'In percentage points of net billed (not a relative change).' }, cash: true },
-  { k: 'recovery', ar: 'استرداد الأرصدة المتأخرة القابلة للتحصيل', en: 'Recovery of collectible overdue balances', unit: '%', step: 5, hint: { ar: 'من المتأخر والجزئي غير المتنازع عليه والذي لم يحصّله عامل معدل التحصيل.', en: 'Of undisputed overdue / partial balances not already collected by the rate lever.' }, cash: true },
-  { k: 'slip', ar: 'نسبة التحصيل الإضافي التي تصل بعد تاريخ التخطيط', en: 'Share of additional receipts arriving after the planning date', unit: '%', step: 5, hint: { ar: 'توقيت المقبوضات: ما يتأخر يُستبعد من مقبوضات الأفق ولا يُلغى.', en: 'Timing of receipts: what slips is excluded from the horizon receipts, not cancelled.' }, cash: true, funding: true },
-  { k: 'expense', ar: 'تغيّر الإنفاق المتوقع للأشهر المتبقية', en: 'Expected change in remaining expenditure', unit: '%', step: 1, hint: { ar: 'يطبَّق على الصرف المتوقع للأشهر المتبقية فقط ولا يغيّر الصرف الفعلي.', en: 'Applied to the projected payments of the remaining months only; actual payments are untouched.' }, cash: true, funding: true }
+  { k: 'recovery', ar: 'استرداد المتأخر القابل للتحصيل', en: 'Recovery of collectible overdue balances', unit: '%', step: 5, hint: { ar: 'من المتأخر والجزئي غير المتنازع عليه والذي لم يحصّله عامل معدل التحصيل.', en: 'Of undisputed overdue / partial balances not already collected by the rate lever.' }, cash: true },
+  { k: 'slip', ar: 'تأخّر المقبوضات الإضافية عن تاريخ الخطة', en: 'Share of additional receipts arriving after the planning date', unit: '%', step: 5, hint: { ar: 'توقيت المقبوضات: ما يتأخر يُستبعد من مقبوضات الأفق ولا يُلغى.', en: 'Timing of receipts: what slips is excluded from the horizon receipts, not cancelled.' }, cash: true, funding: true },
+  { k: 'expense', ar: 'تغيّر الإنفاق للأشهر المتبقية', en: 'Expected change in remaining expenditure', unit: '%', step: 1, hint: { ar: 'يطبَّق على الصرف المتوقع للأشهر المتبقية فقط ولا يغيّر الصرف الفعلي.', en: 'Applied to the projected payments of the remaining months only; actual payments are untouched.' }, cash: true, funding: true }
 ];
 
 export default function ScenarioPanel({ snapshot, targets, scenario, setScenario, planDate, setPlanDate, today, onSaveToRegister, canEdit, financeOk = false, children = null }) {
@@ -54,7 +54,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
                 <input id={`sc-${lv.k}-r`} type="range" min={lo} max={hi} step={lv.step} value={Number.isFinite(Number(val)) ? Number(val) : 0} onChange={(e) => set(lv.k, e.target.value)} aria-label={B(lv)} />
                 <input id={`sc-${lv.k}`} type="number" className="input" style={{ width: 84 }} min={lo} max={hi} step={lv.step} value={val} onChange={(e) => set(lv.k, e.target.value)} />
               </div>
-              <div className="muted" style={{ fontSize: 11.5 }}>{B(lv.hint)}</div>
+              <details className="rv-more"><summary>{L('ما معنى هذا؟', 'What does this mean?')}</summary><div className="muted" style={{ fontSize: 11.5 }}>{B(lv.hint)}</div></details>
             </div>
           );
         })}
@@ -62,7 +62,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
         {res.warnings.map((w, i) => <div key={i} className="rv-callout rv-callout--warn" role="alert" style={{ fontSize: 12.5 }}>{ar ? w.ar : w.en}</div>)}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-sm btn-ghost" disabled={!changed} onClick={() => setScenario({ ...DEFAULT_SCENARIO })}>{L('إعادة الضبط', 'Reset')}</button>
-          <button type="button" className="btn btn-sm" disabled={!changed || !canEdit} title={canEdit ? '' : L('يتطلب صلاحية المراجعة', 'Requires review permission')} onClick={onSaveToRegister}>{L('اقتراح إجراء من هذا السيناريو', 'Propose an action from this scenario')}</button>
+          <button type="button" className="btn btn-sm" disabled={!changed || !canEdit} title={canEdit ? '' : L('يتطلب صلاحية المراجعة', 'Requires review permission')} onClick={onSaveToRegister}>{L('إنشاء مقترح من السيناريو', 'Create a proposal from this scenario')}</button>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
           <div className="rv-tile"><div className="rv-tile__label">{L('المحصّل', 'Collected')}</div><div className="rv-tile__value" dir="ltr" title={fmtSar(res.scenario.collected, lang)}>{m(res.scenario.collected)}</div><div className="rv-tile__sub">{L('الأساس', 'baseline')} {m(res.baseline.collected)} · <b dir="ltr">{res.deltaCollected >= 0 ? '+' : ''}{scaled(res.deltaCollected, unit)}</b></div></div>
           <div className="rv-tile"><div className="rv-tile__label">{L('غير المحصّل', 'Uncollected (remaining)')}</div><div className="rv-tile__value" dir="ltr" title={fmtSar(res.scenario.uncollected, lang)}>{m(res.scenario.uncollected)}</div><div className="rv-tile__sub">{L('الأساس', 'baseline')} {m(res.baseline.uncollected)}</div></div>
           <div className="rv-tile"><div className="rv-tile__label">{L('نسبة التحصيل', 'Collection rate')}</div><div className="rv-tile__value" dir="ltr">{pct(res.scenario.rate)}</div><div className="rv-tile__sub">{L('الأساس', 'baseline')} {pct(res.baseline.rate)} · <b dir="ltr">{res.scenario.rate != null && res.baseline.rate != null ? `${((res.scenario.rate - res.baseline.rate) * 100) >= 0 ? '+' : ''}${((res.scenario.rate - res.baseline.rate) * 100).toFixed(1)} ${L('نقطة', 'pp')}` : '—'}</b></div></div>
-          <div className="rv-tile"><div className="rv-tile__label">{L('فجوة المستهدف (غير معتمد)', 'Target gap (unapproved)')}</div><div className="rv-tile__value" dir="ltr">{gap ? m(gap.scenarioGap) : L('غير متاحة', 'n/a')}</div><div className="rv-tile__sub">{gap ? `${L('الأساس', 'baseline')} ${m(gap.baselineGap)} · ${L('مستهدف', 'target')} ${(gap.rate * 100).toFixed(0)}%` : ''}</div></div>
+          <div className="rv-tile"><div className="rv-tile__label">{L('المتبقي للوصول إلى المستهدف التجريبي', 'Remaining to reach the demo target')}</div><div className="rv-tile__value" dir="ltr">{gap ? m(gap.scenarioGap) : L('غير متاحة', 'n/a')}</div><div className="rv-tile__sub">{gap ? `${L('الأساس', 'baseline')} ${m(gap.baselineGap)} · ${L('مستهدف', 'target')} ${(gap.rate * 100).toFixed(0)}%` : ''}</div></div>
         </div>
         <div className="rv-chart" style={{ height: 240 }} role="img" aria-label={L('مقارنة الأساس بالسيناريو', 'Baseline versus scenario')}><Bar data={data} options={options} /></div>
         <div className="muted" style={{ fontSize: 12 }}>{L('كل المبالغ بوحدة واحدة في الرسم', 'One unit in the chart')}: {cu.title.split('—')[1]?.trim()}. {L('فترة التحليل', 'Analysis period')}: {snapshot.scope.from} → {snapshot.scope.to}.</div>

@@ -31,7 +31,7 @@ const SUGGESTIONS = [
   { ar: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم', en: 'Create the revenue report for this month to date' },
   { ar: 'قارن أداء التحصيل بين الأمانات', en: 'Compare collection performance between Amanahs' },
   { ar: 'حلّل المتأخرات حسب مصدر الإيراد', en: 'Analyse overdue balances by revenue source' },
-  { ar: 'جهّز تقريراً شهرياً مشابهاً للتقارير المرفقة', en: 'Prepare a monthly report similar to the attached reports' }
+  { ar: 'جهّز تقريراً شهرياً بالمقارنة مع العام الماضي', en: 'Prepare a monthly report compared with last year' }
 ];
 const FOLLOW_UPS = [
   { ar: 'قارن بالشهر الماضي', en: 'Compare with last month' },
@@ -255,16 +255,16 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
 
       <div className="sr-note" role="note">
-        {L('يفهم هذا المساعد طلبات محددة (الفترة، الأمانة، البلدية، المصدر، الحالة، المقارنة، أقسام التقرير) بقواعد حسابية — وليس نموذجاً لغوياً — وتُبنى التقارير مباشرة من بيانات النظام. البيانات تجريبية اصطناعية.', 'This assistant understands a defined set of requests (period, Amanah, municipality, source, status, comparison, report sections) with rules — it is not a language model — and reports are built directly from the system data. Data is synthetic demo data.')}
-        {' '}<button type="button" className="sr-link" onClick={() => setShowHelp((v) => !v)}>{showHelp ? L('إخفاء', 'Hide') : L('ما الذي يمكنني طلبه؟', 'What can I ask?')}</button>
-        {showHelp && <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, i) => <li key={i}>{h}</li>)}</ul>}
+        {L('اكتب طلبك: الفترة أو الأمانة أو المصدر أو المقارنة.', 'Write your request: period, Amanah, source or comparison.')}
+        <details className="rv-more"><summary>{L('أمثلة لما يمكنك طلبه', 'Examples of what you can ask')}</summary><ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}</ul></details>
+        <details className="rv-more"><summary>{L('عن المساعد', 'About the assistant')}</summary><div>{L('يفهم المساعد صيغاً محددة بقواعد حسابية وليس بنموذج لغوي، وتُبنى التقارير من بيانات النظام التجريبية.', 'The assistant understands defined phrasings with rules, not a language model, and reports are built from the system’s demo data.')}</div></details>
       </div>
 
       <LocalDataPanel />
       <div className="sr-thread" aria-live="polite">
         {empty && (
           <div className="sr-welcome">
-            <h2>{L('ما التقرير الذي تريد إعداده؟', 'Which report would you like to prepare?')}</h2>
+            <h2>{L('ماذا تريد أن تعرف؟', 'What would you like to see?')}</h2>
             <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>
           </div>
         )}
@@ -276,11 +276,11 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
               <div className="sr-avatar" aria-hidden="true">ذ</div>
               <div className="sr-ai">
                 {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{m.options.map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{L('لم أستطع تحويل هذا الطلب إلى تقرير.', 'I could not turn this request into a report.')}</b><div>{L('أفهم طلبات محددة بقواعد وليس نصاً حراً. جرّب أحد الاقتراحات أو أعد صياغة الطلب:', 'I understand a defined set of requests, not free text. Try a suggestion or rephrase:')}</div><ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].slice(0, 5).map((h, i) => <li key={i}>{h}</li>)}</ul><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')}</b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
                 {m.kind !== 'unsupported' && m.kind !== 'clarify' && (
                   <div className="sr-bubble sr-bubble--ai">
-                    {m.kind === 'question' ? L('إجابة محسوبة من البيانات (وليست من نموذج لغوي):', 'Answer computed from the data (not from a language model):') : L('أعددتُ التقرير من بيانات النظام.', 'I prepared the report from the system data.')}
-                    {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}<small className="muted">{L('وأبقيتُ بقية المرشحات كما هي.', 'All other filters were kept.')}</small></div>}
+                    {m.kind === 'question' ? L('الإجابة:', 'Answer:') : (m.changes?.length > 0 ? L('فهمتُ الطلب:', 'Understood:') : L('التقرير بالنطاق الحالي.', 'Report for the current scope.'))}
+                    {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}</div>}
                     {isBusy && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {stepText(busy.step)}… <button type="button" className="btn btn-sm btn-ghost" onClick={stop}>{L('إيقاف', 'Stop')}</button></div>}
                     {m.status === 'stopped' && <div className="sr-warn">{L('أُوقف الإعداد.', 'Generation was stopped.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
                     {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إعداد التقرير. تحقق من اتصال خدمة البيانات ثم أعد المحاولة.', 'The report could not be prepared. Check the data service and try again.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
+import { useRevenue } from '../context/RevenueContext';
 import { useTheme } from '../context/ThemeContext';
 import { ORGS } from '../data/mock';
 import { ToastProvider, useToast } from './Toast';
@@ -107,6 +108,7 @@ function Icon({ name }) {
 
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
+  const rev = useRevenue();
   const { user, orgScoped, logout, switchOrg } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
@@ -166,7 +168,10 @@ function LayoutInner() {
                 <span>{t('brand_tagline')}</span>
               </div>
             </NavLink>
-            <div className="topbar-title">{pageTitle}</div>
+            <details className="demo-note">
+              <summary>{lang === 'ar' ? 'بيانات تجريبية' : 'Demo data'}</summary>
+              <div role="note">{lang === 'ar' ? `بيانات اصطناعية وليست بيانات الوزارة الفعلية${rev.meta?.size === 'compact' ? ` (عينة مضغوطة: ${rev.meta.counts?.invoicesTotal ?? ''} فاتورة)` : ''}. التواريخ والأوقات بتوقيت الرياض.` : `Synthetic data, not the Ministry’s actual data${rev.meta?.size === 'compact' ? ` (compact sample: ${rev.meta.counts?.invoicesTotal ?? ''} invoices)` : ''}. Dates and times are Asia/Riyadh.`}</div>
+            </details>
           </div>
 
           <div className="topbar-right">
@@ -298,9 +303,6 @@ function LayoutInner() {
               </button>
             </div>
 
-            {isRtl ? (
-              <span className="badge" title="RTL">RTL</span>
-            ) : null}
           </div>
         </header>
 

@@ -13,17 +13,21 @@ import { AmanahMap } from '../revenue/ExecutiveParts';
 import UnitBar from '../strategic/UnitBar';
 import { AsyncBlock } from '../strategic/AsyncState';
 import { generateFinance, budgetExecution, operatingCoverage, financeCompatible, FINANCE_STATUS } from '../../data/syntheticFinance';
-import { sourceAr, sourceEn } from '../../data/insightsEngine';
+import { sourceAr, sourceEn, buildInsights } from '../../data/insightsEngine';
+import { fillTokens } from '../../data/reportFormat';
+import { fmtDateText, fmtRangeText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
 
 const STATUS_COLOR = { collected: 'var(--green)', partial: '#c9a227', overdue: 'var(--danger)', not_due: 'var(--secondary)', cancelled: '#8a978f', excluded: '#6f7d76', objection: '#6B57A6', enforcement: '#9A5C00', linkage_unresolved: '#b07a9a', ineligible_referral: '#4f8d94' };
 const STATUS_LABEL = { collected: { ar: 'محصّلة بالكامل', en: 'Collected in full' }, ...CATEGORY_LABELS };
+const firstSentence = (t) => { const x = String(t || '').trim(); const i = x.search(/[.؛]\s/); return i > 20 ? x.slice(0, i + 1) : x; };
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
 
 export default function InsightsDashboard() {
   const rev = useRevenue(); const { L, B, ar, lang, count } = useAr();
   const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const T = snapshot.totals; const s = rev.scopeEff; const today = cfg.cutoff;
   const comparable = comparison?.comparable;
+  const attention = useMemo(() => buildInsights({ snapshot, prev: comparable ? prevSnapshot : null, comparison, forecast: null, targets }).insights.filter((i) => i.severity === 'action').slice(0, 3), [snapshot, prevSnapshot, comparison, targets, comparable]); // eslint-disable-line react-hooks/exhaustive-deps
   const cmpLabel = comparison?.basis === 'same_period_last_year' ? L('مقابل نفس الفترة من العام السابق', 'vs the same period last year') : L('مقابل الفترة السابقة', 'vs the previous period');
   const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
   const [rt, setRt] = useState(0);
@@ -39,23 +43,28 @@ export default function InsightsDashboard() {
 
   return (
     <div className="st-page" style={{ gap: 14 }}>
-      <div className="st-fresh">
-        <span className="st-tag st-tag--actual">{L('بيانات حتى', 'Data to')} <bdi>{snapshot.cutoff}</bdi> ({L('الرياض', 'Riyadh')})</span>
-        <span className="st-tag">{fmtInt(T.count)} {L('فاتورة', 'invoices')} · {snapshot.byAmanah.length} {L('أمانة', 'Amanahs')} · {snapshot.bySource.length} {L('مصدر', 'sources')}</span>
-        <span className="st-tag st-tag--warn" title={rev.meta?.sizeNote ? B(rev.meta.sizeNote) : ''}>{L('بيانات تجريبية اصطناعية', 'Synthetic demo data')}{rev.meta?.size === 'compact' ? ` — ${L('عينة مضغوطة', 'compact sample')} ${fmtInt(rev.meta.counts?.invoicesTotal)}` : ''}</span>
-        <span className="muted" style={{ fontSize: 12 }}>{L('فواتير صادرة في الفترة. ', 'Invoices issued in the period. ')}{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</span>
-      </div>
+      <p className="rv-line" role="status">{L(`${fmtInt(T.count)} فاتورة صدرت في هذه الفترة. `, `${fmtInt(T.count)} invoices issued in this period. `)}<b>{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</b></p>
 
       <div className="rv-tiles">
         <MetricTile metric="gross" to="/invoices" label={L('إجمالي المفوتر', 'Gross billed')} value={kp(T.gross)} sub={L('قبل الاستبعادات', 'before exclusions')} />
         <MetricTile metric="exclusions" label={L('الاستبعادات', 'Exclusions')} value={kp(T.exclusions)} sub={`${L('نسبة الاستبعاد', 'Exclusion rate')} ${pct(T.exclusionRate.calculable ? T.exclusionRate.value : null, L('غير متاحة', 'n/a'))}`} />
-        <MetricTile metric="net" label={L('صافي المفوتر', 'Net billed')} value={kp(T.net)} sub={L('الإجمالي − الاستبعادات', 'Gross − exclusions')} />
-        <MetricTile metric="collected" label={L('المحصّل', 'Collected')} value={kp(T.collected)} sub={L('ضمن صافي المفوتر', 'within net billed')} />
-        <MetricTile metric="uncollected" label={L('غير المحصّل', 'Uncollected')} value={kp(T.outstanding)} sub={L('الصافي − المحصّل', 'Net − collected')} />
-        <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('المحصّل ÷ صافي المفوتر × 100', 'Collected ÷ net billed × 100')} />
+        <MetricTile metric="net" label={L('صافي المفوتر', 'Net billed')} value={kp(T.net)} sub={L('بعد الاستبعادات', 'after exclusions')} />
+        <MetricTile metric="collected" label={L('المحصّل', 'Collected')} value={kp(T.collected)} sub={L('من الصافي', 'of net billed')} />
+        <MetricTile metric="uncollected" label={L('غير المحصّل', 'Uncollected')} value={kp(T.outstanding)} sub={L('من فواتير الفترة', 'on the period’s invoices')} />
+        <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('من الصافي', 'of net billed')} />
       </div>
       <div className="card st-card"><FinancialRelations totals={T} /></div>
       <ToDateFigure snapshot={snapshot} />
+
+      {attention.length > 0 && (
+        <section className="card st-card rv-attention" aria-label={L('يحتاج انتباهاً', 'Needs attention')}>
+          <h2 className="rv-sec-title">{L('يحتاج انتباهاً', 'Needs attention')}</h2>
+          <ul className="rv-attention__list">{attention.map((it) => (
+            <li key={it.id}><b>{B(it.title)}</b><span>{firstSentence(fillTokens(B(it.body), it.tokens, lang))}</span>{it.drill?.to && !String(it.drill.to).startsWith('#') && <Link to={it.drill.to}>{L('عرض الفواتير', 'View invoices')}</Link>}</li>
+          ))}</ul>
+        </section>
+      )}
+
 
       <div className="st-grid">
         <div className="card st-card">
@@ -65,25 +74,25 @@ export default function InsightsDashboard() {
           <Link to="/insights?view=reports&report=status" className="btn btn-sm btn-ghost">{L('تقرير حالة الدفع', 'Payment-status report')}</Link>
         </div>
         <div className="card st-card">
-          <b>{L('المتأخرات والتقادم (رصيد قائم)', 'Outstanding and aging (standing balance)')}</b>
+          <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
           <div className="st-table-wrap"><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
             <tbody>{aging.map((a) => <tr key={a.key}><td>{B(a.label)}</td><td dir="ltr">{count(a.count)}</td><td dir="ltr" title={fmtMoney(a.amount, { lang, mode: 'detail' })}>{scaled(a.amount, uA)}</td></tr>)}
               <tr style={{ fontWeight: 800 }}><td>{L('الإجمالي القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
-          <div className="muted" style={{ fontSize: 12 }}>{L(`رصيد في ${snapshot.cutoff} لكل ما صدر حتى ذلك التاريخ، وليس غير محصّل الفترة.`, `A balance at ${snapshot.cutoff} for everything issued up to then, not the period’s uncollected.`)} <Link to="/collection">{L('قائمة التحصيل', 'Collection worklist')}</Link> · <Link to="/insights?view=reports&report=aging">{L('تقرير التقادم', 'Aging report')}</Link></div>
+          <div className="muted" style={{ fontSize: 12 }}>{L('يشمل كل الفواتير غير المسددة مهما كان تاريخ إصدارها.', 'Includes every unpaid invoice, whatever its issue date.')}</div>
         </div>
       </div>
 
       <div className="card st-card">
-        <b>{L('الاتجاه الشهري (شهر الإصدار)', 'Monthly trend (issue month)')}</b>
+        <b>{L('الاتجاه الشهري حسب شهر الإصدار', 'Monthly trend by issue month')}</b>
         <UnitBar labels={months.map((m) => m.month)} series={[{ label: L('صافي المفوتر', 'Net billed'), values: months.map((m) => m.net) }, { label: L('المحصّل', 'Collected'), values: months.map((m) => m.collected) }]} label={L('الاتجاه الشهري', 'Monthly trend')} />
-        <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`المقارنة بالفترة المكافئة (${prevSnapshot.scope.from} → ${prevSnapshot.scope.to}): نسبة التحصيل ${pct(prevSnapshot.totals.collectedOverNet.value, '—')} سابقاً.`, `Against the equivalent period (${prevSnapshot.scope.from} → ${prevSnapshot.scope.to}): collection rate was ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}.`) : L('لا توجد مقارنة مكافئة لهذه الفترة.', 'No equivalent comparison for this period.')} <Link to="/insights?view=reports&report=trends">{L('تقرير الاتجاهات', 'Trends report')}</Link></div>
+        <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : L('لا توجد مقارنة: الفترة السابقة خارج نطاق البيانات.', 'No comparison: the previous period is outside the data.')}</div>
       </div>
 
       <div className="st-grid">
         <div className="card st-card">
           <b>{L('الأمانات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
-          <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link> · {L('المقارنة المعدّلة بمزيج الإيرادات في تقرير الأمانات', 'The mix-adjusted comparison is in the Amanah report')}</div>
+          <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div className="card st-card">
@@ -102,21 +111,21 @@ export default function InsightsDashboard() {
       </div>
 
       <div className="card st-card">
-        <b>{L('الميزانية وتنفيذ الإنفاق', 'Budget and expenditure execution')} <span className="st-tag st-tag--warn">{L('تجريبية اصطناعية', 'synthetic')}</span></b>
+        <b>{L('الميزانية والصرف (بيانات تجريبية)', 'Budget and spending (demo data)')}</b>
         {financeOk ? (
           <AsyncBlock state={fy} onRetry={() => setRt((n) => n + 1)} height={90}>
             <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-              <div className="rv-tile"><div className="rv-tile__label">{L('الميزانية المتناسبة حتى اليوم', 'Budget prorated to date')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.budgetToDate, { lang })}</div></div>
+              <div className="rv-tile"><div className="rv-tile__label">{L('الميزانية حتى اليوم', 'Budget to date')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.budgetToDate, { lang })}</div></div>
               <div className="rv-tile"><div className="rv-tile__label">{L('الالتزامات', 'Commitments')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.commitments, { lang })}</div></div>
-              <div className="rv-tile"><div className="rv-tile__label">{L('المصروف نقداً', 'Paid (cash)')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.paid, { lang })}</div><div className="rv-tile__sub">{L('نسبة الصرف من الميزانية المتناسبة', 'payments ÷ prorated budget')} {pct(ex.total.execution, '—')}</div></div>
-              <div className="rv-tile"><div className="rv-tile__label">{L('تغطية الإنفاق التشغيلي (أبواب 1–3)', 'Operating coverage (ch. 1–3)')}</div><div className="rv-tile__value" dir="ltr">{pct(cov?.ratio, L('غير متاحة', 'n/a'))}</div><div className="rv-tile__sub">{L('مقبوضات ÷ صرف نقدي للفترة نفسها', 'receipts ÷ cash payments, same period')}</div></div>
+              <div className="rv-tile"><div className="rv-tile__label">{L('المصروف نقداً', 'Paid (cash)')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.paid, { lang })}</div><div className="rv-tile__sub">{L('من الميزانية حتى اليوم', 'of the budget to date')} {pct(ex.total.execution, '—')}</div></div>
+              <div className="rv-tile"><div className="rv-tile__label">{L('تغطية المصروفات التشغيلية', 'Operating-spending coverage')}</div><div className="rv-tile__value" dir="ltr">{pct(cov?.ratio, L('غير متاحة', 'n/a'))}</div><div className="rv-tile__sub">{L('المقبوضات ÷ المصروف نقداً', 'receipts ÷ cash paid')}</div></div>
             </div>
-            <div className="muted" style={{ fontSize: 12 }}>{B(FINANCE_STATUS)}. <Link to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
+            <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
           </AsyncBlock>
         ) : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b><div style={{ fontSize: 12.5 }}>{L('الميزانية والإنفاق على مستوى وطني لكل المصادر فقط؛ أزل مرشحات الأمانة والبلدية والمصدر والحالة لعرضها.', 'Budget and expenditure exist at national level for all sources only; clear the Amanah, municipality, source and status filters to see them.')}</div></div>}
       </div>
 
-      <div className="muted" style={{ fontSize: 12.5 }}>{L('وحدات تشغيلية:', 'Operational modules:')} <Link to="/invoices">{L('الفواتير', 'Invoices')}</Link> · <Link to="/collection">{L('قائمة التحصيل', 'Collection')}</Link> · <Link to="/contracts">{L('العقود والتنفيذ', 'Contracts & enforcement')}</Link> · <Link to="/sanad-orders">{L('أوامر سند', 'Sanad orders')}</Link> · <Link to="/investment-invoices">{L('فواتير الاستثمار', 'Investment invoices')}</Link> · <Link to="/noncollection">{L('الاستبعادات', 'Exclusions review')}</Link> · <Link to="/risk">{L('جودة البيانات', 'Data quality')}</Link></div>
+
     </div>
   );
 }

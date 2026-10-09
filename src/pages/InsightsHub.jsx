@@ -12,8 +12,9 @@ import FixedReports from '../components/insights/FixedReports';
 import SmartReports from './SmartReports';
 import { Skeleton } from '../components/strategic/AsyncState';
 import { LEGACY_SECTION_TO_REPORT, FIXED_REPORTS } from '../data/fixedReports';
+import { fmtRangeText } from '../data/clock';
 
-const VIEWS = [['dashboard', 'لوحة المعلومات', 'Dashboard', 'رصد الأداء الآن'], ['reports', 'التقارير الثابتة', 'Fixed reports', 'صيغ قياسية تُفتح مباشرة'], ['smart', 'التقارير الذكية', 'Smart reports', 'تحليل مخصص بالطلب']];
+const VIEWS = [['dashboard', 'لوحة المعلومات', 'Dashboard'], ['reports', 'التقارير الثابتة', 'Fixed reports'], ['smart', 'التقارير الذكية', 'Smart reports']];
 
 export default function InsightsHub() {
   const rev = useRevenue(); const { L } = useAr();
@@ -25,17 +26,18 @@ export default function InsightsHub() {
   if (report && !FIXED_REPORTS.some((r) => r.key === report)) report = null;
   const go = (v, extra = {}) => { const n = new URLSearchParams(); n.set('view', v); Object.entries(extra).forEach(([k, x]) => x && n.set(k, x)); setSp(n); };
   const initialQuery = sp.get('q');
+  const sEff = rev.scopeEff; const scopeSummary = [sEff.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : L('أمانات محددة', 'Selected Amanahs'), sEff.source === 'all' ? L('كل المصادر', 'All sources') : L('مصدر محدد', 'One source')].join(' · ');
 
   return (
     <div className="st-page">
       <header className="st-head">
         <div>
           <h1 className="page-title" style={{ margin: 0 }}>{L('لوحة المعلومات والتقارير', 'Dashboards and reports')}</h1>
-          <div className="muted" style={{ fontSize: 13 }}>{L('كيف الأداء الآن، وأين الانحراف، وأي تقرير أرفع؟ — أرقام واحدة في كل الواجهات الثلاث.', 'How are we performing, where is the deviation, which report do I send? — the same figures in all three views.')}</div>
+          <div className="muted" style={{ fontSize: 13 }}>{view === 'smart' ? L('اكتب ما تريد من تقرير: الفترة أو الأمانة أو المصدر أو المقارنة.', 'Write what you need: period, Amanah, source or comparison.') : rev.ready ? L(`فواتير صدرت ${fmtRangeText(rev.scopeEff.from, rev.scopeEff.to, 'ar')} · ${scopeSummary}`, `Invoices issued ${fmtRangeText(rev.scopeEff.from, rev.scopeEff.to, 'en')} · ${scopeSummary}`) : ''}</div>
         </div>
       </header>
       <div className="sr-tabs" role="tablist" aria-label={L('واجهات لوحة المعلومات والتقارير', 'Dashboard and report views')}>
-        {VIEWS.map(([k, a, e, hint]) => <button key={k} id={`tab-${k}`} type="button" role="tab" aria-selected={view === k} aria-controls={`panel-${k}`} className={`sr-tab ${view === k ? 'is-active' : ''}`} onClick={() => go(k)}><b>{L(a, e)}</b><small>{hint}</small></button>)}
+        {VIEWS.map(([k, a, e]) => <button key={k} id={`tab-${k}`} type="button" role="tab" aria-selected={view === k} aria-controls={`panel-${k}`} className={`sr-tab ${view === k ? 'is-active' : ''}`} onClick={() => go(k)}><b>{L(a, e)}</b></button>)}
       </div>
       {view !== 'smart' && (rev.ready ? <FilterChips /> : <Skeleton height={44} />)}
       {view !== 'smart' && <DataStatus />}

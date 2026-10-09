@@ -61,8 +61,10 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
             {earlierDecisions(register, p).length > 0 && <div className="rv-callout" role="note">{L('قرار سابق على مقترح مماثل بنطاق/فترة أخرى: ', 'Earlier decision on the same finding under another period/scope: ')}{earlierDecisions(register, p).map((d) => `${d.kind === 'approved' ? L('اعتُمد', 'approved') : L('رُفض', 'rejected')} ${riyadhDateOf(d.at)}${d.scope ? ` (${d.scope})` : ''}`).join('؛ ')}</div>}
             <div>{tx(p.issue, ar)}</div>
             <div><b>{L('الإجراء المقترح', 'Recommended action')}:</b> {tx(p.action, ar)}</div>
+            <details className="rv-more"><summary>{L('الأدلة والتفاصيل', 'Evidence and details')}</summary>
             <Evidence ev={p.evidence} ar={ar} lang={lang} />
             <div className="muted" style={{ fontSize: 12 }}>{L('الأثر المتوقع', 'Expected impact')}: <b dir="ltr">{impactText(p.expectedImpact, ar, lang)}</b> · {tx(p.expectedImpact?.note, ar)} · {L('جهة مقترحة للمراجع', 'Suggested unit for the reviewer')}: {tx(p.suggestedUnit, ar)} · {tx(p.timeframe, ar)}</div>
+            </details>
             {p.drill && <div>{p.drill.to.startsWith('#') ? null : <Link className="btn btn-sm btn-ghost" to={p.drill.to}>{tx(p.drill.label, ar)} {ar ? '←' : '→'}</Link>}</div>}
             {open === p.id ? (
               <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))' }}>

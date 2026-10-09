@@ -6,6 +6,7 @@
 //
 // No view chooses its own measurement date: they all call these functions.
 import { DATA_CUTOFF } from './revenueLedger';
+import { fmtDateText } from './clock';
 
 export const BASIS = { PERIOD_END: 'periodEnd', TO_DATE: 'cutoff' };
 
@@ -25,7 +26,7 @@ export const hasToDateVariant = (scope, today = DATA_CUTOFF) => scope.to < today
 export const measure = (data, scope, cfg, basis = BASIS.PERIOD_END) => data.snapshot(scope, { cfg: cfgFor(cfg, basis) });
 
 export function basisLabel(scope, basis, today, lang = 'ar') {
-  const d = asOfDate(scope, basis, today); const ar = lang === 'ar';
+  const d = fmtDateText(asOfDate(scope, basis, today), lang); const ar = lang === 'ar';
   if (basis === BASIS.TO_DATE) return ar ? `المحصّل حتى اليوم ${d}` : `Collected up to today ${d}`;
   return scope.to < today ? (ar ? `المحصّل حتى نهاية الفترة ${d}` : `Collected up to the period end ${d}`) : (ar ? `المحصّل حتى ${d} (نهاية الفترة المفتوحة = اليوم)` : `Collected up to ${d} (the open period ends today)`);
 }

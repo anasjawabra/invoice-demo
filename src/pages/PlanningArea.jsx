@@ -33,6 +33,7 @@ import { loadComparison } from '../data/comparison';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import { DEFAULT_PLAN_SCOPE, planScopeOf, scopeLabelOf, cfgHash } from '../data/planStore';
 import LocalDataPanel from '../components/LocalDataPanel';
+import { fmtRangeText } from '../data/clock';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
@@ -163,13 +164,7 @@ export default function PlanningArea() {
       <header className="st-head">
         <div>
           <h1 className="page-title" style={{ margin: 0 }}>{L('التخطيط المالي والاستراتيجي', 'Financial and strategic planning')}</h1>
-          <div className="muted" style={{ fontSize: 13 }}>{L('ما أهدافنا؟ هل نحقق المستهدف؟ ما التوقع والفجوة؟ ماذا يتغير في السيناريوهات؟ ومن يتولى كل مبادرة؟', 'What are our objectives? Are we meeting the target? What is the outlook and the gap? What changes in scenarios? Who owns each initiative?')}</div>
-          <div className="st-fresh" style={{ marginTop: 6 }}>
-            <span className="st-tag st-tag--actual">{L('بيانات حتى', 'Data to')} <bdi>{snapshot.cutoff}</bdi> ({L('الرياض', 'Riyadh')})</span>
-            <span className="st-tag st-tag--warn">{L('بيانات تجريبية اصطناعية', 'Synthetic demo data')}{rev.meta?.size === 'compact' ? ` — ${L('عينة مضغوطة', 'compact sample')} ${fmtInt(rev.meta.counts?.invoicesTotal)}` : ''}</span>
-            {financeOk && <span className="st-tag st-tag--warn">{L('الميزانية والإنفاق: اصطناعية', 'Budget and expenditure: synthetic')}</span>}
-            {PS.loading && <span className="st-tag" role="status">{L('جارٍ التحديث…', 'Updating…')}</span>}
-          </div>
+          <div className="muted" style={{ fontSize: 13 }}>{L(`${plan.name} · الإصدار ${plan.version || 'غير محفوظ'} · ${fmtRangeText(plan.period.from, plan.period.to, 'ar')} · ${scopeLabel}`, `${plan.name} · version ${plan.version || 'unsaved'} · ${fmtRangeText(plan.period.from, plan.period.to, 'en')} · ${scopeLabel}`)}{PS.loading && <span className="st-tag" role="status" style={{ marginInlineStart: 8 }}>{L('جارٍ التحديث…', 'Updating…')}</span>}</div>
         </div>
         <div className="st-head__actions">
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setAssistOpen(true)}>{L('مساعد التخطيط', 'Planning assistant')}</button>
@@ -178,7 +173,7 @@ export default function PlanningArea() {
       </header>
 
       <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} today={today} />
-      <div className="rv-callout" role="note">{L('كل الأرقام في هذه الصفحة تُحسب من فترة الخطة ونطاقها (أعلاه)، ولا تتأثر بمرشحات لوحة المعلومات. التحصيل حتى نهاية الفترة (أو حتى ' + today + ' إن كانت الفترة مفتوحة).', 'Every figure on this page is computed from the plan period and scope (above) and is not affected by the dashboard filters. Collections count up to the end of the period (or up to ' + today + ' while it is open).')}</div>
+      <p className="rv-line">{L('الأرقام أدناه لفترة الخطة ونطاقها، ولا تتأثر بمرشحات لوحة المعلومات.', 'The figures below follow the plan period and scope, not the dashboard filters.')}</p>
       {fresh === null || PS.loading ? <div className="rv-callout" role="status">{L('جارٍ احتساب أرقام الخطة…', 'Computing the plan figures…')}</div> : null}
       <nav className="st-nav" aria-label={L('أقسام التخطيط', 'Planning sections')}>{NAV.map(([id, a, e]) => <a key={id} href={`#${id}`}>{L(a, e)}</a>)}</nav>
       {toast && <div className="rv-callout" role="status">{toast}</div>}
@@ -191,14 +186,14 @@ export default function PlanningArea() {
       </div>
 
       <section id="objectives" className="st-section" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
-        <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('لا مستهدفات معتمدة في البيانات؛ ما يُعرض مُدخل ينتظر اعتماداً', 'no approved targets exist in the data; what is shown awaits approval')}</small></h2>
+        <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('المستهدفات الحالية تجريبية وغير معتمدة.', 'The current targets are demo inputs and are not approved.')}</small></h2>
         <ObjectivesPanel store={viewStore} setStore={updateStore} actuals={actuals} systemRows={systemRows} canEdit={canEdit} user={user} today={today} />
         <div className="st-grid">
-          <div className="card st-card"><b>{L('مدخلات المستهدف (غير معتمدة)', 'Target inputs (unapproved)')}</b>
+          <div className="card st-card"><b>{L('مدخلات المستهدف', 'Target inputs')}</b>
             <div className="st-field"><label htmlFor="t-rate">{L('مستهدف معدل التحصيل (%)', 'Collection-rate target (%)')}</label><input id="t-rate" type="number" className="input" min="1" max="100" step="1" disabled={!canEdit} value={Math.round(targets.collectionRate.value * 100)} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= 100) editTarget('collectionRate', v / 100); }} /></div>
             <div className="st-field"><label htmlFor="t-amt">{L('المستهدف السنوي للمقبوضات (مليار SAR)', 'Annual receipts target (SAR billion)')}</label><input id="t-amt" type="number" className="input" min="0.1" step="0.5" disabled={!canEdit} value={targets.collectionAmountAnnual.value / 1e9} onChange={(e) => { const v = Number(e.target.value); if (v > 0) editTarget('collectionAmountAnnual', v * 1e9); }} /></div>
             <div className="muted" style={{ fontSize: 12 }}>{B(targets.collectionRate.provenance)} {!canEdit && L('(للعرض فقط — تتطلب صلاحية المراجعة)', '(read-only — needs review permission)')}</div></div>
-          <div className="card st-card"><b>{L('الوتيرة المطلوبة', 'Required pace')} <span className="st-tag st-tag--target">{L('محسوبة من مستهدف غير معتمد', 'from an unapproved target')}</span></b>
+          <div className="card st-card"><b>{L('الوتيرة المطلوبة', 'Required pace')} </b>
             <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={90}>
               {pace.available ? <div className="rv-tile__value" dir="ltr">{pace.perMonth != null ? fmtMoney(pace.perMonth, { lang }) : L('غير متاح', 'n/a')}<span className="muted" style={{ fontSize: 12 }}> / {L('شهر', 'month')}</span></div> : <div className="rv-empty" style={{ padding: 12 }}><b>{L('البيانات غير متاحة', 'Data not available')}</b><div style={{ fontSize: 12.5 }}>{L('المستهدف السنوي وطني؛ أزل مرشحات الأمانة والمصدر.', 'The annual target is national; clear the Amanah and source filters.')}</div></div>}
               {pace.available && <div className="muted" style={{ fontSize: 12.5 }}>{L(`المتبقي ${fmtMoney(pace.remaining, { lang })} حتى ${planDate} (${pace.monthsLeft.toFixed(1)} شهر)${pace.recentAvgMonthly != null ? `؛ متوسط آخر 3 أشهر مكتملة ${fmtMoney(pace.recentAvgMonthly, { lang })}` : ''}.`, `Remaining ${fmtMoney(pace.remaining, { lang })} to ${planDate} (${pace.monthsLeft.toFixed(1)} months)${pace.recentAvgMonthly != null ? `; average of the last 3 complete months ${fmtMoney(pace.recentAvgMonthly, { lang })}` : ''}.`)}</div>}

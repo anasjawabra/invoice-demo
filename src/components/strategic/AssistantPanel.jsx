@@ -28,7 +28,7 @@ export default function AssistantPanel({ open, onClose, ctxFactory, onAction, pr
   return (
     <aside className="st-assist" role="dialog" aria-label={L('مساعد لوحة القيادة', 'Dashboard assistant')}>
       <div className="st-assist__head">
-        <div><b>{title || L('اسأل لوحة القيادة', 'Ask the dashboard')}</b><div className="muted" style={{ fontSize: 11.5 }}>{L('محاكاة مساعد بقواعد حسابية — ليس نموذجاً لغوياً · بيانات تجريبية', 'Rule-based assistant simulation — not a language model · demo data')}</div></div>
+        <div><b>{title || L('اسأل لوحة القيادة', 'Ask the dashboard')}</b><div className="muted" style={{ fontSize: 11.5 }}>{L('يعمل بقواعد محددة', 'Works with defined rules')}</div></div>
         <div style={{ display: 'flex', gap: 4 }}><button type="button" className="btn btn-sm btn-ghost" onClick={() => { setMsgs([]); last.current = null; }} disabled={!msgs.length}>{L('جديد', 'New')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={onClose} aria-label={L('إغلاق', 'Close')}>×</button></div>
       </div>
       <div className="st-assist__body" aria-live="polite">
@@ -51,7 +51,7 @@ export default function AssistantPanel({ open, onClose, ctxFactory, onAction, pr
                 {m.a.drill && (m.a.drill.to.startsWith('#') ? <a className="btn btn-sm btn-ghost" href={m.a.drill.to} onClick={onClose}>{m.a.drill.label}</a> : <Link className="btn btn-sm btn-ghost" to={m.a.drill.to}>{m.a.drill.label} {ar ? '←' : '→'}</Link>)}
                 {m.a.actions?.map((ac, k) => <button key={k} type="button" className="btn btn-sm" onClick={() => onAction(ac)}>{ac.label}</button>)}
               </div>
-              <div className="muted" style={{ fontSize: 11 }}>{L('إجابة محسوبة بقواعد (محاكاة) من البيانات التجريبية؛ لا تُنسب أسباب غير مسجلة.', 'Rule-based (simulated) answer computed from the demo data; unrecorded causes are not asserted.')}</div>
+
             </>}
           </div>
         ))}

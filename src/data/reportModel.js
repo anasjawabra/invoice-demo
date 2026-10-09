@@ -241,8 +241,8 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     tail.push({ key: 'forecast', title: L('التنبؤ وحدوده', 'Forecast and its limits'), purpose: '', blocks: [{ type: 'list', items: legacy.predictions.map((p) => `${p.prediction} (${legacy.labels.confidence}: ${p.confidence}; ${legacy.labels.timeframe}: ${p.timeframe})`) }] });
   }
   tail.push({ key: 'assumptions', title: L('البيانات والافتراضات', 'Data and assumptions'), purpose: '', blocks: [{ type: 'list', items: [
-    L('بيانات تجريبية اصطناعية مستوحاة من التقارير الشهرية وليست بيانات فعلية للوزارة؛ عدد الفواتير في الديمو لا يمثل الحجم التشغيلي.', 'Synthetic demo data inspired by the monthly reports — not the Ministry’s actual data; the invoice count of the demo does not represent operational volume.'),
-    L('كل مبلغ بوحدة واحدة مناسبة، وتُعرض كل جدول ورسم بوحدة واحدة؛ والمبلغ الدقيق بالريال في التلميحات والتصدير.', 'Every amount carries one appropriate unit and each table and chart one shared unit; exact SAR amounts are in tooltips and exports.'),
+    L('البيانات اصطناعية وليست بيانات الوزارة الفعلية، وعدد الفواتير لا يمثل الحجم التشغيلي.', 'The data is synthetic, not the Ministry’s actual data, and the invoice count does not represent operational volume.'),
+    L('لكل جدول ورسم وحدة مبلغ واحدة؛ والمبلغ الدقيق بالريال في التلميحات والتصدير.', 'Each table and chart uses one amount unit; exact SAR amounts are in tooltips and exports.'),
     ...legacy.assumptions.slice(0, 5)
   ] }] });
 
