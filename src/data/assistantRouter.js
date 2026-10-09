@@ -39,10 +39,10 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
     return { from, to: to > cutoff ? cutoff : to, label: `m${m}`, yearAssumed: !explicitYear };
   };
   const AL = '(?:ال|لل|ل|بال|ب)?'; // the article / preposition prefixes Arabic glues onto a noun
-  if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
+  if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|هالشهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
   if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير)`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
   if (/last 3 months|three months|اخر 3 اشهر|اخر ثلاثه اشهر/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
-  if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
+  if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|هالسنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي|${AL}(?:سنه|عام) كامل|${AL}(?:سنه|عام) حتي اليوم|منذ بدايه (?:ال)?(?:سنه|عام)`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);
   const q = (n) => {
@@ -55,7 +55,23 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   if (/q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/.test(s)) return q(3);
   if (/q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/.test(s)) return q(4);
   if (/all data|all time|since the start|كل البيانات/.test(s)) return { from: DATA_START, to: cutoff, label: 'all' };
+  const numMonth = s.match(/(?:^|\s)(?:شهر|month)\s*(\d{1,2})(?!\d)/); if (numMonth && Number(numMonth[1]) >= 1 && Number(numMonth[1]) <= 12) return monthRange(Number(numMonth[1]));
+  if (explicitYear) { // a bare year: the whole year up to the cut-off; before the data starts it is reported to the caller, never turned into a period
+    const y = Number(explicitYear); const from = `${y}-01-01`; const to = `${y}-12-31`;
+    if (to < DATA_START) return reportFuture ? { from, to, label: 'year', beforeData: true } : null;
+    if (from > cutoff) return reportFuture ? { from, to, label: 'year', notStarted: true } : null;
+    return { from: from < DATA_START ? DATA_START : from, to: to > cutoff ? cutoff : to, label: 'year' };
+  }
+  if (/(?:^|\s)(?:تقرير|ايرادات|الايرادات)?\s*اليوم(?:\s|$)|\btoday\b/.test(s) && !/(حتي|الي|until|up to|to)\s*(اليوم|today)/.test(s)) return { from: cutoff, to: cutoff, label: 'today' };
   return null;
+}
+// how many different months / quarters the text names (two of them in one request cannot be applied as ONE period)
+export function periodMentions(text) {
+  const s = normAr(text); const found = new Set();
+  for (const [m, re] of MONTH_RES) if (re.test(s)) found.add(`m${m}`);
+  for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) found.add(`m${m}`);
+  [/q1|first quarter|(?:ال|لل|ل)?ربع (?:ال)?اول/, /q2|second quarter|(?:ال|لل|ل)?ربع (?:ال)?ثاني/, /q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/, /q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/].forEach((re, i) => { if (re.test(s)) found.add(`q${i + 1}`); });
+  return found.size;
 }
 
 export function parseAmanah(text) {
@@ -69,18 +85,23 @@ export function parseAmanah(text) {
   return [...new Set(hits)];
 }
 
-export function parseSource(text) {
+const SOURCE_PATTERNS = [
+  ['investment', /invest|furas|lease|استثمار|فرص/],
+  ['fines', /\bfines?\b|penalt|violation|غرام|مخالف|جزاء/],
+  ['white_lands', /white.?land|الأراضي البيضاء|اراضي بيضاء/],
+  ['tobacco', /tobacco|التبغ/],
+  ['accommodation', /accommodation|إيواء|الايواء|الإيواء/],
+  ['housing_sales', /housing|إسكان|الاسكان|مبيعات سكن/],
+  ['municipal_fees', null], // matched on the normalised text below (not «بلديات / بلدية» = municipalities)
+  ['licenses', /licen[cs]e|ترخيص|تراخيص|رخص/]
+];
+const MUNI_FEES = /municipal fees?|baladi|رسوم (?:ال)?بلديه|(?:^|\s)بلدي(?:\s|$)/;
+// every revenue source named in the text (in table order); a request that names two cannot be applied as one filter
+export function sourcesMentioned(text) {
   const s = text.toLowerCase();
-  if (/invest|furas|lease|استثمار|فرص/.test(s)) return 'investment';
-  if (/\bfines?\b|penalt|violation|غرام|مخالف|جزاء/.test(s)) return 'fines';
-  if (/white.?land|الأراضي البيضاء|اراضي بيضاء/.test(s)) return 'white_lands';
-  if (/tobacco|التبغ/.test(s)) return 'tobacco';
-  if (/accommodation|إيواء|الايواء|الإيواء/.test(s)) return 'accommodation';
-  if (/housing|إسكان|الاسكان|مبيعات سكن/.test(s)) return 'housing_sales';
-  if (/municipal fees?|baladi|رسوم (?:ال)?بلديه|رسوم (?:ال)?بلديه|(?:^|\s)بلدي(?:\s|$)/.test(normAr(text))) return 'municipal_fees'; // not «بلديات / بلدية» (municipalities)
-  if (/licen[cs]e|ترخيص|تراخيص|رخص/.test(s)) return 'licenses';
-  return null;
+  return SOURCE_PATTERNS.filter(([k, re]) => (k === 'municipal_fees' ? MUNI_FEES.test(normAr(text)) : re.test(s))).map(([k]) => k);
 }
+export function parseSource(text) { return sourcesMentioned(text)[0] || null; }
 
 export function unavailableSourceMentioned(text) {
   const s = text.toLowerCase();
