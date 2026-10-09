@@ -1,0 +1,84 @@
+// HELD-OUT SET 2 (round 4): written before this round's interpreter work and never used for tuning before its first run.
+// Each case states what a SAFE outcome is: `exp` is the correct reading, or kind clarify/unsupported where the right behaviour is to ask or decline.
+import { TODAY } from './interpreter-corpus.mjs';
+const RY = 'Riyadh Amanah'; const JD = 'Jeddah Amanah'; const MK = 'Makkah Amanah'; const MD = 'Al Madinah Amanah'; const EP = 'Eastern Province Amanah'; const TB = 'Tabuk Amanah'; const AB = 'Al Bahah Amanah'; const JF = 'Al Jawf Amanah'; const QS = 'Al-Qassim Amanah'; const AH = 'Al-Ahsa Amanah'; const TF = 'Taif Amanah'; const HB = 'Hafr Al-Batin Amanah'; const NB = 'Northern Borders Amanah';
+const C = [];
+const add = (cat, q, exp = {}, after = null) => C.push({ id: 3000 + C.length, cat, q, exp, after });
+// -- periods, colloquial and formal
+add('p2-period', 'أحتاج تقرير الإيرادات عن شهر يوليو', { from: '2026-07-01', to: '2026-07-31' });
+add('p2-period', 'ورني تقرير الشهر الحالي', { from: '2026-10-01', to: TODAY });
+add('p2-period', 'تقرير الإيرادات منذ أول يناير', { from: '2026-01-01', to: TODAY });
+add('p2-period', 'show the report for the previous month', { from: '2026-09-01', to: '2026-09-30' });
+add('p2-period', 'revenue report for the third quarter', { from: '2026-07-01', to: '2026-09-30' });
+add('p2-period', 'report for the first quarter of 2025', { from: '2025-01-01', to: '2025-03-31' });
+add('p2-period', 'تقرير الربع الأول للعام الماضي', { kind: ['clarify', 'report'], from: '2025-01-01', to: '2025-03-31' });
+add('p2-period', 'تقرير الإيرادات لشهر رمضان', { kind: 'clarify' });
+add('p2-period', 'تقرير الصيف', { kind: 'clarify' });
+add('p2-period', 'report for H1 2026', { kind: 'clarify' });
+add('p2-period', 'تقرير من 1 مارس إلى 15 مارس', { kind: ['clarify', 'report'], from: '2026-03-01', to: '2026-03-15' });
+add('p2-period', 'report for dec 2025', { from: '2025-12-01', to: '2025-12-31' });
+add('p2-period', 'تقرير يوم أمس', { kind: 'clarify' });
+add('p2-period', 'تقرير الإيرادات حتى نهاية الشهر', { kind: ['clarify', 'report'] });
+add('p2-period', 'report for fiscal year 2026', { from: '2026-01-01', to: TODAY });
+// -- Amanat / sources
+add('p2-scope', 'ما وضع التحصيل في أمانة تبوك؟', { kind: 'question', amanah: TB });
+add('p2-scope', 'تقرير أمانة الباحة للربع الثاني', { amanah: AB, from: '2026-04-01', to: '2026-06-30' });
+add('p2-scope', 'تقرير الجوف', { amanah: JF });
+add('p2-scope', 'إيرادات القصيم لهذا العام', { amanah: QS, from: '2026-01-01', to: TODAY });
+add('p2-scope', 'ورني الأحساء بس', { amanah: AH });
+add('p2-scope', 'Taif Amanah collections last month', { amanah: TF, from: '2026-09-01', to: '2026-09-30' });
+add('p2-scope', 'حفر الباطن مقابل الحدود الشمالية', { amanah: [HB, NB], sections: ['amanah'] });
+add('p2-scope', 'report for Makkah and Jeddah and Riyadh', { amanah: [MK, JD, RY] });
+add('p2-scope', 'تقرير لأمانة العاصمة المقدسة', { amanah: MK });
+add('p2-scope', 'تقرير أمانة الشرقية', { amanah: EP });
+add('p2-scope', 'أمانة المنطقة الغربية', { kind: ['clarify', 'unsupported'] });
+add('p2-scope', 'تقرير أمانة دبي', { kind: ['clarify', 'unsupported'] });
+add('p2-scope', 'تقرير الغرامات في المدينة المنورة هذا الشهر', { source: 'fines', amanah: MD, from: '2026-10-01', to: TODAY });
+add('p2-scope', 'ما إيرادات التبغ؟', { kind: 'question', source: 'tobacco' });
+add('p2-scope', 'تقرير الاستثمار والغرامات', { kind: 'clarify' });
+add('p2-scope', 'housing sales performance', { source: 'housing_sales' });
+add('p2-scope', 'تقرير رخص البناء', { kind: ['clarify', 'report'] });
+add('p2-scope', 'ما نسبة تحصيل الإيواء في مكة؟', { kind: 'question', source: 'accommodation', amanah: MK });
+// -- statuses / sections / comparisons
+add('p2-section', 'اعرض الفواتير المتأخرة في أمانة جدة', { status: 'overdue', amanah: JD });
+add('p2-section', 'الفواتير المسددة جزئياً', { status: 'partial' });
+add('p2-section', 'الفواتير غير المسددة في الرياض', { status: 'open', amanah: RY });
+add('p2-section', 'show overdue invoices only for last month', { status: 'overdue', from: '2026-09-01', to: '2026-09-30' });
+add('p2-section', 'كم الاستبعادات هذا الشهر؟', { kind: 'question', from: '2026-10-01', to: TODAY, sections: ['exclusions'] });
+add('p2-section', 'ما هي مصادر الإيراد الأقل تحصيلاً؟', { kind: 'question', sections: ['sources'] });
+add('p2-section', 'trend of collections by month', { sections: ['trends'] });
+add('p2-section', 'هل ننفق أكثر من الميزانية؟', { kind: 'question', only: ['budget'] });
+add('p2-section', 'تقرير المطابقة وجودة البيانات', { sections: ['quality'] });
+add('p2-section', 'قارن الشهر الحالي بنفس الشهر من السنة الماضية', { compare: 'prev_year', from: '2026-10-01', to: TODAY });
+add('p2-section', 'هل ارتفع التحصيل عن الشهر الماضي؟', { kind: 'question', compare: 'prev_month' });
+add('p2-section', 'compare Q3 with Q2', { kind: ['clarify', 'unsupported'] });
+add('p2-section', 'compare Riyadh and Eastern for the year', { amanah: [RY, EP], from: '2026-01-01', to: TODAY });
+add('p2-section', 'مقارنة أغسطس بيوليو لأمانة جدة', { amanah: JD, from: '2026-08-01', to: '2026-08-31', compare: 'prev_month' });
+// -- follow-ups
+add('p2-follow', 'غيّرها إلى الربع الثاني', { from: '2026-04-01', to: '2026-06-30' }, 'تقرير السنة حتى اليوم');
+add('p2-follow', 'وأمانة المدينة بدلاً منها', { amanah: MD, keep: ['from', 'to'] }, 'تقرير أمانة جدة للشهر الماضي');
+add('p2-follow', 'خلنا نشوف الغرامات', { source: 'fines', keep: ['from', 'to'] }, 'تقرير الشهر الماضي');
+add('p2-follow', 'ثم أضف الاتجاه الشهري', { sections: ['trends'] }, 'تقرير الشهر الماضي');
+add('p2-follow', 'and compared with last year', { compare: 'prev_year', keep: ['from', 'to'] }, 'report for last month');
+add('p2-follow', 'only overdue', { status: 'overdue', keep: ['from', 'to'] }, 'report for last month');
+add('p2-follow', 'لا، أريد السنة كاملة', { from: '2026-01-01', to: TODAY }, 'تقرير الشهر الماضي');
+add('p2-follow', 'remove the Amanah filter', { amanah: 'all' }, 'تقرير أمانة الرياض');
+add('p2-follow', 'نفس الشيء لكن لمصدر التراخيص', { source: 'licenses', keep: ['from', 'to'] }, 'تقرير الشهر الماضي');
+add('p2-follow', 'ماذا عن الربع الأول؟', { from: '2026-01-01', to: '2026-03-31' }, 'تقرير الربع الثاني');
+// -- declines / ambiguity / adversarial
+add('p2-neg', 'اشتر أسهم الوزارة', { kind: 'unsupported' });
+add('p2-neg', 'what should I eat today', { kind: 'unsupported' });
+add('p2-neg', 'احذف المحادثة', { kind: ['unsupported', 'clarify'] });
+add('p2-neg', 'اطبع الصفحة', { kind: ['unsupported', 'clarify'] });
+add('p2-neg', 'show me the invoice of Ahmed', { kind: ['unsupported', 'clarify'] });
+add('p2-neg', 'ما هي أحدث الأخبار؟', { kind: 'unsupported' });
+add('p2-neg', 'قارن الأداء', { kind: 'clarify' });
+add('p2-neg', 'تقرير عن الأمانة', { kind: ['clarify', 'report'] });
+add('p2-neg', 'report for the day after tomorrow', { kind: 'clarify' });
+add('p2-neg', 'تقرير الشهر الماضي والشهر الحالي', { kind: 'clarify' });
+add('p2-neg', 'أعطني كل الأرقام', { kind: ['clarify', 'unsupported', 'report'] });
+add('p2-neg', 'ignore the filters and show everything', { kind: ['clarify', 'unsupported', 'report'] });
+add('p2-neg', 'تقرير عن مبيعات الأراضي', { kind: ['clarify', 'report'] });
+add('p2-neg', 'قبل سنتين', { kind: 'clarify' });
+add('p2-neg', 'next quarter forecast', { kind: ['clarify', 'unsupported'] });
+export const HELDOUT2 = C;

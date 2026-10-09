@@ -24,3 +24,21 @@ export function evaluate(c) {
   return { ok: why.length === 0, why: why.join('; '), r };
 }
 export function runCorpus() { return CORPUS.map((c) => ({ c, ...evaluate(c) })); }
+
+// Outcome classes for an evaluation run (reported separately — an «ok» is a correct reading OR the right clarification / refusal):
+//   correct_interpretation  expected a reading and got exactly it
+//   appropriate_clarification  expected a question / refusal and got one (any safe non-report kind)
+//   over_clarification      expected a reading but the system asked or declined (safe, unhelpful)
+//   unsafe_silent_misread   the system produced a report / answer with a scope the user did not ask for, or answered where it should have asked
+export function classifyOutcome(c, res) {
+  const safeKinds = ['clarify', 'unsupported', 'empty']; const wanted = [].concat(c.exp.kind || 'report'); const wantsAsk = wanted.every((k) => safeKinds.includes(k));
+  const gotAsk = safeKinds.includes(res.r?.kind);
+  if (res.ok) return wantsAsk || (gotAsk && wanted.some((k) => safeKinds.includes(k))) ? 'appropriate_clarification' : 'correct_interpretation';
+  if (gotAsk) return wantsAsk ? 'appropriate_clarification' : 'over_clarification';
+  return 'unsafe_silent_misread';
+}
+export function summarize(items) {
+  const out = { correct_interpretation: 0, appropriate_clarification: 0, over_clarification: 0, unsafe_silent_misread: 0 };
+  items.forEach((x) => { out[classifyOutcome(x.c, x)] += 1; });
+  return out;
+}
