@@ -31,7 +31,7 @@ export default function InvestmentInvoices() {
     <div className="grid" style={{ gap: 14 }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')}</div>
+          <h1 className="page-title">{pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')}</h1>
           <div className="page-sub">{pick(lang, 'Investment invoices with no linked Furas contract, each with an AI risk assessment', 'الفواتير الاستثمارية غير المرتبطة بعقد فرص، مع تقييم مخاطر بالذكاء الاصطناعي لكل فاتورة', '未关联 Furas 合同的投资类发票，每张均附带 AI 风险评估')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/insights')}>

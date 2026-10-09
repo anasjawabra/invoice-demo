@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { ORGS } from '../data/mock';
 import { ANCHOR_ENFORCEMENT_SEED, DATA_CUTOFF, DATA_START } from '../data/revenueLedger';
 import { checkRange } from '../data/dateRange';
+import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
 import { addCandidateLinks, reviewLink as reviewLinkFn } from '../data/enforcementMatching';
@@ -14,13 +15,7 @@ import { api, bumpEpoch } from '../api/client';
 const RevenueCtx = createContext(null);
 
 // Presets follow the REAL date (Asia/Riyadh): year to date, month to date, the last complete month, the last three months, everything loaded.
-export const SCOPE_PRESETS = {
-  ytd: { from: startOfYear(DATA_CUTOFF), to: DATA_CUTOFF },
-  month: { from: startOfMonth(DATA_CUTOFF), to: DATA_CUTOFF },
-  lastMonth: { from: startOfMonth(prevMonthEnd(DATA_CUTOFF)), to: prevMonthEnd(DATA_CUTOFF) },
-  last3: lastCompleteMonths(DATA_CUTOFF, 3), // the three complete calendar months before the current month (EQ7)
-  all: { from: DATA_START, to: DATA_CUTOFF }
-};
+export const SCOPE_PRESETS = Object.fromEntries(PRESETS.map((p) => [p.key, p.range(DATA_CUTOFF)])); // from the shared registry (src/data/periodPresets.js)
 const legacyPreset = (p) => (p === 'fytd' ? 'ytd' : p);
 
 const PACE_MS = 420;
@@ -130,6 +125,7 @@ export function RevenueProvider({ children }) {
   const setPreset = useCallback((preset) => {
     if (SCOPE_PRESETS[preset]) setScope((s) => ({ ...s, preset, ...SCOPE_PRESETS[preset] }));
   }, [setScope]);
+  const resetScope = useCallback(() => setScope({ preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }), [setScope]);
   // a typed range is applied only when valid (D-01/D-02); the result tells the caller what happened so the control can explain it
   const setCustomRange = useCallback((from, to) => {
     const r = checkRange({ from, to }, { today: DATA_CUTOFF });
@@ -300,7 +296,7 @@ export function RevenueProvider({ children }) {
 
   const value = {
     user, org, canReview, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
-    scope, scopeEff, currentScopeKey, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus,
+    scope, scopeEff, currentScopeKey, resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus,
     cfg: cfgN, setCrStatuses, setRuleEnabled, setGraceDays, setCollectionsAsOf, resetConfig,
     targets, setTargets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,

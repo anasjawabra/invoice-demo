@@ -56,7 +56,7 @@ export default function Risk() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title">{L('Data quality & risk', 'جودة البيانات والمخاطر')}</div>
+          <h1 className="page-title">{L('Data quality & risk', 'جودة البيانات والمخاطر')}</h1>
           <div className="page-sub">{L('Invoices whose data needs review before figures or actions rely on them — amount conflicts, missing fields, unlinked contracts, pending links and rule-based risk flags. Not a collection list: collected invoices may appear here but are labelled.', 'فواتير تحتاج بياناتها إلى مراجعة قبل الاعتماد عليها في الأرقام أو الإجراءات — تعارض المبالغ والحقول الناقصة والعقود غير المرتبطة والروابط المعلقة وتنبيهات المخاطر القائمة على قواعد. ليست قائمة تحصيل: قد تظهر فواتير محصّلة لكنها موسومة.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

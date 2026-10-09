@@ -560,7 +560,7 @@ html[dir='rtl'] .select {
 }
 
 .badge--teal {
-  color: var(--primary);
+  color: var(--ink-ok);
   background: rgba(27, 131, 84, 0.08);
   border-color: rgba(27, 131, 84, 0.18);
 }
@@ -572,7 +572,7 @@ html[dir='rtl'] .select {
 }
 
 .badge--red {
-  color: var(--danger);
+  color: var(--danger-text);
   background: rgba(196, 81, 76, 0.08);
   border-color: rgba(196, 81, 76, 0.18);
 }
@@ -1491,3 +1491,14 @@ html[dir='rtl'] .msg--assistant {
 /* Keyboard focus (WCAG 2.4.7 / 1.4.11): ONE visible ring for every focusable control. The repeated :focus-visible raises specificity above the many
    component rules that remove the outline and only tint the background; containers focused by script (tabindex="-1") are not ringed. */
 :focus-visible:focus-visible:focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Page title as a real heading, skip link, footer, and the target-size floor (WCAG 2.2 AA: 24 px; 44 px on touch) */
+h1.page-title, h2.page-title { margin: 0; }
+.skip-link { position: absolute; inset-inline-start: 8px; top: -48px; z-index: 1000; background: var(--surface); color: var(--heading); padding: 8px 14px; border-radius: 8px; border: 2px solid var(--focus-ring); font-weight: 800; }
+.skip-link:focus { top: 8px; }
+#main-content:focus { outline: none; }
+.app-footer { padding: 14px 18px 22px; font-size: 12px; color: var(--txt-mute); text-align: center; }
+.rv-link, .rv-table a:not(.btn), .tab, .sr-tab { min-height: 24px; }
+.rv-link { display: inline-flex; align-items: center; }
+@media (pointer: coarse) { .btn, .btn-sm, .select, .input, .tab, .sr-tab, .rv-link { min-height: 44px; } }
+input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; accent-color: var(--primary); } /* WCAG 2.2 AA target floor */

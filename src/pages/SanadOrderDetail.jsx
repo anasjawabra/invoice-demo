@@ -53,7 +53,7 @@ export default function SanadOrderDetail() {
   if (!c) {
     return (
       <div className="rv-page">
-        <div className="page-head"><div className="page-title">{L('Enforcement case not found', 'قضية الإنفاذ غير موجودة')}</div></div>
+        <div className="page-head"><h1 className="page-title">{L('Enforcement case not found', 'قضية الإنفاذ غير موجودة')}</h1></div>
         <Link className="btn btn-sm" to="/sanad-orders">{L('Back to the enforcement workspace', 'العودة إلى مساحة عمل الإنفاذ')}</Link>
       </div>
     );
@@ -88,7 +88,7 @@ export default function SanadOrderDetail() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title" dir="ltr">{c.enforceNum}</div>
+          <h1 className="page-title" dir="ltr">{c.enforceNum}</h1>
           <div className="page-sub">{c.system === 'sanad' ? 'Sanad' : c.system === 'white_lands' ? L('White-lands file', 'ملف الأراضي البيضاء') : 'Efaa'} · {c.amanahEn} · {L('case amount', 'مبلغ القضية')} {sar(c.amount)}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

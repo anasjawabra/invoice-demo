@@ -72,7 +72,7 @@ export default function Noncollection() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title">{L('Noncollection & exclusions', 'عدم التحصيل والاستبعادات')}</div>
+          <h1 className="page-title">{L('Noncollection & exclusions', 'عدم التحصيل والاستبعادات')}</h1>
           <div className="page-sub">{L('Separates why money is outstanding (state of each invoice) from what is excluded from the KPI denominator. Exclusion is not uncollectibility.', 'يفصل بين سبب بقاء المبلغ متبقياً (حالة كل فاتورة) وما يُستبعد من مقام المؤشر. الاستبعاد ليس عدم قابلية للتحصيل.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

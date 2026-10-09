@@ -127,7 +127,7 @@ export default function Invoices() {
     <div className="grid" style={{ gap: 14 }}>
       <div className="page-head">
         <div>
-          <div className="page-title">{t('invoices')}</div>
+          <h1 className="page-title">{t('invoices')}</h1>
           <div className="page-sub">{t('recent_sub')}</div>
         </div>
         <ProvenanceBadge kind="demo" />

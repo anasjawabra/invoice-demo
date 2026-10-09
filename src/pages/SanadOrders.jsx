@@ -28,7 +28,7 @@ export default function SanadOrders() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title">{L('Enforcement workspace — case-to-invoice linking', 'مساحة عمل الإنفاذ — ربط القضايا بالفواتير')}</div>
+          <h1 className="page-title">{L('Enforcement workspace — case-to-invoice linking', 'مساحة عمل الإنفاذ — ربط القضايا بالفواتير')}</h1>
           <div className="page-sub">{L('Structured identifiers first; document-extracted references when needed. One case can link to several invoices. Ambiguous matches stay unresolved until a person decides, and every decision keeps its history inside this solution — no source system is changed.', 'المعرّفات المهيكلة أولاً؛ ثم المراجع المستخرجة من المستندات عند الحاجة. يمكن لقضية واحدة أن ترتبط بعدة فواتير. تبقى المطابقات الملتبسة غير محسومة حتى يقرر شخص، ويحتفظ كل قرار بسجله داخل هذه المنصة — ولا يتغير أي نظام مصدر.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>

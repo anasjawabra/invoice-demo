@@ -95,7 +95,7 @@ export default function InvestmentInvoiceDetail() {
     return (
       <div className="grid" style={{ gap: 14 }}>
         <div className="page-head">
-          <div className="page-title">{detLoading ? pick(lang, 'Loading…', 'جارٍ التحميل…', '加载中…') : pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</div>
+          <h1 className="page-title">{detLoading ? pick(lang, 'Loading…', 'جارٍ التحميل…', '加载中…') : pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</h1>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
           {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
@@ -108,7 +108,7 @@ export default function InvestmentInvoiceDetail() {
     <div className="grid" style={{ gap: 14 }}>
       <div className="page-head">
         <div>
-          <div className="page-title" dir="ltr">{inv.id}</div>
+          <h1 className="page-title" dir="ltr">{inv.id}</h1>
           <div className="page-sub">{pick(lang, 'Investment contract-linkage detail', 'تفاصيل ربط العقد الاستثماري', '投资合同关联详情')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
@@ -138,7 +138,7 @@ export default function InvestmentInvoiceDetail() {
       </div>
 
       <div className="card card-pad">
-        <div className="page-title" style={{ fontSize: 16 }}>{pick(lang, 'AI Risk Analysis', 'تحليل المخاطر بالذكاء الاصطناعي', 'AI 风险分析')}</div>
+        <h2 className="page-title" style={{ fontSize: 16 }}>{pick(lang, 'AI Risk Analysis', 'تحليل المخاطر بالذكاء الاصطناعي', 'AI 风险分析')}</h2>
         <div className="page-sub">{pick(lang, 'Runs automatically for every unlinked investment invoice', 'يعمل تلقائيًا لكل فاتورة استثمارية غير مرتبطة', '对每张未关联的投资类发票自动运行')}</div>
         <div className="hr" />
 

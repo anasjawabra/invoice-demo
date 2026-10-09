@@ -11,6 +11,7 @@ import { parsePeriod, parseAmanah as parseAmanahStrict, parseSource, sourcesMent
 import { amanahOptionsOf } from './revenueLedger';
 import { startOfYear, startOfMonth, addDaysIso, isSingleMonth, daysBetweenIso } from './clock';
 import { checkRange, rangeMessage } from './dateRange';
+import { detectPreset } from './periodPresets';
 import { SECTION_ORDER, SECTION_META } from './reportModel';
 import { sourceAr, sourceEn } from './insightsEngine';
 
@@ -58,11 +59,7 @@ const PERIOD_OPTIONS = [{ label: { ar: 'السنة حتى اليوم', en: 'Year
 // wording that names a period but that parsePeriod cannot resolve («قبل شهرين»، «آخر 6 أشهر»، «الأسبوع الماضي»، "last 6 months")
 const UNAPPLIED_PERIOD = /قبل\s*(?:\d+|شهرين|اسبوعين|عامين|سنتين)|اخر\s*\d+\s*(?:شهر|اشهر|اسبوع|اسابيع|ايام|يوم|سنوات|سنه)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه|شهر)\s*(?:ال)?(?:قادم|مقبل)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه)\s*(?:ال)?(?:ماضي|سابق|حالي)|(?:last|previous|past|next)\s*\d*\s*(?:week|weeks|day|days|months?|year|years|quarter)|\byesterday\b|(?:^|\s)(?:امس|البارحه)(?:\s|$)/;
 const QUARTER_NAMES = { q1: { ar: 'الربع الأول', en: 'The first quarter' }, q2: { ar: 'الربع الثاني', en: 'The second quarter' }, q3: { ar: 'الربع الثالث', en: 'The third quarter' }, q4: { ar: 'الربع الرابع', en: 'The fourth quarter' } };
-function periodPreset(from, to, today) {
-  if (from === startOfYear(today) && to === today) return 'ytd';
-  if (from === startOfMonth(today) && to === today) return 'month';
-  return 'custom';
-}
+function periodPreset(from, to, today) { return detectPreset(from, to, today); }
 export function previousMonthScope(scope, today) {
   // D-05: «the previous month» only makes sense for a single-month selection; for any other selection the comparison is the
   // immediately preceding period of EQUAL LENGTH (and the report says so), never one calendar month against 282 days.

@@ -10,6 +10,7 @@ import { DATA_START } from '../../data/revenueLedger';
 import { fmtMoney } from '../../utils/money';
 import { measure, basisLabel, hasToDateVariant, BASIS } from '../../data/measure';
 import { checkRange, rangeMessage, coverageLine } from '../../data/dateRange';
+import { PRESETS } from '../../data/periodPresets';
 
 /* ---------- Provenance / status badges ---------- */
 export function ProvenanceBadge({ kind = 'demo', size = 'md' }) {
@@ -162,13 +163,8 @@ export function ScopeBar({ compact = false }) {
   const amanahs = useMemo(() => amanahOptionsOf().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
   const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
   const munis = useMemo(() => (scope.amanah === 'all' || Array.isArray(scope.amanah) ? [] : municipalitiesOf(scope.amanah).filter(Boolean)), [scope.amanah]);
-  const presets = [
-    ['ytd', L('Year to date', 'السنة حتى اليوم')],
-    ['month', L('This month', 'هذا الشهر')],
-    ['lastMonth', L('Last month', 'الشهر الماضي')],
-    ['last3', L('Last 3 complete months', 'آخر 3 أشهر مكتملة')],
-    ['all', L('All data', 'كل البيانات')]
-  ];
+  const presets = PRESETS.map((p) => [p.key, lang === 'ar' ? p.ar : p.en]);
+
   return (
     <div className="rv-scope card" role="region" aria-label={L('Analysis scope', 'نطاق التحليل')}>
       <div className="rv-scope__row">

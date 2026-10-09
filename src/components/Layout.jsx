@@ -152,6 +152,7 @@ function LayoutInner() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'}</a>
       <div className="bg-fx" />
       <div className="bg-grid" />
 
@@ -319,9 +320,10 @@ function LayoutInner() {
           ))}
         </nav>
 
-        <section className="content">
+        <section className="content" id="main-content" tabIndex={-1}>
           <Outlet />
         </section>
+        <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data · dates and times are Asia/Riyadh'}</footer>
 
         <FloatingAssistantButton />
         <AnalysisHost />

@@ -11,10 +11,11 @@
   --accent: #0d9668;     /* mint accent, page-title color */
   --secondary: #0A6FA6;  /* blue, desaturated to sit beside the green-dominant palette */
   --success: #3E8540;
-  --warning: #8c5f00;
+  --warning: #7a5200;
   --danger: #C4514C;
   --danger-text: #B42318; /* DGA Error 700 — AA on light grounds for small text */
   --focus-ring: #166A45; /* DGA SA 700: 7:1 on white */
+  --ink-ok: #166A45; /* green TEXT on pale tints (the brand green fails AA there: 4.2:1) */
   --low: #8a978f;        /* 4th neutral "no/low data" status */
 
   /* Text */
@@ -87,6 +88,7 @@
     --danger: #e08a85;
     --danger-text: #F97066; /* DGA Error 400 — AA on dark grounds */
     --focus-ring: #88D8AD; /* DGA SA 300 on dark grounds */
+    --ink-ok: #88D8AD;
     --low: #6b7a72;
 
     --heading: #eaf6ef;
@@ -127,6 +129,7 @@
   --danger: #e08a85;
   --danger-text: #F97066; /* DGA Error 400 — AA on dark grounds */
   --focus-ring: #88D8AD; /* DGA SA 300 on dark grounds */
+  --ink-ok: #88D8AD;
   --low: #6b7a72;
 
   --heading: #eaf6ef;

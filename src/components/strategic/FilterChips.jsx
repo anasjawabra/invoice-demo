@@ -16,13 +16,17 @@ export default function FilterChips() {
     const st = { all: null, collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[s.status || 'all'];
     return [[L('الفترة', 'Period'), `${s.from} → ${s.to}`], [L('الأمانة', 'Amanah'), am], [L('البلدية', 'Municipality'), mu], [L('المصدر', 'Source'), s.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(s.source) : sourceEn(s.source))], ...(st ? [[L('الحالة', 'Status'), st]] : []), ...(s.scopeType !== 'all' ? [[L('النطاق', 'Scope'), s.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central')]] : [])];
   }, [s, ar, L, labelOfAmanah]);
+  // how many filters differ from the defaults (year to date · everything) — and one click to go back
+  const active = [rev.scope.preset !== 'ytd', s.amanah !== 'all', s.muni !== 'all', s.source !== 'all', (s.scopeType || 'all') !== 'all', (s.status || 'all') !== 'all'].filter(Boolean).length;
   return (
     <>
       <div className="sr-context" role="region" aria-label={L('المرشحات المشتركة', 'Shared filters')}>
         <div className="sr-chips">{chips.map(([k, v]) => <span key={k} className="sr-chip"><em>{k}</em> <bdi>{v}</bdi></span>)}</div>
+        {active > 0 && <><span className="st-tag st-tag--warn">{L(`مرشحات مفعّلة (${active})`, `Active filters (${active})`)}</span><button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetScope}>{L('إعادة الضبط', 'Reset')}</button></>}
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
       </div>
       {open && <ScopeBar compact />}
+      <div className="muted" style={{ fontSize: 11.5 }}>{L('تُحفظ المرشحات لهذه الجلسة وتُشارك بين لوحة المعلومات والتقارير الثابتة والصفحات التشغيلية. للتخطيط نطاقه الخاص، وللتقارير الذكية نطاق كل محادثة.', 'Filters are kept for this session and shared by the dashboard, fixed reports and operational pages. Planning has its own scope, and each Smart-report conversation has its own.')}</div>
     </>
   );
 }

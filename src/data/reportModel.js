@@ -7,6 +7,7 @@
 // and Excel also gets the exact SAR. Charts hold SAR series and use one unit per chart.
 // ============================================================================
 import { isSingleMonth } from './clock';
+import { PRESETS } from './periodPresets';
 import { buildSmartReport } from './smartReport';
 import { buildInsights, sourceAr, sourceEn } from './insightsEngine';
 import { fairComparison } from './strategicCalc';
@@ -36,7 +37,7 @@ const RULE = { cancelled: ['ملغاة في المصدر', 'Cancelled in the sou
 const ratio = (a, b) => (b > 0 ? a / b : null);
 const prevYear = (m) => `${Number(m.slice(0, 4)) - 1}${m.slice(4)}`;
 
-export const PRESET_LABEL = { ytd: ['السنة حتى اليوم', 'Year to date'], month: ['هذا الشهر حتى اليوم', 'This month to date'], lastMonth: ['الشهر الماضي', 'Last month'], last3: ['آخر 3 أشهر مكتملة', 'Last 3 complete months'], all: ['كل البيانات', 'All data'], custom: ['فترة مخصصة', 'Custom period'] };
+export const PRESET_LABEL = { ...Object.fromEntries(PRESETS.map((p) => [p.key, [p.ar, p.en]])), custom: ['فترة مخصصة', 'Custom period'] };
 
 export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah, labelOfMuni, prevScope = null, compare = 'none' }) {
   const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const sc = spec.scope;

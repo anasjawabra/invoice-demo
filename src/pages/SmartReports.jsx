@@ -20,6 +20,7 @@ import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import LocalDataPanel from '../components/LocalDataPanel';
+import { PRESETS } from '../data/periodPresets';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -51,8 +52,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
     <div className="sr-filters card" role="region" aria-label={L('المرشحات', 'Filters')}>
       <div className="sr-filters__row">
         <span className="rv-scope__lbl">{L('الفترة', 'Period')}</span>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => preset(startOfMonth(today), today)}>{L('هذا الشهر', 'This month')}</button>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => preset(startOfYear(today), today)}>{L('السنة حتى اليوم', 'Year to date')}</button>
+        {PRESETS.map((p) => <button key={p.key} type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = p.range(today); preset(r.from, r.to); }}>{ar ? p.ar : p.en}</button>)}
         <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={ar ? 'ar' : 'en'} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
       </div>
       <div className="sr-filters__row">

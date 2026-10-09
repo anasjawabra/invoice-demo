@@ -127,7 +127,7 @@ export default function DataSources() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title">{L('Data sources', 'مصادر البيانات')}</div>
+          <h1 className="page-title">{L('Data sources', 'مصادر البيانات')}</h1>
           <div className="page-sub">{L('How current each source is, what period it covers, which version is loaded, and how completely its records match. Availability, freshness, record quality and matching are four different things.', 'مدى حداثة كل مصدر، والفترة التي يغطيها، والإصدار المحمّل، ومدى اكتمال مطابقة سجلاته. توفر المصدر وحداثته وجودة سجلاته واكتمال مطابقته أمور مختلفة.')}</div>
         </div>
         <ProvenanceBadge kind="demo" />
