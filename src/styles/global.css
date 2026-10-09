@@ -1502,3 +1502,7 @@ h1.page-title, h2.page-title { margin: 0; }
 .rv-link { display: inline-flex; align-items: center; }
 @media (pointer: coarse) { .btn, .btn-sm, .select, .input, .tab, .sr-tab, .rv-link { min-height: 44px; } }
 input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; accent-color: var(--primary); } /* WCAG 2.2 AA target floor */
+input[type='range'] { min-height: 24px; }
+.st-fresh a, .page-sub a { display: inline-flex; align-items: center; min-height: 24px; }
+td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-items: center; min-height: 24px; }
+.rv-def__btn { min-width: 24px; min-height: 24px; }

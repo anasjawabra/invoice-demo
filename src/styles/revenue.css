@@ -601,3 +601,4 @@
 .sr-fixed:hover, .sr-fixed:focus-visible { border-color: var(--primary); outline: none; }
 .st-card { max-width: 100%; overflow-x: auto; }
 .st-page { overflow-x: clip; }
+.rv-link { display: inline-flex; align-items: center; min-height: 24px; } /* after the reset above: link-buttons keep a 24 px target */
