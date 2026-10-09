@@ -1525,3 +1525,4 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
 
 .rv-more > summary { cursor: pointer; font-weight: 800; font-size: 13px; padding: 4px 0; }
 .rv-more[open] > summary { margin-bottom: 4px; }
+.day-banner { position: sticky; top: 0; z-index: 900; display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px 14px; background: #FEF0C7; color: #7A2E0E; font-weight: 700; font-size: 13px; }

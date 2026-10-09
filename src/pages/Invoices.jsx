@@ -14,6 +14,7 @@ import { legacyFromRow } from '../utils/legacyInvoice';
 import { NODE_DRAWERS, RISK_ANALYSIS } from '../data/aiProcess';
 import InvoiceDetailDrawer from '../components/ai/InvoiceDetailDrawer';
 import AIProcessDrawer from '../components/ai/AIProcessDrawer';
+import { fmtDateText } from '../data/clock';
 
 const PAGE_SIZE = 50;
 const SORTABLE = { id: 'id', issue: 'issue', gross: 'gross', outstanding: 'outstanding', age: 'daysOverdue' };
@@ -117,6 +118,8 @@ export default function Invoices() {
   const exportHref = rev.data.exportUrl(request.scope, { filters: request.filters, sort });
 
   const viewLabel = bi.L('View details', 'عرض التفاصيل');
+  // F-13: a drill-down link such as /invoices?src=fines writes the source into the SHARED filter (visible in the scope bar and used by the KPI strip), then drops the hidden URL parameter
+  useEffect(() => { if (srcParam) { rev.setSource(srcParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const clearAll = () => {
     setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); setScopeType('all'); setMuniFilter('all'); setItemFilter('all'); setExFilter('all'); setAgeFilter('all'); setContractFilter('all'); setExecFilter('all');
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
@@ -138,7 +141,7 @@ export default function Invoices() {
       <div className="rv-tiles" aria-label={bi.L('Indicators for the scope above', 'مؤشرات النطاق أعلاه')}>
         <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Gross billed', 'إجمالي المفوتر')}</span><DefinitionButton metric="gross" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.totals.gross)}>{bi.short(rev.snapshot.totals.gross)}</div><div className="rv-tile__sub">{bi.invoices(rev.snapshot.totals.count)}</div></div>
         <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Net billed', 'صافي المفوتر')}</span><DefinitionButton metric="net" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.totals.net)}>{bi.short(rev.snapshot.totals.net)}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Net uncollected', 'صافي غير المحصل')}</span><DefinitionButton metric="netUncollected" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.stock.netUncollected)}>{bi.short(rev.snapshot.stock.netUncollected)}</div></div>
+        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Net uncollected', 'الرصيد القائم')}</span><DefinitionButton metric="netUncollected" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.stock.netUncollected)}>{bi.short(rev.snapshot.stock.netUncollected)}</div></div>
         <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Collected ÷ net billed', 'المحصّل ÷ صافي المفوتر')}</span><DefinitionButton metric="collectedOverNet" /></div><div className="rv-tile__value" dir="ltr">{ratioText(rev.snapshot.totals.collectedOverNet, bi.ar)}</div></div>
       </div>
 
@@ -232,10 +235,11 @@ export default function Invoices() {
                 <th>{bi.L('Revenue item', 'بند الإيراد')}</th>
                 <th>{bi.L('Raw status', 'الحالة الخام')}</th>
                 <th>{t('th_collection_status')}</th>
-                {th(`${t('th_amount')} (SAR)`, 'gross')}
+                {th(`${t('th_amount')} (${bi.L('SAR', 'ريال')})`, 'gross')}
                 {th(`${bi.L('Uncollected', 'غير المحصّل')} (${bi.L('SAR', 'ريال')})`, 'outstanding')}
-                {th(t('th_date'), 'issue')}
-                {th(bi.L('Days overdue', 'أيام التأخر'), 'age')}
+                {th(bi.L('Issue date', 'تاريخ الإصدار'), 'issue')}
+                <th>{bi.L('Due date', 'تاريخ الاستحقاق')}</th>
+                {th(bi.L('Days past due', 'أيام التأخر بعد الاستحقاق'), 'age')}
                 <th aria-label={viewLabel} />
               </tr>
             </thead>
@@ -264,7 +268,8 @@ export default function Invoices() {
                   </td>
                   <td dir="ltr">{bi.sar(r.gross)}{r.exclusions > 0 && <div className="muted" style={{ fontSize: 11 }}>{bi.L('excl.', 'استبعاد')} {bi.sar(r.exclusions)} · {bi.L('net', 'صافي')} {bi.sar(r.net)}</div>}</td>
                   <td dir="ltr">{bi.sar(r.outstanding)}{r.collected > 0 && <div className="muted" style={{ fontSize: 11 }}>{bi.L('collected', 'محصّل')} {bi.sar(r.collected)}</div>}</td>
-                  <td dir="ltr">{r.issueDate}</td>
+                  <td dir="ltr" title={r.issueDate}>{fmtDateText(r.issueDate, lang === 'ar' ? 'ar' : 'en')}</td>
+                  <td dir="ltr" title={r.dueDate}>{fmtDateText(r.dueDate, lang === 'ar' ? 'ar' : 'en')}</td>
                   <td dir="ltr">{r.daysOverdue > 0 ? r.daysOverdue : '—'}</td>
                   <td className="row-view">
                     <span className="row-view__link">{viewLabel}<span className="row-view__chev" aria-hidden="true">›</span></span>

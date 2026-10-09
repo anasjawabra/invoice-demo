@@ -60,7 +60,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
   let text = base.text;
   const facts = [...base.facts];
 
-  const netU = { k: L('Net uncollected (standing balance)', 'صافي غير المحصل (رصيد قائم)'), v: M(S.netUncollected) };
+  const netU = { k: L('Net uncollected (standing balance)', 'الرصيد القائم'), v: M(S.netUncollected) };
 
   if (intent === 'uncollected') {
     const st = (k) => bridge?.steps.find((x) => x.key === k);
@@ -72,7 +72,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
       lines.push(L(`Approved exclusions, non-overlapping with cancelled: ${M(st('excluded').amount)} (of which under unapproved rules ${M(st('excluded').detail.unapprovedRules)})`, `المستبعد المعتمد دون تداخل مع الملغى: ${M(st('excluded').amount)} (منه وفق قواعد غير معتمدة ${M(st('excluded').detail.unapprovedRules)})`));
       if (st('newInvoices').amount) lines.push(L(`Issued after the report and still unpaid: +${M(st('newInvoices').amount)}`, `صادر بعد التقرير وما زال غير مسدد: +${M(st('newInvoices').amount)}`));
       if (st('internal').amount) lines.push(L(`Internal scope (Amanah reports): +${M(st('internal').amount)}`, `النطاق الداخلي (تقارير الأمانات): +${M(st('internal').amount)}`));
-      lines.push(L(`Net uncollected: ${M(bridge.net)}`, `صافي غير المحصل: ${M(bridge.net)}`));
+      lines.push(L(`Net uncollected: ${M(bridge.net)}`, `الرصيد القائم: ${M(bridge.net)}`));
     }
     const aging = agingOf(snap).filter((b) => b.amount > 0).map((b) => `${pickBi(b.label, lang)}: ${M(b.amount)}`).join('؛ ');
     const am = concentrationBy(snap, 'amanah').slice(0, 3).map((g) => `${pickBi(g.label || { ar: g.key, en: g.key }, lang)}: ${M(g.outstanding)}${g.shareOfOwnNet != null ? ` (${Math.round(g.shareOfOwnNet * 100)}% ${L('of its own net billed to date', 'من صافي مفوترها حتى تاريخه')})` : ''}`).join('; ');

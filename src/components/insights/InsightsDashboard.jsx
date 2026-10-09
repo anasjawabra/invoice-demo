@@ -15,7 +15,7 @@ import { AsyncBlock } from '../strategic/AsyncState';
 import { generateFinance, budgetExecution, operatingCoverage, financeCompatible, FINANCE_STATUS } from '../../data/syntheticFinance';
 import { sourceAr, sourceEn, buildInsights } from '../../data/insightsEngine';
 import { fillTokens } from '../../data/reportFormat';
-import { fmtDateText, fmtRangeText } from '../../data/clock';
+import { fmtDateText, fmtRangeText, fmtMonthText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
 
 const STATUS_COLOR = { collected: 'var(--green)', partial: '#c9a227', overdue: 'var(--danger)', not_due: 'var(--secondary)', cancelled: '#8a978f', excluded: '#6f7d76', objection: '#6B57A6', enforcement: '#9A5C00', linkage_unresolved: '#b07a9a', ineligible_referral: '#4f8d94' };
@@ -28,7 +28,8 @@ export default function InsightsDashboard() {
   const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const T = snapshot.totals; const s = rev.scopeEff; const today = cfg.cutoff;
   const comparable = comparison?.comparable;
   const attention = useMemo(() => buildInsights({ snapshot, prev: comparable ? prevSnapshot : null, comparison, forecast: null, targets }).insights.filter((i) => i.severity === 'action').slice(0, 3), [snapshot, prevSnapshot, comparison, targets, comparable]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cmpLabel = comparison?.basis === 'same_period_last_year' ? L('مقابل نفس الفترة من العام السابق', 'vs the same period last year') : L('مقابل الفترة السابقة', 'vs the previous period');
+  const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
+  const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
   const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
   const [rt, setRt] = useState(0);
   const fy = useAsync(async () => { if (!financeOk) return null; const r = await data.series({ amanah: 'all', source: 'all', from: `${today.slice(0, 4)}-01-01`, to: today }, { asOf: today }); return r.values.reduce((t, v) => t + v, 0); }, [data, financeOk, today, rt]);
@@ -77,14 +78,14 @@ export default function InsightsDashboard() {
           <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
           <div className="st-table-wrap"><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
             <tbody>{aging.map((a) => <tr key={a.key}><td>{B(a.label)}</td><td dir="ltr">{count(a.count)}</td><td dir="ltr" title={fmtMoney(a.amount, { lang, mode: 'detail' })}>{scaled(a.amount, uA)}</td></tr>)}
-              <tr style={{ fontWeight: 800 }}><td>{L('الإجمالي القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
+              <tr style={{ fontWeight: 800 }}><td>{L('إجمالي الرصيد القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
           <div className="muted" style={{ fontSize: 12 }}>{L('يشمل كل الفواتير غير المسددة مهما كان تاريخ إصدارها.', 'Includes every unpaid invoice, whatever its issue date.')}</div>
         </div>
       </div>
 
       <div className="card st-card">
         <b>{L('الاتجاه الشهري حسب شهر الإصدار', 'Monthly trend by issue month')}</b>
-        <UnitBar labels={months.map((m) => m.month)} series={[{ label: L('صافي المفوتر', 'Net billed'), values: months.map((m) => m.net) }, { label: L('المحصّل', 'Collected'), values: months.map((m) => m.collected) }]} label={L('الاتجاه الشهري', 'Monthly trend')} />
+        <UnitBar labels={months.map((m) => fmtMonthText(m.month, ar ? 'ar' : 'en'))} series={[{ label: L('صافي المفوتر', 'Net billed'), values: months.map((m) => m.net) }, { label: L('المحصّل', 'Collected'), values: months.map((m) => m.collected) }]} label={L('الاتجاه الشهري', 'Monthly trend')} />
         <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : L('لا توجد مقارنة: الفترة السابقة خارج نطاق البيانات.', 'No comparison: the previous period is outside the data.')}</div>
       </div>
 

@@ -76,3 +76,4 @@ export function fmtRangeText(from, to, lang = 'ar') {
   if (sameMonth) return lang === 'ar' ? `${Number(from.slice(8, 10))} – ${d(to)}` : `${Number(from.slice(8, 10))} – ${d(to)}`;
   return `${d(from, { year: !sameYear })} – ${d(to)}`;
 }
+export const fmtMonthText = (ym, lang = 'ar') => { const m = /^(\d{4})-(\d{2})/.exec(ym || ''); return m ? `${(lang === 'ar' ? AR_MONTH_NAMES : EN_MONTH_NAMES)[Number(m[2]) - 1]} ${m[1]}` : ym; };

@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
 import { useRevenue } from '../context/RevenueContext';
 import { useTheme } from '../context/ThemeContext';
 import { ORGS } from '../data/mock';
+import { riyadhToday, DEMO_TODAY, IS_TIME_TRAVEL } from '../data/clock';
 import { ToastProvider, useToast } from './Toast';
 import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
@@ -109,6 +110,9 @@ function Icon({ name }) {
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
   const rev = useRevenue();
+  // D-12: «today» is read once when the page loads; a tab left open past midnight (Riyadh) says so instead of silently showing yesterday
+  const [dayChanged, setDayChanged] = useState(false);
+  useEffect(() => { const check = () => { if (!IS_TIME_TRAVEL && riyadhToday() !== DEMO_TODAY) setDayChanged(true); }; check(); const id = setInterval(check, 300000); document.addEventListener('visibilitychange', check); window.addEventListener('focus', check); return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); }; }, []);
   const { user, orgScoped, logout, switchOrg } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const toast = useToast();
@@ -155,6 +159,7 @@ function LayoutInner() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'}</a>
+      {dayChanged && <div className="day-banner" role="status">{lang === 'ar' ? 'تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق.' : 'The date has changed since this page was opened; figures belong to the previous day.'} <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>{lang === 'ar' ? 'تحديث الآن' : 'Refresh now'}</button></div>}
       <div className="bg-fx" />
       <div className="bg-grid" />
 
