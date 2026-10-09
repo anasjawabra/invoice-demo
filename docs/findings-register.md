@@ -393,3 +393,60 @@ New «after» screenshots only: `after-m6-invoices`, `after-m6a-invoices-fab-ove
 **Unresolved business decisions:** EQ2 grace periods (collection reporting vs enforcement referral, both unset); EQ3 treatment of exclusions under unapproved rules; EQ4 approval authority; EQ5 official operating-spending coverage definition; EQ6 fiscal year and target approval (D-13); EQ9 new July reports (enforcement referral first; income participation and e-invoice need data sources); logo, Figma specification and icon licence.
 
 **Not claimed:** audit closure, accessibility conformance, or reliable AI understanding beyond the evidence above.
+
+
+---
+
+# Round 6 — demo stabilization (release candidate)
+
+No new features and no redesign: one explanation block, one confirmation step, accuracy of the language notice, and a verification pass that found and fixed four real defects. Audit partial statuses are preserved (see §8).
+
+## 1. F-23 — reconciling the figures used in Planning
+
+* **Built:** «ما الذي يقيسه كل رقم؟» under the baseline card (`BasesReconciliation.jsx`): for each figure — collected (baseline), receipts since the start of the year, forecast of the rest of the year, scenario effect, expenditure coverage — its **period and scope**, **basis** (invoice basis vs payment-date basis), **kind** (actual / forecast / scenario / synthetic), and **data cut-off**; then an **exact bridge** from «collected on the plan period's invoices» to «receipts by payment date», and a list of what is deliberately **not** added together.
+* **Why the two actuals differ, with numbers (reference date 2026-10-09, all Amanahs, all sources):** collected 7.83 bn (payments on invoices *issued* in the plan period) + measurement difference +50 thousand (one invoice paid 50,000 above its net; «collected» is capped at the invoice net) = received on the period's invoices 7.83 bn; + received on invoices issued **outside** the plan period 580.82 million (older invoices) = receipts by payment date 8.41 bn. The bridge is computed, not narrated: a small, tested option in the data service splits the same payment window by the invoice's issue date (`issuedFrom/issuedTo`; unit test: exact for a closed period, within the cap for open periods, three scopes). When the plan period is not inside the fiscal year, no bridge is computed and the block says so.
+* **Not combined:** the forecast is not added to collected; the scenario effect (invoice basis) is not receipts; the target is a reference; expenditure coverage stays on synthetic data and its **official definition (EQ5) is neither invented nor assumed** — the block says it is pending.
+* **Still an approximation, and said so:** the funding outlook places the scenario's collection effect (invoice basis) beside the projected receipts (payment-date basis). That is not reconciled; a note now appears beside the table whenever a scenario is active, linking to the block.
+* **Status:** the explanation and bridge are **Verified** (browser, mobile and desktop widths, axe-clean after a heading fix); F-23 as originally written («the bridge between them is not shown») is closed, but the **funding side-by-side remains an approximation** — partial.
+
+## 2. Transient `/invoices` → `/insights` navigation
+
+* **Code review:** the only unconditional redirects are `*` → `/`, `/` → `/insights`, the legacy aliases, `ProtectedRoute` → `/login`, `Login` → `/insights` after sign-in, and the sign-out navigation. The page `/invoices` has no redirect of its own. **One latent defect found:** `Login` scheduled its post-sign-in navigation with a bare `setTimeout` (650 ms) that was never cancelled, so a sign-in followed quickly by a different navigation could be overridden. That is now cleared on unmount.
+* **Evidence:** the single observation (round 5) is not explained by that timer (the sign-in had happened long before). It was **not reproduced** in 4 cold navigations to `/invoices` in this round (after Smart, after Planning, directly, and a deep link with `?id=`), nor in the 3 repeats of round 5 — 7 attempts in all.
+* **Status:** **unreproduced observation retained**; the latent timer defect is fixed; no claim that the cause was found.
+
+## 3. Language availability
+
+Arabic and English are the authored languages. The Chinese dictionary covers 851 of 866 keys, but the current screens (navigation, pages, reports) are written with inline Arabic/English text and fall back to English. A visible bilingual notice now appears on every page when Chinese is selected («Chinese translation is incomplete … shown in English»), the Chinese selector says «incomplete» in a tooltip (also on the sign-in page), and the English fallback content is marked `lang="en"` for assistive technology. Chinese selection is **not** disabled; nothing implies a full translation. Verified in the browser (notice, `lang` attributes, selector title).
+
+## 4. Confirmation of the interpreted scope (demo safety)
+
+* **Categories** (from the fresh-run evidence): several Amanahs in one request; an Amanah name written in a variant or short form; a period written in a non-standard way (day ranges, «since…», «last year», «so far»); a comparison inferred from the wording; several changes in one follow-up. For these the Smart Report reply is **a confirmation card**, not a report: «قبل أن أُعدّ التقرير: هل هذا ما قصدته؟», the reason, the editable summary (the same filter panel), and **Confirm and build / Cancel**. Nothing is generated until the user confirms (or edits and applies, which counts as the user's own choice). A newer request supersedes a pending one. Standard requests (a single exact Amanah, standard period words, the follow-up chips) go straight through with the summary.
+* **Evidence (set 6, 42 phrases written before the step, first run on the interpreter as it stood after round 5):** 32/42 = 76.2 % — correct 29, appropriate clarification 3, over-clarification 6, **unsafe silent misread 4**. After fixing the genuine failures and adding the step: 39/42, 0 unsafe silent misreads, 3 safe over-clarifications — **regression only**. Confirmation burden: 23/42 on set 6 (built from the risky categories), 8–22 % on sets 2–5.
+* **What is and is not claimed:** the step catches the categories seen so far; a misreading outside them can still pass silently — **F-05 stays partial** and nothing here is evidence of reliable language understanding.
+* **Verified in the browser (reference date 2026-10-09):** «تقرير الرياض وجدة ومكة هذا الشهر» → confirmation card (reasons: several Amanahs; a variant name) → no report in the thread, nothing stored → confirm with the keyboard → report; follow-up chip «قارن بالشهر الماضي» (no confirmation) keeps the three Amanahs and adds the comparison; edit → status «متأخرة» keeps the three Amanahs; mobile screenshot `after-m11`.
+
+## 5. Final verification of the release candidate (isolated profile, reference date)
+
+**Isolated profile.** Browser origin `http://127.0.0.1:3000` (a different origin from `http://localhost:3000`, so a separate local/session storage). **Start state:** localStorage empty; sessionStorage empty except the app's own session defaults and `ib_demo_today=2026-10-09` (set by `?demoToday=`). **End state:** after the checks the origin held one test conversation and one test plan (`ib_smart_convs_v1`, `ib_plans_v1`) and a session; I then cleared that origin (it was created for this test) and closed the emulation. **Not touched:** the `localhost:3000` origin — at the end I only listed its keys and found one Smart conversation and a signed-in session that I did not create in this round (I had left that origin empty at the end of round 5); they are untouched. Test sign-in used the project's seeded demo account.
+
+**Journeys at the fixed reference date 2026-10-09 (Asia/Riyadh):**
+| Journey | Result |
+|---|---|
+| Dashboard → fixed report → export | Dashboard: 386 invoices, gross 14.92 bn, exclusions 1.36 bn, net 13.56 bn, collected 7.83 bn, uncollected 5.72 bn, rate 57.8 %, comparison period «1 Jan – 9 Oct 2025». The fixed monthly report shows the same figures and period; Excel export with the keyboard produced a 279 KB file and the status line «تم إنشاء ملف Excel…». |
+| Smart Report → follow-up → scope edit → export | Confirmation → report → follow-up (comparison) → scope edit (status, then period) → Excel export (36 KB). **Defects found here and fixed:** (1) a status-filtered report (overdue/partial/not due…) failed reconciliation («analysis_failed») because the net-uncollected bridge ignored the status filter — fixed in the data service, test for all eight statuses; (2) editing any filter of a multi-Amanah request silently reset the Amanah to «all» — the panel now keeps the list; (3) the report subtitle printed raw Amanah keys («Riyadh Amanah,Jeddah Amanah…») — now names; (4) a stale period label («هذا الشهر حتى اليوم») for a year range — now derived from the dates. |
+| Planning → named scenario → saved-version comparison | Baseline equals the dashboard; reconciliation shown; scenario «تحسن أربع نقاط» saved without touching the plan; version saved; recalculated on current data: 61.8 % / 8.38 bn matches the saved version. |
+| Invoice drill-down → return with filters | Dashboard last month + Riyadh (6 invoices) → drill-down link → Invoices shows the same 6 with the same scope → drawer opens/closes with focus returned to the row → browser back → Dashboard keeps scope and the 6 invoices. |
+
+**Date coverage, presets and rollover (preset ranges checked against independent expected ranges for all seven presets):** 2026-09-30, 2026-10-01 (month rollover), 2026-12-31, 2027-01-01 (year rollover): 0 mismatches. At each date the coverage line, the headline («… المحصّل حتى <date>») and the KPI strip follow the date (377 invoices / 14.59 bn at both 09-30 and 10-01; 481 / 18.53 bn at 12-31; 4 / 392.32 m at 01-01), «last 3 months» is three complete months, «quarter to date» starts at the quarter start. **Midnight in real mode:** with `Date` stubbed to 00:00:30 Riyadh on the next day, the notice «تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق» with «تحديث الآن» appears (the page was loaded unshifted; the full-page refresh itself was not waited out).
+
+**Automated checks:** `npm test` 84 passed (interpreter regression sets are NOT accuracy evidence); `npm run build` ok; `npm run verify:exports` docx 4735/4735 table cells, pptx 4735/4735, xlsx 2196/2196 exact amounts, 1399/1399 items in each format (100 %); `npm start` smoke (`/`, `/invoices`, `/api/meta` → 200); axe (WCAG 2 A/AA/2.1/2.2 AA + best practice) 0 violations on Smart (with the confirmation card) and Planning (after a heading-order fix) — **automated rules only, not conformance**.
+
+## 6. Visual evidence added
+`after-m11-smart-confirmation`, `after-m12-planning-reconciliation` (mobile). Not recreated: any «before».
+
+## 7. Known limitations (unchanged unless stated)
+Synthetic data; data kept in one browser; rule-based interpreter that asks more than it should and can still misread outside the confirmed categories; no screen-reader / real OS download or file-chooser / native-popup keyboard verification; Chinese is incomplete (now stated on screen); the funding side-by-side is an approximation (stated); desktop screenshots of this round were not captured (the pane rendered narrow); a session-scoped filter/config store is written when the app loads (before sign-in) — it holds only defaults until the user acts.
+
+## 8. Audit statuses preserved
+F-05 **partial**; F-19 **blocked (server store)**; F-23 **explanation closed, funding approximation partial**; F-27 **partial (zh incomplete, now disclosed)**; D-13 **blocked (EQ6)**; G-01 and exact-identity items **blocked (assets)**; screen-reader verification **open**. Unresolved business decisions: EQ2, EQ3, EQ4, EQ5 (coverage definition — not assumed), EQ6, EQ9, logo/Figma/icon licence.
