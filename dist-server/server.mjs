@@ -3007,7 +3007,7 @@ function snapshot(st, req) {
       }
       am.add(0, dd);
     }
-    accMuni.add(e * 5 + Math.min(st.muni[i], 4), dd);
+    accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd);
     accStatus.add(dd.cls, dd);
     const viol = s === 1;
     const enf = dd.link === 2 || pc > 0 && (() => {
