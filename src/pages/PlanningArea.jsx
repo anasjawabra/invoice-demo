@@ -29,6 +29,7 @@ import { buildDecisionCards } from '../data/revenueInsights';
 import { PLANNING_PROMPTS } from '../data/strategicAssistant';
 import { amanahOptionsOf } from '../data/revenueLedger';
 import { actorName } from '../utils/actor';
+import { DataStatus } from '../components/revenue/RevenueUI';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
@@ -127,6 +128,10 @@ export default function PlanningArea() {
   useEffect(() => { if (hash && rev.ready && plan) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hash, rev.ready, !!plan, !!x]); // eslint-disable-line react-hooks/exhaustive-deps -- re-run once the async blocks above the section have taken their height
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
+  // F-04 guard: the analytics read the dashboard filter; say so whenever it differs from the plan's own period and scope
+  const planScopeMismatch = !!plan && (plan.period.from !== s.from || (plan.period.to < today ? plan.period.to : today) !== s.to
+    || JSON.stringify([].concat(plan.scope?.amanah ?? 'all')) !== JSON.stringify([].concat(s.amanah)) || (plan.scope?.source ?? 'all') !== s.source
+    || (plan.scope?.scopeType ?? 'all') !== (s.scopeType || 'all') || (plan.scope?.muni ?? 'all') !== (s.muni || 'all') || (plan.scope?.status ?? 'all') !== (s.status || 'all'));
   if (!rev.ready || !plan) return <div className="st-page" role="status"><Skeleton height={80} /><Skeleton height={220} /></div>;
   const kpiUnit = unitOfValues([T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: kpiUnit });
   const fyMonths = monthsBetween(`${fy}-01-01`, `${fy}-12-28`);
@@ -161,6 +166,8 @@ export default function PlanningArea() {
 
       <PlanBar store={store} setStore={setStore} plan={plan} summary={summaryForVersion} scopeSnapshot={scopeSnapshot} canEdit={canEdit} user={user} onApplyScope={applyPlanScope} today={today} />
       <FilterChips />
+      <DataStatus />
+      {planScopeMismatch && <div className="rv-callout rv-callout--warn" role="note"><b>{L('الأرقام أدناه تتبع مرشحات لوحة المعلومات الحالية، وليست نطاق الخطة.', 'The figures below follow the current dashboard filters, not the plan scope.')}</b> {L(`المعروض: ${s.from} → ${s.to} · ${scopeLabel}. نطاق الخطة: ${plan.period.from} → ${plan.period.to} · ${plan.scope?.label || L('كل الأمانات · كل المصادر', 'All Amanahs · all sources')}.`, `Shown: ${s.from} → ${s.to} · ${scopeLabel}. Plan scope: ${plan.period.from} → ${plan.period.to} · ${plan.scope?.label || 'All Amanahs · all sources'}.`)} <button type="button" className="btn btn-sm" onClick={() => applyPlanScope(plan)}>{L('تطبيق نطاق الخطة على المرشحات', 'Apply the plan scope to the filters')}</button></div>}
       <nav className="st-nav" aria-label={L('أقسام التخطيط', 'Planning sections')}>{NAV.map(([id, a, e]) => <a key={id} href={`#${id}`}>{L(a, e)}</a>)}</nav>
       {toast && <div className="rv-callout" role="status">{toast}</div>}
 

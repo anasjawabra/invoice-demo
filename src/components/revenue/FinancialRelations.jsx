@@ -22,7 +22,7 @@ export default function FinancialRelations({ totals: T }) {
       <div className="rv-rel__cap"><span>{L('Gross billed', 'إجمالي المفوتر')} <b dir="ltr">{short(T.gross)}</b> = {L('exclusions', 'الاستبعادات')} <b dir="ltr">{short(T.exclusions)}</b> + {L('net billed', 'صافي المفوتر')} <b dir="ltr">{short(T.net)}</b></span></div>
       <div className="rv-rel__row">
         {T.exclusions > 0 && <Seg cls="cancel" w={canc} title={L('Cancelled', 'ملغى')} amount={canc} />}
-        {T.exclusions > 0 && <Seg cls="excl" w={rules} title={L('Approved rules', 'قواعد معتمدة')} amount={rules} />}
+        {T.exclusions > 0 && <Seg cls="excl" w={rules} title={L('Rule-based exclusions', 'استبعاد وفق قواعد')} amount={rules} />}
         <Seg cls="net" w={T.net} title={L('Net billed', 'صافي المفوتر')} amount={T.net} />
       </div>
       <div className="rv-rel__row" aria-label={L('Net billed splits into collected and uncollected', 'صافي المفوتر = المحصّل + غير المحصّل')}>

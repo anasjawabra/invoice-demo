@@ -6,6 +6,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useAr } from '../utils/useAr';
 import FilterChips from '../components/strategic/FilterChips';
+import { DataStatus } from '../components/revenue/RevenueUI';
 import InsightsDashboard from '../components/insights/InsightsDashboard';
 import FixedReports from '../components/insights/FixedReports';
 import SmartReports from './SmartReports';
@@ -37,7 +38,8 @@ export default function InsightsHub() {
         {VIEWS.map(([k, a, e, hint]) => <button key={k} id={`tab-${k}`} type="button" role="tab" aria-selected={view === k} aria-controls={`panel-${k}`} className={`sr-tab ${view === k ? 'is-active' : ''}`} onClick={() => go(k)}><b>{L(a, e)}</b><small>{hint}</small></button>)}
       </div>
       {view !== 'smart' && (rev.ready ? <FilterChips /> : <Skeleton height={44} />)}
-      <div role="tabpanel" id={`panel-${view}`} aria-labelledby={`tab-${view}`}>
+      {view !== 'smart' && <DataStatus />}
+      <div role="tabpanel" id={`panel-${view}`} aria-labelledby={`tab-${view}`} aria-busy={view !== 'smart' && rev.loading ? 'true' : undefined} style={view !== 'smart' && rev.loading ? { opacity: 0.55, transition: 'opacity .15s' } : undefined}>
         {!rev.ready ? <div role="status"><Skeleton height={220} /></div>
           : view === 'dashboard' ? <InsightsDashboard />
             : view === 'reports' ? <FixedReports reportKey={report} setReport={(k) => go('reports', { report: k })} />

@@ -113,9 +113,10 @@ export function RevenueProvider({ children }) {
   const [prevSnapshot, setPrevSnapshot] = useState(null);
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0); // «retry» after a failed refresh
   useEffect(() => {
     if (!meta) return undefined;
-    const ac = new AbortController(); setLoading(true);
+    const ac = new AbortController(); setLoading(true); setLoadError(null);
     api.snapshot(requestFor({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all' }), { signal: ac.signal })
       .then(async (main) => {
         const cmp = await loadComparison(data, { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all' }, cfgN, main);
@@ -123,7 +124,7 @@ export function RevenueProvider({ children }) {
       })
       .catch((e) => { if (!ac.signal.aborted && e.name !== 'AbortError') { setLoadError(e); setLoading(false); } });
     return () => ac.abort();
-  }, [meta, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, requestFor, data, cfgN]);
+  }, [meta, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, requestFor, data, cfgN, reloadKey]);
 
   /* ---------- scope ---------- */
   const setPreset = useCallback((preset) => {
@@ -298,7 +299,7 @@ export function RevenueProvider({ children }) {
   }, [setForecastVersions]);
 
   const value = {
-    user, org, canReview, meta, loading, loadError, ready: !!(meta && snapshot && prevSnapshot && comparison),
+    user, org, canReview, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
     scope, scopeEff, currentScopeKey, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus,
     cfg: cfgN, setCrStatuses, setRuleEnabled, setGraceDays, setCollectionsAsOf, resetConfig,
     targets, setTargets,

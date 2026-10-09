@@ -231,7 +231,7 @@ export const NONCOLLECTION_CATEGORIES = [
 
 export const CATEGORY_LABELS = {
   cancelled: { en: 'Cancelled in the source (removed from the base)', ar: 'ملغاة في المصدر (خارج الأساس)' },
-  excluded: { en: 'Excluded under an approved rule', ar: 'مستبعدة وفق قاعدة معتمدة' },
+  excluded: { en: 'Excluded under a rule (review decision approved)', ar: 'مستبعدة وفق قاعدة (بقرار مراجعة معتمد)' },
   objection: { en: 'Under objection', ar: 'قيد الاعتراض' },
   enforcement: { en: 'Referred to enforcement', ar: 'محالة إلى التنفيذ' },
   linkage_unresolved: { en: 'Status or linkage unresolved', ar: 'حالة أو ربط غير محسوم' },

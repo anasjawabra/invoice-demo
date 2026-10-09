@@ -120,6 +120,15 @@ export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'r
   );
 }
 
+/* ---------- Data status: the figures on screen are being refreshed, or the refresh failed and they belong to the PREVIOUS selection ---------- */
+export function DataStatus() {
+  const { loading, loadError, retryLoad } = useRevenue();
+  const { L } = useL();
+  if (loadError) return <div className="rv-callout rv-callout--bad" role="alert">{L('The figures could not be refreshed for this selection; what is shown belongs to the previous selection.', 'تعذّر تحديث الأرقام لهذا الاختيار؛ المعروض يخص الاختيار السابق.')} <button type="button" className="btn btn-sm" onClick={retryLoad}>{L('Retry', 'إعادة المحاولة')}</button></div>;
+  if (loading) return <div className="rv-callout" role="status">{L('Updating the figures for this selection…', 'جارٍ تحديث الأرقام لهذا الاختيار…')}</div>;
+  return null;
+}
+
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
 export function ScopeBar({ compact = false }) {
   const { scope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();

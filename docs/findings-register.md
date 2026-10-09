@@ -64,3 +64,27 @@ Test count after batch 3: 68 passing.
 | (token) | Added `--danger-text` (DGA Error 700 / 400) used by the new date messages | – | Added; existing danger text colours not migrated yet |
 
 Test count after batch 4: 69 passing. `npm run build` succeeds (bundle 2.4 MB, size warning unchanged).
+
+## Batch 5 — visible states and labels (technical corrections only)
+
+| Id | Change | Evidence | Status |
+|---|---|---|---|
+| F-12 | Dashboard / Fixed reports / Smart-free views and Planning show a status line while the figures refresh («جارٍ تحديث الأرقام لهذا الاختيار…») and dim the content; a failed refresh now shows an alert «تعذّر تحديث الأرقام… المعروض يخص الاختيار السابق» with **Retry**; the stored error is cleared on the next attempt (it used to stay forever) | App with a simulated outage (fetch rejected): status line, then after the service's retries the alert; Retry with the service restored → alert gone, figures current | Fixed + verified on the Dashboard (Planning shares the component) |
+| F-04 (guard only) | Planning shows a warning banner whenever the dashboard filter differs from the plan's period/scope («الأرقام أدناه تتبع مرشحات لوحة المعلومات الحالية، وليست نطاق الخطة…») with a button to apply the plan scope. The analytics themselves still read the dashboard filter | App: with «هذا الشهر» selected the banner names both ranges; with year-to-date it is absent | Guarded + verified. **Binding the plan's figures to the plan scope is not done** (needs EQ4) |
+| F-08 (labels only) | «قواعد معتمدة» / «approved rules» no longer label the whole rule-based exclusion amount in the relations bar, the exclusions tile, the Smart-report caption and the status name («مستبعدة وفق قاعدة (بقرار مراجعة معتمد)»); the split of approved vs unapproved rule *definitions* that already exists in the exclusions panel is unchanged | Test suite unchanged and passing; labels read in code | Relabelled. The unapproved-rule band and the treatment of those exclusions in net billed are **not** changed (EQ3) |
+
+Test count after batch 5: 69 passing; `npm run build` succeeds.
+
+## Status against the acceptance criteria (audit §30) — what has actually been verified
+
+Only the items below were checked; everything else is **open**. None of the seven areas is closed.
+
+| Area | Verified in Phase 0 | Not verified / not done |
+|---|---|---|
+| A — consistent figures | A4 (relations block shows the same rates as the KPI row, no `NaN` widths, no «غير متاحة» for a calculable rate — checked on the monthly report, one scope); A5 for the executive report (the false «no recommendations» sentence is gone) | A1–A3 (cross-view parity test over the 12-selection matrix and the visible basis) — blocked by EQ1; A6 (glossary lint) |
+| B — plan-anchored planning | B3 partly (banner when the filter differs from the plan scope) | B1, B2, B4–B6: results are still computed from the dashboard filter; versions do not store period/scope/basis/config; no named scenarios |
+| C — interpretation | C1 partly: 13 of the audit's phrasings pass (target ≥ 150 phrasings, ≥ 95 %); C2 for unresolved periods and unsupported named-month comparisons; C4 partly (`?q=` replay, scroll on reopen) | C1 corpus size; C3 interpreted-request line; C5 sync control; C6 (budget questions are routed to the budget section; no redirect/answer test); (d)–(g) of F-16 |
+| D — dates | D1 (UI + code; network test not run), D5 (function test at 22:30 UTC; not run at all four hours), D7 (coverage line shown; «كل البيانات» label not changed) | D2/D3 (preset registry, «آخر 3 أشهر مكتملة» — needs EQ7), D4 partly (equal-length comparison for non-month scopes), D6 |
+| E — governance | E5 (a proposal approved in one scope reappears in another), E4 partly (names in the interface language for new entries; old stored entries keep «李芳军») | E1 (the **manual** action path still creates an approved action), E2 (no second-person rule — EQ4), E3 partly (an edited approved plan returns to draft with a log line and an untouched saved version, but no new version number is created) |
+| F — exports | F1 for PowerPoint (pagination, total row) and Excel notes (parsed files); F3 (« (%) » headers, word-boundary sheet names) | F1 for Word; callouts and every block in every format; F2 (cut-off/generated-time lines in every export); F4 |
+| G — content and visual consistency | G4 partly: Sanad «فتح» 1.15:1 → 4.75:1; one visible focus ring | the remaining contrast failures (Collection 83, Invoices 55, Risk 50, Exclusions 39, Data sources 30), target sizes, `h1`/landmarks, tokens/typography/logo (G1–G3, G5, G6) |
