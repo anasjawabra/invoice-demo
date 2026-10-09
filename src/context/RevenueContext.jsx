@@ -55,10 +55,11 @@ export function RevenueProvider({ children }) {
   const [serverCases, setServerCases] = useState(null);
   const [loadError, setLoadError] = useState(null);
   useEffect(() => {
+    if (!user) return undefined; // F-31: nothing is requested (and nothing blocks the page) before sign-in
     let off = false;
     Promise.all([api.meta(), api.sanadCases()]).then(([m, c]) => { if (!off) { setMeta(m); setServerCases(c.cases); } }).catch((e) => { if (!off) setLoadError(e); });
     return () => { off = true; };
-  }, []);
+  }, [!!user]);
 
   // Enforcement cases: hand-anchored cases + generated Sanad requests; the user's review state persists per case.
   const casesAll = useMemo(() => {
@@ -307,9 +308,9 @@ export function RevenueProvider({ children }) {
     forecastVersions, saveForecastVersion,
     tasks, modalTaskId, resultTaskId, viewResult, closeResult, startAnalysis, cancelTask, sendToBackground, dismissTask, closeModal, openTask, isStale
   };
-  if (loadError && !snapshot) return <DataServiceError error={loadError} />;
-  if (!value.ready) return <DataServiceLoading />;
-  return <RevenueCtx.Provider value={value}>{children}</RevenueCtx.Provider>;
+  // F-31: the sign-in page does not wait for (or fail with) the data service; the provider keeps one stable shape so signing in or out never remounts the tree
+  const gate = !user ? null : (loadError && !snapshot) ? <DataServiceError error={loadError} /> : !value.ready ? <DataServiceLoading /> : null;
+  return <RevenueCtx.Provider value={value}>{gate || children}</RevenueCtx.Provider>;
 }
 
 function DataServiceLoading() {

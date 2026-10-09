@@ -108,21 +108,27 @@ export function PpDelta({ change, comparable = true, label }) {
 export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'rv', planMax = null, hint = null }) {
   const [draft, setDraft] = useState({ from, to }); const [msg, setMsg] = useState(null);
   const applied = useRef(null); // the range this control itself just applied: its own note must survive the prop update that follows
-  useEffect(() => { if (applied.current && applied.current.from === from && applied.current.to === to) return; setDraft({ from, to }); setMsg(null); }, [from, to]);
+  useEffect(() => { if (applied.current && applied.current.from === from && applied.current.to === to) return; window.clearTimeout(timer.current); timer.current = null; latest.current = { from, to }; setDraft({ from, to }); setMsg(null); }, [from, to]);
   const ar = lang === 'ar'; const hintId = `${idPrefix}-date-hint`;
-  const apply = (next) => {
-    setDraft(next);
+  // D-15: typing a year passes through 0002, 0020, 0202 … — the range is checked and applied when typing pauses, on Enter or when the field loses focus (never on every keystroke)
+  const timer = useRef(null); const latest = useRef({ from, to });
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+  const commit = (next) => {
+    window.clearTimeout(timer.current); timer.current = null;
     const r = checkRange(next, { today });
     if (!r.ok) { setMsg({ code: r.code, bad: true }); onChange(null); return; }
     if (r.adjusted.length) { setDraft({ from: r.from, to: r.to }); setMsg({ code: r.adjusted[0], bad: false }); } else setMsg(null);
     applied.current = { from: r.from, to: r.to };
     onChange({ from: r.from, to: r.to });
   };
+  const apply = (next) => { setDraft(next); latest.current = next; window.clearTimeout(timer.current); timer.current = window.setTimeout(() => commit(latest.current), 900); };
+  const flush = () => { if (timer.current) commit(latest.current); };
+  const key = (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(latest.current); } };
   return (
     <span className="rv-scope__dates">
-      <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : 'From'} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} />
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : 'From'} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} onBlur={flush} onKeyDown={key} />
       <span className="muted">→</span>
-      <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : 'To'} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} />
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : 'To'} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} onBlur={flush} onKeyDown={key} />
       <span id={hintId} className={`rv-scope__hint ${msg ? (msg.bad ? 'rv-scope__hint--bad' : 'rv-scope__hint--note') : ''}`} role={msg ? 'alert' : undefined}>{msg ? rangeMessage(msg.code, lang, { today, planMax }) : (hint || coverageLine(lang, { today }))}</span>
     </span>
   );

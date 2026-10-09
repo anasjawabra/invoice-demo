@@ -1,6 +1,8 @@
 // The ONE compact, expandable filter context shared by the dashboard, the fixed reports and the planning baseline.
 import React, { useCallback, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useRevenue } from '../../context/RevenueContext';
+import { DEFAULT_CONFIG } from '../../data/revenueMetrics';
 import { useAr } from '../../utils/useAr';
 import { ScopeBar } from '../revenue/RevenueUI';
 import { municipalitiesOf } from '../../data/catalog';
@@ -19,11 +21,14 @@ export default function FilterChips() {
   }, [s, ar, L, labelOfAmanah]);
   // how many filters differ from the defaults (year to date · everything) — and one click to go back
   const active = [rev.scope.preset !== 'ytd', s.amanah !== 'all', s.muni !== 'all', s.source !== 'all', (s.scopeType || 'all') !== 'all', (s.status || 'all') !== 'all'].filter(Boolean).length;
+  // F-20: the calculation settings (grace days, collection basis, CR statuses, rules) change every figure — say so when they are not the defaults
+  const cfgChanged = (() => { const c = rev.cfg || {}; const J = JSON.stringify; return c.graceDays !== DEFAULT_CONFIG.graceDays || c.collectionsAsOf !== DEFAULT_CONFIG.collectionsAsOf || J(c.crStatuses) !== J(DEFAULT_CONFIG.crStatuses) || J(c.rules) !== J(DEFAULT_CONFIG.rules); })();
   return (
     <>
       <div className="sr-context" role="region" aria-label={L('المرشحات المشتركة', 'Shared filters')}>
         <div className="sr-chips">{chips.map(([k, v]) => <span key={k} className="sr-chip"><em>{k}</em> <bdi>{v}</bdi></span>)}</div>
         {active > 0 && <><span className="st-tag st-tag--warn">{L(`مرشحات مفعّلة (${active})`, `Active filters (${active})`)}</span><button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetScope}>{L('إعادة الضبط', 'Reset')}</button></>}
+        {cfgChanged && <><span className="st-tag st-tag--warn">{L('إعدادات الاحتساب معدّلة عن الافتراضي', 'Calculation settings differ from the defaults')}</span><Link className="btn btn-sm btn-ghost" to="/noncollection">{L('عرض الإعدادات', 'View the settings')}</Link></>}
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
       </div>
       {open && <ScopeBar compact />}

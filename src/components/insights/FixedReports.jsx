@@ -48,7 +48,7 @@ function ReportBody({ def }) {
       <ToDateFigure snapshot={snapshot} />
       <div className="muted" role="status" style={{ fontSize: 13, marginBlock: exportDone ? 0 : -6 }}>{exportDone ? L(`تم إنشاء ملف ${exportDone} وتنزيله من المتصفح.`, `The ${exportDone} file was created and handed to the browser's download.`) : ''}</div>
       {exportErr && <div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر التصدير: ', 'Export failed: ')}{exportErr}</div>}
-      {def.compare !== 'none' && !yoy && <div className="rv-callout">{L('لا توجد مقارنة مكافئة لهذه الفترة (العام السابق خارج نطاق البيانات)؛ تُعرض الأرقام دون مقارنة.', 'No equivalent comparison for this period (last year is outside the data); figures are shown without comparison.')}</div>}
+      {snapshot.totals.count > 0 && def.compare !== 'none' && !yoy && <div className="rv-callout">{L('لا توجد مقارنة مكافئة لهذه الفترة (العام السابق خارج نطاق البيانات)؛ تُعرض الأرقام دون مقارنة.', 'No equivalent comparison for this period (last year is outside the data); figures are shown without comparison.')}</div>}
       {snapshot.totals.count === 0 ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً.', 'No invoices in this selection; the data is unavailable, not zero.')}</div>
         : <AsyncBlock state={X} onRetry={() => setRt((n) => n + 1)} height={260}>{model && <ReportView model={model} />}</AsyncBlock>}
     </div>

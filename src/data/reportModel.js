@@ -250,7 +250,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   return {
     id: `rpt-${generatedAt.getTime()}`, title, subtitle: chips.find((c) => c.k === 'period').value,
     generatedAt: generatedAt.toISOString(), cutoff: snapshot.cutoff, lang, depth: spec.depth, compare, synthetic: true, context: chips,
-    totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: headline(), sections: [...out2, ...tail],
+    totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: keys.length && keys.every((k) => k === 'budget' || k === 'quality') ? [] : headline(), sections: [...out2, ...tail], // F-21: the billing/collection KPI strip is not the headline of a budget-execution or data-quality report
     summaryText: insightsRes.summary.text[ar ? 'ar' : 'en']
   };
 }
