@@ -39,7 +39,7 @@ const SECTION_WORDS = [
   ['trends', /(الاتجاه|الترند|شهرا بشهر|الاتجاه الشهري|تطور|حسب الشهر)/],
   ['gaps', /(فجوات|الفجوه|اولويات|فرص التحصيل|اولويه المتابعه)/],
   ['status', /(حاله الدفع|حالات الفواتير|حاله الفاتوره|عدد الفواتير|حسب الحاله)/],
-  ['quality', /(جوده البيانات|اكتمال|مطابقه|تعارضات)/],
+  ['quality', /(جوده (?:ال)?بيانات|اكتمال|مطابقه|تعارضات)/],
   ['bases', /(اساس القياس|اساسين|اساس التقرير)/],
   ['channels', /(قنوات الدفع|قنوات السداد|قنوات)/],
   ['budget', /(الميزانيه|الميزانيات|المصروفات|المصاريف|الانفاق|النفقات|نغطي|تغطيه|تغطي|\bbudget\b|\bexpenditure\b|\bspending\b)/]
@@ -52,12 +52,12 @@ export const SUPPORTED_HELP = {
   en: ['Period: “this month to date”, “last month”, “year to date”, “Q1”, “March”', 'Amanah / municipality: “show Riyadh Amanah only”', 'Source: Furas investment, fines, municipal fees, licences, accommodation, tobacco, white lands', 'Status: “overdue invoices only”, “collected”, “cancelled”', 'Comparison: “compare with last month / last year”', 'Sections: sources, Amanahs, aging, exclusions, monthly trend, gaps, payment status, data quality', 'Depth: “make it a detailed report”, “add the source breakdown”']
 };
 
-const STATUS_WORDS = [['overdue', /المتاخر|\boverdue\b/], ['collected', /(المحصله|المحصل بالكامل|المسدده|\bcollected invoices\b)/], ['cancelled', /(الملغاه|الملغيه|الملغاة|\bcancell?ed\b)/], ['excluded', /(المستبعده|المستبعدة|\bexcluded invoices\b)/], ['partial', /(الجزئيه|المسدده جزئيا|محصله جزئيا|\bpartial(ly paid)?\b)/], ['not_due', /(لم يحن|غير المستحقه|\bnot (yet )?due\b)/], ['open', /(غير المسدده|القائمه|المفتوحه|غير المحصله|\bopen invoices\b)/]];
+const STATUS_WORDS = [['overdue', /المتاخر|\boverdue\b/], ['open', /(غير المسدده|غير المحصله|غير المدفوعه)/], ['collected', /(المحصله|المحصل بالكامل|(?<!غير )المسدده|\bcollected invoices\b)/], ['cancelled', /(الملغاه|الملغيه|الملغاة|\bcancell?ed\b)/], ['excluded', /(المستبعده|المستبعدة|\bexcluded invoices\b)/], ['partial', /(الجزئيه|المسدده جزئيا|محصله جزئيا|\bpartial(ly paid)?\b)/], ['not_due', /(لم يحن|غير المستحقه|\bnot (yet )?due\b)/], ['open', /(غير المسدده|القائمه|المفتوحه|غير المحصله|\bopen invoices\b)/]];
 const DIRECTION = [['North', /(شمال|الشماليه)/], ['Central', /(وسط|الوسطي|المركزيه)/], ['South', /(جنوب|الجنوبيه)/]];
 
 const PERIOD_OPTIONS = [{ label: { ar: 'السنة حتى اليوم', en: 'Year to date' }, text: 'أنشئ تقرير الإيرادات للسنة حتى اليوم' }, { label: { ar: 'هذا الشهر حتى اليوم', en: 'This month to date' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم' }, { label: { ar: 'الشهر الماضي', en: 'Last month' }, text: 'أنشئ تقرير الإيرادات للشهر الماضي' }];
 // wording that names a period but that parsePeriod cannot resolve («قبل شهرين»، «آخر 6 أشهر»، «الأسبوع الماضي»، "last 6 months")
-const UNAPPLIED_PERIOD = /قبل\s*(?:\d+|شهرين|اسبوعين|عامين|سنتين)|اخر\s*\d+\s*(?:شهر|اشهر|اسبوع|اسابيع|ايام|يوم|سنوات|سنه)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه|شهر)\s*(?:ال)?(?:قادم|مقبل)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه)\s*(?:ال)?(?:ماضي|سابق|حالي)|(?:last|previous|past|next)\s*\d*\s*(?:week|weeks|day|days|months?|year|years|quarter)|\byesterday\b|(?:^|\s)(?:امس|البارحه)(?:\s|$)/;
+const UNAPPLIED_PERIOD = /قبل\s*(?:\d+|شهرين|اسبوعين|عامين|سنتين)|اخر\s*\d+\s*(?:شهر|اشهر|اسبوع|اسابيع|ايام|يوم|سنوات|سنه)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه|شهر)\s*(?:ال)?(?:قادم|مقبل)|(?:ال)?(?:اسبوع|يوم|ربع|عام|سنه)\s*(?:ال)?(?:ماضي|سابق|حالي)|(?:last|previous|past|next)\s*(?:\d+|two|three|four|few|couple of)?\s*(?:week|weeks|day|days|months?|year|years|quarter)|(?:ال)?نصف (?:ال)?(?:اول|ثاني|سنه|عام)|(?:ال)?ربع (?:ال)?اخير|\byesterday\b|(?:^|\s)(?:امس|البارحه)(?:\s|$)/;
 const QUARTER_NAMES = { q1: { ar: 'الربع الأول', en: 'The first quarter' }, q2: { ar: 'الربع الثاني', en: 'The second quarter' }, q3: { ar: 'الربع الثالث', en: 'The third quarter' }, q4: { ar: 'الربع الرابع', en: 'The fourth quarter' } };
 function periodPreset(from, to, today) { return detectPreset(from, to, today); }
 export function previousMonthScope(scope, today) {
@@ -83,15 +83,15 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   if (!prev && has(s, /^(قارن|مقارنه)( بالشهر الماضي| بالعام الماضي| بالفتره السابقه)?$/)) return { kind: 'clarify', spec, changes: [], question: { ar: 'ماذا تريد أن أقارن؟ لا يوجد تقرير حالي أبني عليه المقارنة.', en: 'What should I compare? There is no current report to build the comparison on.' }, options: [{ label: { ar: 'أداء التحصيل بين الأمانات', en: 'Collection performance between Amanahs' }, text: 'قارن أداء التحصيل بين الأمانات' }, { label: { ar: 'تقرير هذا الشهر مقارناً بالشهر الماضي', en: 'This month’s report compared with last month' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم قارن بالشهر الماضي' }] };
   if (amHits.length > 1 && has(s, /فقط/)) return { kind: 'clarify', spec, changes: [], question: { ar: 'ذكرتَ أكثر من أمانة مع «فقط». أيها تريد؟', en: 'You named more than one Amanah with “only”. Which one?' }, options: amHits.slice(0, 4).map((k) => ({ label: { ar: amanahLabel(k), en: amanahLabel(k) }, text: `اعرض أمانة ${amanahLabel(k).replace(/^أمانة\s*(منطقة\s*)?/, '')} فقط` })) };
   // ---- reset
-  const reset = has(s, /(ابدا من جديد|ازل (كل )?المرشحات|الغ(ي)? (كل )?المرشحات|بدون مرشحات|كل المرشحات)/);
+  const reset = has(s, /(ابدا من جديد|(?:ازل|امسح|احذف|صفر|الغ(?:ي)?) (?:كل )?(?:ال)?(?:مرشحات|فلاتر|فلتر)|بدون مرشحات|كل المرشحات|\b(?:reset|clear|remove) (?:all )?(?:the )?filters\b)/);
   if (reset) { const d = defaultSpec(today); spec.scope = d.scope; spec.preset = d.preset; spec.compare = 'none'; note('reset', 'reset', null); }
 
   // ---- comparison. Only the OBJECT of «قارن / مقارنة … / compare with …» is a comparison; a period word elsewhere in the sentence
   // («تقرير الشهر الماضي مقارنة بالعام الماضي») is the report period.
-  const CMP_MONTH = /(?:ب|مع)?(?:ال)?شهر\s*(?:ال)?(?:ماضي|سابق)|(?:the\s+)?(?:last|previous)\s+month|الشهر اللي قبل/;
+  const CMP_MONTH = /(?:ب|مع)?(?:ال)?شهر\s*(?:ال)?(?:ماضي|سابق|اللي فات|الي فات|الفايت)|(?:the\s+)?(?:last|previous)\s+month|الشهر اللي قبل/;
   const CMP_YEAR = /(?:ب|مع)?(?:ال)?(?:عام|سنه)\s*(?:ال)?(?:ماضي|سابق)|(?:the\s+)?(?:last|previous)\s+year|same period last year|نفس الفتره/;
   let t = s; let compareNew = null; let cmpPeriod = null;
-  const trig = s.match(/(?:^|\s)(?:و)?(قارن|مقارنه|بالمقارنه|مقابل|compare|compared|versus|vs|(?:افضل|اسوا|اعلي|اقل|اكثر|تحسن|تراجع|ارتفع|انخفض) (?:من|عن)|(?:better|worse|higher|lower|more|less) than)(?=\s|$)/);
+  const trig = s.match(/(?:^|\s)(?:و)?(?:ال)?(قارن|مقارنه|بالمقارنه|مقابل|compare|compared|versus|vs|(?:افضل|احسن|اسوا|اعلي|اقل|اكثر|تحسن|تراجع|ارتفع|انخفض) (?:من|عن)|(?:better|worse|higher|lower|more|less) than)(?=\s|$)/);
   if (trig && amHits.length < 2) {
     const before = s.slice(0, trig.index); const after = s.slice(trig.index + trig[0].length);
     if (CMP_MONTH.test(after)) { compareNew = 'prev_month'; t = `${before} ${after.replace(CMP_MONTH, ' ')}`; }
@@ -136,7 +136,7 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   if (has(s, /(^|\s)(?:ال)?مبيعات(\s|$)/) && !srcs.length) return { kind: 'clarify', spec: prev || spec, changes: [], question: { ar: 'هل تقصد «مبيعات الإسكان»؟ المبيعات ليست مصدراً مستقلاً في هذا النظام.', en: 'Do you mean “housing sales”? Sales is not a separate revenue source in this system.' }, options: [{ label: { ar: 'تقرير مبيعات الإسكان', en: 'Housing sales report' }, text: 'تقرير مبيعات الإسكان' }] };
   const am = parseAmanah(raw);
   const onlyOne = am.length === 1 ? am[0] : null;
-  const cmpAmanahs = am.length >= 2 && !!trig; // «قارن الرياض بجدة»
+  const cmpAmanahs = am.length >= 2 && (!!trig || has(s, /(comparison|compared|between|بين)/)); // «قارن الرياض بجدة»
   if (am.length >= 1 && (am.length === 1 ? !has(s, /بين الامانات/) : (cmpAmanahs || has(s, /(فقط|الامانات|^اعرض|^عرض|\bshow\b)/)) && !has(s, /بين الامانات/))) {
     const val = am.length === 1 ? am[0] : am;
     if (JSON.stringify(val) !== JSON.stringify(spec.scope.amanah)) { spec.scope.amanah = val; spec.scope.muni = 'all'; note('amanah', 'amanah', val); }

@@ -737,9 +737,10 @@ await test('EQ10: backup/export/import of the browser-local records — validate
   const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
-await test('interpreter corpus: 162 representative Arabic / English phrases + 47 written blind — correct reading or an appropriate clarification / refusal', async () => {
+await test('interpreter corpus: 162 representative + 47 blind + 65 held-out Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
   const { runCorpus, evaluate } = await import('./interpreter-eval.mjs'); const { BLIND } = await import('./interpreter-corpus-blind.mjs'); const { VERIFIED_IDS } = await import('./interpreter-corpus.mjs');
-  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind];
+  const { HELDOUT } = await import('./interpreter-corpus-heldout.mjs'); const held = HELDOUT.map((c) => ({ c, ...evaluate(c) }));
+  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held];
   const bad = all.filter((x) => !x.ok); const score = (all.length - bad.length) / all.length;
   assert.ok(all.length >= 150, `corpus size ${all.length}`);
   assert.ok(score >= 0.95, `accuracy ${(score * 100).toFixed(1)}%\n${bad.map((x) => `#${x.c.id} ${x.c.q} → ${x.why}`).join('\n')}`);

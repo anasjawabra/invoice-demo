@@ -40,8 +40,8 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   };
   const AL = '(?:ال|لل|ل|بال|ب)?'; // the article / preposition prefixes Arabic glues onto a noun
   if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|هالشهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
-  if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير)`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
-  if (/last 3 months|three months|اخر 3 اشهر|اخر ثلاثه اشهر/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
+  if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير|اللي فات|الفايت|الي فات)|الشهر اللي فات`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
+  if (/last 3 months|three months|اخر 3 (?:اشهر|شهور)|اخر ثلاثه (?:اشهر|شهور)|(?:ال)?(?:اشهر|شهور) (?:ال)?(?:3|ثلاثه) (?:ال)?(?:اخيره|ماضيه)/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
   if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|هالسنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي|${AL}(?:سنه|عام) كامل|${AL}(?:سنه|عام) حتي اليوم|منذ بدايه (?:ال)?(?:سنه|عام)`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);
@@ -78,9 +78,9 @@ export function parseAmanah(text) {
   const lower = text.toLowerCase();
   const hits = [];
   for (const a of amanahOptionsOf()) {
-    const en = a.en.toLowerCase().replace(/ amanah$/, '');
+    const en = a.en.toLowerCase().replace(/ amanah$/, ''); const enShort = en.replace(/^al[- ]/, '');
     const ar = (a.ar || '').replace(/^أمانة\s*(منطقة\s*)?/, '').trim();
-    if ((en && lower.includes(en)) || (ar && ar.length > 2 && text.includes(ar))) hits.push(a.key);
+    if ((en && lower.includes(en)) || (enShort.length > 3 && enShort !== en && lower.includes(enShort)) || (ar && ar.length > 2 && text.includes(ar))) hits.push(a.key);
   }
   return [...new Set(hits)];
 }
