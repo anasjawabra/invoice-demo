@@ -1,0 +1,296 @@
+<title>Revenue KPI Strip Spec</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#EEF3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E3EBE7;
+    --ink:#132220;
+    --ink-dim:#4C6864;
+    --line:#CFDCD7;
+    --petrol:#0B4A45;
+    --petrol-strong:#073430;
+    --petrol-tint:#DCEAE7;
+    --amber:#9C6B15;
+    --amber-soft:#F3E6C9;
+    --rose:#8F3A3C;
+    --rose-soft:#F4DFDD;
+    --forest:#2C6B4E;
+    --forest-soft:#DDEBE1;
+    --code-bg:#0F211E;
+    --code-ink:#D9EEE8;
+    --code-accent:#7FD9C4;
+    --radius:14px;
+    --radius-sm:9px;
+    --font-body:'IBM Plex Sans',-apple-system,'Segoe UI',sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0C1614;
+      --surface:#132422;
+      --surface-2:#1A2E2A;
+      --ink:#E7F0ED;
+      --ink-dim:#94B0AA;
+      --line:#254440;
+      --petrol:#5FCBB9;
+      --petrol-strong:#8CDDCF;
+      --petrol-tint:#173430;
+      --amber:#E2B45C;
+      --amber-soft:#332A15;
+      --rose:#E2908F;
+      --rose-soft:#382121;
+      --forest:#7FCBA1;
+      --forest-soft:#173326;
+      --code-bg:#081412;
+      --code-ink:#CDEFE5;
+      --code-accent:#7FD9C4;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1614; --surface:#132422; --surface-2:#1A2E2A; --ink:#E7F0ED; --ink-dim:#94B0AA;
+    --line:#254440; --petrol:#5FCBB9; --petrol-strong:#8CDDCF; --petrol-tint:#173430;
+    --amber:#E2B45C; --amber-soft:#332A15; --rose:#E2908F; --rose-soft:#382121;
+    --forest:#7FCBA1; --forest-soft:#173326; --code-bg:#081412; --code-ink:#CDEFE5; --code-accent:#7FD9C4;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--ground); color:var(--ink); font-family:var(--font-body); }
+
+  .doc{ max-width:880px; margin-inline:auto; padding:44px 22px 100px; }
+  .doc p{ line-height:1.7; }
+
+  .eyebrow{ font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--petrol); }
+  h1{ font-weight:600; font-size:clamp(26px,4.4vw,36px); line-height:1.2; margin:10px 0 10px; color:var(--petrol-strong); text-wrap:balance; }
+  .lede{ font-size:15.5px; color:var(--ink-dim); max-width:66ch; margin:0 0 20px; line-height:1.75; }
+  .meta{ display:flex; flex-wrap:wrap; gap:8px; padding-block-end:26px; border-block-end:1px solid var(--line); margin-block-end:30px; }
+  .meta__chip{ font-size:12px; color:var(--ink-dim); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:6px 13px; }
+  .meta__chip b{ color:var(--ink); }
+
+  h2{ font-weight:600; font-size:21px; margin:48px 0 6px; color:var(--ink); scroll-margin-top:20px; }
+  h2 .num{ font-family:var(--font-mono); font-size:12px; color:var(--ink-dim); margin-inline-end:8px; }
+  .section-lede{ color:var(--ink-dim); font-size:13.5px; margin:0 0 18px; max-width:66ch; }
+
+  .toc{ display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .toc a{ font-size:13px; text-decoration:none; color:var(--petrol-strong); background:var(--petrol-tint); border-radius:8px; padding:9px 12px; display:block; }
+  @media (max-width:600px){ .toc{ grid-template-columns:1fr; } }
+
+  .field-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .field-table th{ text-align:start; font-family:var(--font-mono); font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-dim); padding:8px 10px; border-bottom:1px solid var(--line); }
+  .field-table td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .field-table code{ font-family:var(--font-mono); font-size:12.5px; color:var(--petrol-strong); }
+  .table-wrap{ overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface); }
+
+  .kpi-card{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; margin-block-end:22px; }
+  .kpi-card__head{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; flex-wrap:wrap; margin-block-end:4px; }
+  .kpi-card__name{ font-weight:600; font-size:17px; }
+  .kpi-card__example{ font-family:var(--font-mono); font-size:12px; color:var(--ink-dim); direction:ltr; }
+
+  .kpi-card__sub{ font-size:12px; color:var(--ink-dim); margin-block-end:16px; }
+
+  .field-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--petrol); margin-block-end:6px; display:block; }
+  .prose{ font-size:13.5px; line-height:1.7; margin:0 0 14px; }
+
+  pre{ background:var(--code-bg); color:var(--code-ink); border-radius:var(--radius-sm); padding:14px 16px; font-family:var(--font-mono); font-size:12.5px; line-height:1.65; overflow-x:auto; margin:0 0 14px; }
+  pre .k{ color:var(--code-accent); }
+  code.inline{ font-family:var(--font-mono); font-size:12.5px; background:var(--surface-2); border-radius:5px; padding:1px 6px; color:var(--petrol-strong); }
+
+  .callout{ border-inline-start:3px solid; border-radius:var(--radius-sm); padding:12px 16px; margin:0 0 14px; font-size:13px; line-height:1.65; }
+  .callout__label{ font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; margin-block-end:6px; display:block; }
+  .callout--edge{ background:var(--amber-soft); border-color:var(--amber); }
+  .callout--edge .callout__label{ color:var(--amber); }
+  .callout--decision{ background:var(--rose-soft); border-color:var(--rose); }
+  .callout--decision .callout__label{ color:var(--rose); }
+  .callout--note{ background:var(--forest-soft); border-color:var(--forest); }
+  .callout--note .callout__label{ color:var(--forest); }
+
+  .deps{ display:flex; flex-wrap:wrap; gap:6px; margin-block-end:14px; }
+  .deps span{ font-family:var(--font-mono); font-size:11.5px; background:var(--surface-2); border-radius:6px; padding:3px 9px; }
+
+  .flow{ font-family:var(--font-mono); font-size:12px; background:var(--surface-2); border-radius:var(--radius-sm); padding:14px 16px; overflow-x:auto; white-space:pre; margin-block-end:14px; }
+
+  footer.note{ margin-top:56px; padding-block-start:18px; border-block-start:1px solid var(--line); font-size:11.5px; color:var(--ink-dim); }
+</style>
+
+<div class="doc">
+
+  <div class="eyebrow">technical spec · BA + developer handoff</div>
+  <h1>Revenue KPI Strip — Definitions &amp; Implementation</h1>
+  <p class="lede">Business rules and calculation logic behind the six-tile revenue summary (Total Invoiced → Excluded → Net Invoiced → Collected → Collection Rate → Uncollected), extracted from the working prototype so the real system can implement the same logic against production data.</p>
+  <div class="meta">
+    <span class="meta__chip">Source: <b>prototype Dashboard KPI strip</b></span>
+    <span class="meta__chip">Grain: <b>one row per invoice</b></span>
+    <span class="meta__chip">Currency: <b>SAR</b></span>
+  </div>
+
+  <h2 style="margin-top:0;">Navigate</h2>
+  <div class="toc">
+    <a href="#data-model">Data model &amp; required fields</a>
+    <a href="#scope">Scope filters (period / entity)</a>
+    <a href="#kpi-1">1. Total Invoiced</a>
+    <a href="#kpi-2">2. Excluded Amount</a>
+    <a href="#kpi-3">3. Net Invoiced</a>
+    <a href="#kpi-4">4. Total Collected</a>
+    <a href="#kpi-5">5. Collection Rate</a>
+    <a href="#kpi-6">6. Uncollected</a>
+    <a href="#edge-cases">Edge cases &amp; open questions</a>
+    <a href="#glossary">Glossary</a>
+  </div>
+
+  <h2 id="data-model"><span class="num">01</span>Data model &amp; required fields</h2>
+  <p class="section-lede">Every KPI below is derived from a single invoice-level record. These are the fields the calculation depends on — nothing else is read.</p>
+  <div class="table-wrap">
+    <table class="field-table">
+      <thead><tr><th>Field</th><th>Type</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>amount</code></td><td>decimal (SAR)</td><td>The value summed into every tile</td></tr>
+        <tr><td><code>date</code></td><td>date (invoice issue date)</td><td>Period-scope filter; year check for Uncollected</td></tr>
+        <tr><td><code>status</code></td><td>enum</td><td><code>approved</code> = collected; <code>duplicate</code> = one exclusion reason</td></tr>
+        <tr><td><code>hasOpenObjection</code></td><td>boolean</td><td>Exclusion reason: invoice is under formal dispute</td></tr>
+        <tr><td><code>debtorInvalid</code></td><td>boolean</td><td>Exclusion reason: debtor registry is invalid (struck-off CR or deceased)</td></tr>
+        <tr><td><code>collectedVia</code></td><td>enum (<code>voluntary</code> / <code>enforcement</code>)</td><td>Exclusion reason when equal to <code>enforcement</code></td></tr>
+        <tr><td><code>entity</code> / owning Amanah</td><td>string</td><td>Entity-scope filter</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="callout callout--note">
+    <span class="callout__label">Note for BA</span>
+    A record can be a member of more than one exclusion reason at once (e.g. duplicate <em>and</em> under objection). The invoice is excluded from Net Invoiced exactly once regardless of how many reasons apply — but if the real system also reports an "exclusions by category" breakdown elsewhere, that invoice's value will legitimately appear in more than one category bucket there. Decide up front whether category-level exclusion totals are expected to sum back to the KPI strip's single Excluded Amount (in the prototype, they do sum, but only because reason-overlap happens to be zero across the sample data).
+  </div>
+
+  <h2 id="scope"><span class="num">02</span>Scope filters</h2>
+  <p class="section-lede">All six tiles react to the same two scope controls. Filtering happens once, before any KPI is calculated — every tile below reads from that already-filtered set.</p>
+  <pre>invoice_set = ALL_INVOICES
+  .filter(date BETWEEN period_start AND period_end)
+  .filter(entity == selected_entity OR selected_entity == "All")</pre>
+  <div class="callout callout--decision">
+    <span class="callout__label">Decision needed</span>
+    The prototype's period presets (Previous Month, Last 3/6 Months, Last Year) anchor "today" to the latest date found in the dataset, since it's a static demo snapshot. In production, anchor to the real system clock (<code class="inline">CURRENT_DATE</code>), not to <code class="inline">MAX(invoice.date)</code>.
+  </div>
+
+  <h2 id="kpi-1"><span class="num">03</span>KPI Definitions</h2>
+
+  <div class="kpi-card" id="kpi-1">
+    <div class="kpi-card__head"><span class="kpi-card__name">1 · Total Invoiced</span><span class="kpi-card__example">e.g. 29,518,000</span></div>
+    <div class="kpi-card__sub">Gross value of every invoice in scope — before any exclusion is applied.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">The full face value of all invoices issued within the selected period and entity, with no adjustments. This is the "before any judgment calls" number — every other tile is a slice or derivative of this one.</p>
+    <span class="field-label">Formula</span>
+    <pre>Total Invoiced = SUM(invoice.amount) FOR invoice IN invoice_set</pre>
+    <div class="deps"><span>invoice_set</span><span>amount</span></div>
+  </div>
+
+  <div class="kpi-card" id="kpi-2">
+    <div class="kpi-card__head"><span class="kpi-card__name">2 · Excluded Amount</span><span class="kpi-card__example">e.g. 10,357,500</span></div>
+    <div class="kpi-card__sub">Value stripped out before "net" is calculated — never counted as collected, never counted as outstanding either.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">The value of invoices that should not count toward the collection target at all, because collecting on them isn't a realistic or fair expectation right now. An invoice is excluded if <strong>any</strong> of the following is true:</p>
+    <ul class="prose" style="margin:0 0 14px; padding-inline-start:20px;">
+      <li><strong>Duplicate</strong> — <code class="inline">status == 'duplicate'</code></li>
+      <li><strong>Under appeal / dispute</strong> — <code class="inline">hasOpenObjection == true</code></li>
+      <li><strong>Invalid debtor</strong> — <code class="inline">debtorInvalid == true</code> (struck-off commercial registry or deceased debtor)</li>
+      <li><strong>Referred to enforcement</strong> — <code class="inline">collectedVia == 'enforcement'</code></li>
+    </ul>
+    <span class="field-label">Formula</span>
+    <pre>is_excluded(invoice) =
+     invoice.status == 'duplicate'
+  OR invoice.hasOpenObjection == true
+  OR invoice.debtorInvalid == true
+  OR invoice.collectedVia == 'enforcement'
+
+Excluded Amount = SUM(invoice.amount)
+  FOR invoice IN invoice_set WHERE is_excluded(invoice)</pre>
+    <div class="deps"><span>status</span><span>hasOpenObjection</span><span>debtorInvalid</span><span>collectedVia</span></div>
+    <div class="callout callout--decision">
+      <span class="callout__label">Decision needed</span>
+      This four-reason list is the prototype's working assumption, not a ratified policy. Confirm with the business owner whether this is the final exclusion policy for the real KPI, and whether any reason should itself be time-bound (e.g. an objection older than N days auto-reverts into Net Invoiced).
+    </div>
+  </div>
+
+  <div class="kpi-card" id="kpi-3">
+    <div class="kpi-card__head"><span class="kpi-card__name">3 · Net Invoiced</span><span class="kpi-card__example">e.g. 19,160,500</span></div>
+    <div class="kpi-card__sub">The denominator for Collection Rate — what the ministry can realistically expect to collect.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">Total Invoiced minus Excluded Amount. This is the base every downstream KPI (Collected, Collection Rate, Uncollected) is measured against.</p>
+    <span class="field-label">Formula</span>
+    <pre>Net Invoiced = Total Invoiced − Excluded Amount</pre>
+    <div class="deps"><span>Total Invoiced</span><span>Excluded Amount</span></div>
+  </div>
+
+  <div class="kpi-card" id="kpi-4">
+    <div class="kpi-card__head"><span class="kpi-card__name">4 · Total Collected</span><span class="kpi-card__example">e.g. 14,306,500</span></div>
+    <div class="kpi-card__sub">Cash actually received, within the net-invoiced (non-excluded) population.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">The value of non-excluded invoices that have been fully paid and confirmed.</p>
+    <span class="field-label">Formula</span>
+    <pre>Total Collected = SUM(invoice.amount)
+  FOR invoice IN invoice_set
+  WHERE NOT is_excluded(invoice)
+    AND invoice.status == 'approved'</pre>
+    <div class="deps"><span>status == 'approved'</span><span>is_excluded()</span></div>
+    <div class="callout callout--edge">
+      <span class="callout__label">Edge case</span>
+      "Approved" is the prototype's single stand-in for "payment received." In the real payment lifecycle there may be intermediate states (e.g. payment submitted but not yet cleared) — confirm which real status value(s) should map to "collected" for this KPI, since counting too early would overstate cash actually in hand.
+    </div>
+  </div>
+
+  <div class="kpi-card" id="kpi-5">
+    <div class="kpi-card__head"><span class="kpi-card__name">5 · Collection Rate</span><span class="kpi-card__example">e.g. 74.7%</span></div>
+    <div class="kpi-card__sub">The single headline performance number — Collected as a share of what was realistically invoiced.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">What fraction of the money the ministry could reasonably expect to collect has actually been collected. Deliberately measured against Net Invoiced, not Total Invoiced — so duplicate/disputed/enforcement-referred invoices don't unfairly drag the rate down.</p>
+    <span class="field-label">Formula</span>
+    <pre>Collection Rate = ROUND(Total Collected / Net Invoiced × 100, 1)
+  (0% if Net Invoiced == 0 — avoid divide-by-zero)</pre>
+    <div class="deps"><span>Total Collected</span><span>Net Invoiced</span></div>
+  </div>
+
+  <div class="kpi-card" id="kpi-6">
+    <div class="kpi-card__head"><span class="kpi-card__name">6 · Uncollected</span><span class="kpi-card__example">e.g. 4,854,000</span></div>
+    <div class="kpi-card__sub">Money still outstanding on invoices the ministry issued <strong>this year</strong> and hasn't excluded.</div>
+    <span class="field-label">Business definition</span>
+    <p class="prose">Of this year's realistically-collectible invoices, how much is still sitting unpaid. Restricted to invoices <em>issued in the current year</em> — this reconciles accrual-basis invoicing (an invoice can be issued in one year and paid in the next) with a cash-basis "what's still owed to us right now" KPI, so multi-year carry-over debt doesn't silently inflate this specific tile.</p>
+    <span class="field-label">Formula</span>
+    <pre>Uncollected = SUM(invoice.amount)
+  FOR invoice IN invoice_set
+  WHERE NOT is_excluded(invoice)
+    AND invoice.status != 'approved'
+    AND YEAR(invoice.date) == CURRENT_YEAR</pre>
+    <div class="deps"><span>status != 'approved'</span><span>is_excluded()</span><span>YEAR(date)</span></div>
+    <div class="callout callout--edge">
+      <span class="callout__label">Edge case — arithmetic does not always close</span>
+      Because of the current-year restriction above, <code class="inline">Total Collected + Uncollected</code> is <strong>not guaranteed to equal</strong> <code class="inline">Net Invoiced</code> — a non-approved, non-excluded invoice from a <em>prior</em> year is inside Net Invoiced but outside both Collected and Uncollected. In the sample data the three numbers happen to tie out exactly because there's no such prior-year residue to test against — do not assume that will hold once real multi-year data is loaded. Decide whether prior-year outstanding balances need their own KPI tile (e.g. "Prior-Year Arrears") before this ships.
+    </div>
+  </div>
+
+  <h2 id="edge-cases"><span class="num">04</span>Cross-cutting edge cases &amp; open questions</h2>
+  <div class="callout callout--decision">
+    <span class="callout__label">1 · Zero-invoice period</span>
+    If the selected period/entity has no invoices at all, Net Invoiced is 0 and Collection Rate must short-circuit to 0% (not NaN or a divide-by-zero error). Confirm the UI should show "0%" rather than "—" / "N/A" in this state.
+  </div>
+  <div class="callout callout--decision">
+    <span class="callout__label">2 · Currency &amp; rounding</span>
+    All six tiles are single-currency (SAR) in the prototype. If multi-currency invoices exist in production, confirm the FX conversion point (at invoice date? at report-run date?) before summing. Collection Rate is rounded to 1 decimal place — confirm that precision is acceptable for executive reporting versus, say, 2 decimals for audit exports.
+  </div>
+  <div class="callout callout--decision">
+    <span class="callout__label">3 · Real-time vs. batch</span>
+    Decide the refresh cadence for this strip in production — real-time query on page load, or a pre-aggregated nightly batch. The exclusion and collection-status fields (<code class="inline">hasOpenObjection</code>, <code class="inline">debtorInvalid</code>, <code class="inline">status</code>) likely come from different source systems in reality; the BA should confirm which system is authoritative for each and how often each syncs.
+  </div>
+
+  <h2 id="glossary"><span class="num">05</span>Glossary</h2>
+  <div class="table-wrap">
+    <table class="field-table">
+      <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td>Gross</td><td>Same as Total Invoiced — face value with no adjustments</td></tr>
+        <tr><td>Net</td><td>Gross minus excluded value — the realistic collectible base</td></tr>
+        <tr><td>Exclusion reason</td><td>One of the four conditions (duplicate / dispute / invalid debtor / enforcement) that removes an invoice from the net base</td></tr>
+        <tr><td>Collection Rate</td><td>Collected ÷ Net Invoiced, as a percentage</td></tr>
+        <tr><td>Scope</td><td>The period + entity filter every tile is calculated within</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="note">Extracted from the working prototype's KPI logic for BA/developer handoff · figures shown are illustrative prototype data, not production numbers.</footer>
+
+</div>

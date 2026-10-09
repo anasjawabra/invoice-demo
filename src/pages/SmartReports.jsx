@@ -19,6 +19,7 @@ import { fmtRiyadh } from '../data/clock';
 import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
+import LocalDataPanel from '../components/LocalDataPanel';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -223,6 +224,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     ];
   }, [spec, sharedSpec, today, ar, L, labelOfAmanah]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const scopeDiffers = !!spec && ['from', 'to', 'amanah', 'source', 'scopeType', 'muni', 'status'].some((k) => JSON.stringify(spec.scope[k] ?? 'all') !== JSON.stringify(sharedSpec.scope[k] ?? 'all'));
   const lastReportId = conv ? [...conv.messages].reverse().find((m) => m.role === 'assistant' && m.spec)?.id : null;
   const stepText = (k) => STEPS[k]?.[ar ? 0 : 1] || '';
   const empty = !conv || conv.messages.length === 0;
@@ -249,6 +251,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         <div className="sr-chips">{chips.map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>{showFilters ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
       </div>
+      {spec && scopeDiffers && <div className="sr-note" role="note">{L('لهذه المحادثة نطاقها الخاص، وهو يختلف عن مرشحات لوحة المعلومات الحالية؛ لن يتغير نطاقها تلقائياً.', 'This conversation keeps its own scope, which differs from the current dashboard filters; it never changes automatically.')} <button type="button" className="sr-link" onClick={() => applyFilters({ scope: sharedSpec.scope })}>{L('مزامنة نطاق المحادثة مع لوحة المعلومات', 'Sync the conversation scope with the dashboard')}</button></div>}
       {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
 
       <div className="sr-note" role="note">
@@ -257,6 +260,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         {showHelp && <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, i) => <li key={i}>{h}</li>)}</ul>}
       </div>
 
+      <LocalDataPanel />
       <div className="sr-thread" aria-live="polite">
         {empty && (
           <div className="sr-welcome">

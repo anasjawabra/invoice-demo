@@ -23,6 +23,7 @@ import { financeProjection } from '../src/data/strategicCalc.js';
 import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress, editPlan, unsavedChanges } from '../src/data/planStore.js';
 import { addProposal, earlierDecisions } from '../src/data/actionRegister.js';
 import { actorName } from '../src/utils/actor.js';
+import { buildBackup, validateBackup, applyBackup, BACKUP_FORMAT } from '../src/data/localBackup.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
 import { buildWorkbook, modelToLines, paginateRows } from '../src/utils/exportReportModel.js';
 import { buildDecisionCards } from '../src/data/revenueInsights.js';
@@ -570,7 +571,7 @@ await test('F-10: long tables are paginated (the total row is kept); Excel gets 
   const wb = buildWorkbook(m);
   assert.ok(wb.SheetNames.includes('ملاحظات التقرير'), 'notes sheet'); assert.ok(wb.SheetNames.every((n) => n.length <= 31));
   const notes = XLSX_utils_to_rows(wb, 'ملاحظات التقرير').flat().join(' '); assert.ok(notes.includes('نسبة التحصيل'), 'the relations block (incl. rates) is exported');
-  const pctHeaders = wb.SheetNames.flatMap((n) => (XLSX_utils_to_rows(wb, n)[0] || []).map(String)).filter((h) => h.endsWith('(%)')); assert.ok(pctHeaders.length > 0);
+  const pctHeaders = wb.SheetNames.flatMap((n) => (XLSX_utils_to_rows(wb, n).slice(0, 2).flat()).map(String)).filter((h) => h.endsWith('(%)')); assert.ok(pctHeaders.length > 0);
 });
 await test('F-11: a report with no invoices is flagged empty (no zeros presented as results); change chips show human labels, not raw keys', () => {
   const none = snapshot(cst, { scope: { from: '2030-01-01', to: '2030-01-31', amanah: 'all', source: 'all' }, cfg });
@@ -721,6 +722,17 @@ await test('manual and scenario actions both start as PROPOSED: nothing enters t
   assert.equal(reg1.actions.length, 0); assert.equal(pendingProposals(reg1, []).length, 2); assert.equal('proposed' in reg0, false, 'the input record is not mutated');
   const reg2 = createAction(reg1, { by: 'B', proposal: man, fields: { owner: man.suggestedOwner, dueDate: man.suggestedDue, priority: man.priority } });
   assert.equal(reg2.actions[0].status, 'approved'); assert.equal(reg2.actions[0].source, 'manual'); assert.equal(reg2.actions[0].approvedBy, 'B'); assert.equal(pendingProposals(reg2, []).length, 1);
+});
+
+await test('EQ10: backup/export/import of the browser-local records — validated before anything is written, replaces the three records as a unit, round-trips exactly', () => {
+  const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m }; };
+  const a = mem(); a.setItem('ib_plans_v1', JSON.stringify({ plans: [{ id: 'P1' }], objectives: [], activeId: 'P1' })); a.setItem('ib_actions_v1', JSON.stringify({ actions: [{ id: 'A1' }], rejected: [] })); a.setItem('ib_smart_convs_v1', JSON.stringify([{ id: 'C1', messages: [] }]));
+  const b = buildBackup(a, new Date('2026-10-09T10:00:00Z')); assert.equal(b.format, BACKUP_FORMAT); assert.deepEqual(validateBackup(b), { ok: true, summary: { plans: 1, objectives: 0, actions: 1, proposals: 0, conversations: 1, createdAt: '2026-10-09T10:00:00.000Z' } });
+  const t = mem(); t.setItem('ib_plans_v1', 'old'); const r = applyBackup(JSON.parse(JSON.stringify(b)), t); assert.equal(r.ok, true);
+  for (const k of ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1']) assert.deepEqual(JSON.parse(t.getItem(k)), JSON.parse(a.getItem(k)), `${k} round-trips`);
+  const before = JSON.stringify([...t._m]); for (const bad of [null, {}, { format: 'x' }, { ...b, version: 2 }, { ...b, data: { ib_plans_v1: { plans: 'no' } } }, { ...b, data: { ib_actions_v1: {} } }, { ...b, data: { ib_smart_convs_v1: {} } }]) { assert.equal(applyBackup(bad, t).ok, false); }
+  assert.equal(JSON.stringify([...t._m]), before, 'an invalid file writes nothing');
+  const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

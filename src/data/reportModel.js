@@ -248,7 +248,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   const title = spec.title || L('تقرير الإيرادات والتحصيل', 'Revenue and collection report');
   return {
     id: `rpt-${generatedAt.getTime()}`, title, subtitle: chips.find((c) => c.k === 'period').value,
-    generatedAt: generatedAt.toISOString(), lang, depth: spec.depth, compare, synthetic: true, context: chips,
+    generatedAt: generatedAt.toISOString(), cutoff: snapshot.cutoff, lang, depth: spec.depth, compare, synthetic: true, context: chips,
     totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: headline(), sections: [...out2, ...tail],
     summaryText: insightsRes.summary.text[ar ? 'ar' : 'en']
   };

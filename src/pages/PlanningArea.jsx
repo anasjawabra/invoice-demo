@@ -32,6 +32,7 @@ import { headlineCfg, measure, BASIS } from '../data/measure';
 import { loadComparison } from '../data/comparison';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import { DEFAULT_PLAN_SCOPE, planScopeOf, scopeLabelOf, cfgHash } from '../data/planStore';
+import LocalDataPanel from '../components/LocalDataPanel';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
@@ -233,6 +234,7 @@ export default function PlanningArea() {
       </section>
       </>)}
 
+      <LocalDataPanel />
       {!assistOpen && <button type="button" className="st-fab" onClick={() => setAssistOpen(true)} aria-label={L('فتح مساعد التخطيط', 'Open the planning assistant')}>{L('مساعد التخطيط', 'Planning assistant')}</button>}
       <AssistantPanel open={assistOpen} onClose={() => setAssistOpen(false)} ctxFactory={ctxFactory} onAction={onAssistAction} prompts={PLANNING_PROMPTS} title={L('مساعد التخطيط', 'Planning assistant')} />
     </div>

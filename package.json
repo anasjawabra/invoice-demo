@@ -12,7 +12,8 @@
     "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs",
     "verify:sources": "esbuild scripts/verify-sources.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/verify-sources.mjs && node .test-build/verify-sources.mjs",
     "check": "node scripts/check-undef.mjs",
-    "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error"
+    "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
+    "verify:exports": "esbuild scripts/export-parity.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/export-parity.mjs && node .test-build/export-parity.mjs .test-build/exports && python3 scripts/export_parity_check.py .test-build/exports"
   },
   "dependencies": {
     "chart.js": "^4.4.4",
