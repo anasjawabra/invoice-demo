@@ -244,7 +244,7 @@ Statuses: **Verified** = observed in the running app against the finding's own c
 | Mobile header | Compact bar (57 px) + labelled three-column tab strip (85 px) instead of 263 px; settings/account behind one toggle (`aria-expanded`); operations menu opens as a full-width list inside the viewport | 390 px: no horizontal overflow on Dashboard, Fixed report, Smart, Planning, invoice drawer; screenshots `before-m1..m3` / `after-m1..m5` | **Verified** (see limitation) |
 | Mobile overlays | Invoice drawer body scrolled sideways (long source-table names) → `.btn-wrap` wraps them | `scrollWidth = clientWidth` after the fix | **Verified** |
 
-Mobile limitation: the planning assistant overlay and the date pickers' native pop-ups were measured, not screenshotted at 390 px (no `after-m` file for them).
+Mobile limitation (round 4): the planning assistant overlay and the date pickers' native pop-ups were measured, not screenshotted at 390 px — the assistant overlay is screenshotted in round 5 (`after-m9`); native pop-ups still are not.
 
 ## 2. Accessibility evidence — reconciliation, not a conformance claim
 
@@ -268,7 +268,7 @@ Verification: unit test (limit, duplicate names, clamping, plan untouched, backu
 
 ## 4. Storage and backup
 
-* **ACT-MV0XEEXSR21** (not reverted). Its own history: created from a proposal 2026-10-09 12:12:42Z and moved to `in_progress` 12:12:51Z by «李芳军» (the account's Chinese display name; the interface was Chinese then), then `in_progress → done` at **2026-10-09 20:44:08Z by «طارق»** (the same account's Arabic display name — the audit name follows the interface language, a known behaviour recorded in `actor.js`). It was therefore made through the normal register in the Arabic interface. My recorded browser commands show none touching the register in that window (a gap of ~2 minutes without any command between 20:42:57 and 20:44:52), so it was a manual interaction in this browser profile. **Who** pressed it is **unknown** (cannot be proven from storage). Left as found.
+* **ACT-MV0XEEXSR21** (not reverted). Its own history: created from a proposal 2026-10-09 12:12:42Z and moved to `in_progress` 12:12:51Z, each recorded under «李芳军» (the demo account's Chinese display name; the interface language was Chinese then), then `in_progress → done` at **2026-10-09 20:44:08Z recorded under «طارق»** (the same demo account's Arabic display name — the recorded name follows the interface language, see `actor.js`). **What the record establishes:** a timestamp and the demo-account identity. **What it does not establish:** that a person pressed the button, which person, or by what method (interface, script or injected event). **Actor and method are unverified.** (*Correction, round 5:* round 4 wrote that this was a manual interaction; that inference is withdrawn.) Left as found.
 * App-level checks (built and observed earlier): backup export contents byte-equal to storage; import validation, replace confirmation with counts, reload, state equal to the backup (programmatic `File`).
 * **Real user journey (OS download + file chooser): NOT verified.** Claude in Chrome was not connected in this environment (no connected browser), so a real Chrome profile could not be used; the limitation stays. What remains unproven: the browser's actual file save, the OS file picker, and Safari/Firefox behaviour.
 
@@ -295,7 +295,7 @@ Tuned (general rules, not phrase patches): «منذ أول يناير / since Ja
 | F-25 order of empty state / comparison note | The «no equivalent comparison» note is shown only when there are invoices | Implemented, not browser-verified |
 | F-20 settings differ from defaults | A tag «إعدادات الاحتساب معدّلة عن الافتراضي» + link next to the filter chips | Verified (absent by default; present with grace days 5; state restored) |
 | F-21 KPI strip on budget / quality reports | Budget-only and quality-only reports no longer start with the billing KPI strip (screen and exports share the model) | Verified on the screen (no tiles) and by `verify:exports` (docx 4783/4783, pptx 4783/4783, xlsx 2226/2226, 100 % items) |
-| F-22 identical municipality labels | Not reproducible: all municipality labels (ar and en) are unique across Amanahs | Closed as not reproducible |
+| F-22 identical municipality labels | *Round-4 conclusion withdrawn:* I had checked the catalogue labels, not the table the finding is about. Round 5 reproduced it (three rows «بلا بلدية — غير محدد الأمانة…» in the by-municipality table) and fixed it | See round 5 |
 | F-28 orphan modules | 18 modules unreachable from the app entry, tests, scripts and server (old Planning-Room/CFO charts, province map, unpaid-report helper, …) removed; tests and build pass | Verified by import-graph + `npm test` + `npm run build` |
 | F-16 (d), (g) conversation title, draft persistence | – | **Not implemented** |
 | D-13 fiscal year | Needs the fiscal-year definition | **Blocked (EQ6)** |
@@ -314,3 +314,82 @@ Desktop: `before-1…5` ↔ `after-1…4`, `after-6-invoices` (there is **no `af
 ## 9. Remaining release limitations
 
 Synthetic data only (no real ministry figures); data kept in one browser (backup is manual); the interpreter is rule-based and below its accuracy target; no screen-reader or real cross-browser verification; native select/date keyboard entry not driven in the test pane; grace periods, exclusion treatment, approval authority, official coverage definition, fiscal year/targets and new report scope all still pending decisions; no Figma-exact or logo claim.
+
+
+---
+
+# Round 5 — safe Smart Report behaviour and remaining journey defects
+
+## 1. Smart Reports: interpretation summary and "ask before generating"
+
+**Built (src/data/requestGuard.js, src/data/reportIntents.js, src/pages/SmartReports.jsx):**
+* A compact **«كيف فهمتُ طلبك»** card on every report reply with the six deciding items — reporting period · Amanah/municipality · revenue source · invoice status · comparison period · reporting basis — each tagged «من طلبك» / «كما كان» (kept from the conversation) / «الافتراضي». It states what **was applied**, never that the request was applied in full. «تعديل» opens the filter panel inside the card (period presets and typed dates, Amanah, municipality, source, status, comparison); applying it regenerates the report. Exports carry the same context (a «no comparison» row was added so the comparison is always stated).
+* **Parts that cannot be applied are asked about before anything is generated:** top-N rankings, grouping/sorting by an unsupported field, amount/count thresholds, currencies other than SAR, named payers/entities/districts, «excluding …», forecasts, partial periods («end of last year»), weeks/days/«n years ago», weekdays — and any **unknown word** standing where a qualifier would (after «report / for / about / عن / في / على» or glued «ل/ب»). The reply names what could not be applied and offers «تابع بدونه» (a real request built from the user's own words minus that part). **Actions outside reporting** (send, translate, schedule, print) are declined with the way to export instead. The same code path serves first requests and **follow-ups**; the edit panel only produces supported values.
+* The conversational thread, composer, suggestions and follow-up chips are unchanged.
+
+**Evidence — reported separately; unsafe silent misreads are not mixed with correct clarifications.** «Unsafe silent misread» = a report/answer produced with a scope the user did not ask for, or an answer where a question was right.
+
+| Run (first run on the interpreter as it stood, before any change for that set) | Phrases | Correct reading | Appropriate clarification / refusal | Over-clarification | **Unsafe silent misread** | Score |
+|---|---|---|---|---|---|---|
+| Round 4, set 2 | 72 | 39 | 16 | 2 | **15** | 76.4 % |
+| Round 4, set 3 (after set-2 tuning) | 64 | 38 | 21 | 1 | **4** (1 is my expectation typo) | 92.2 % |
+| **Round 5, set 4** — written *before* the guards, emphasises unsupported qualifiers | 64 | 23 | 22 | 0 | **19** | **70.3 %** (45/64) |
+| **Round 5, set 5** — written *after* the guards, never run before | 63 | 25 | 35 | 1 | **2** | **95.2 %** (60/63; Wilson 95 % interval ≈ 87–98 %) |
+
+* Sets 4 and 5 failures: set 4 — 19 requests whose extra part was dropped silently («أكبر 10 دافعين», «in euros», «above 500000», «excluding Riyadh», «حي الملقا», «send by email», …) plus a hamza-folding failure on «الإحساء»; set 5 — a weekday («يوم الخميس») ignored and «Hail» not recognised as Ha'il (2 of 3 Amanahs applied), plus one over-clarification («year so far»).
+* After each record the genuine failures were fixed and the set became a **regression** set (all passing: 64/64 and 63/63). **Passing the regression sets is not accuracy evidence.** The regression corpus is now 274 + 72 + 64 + 64 + 63 phrases, all by one author.
+* **What can and cannot be claimed:** the latest fresh set shows 95.2 % with 2 unsafe silent misreads out of 63 (3.2 %) — one author, 63 phrases, a wide interval. The interpreter is **rule-based**, not a language model; this is **not evidence of reliable language understanding**, the unsafe-silent-misread class is **not zero**, and **F-05 stays partial**. Expect false clarifications (a vocabulary gap makes the system ask) — the deliberate trade-off against silent errors.
+* A corpus expectation was changed: «أريد تقريراً عن أكبر 5 بلديات» used to be expected as a plain report (the «top 5» was silently dropped); it now expects a clarification.
+
+## 2. Independent journey fixes
+
+| Finding | Result | Status |
+|---|---|---|
+| **F-16(d)** conversation title | Named after its first report (title · period · Amanah · source); renaming in History (✎, Enter/Escape, focus returns); a user name is never overwritten | Verified in the browser |
+| **F-16(g)** unsent draft | Kept per conversation in `sessionStorage` (written only when the user types; cleared on send; nothing written on load) | Verified (typed, navigated away and back: restored; cleared after send). Not kept across a browser restart (session scope — a stated choice) |
+| Focus after route changes | After a route change focus moves to the new page's `h1` (not on first load, not for query-only changes); no ring on the heading | Verified with keyboard navigation (Planning ↔ Dashboard) |
+| **F-25** empty-state order | The «no equivalent comparison» note is shown only when there are invoices | **Verified** (Today + Jazan + tobacco selection: only «no invoices — data unavailable, not zero») |
+| Quarter-to-date request | «الربع الحالي حتى اليوم» / «this quarter» → quarter start → today | **Verified** in Smart (1–10 Oct 2026, tagged «من طلبك») |
+| **Typed date ranges** (D-15) | Checked/applied when typing pauses, on Enter or blur; a partly typed year (0002, 0202, < 1900) or an empty field is **incomplete**: nothing is applied and the message says the filter is not applied until the date is complete | Logic unit-tested; applied/not-applied behaviour verified with rapid input events; native segment typing not driven (below) |
+| **F-18** navigation/chrome | Three-tab navigation + compact phone header (round 4); the Arabic-only tab hints are gone; brand/title unchanged (product name kept by decision) | Verified |
+| **F-19** split persistence | Not changed: needs a server-side store (production dependency). Backup/restore remains the mitigation; plan versions store their context | **Blocked (infrastructure)** |
+| **F-21** duplication | Two planning-assistant entries → one (the floating button, placed early in the DOM; focus returns to it on close) | Verified (one button; open/Escape/focus return) |
+| **F-22** identical municipality rows | Reproduced (three rows «بلا بلدية — غير محدد الأمانة…» at 55 rows) → one group per entity without a municipality (53 rows, no duplicates); groups still add up to the total | **Verified** (browser + test). Round-4 «not reproducible» withdrawn |
+| **F-23** mixed bases on one planning page | Each basis is labelled; the **bridge between them is not shown** | **Not implemented** (needs a reconciliation design) |
+| **F-24** scenarios cannot be compared | Named scenarios + comparison (round 4) | Verified (round 4) |
+| **F-27** language | Raw-key leaks spot-checked clean (plan scope, Smart chips); `zh` still falls back to English in the new areas | Raw keys: spot-checked; zh: **Not implemented** |
+| **F-29** anchors under the sticky header | Heading top at 136 px, sticky bar ends at 85 px | **Verified** (DOM measurement) |
+| Mobile | Floating assistant button no longer covers the last lines of a page; the recalculated-figures panel fits the card (was 848 px in a 324 px card) | Verified (screenshots `after-m6`, `after-m10`) |
+
+Also seen once and **not reproduced** in three repeats: a full-page navigation to `/invoices` that landed on `/insights`. Cause unknown (dev-server reload suspected, not shown).
+
+## 3. Named scenarios — separate history
+
+Every create / rename / duplicate / update-from-editor / delete / load-in-editor is recorded in `scenarioLog[planId]` (newest first, ≤ 200), shown under «سجل السيناريوهات — منفصل عن سجل الخطة». It never writes into the plan's content, history, versions or status (unit test: the plan JSON is byte-identical after all operations, history length unchanged); the backup validates its shape. **Verified** in the browser: creating a scenario left the plan history at «created» only. (Loading a scenario into the editor remains the one action that edits the plan, by the existing return-to-draft rule.)
+
+## 4. Evidence corrections
+
+* **ACT-MV0XEEXSR21**: the record establishes a timestamp and the demo-account identity; it does not prove manual use or the person responsible. **Actor and method: unverified** (round-4 text corrected above).
+* **F-22**: «not reproduced in the tested scope» applies only to the **catalogue labels** I checked in round 4 (all unique); the finding itself (the report table) **was** reproduced and is now fixed.
+* At the start of this round the browser pane's local storage was **empty** (no plans, actions or conversations, and no earlier backups): the action record above is therefore not present in this pane. I did not clear it; the cause is unknown. All round-5 test data created in the pane was removed at the end.
+
+## 5. Final verification — native controls
+
+* **Exercised with tooling:** native `<select>` values (Amanah, status, comparison) and a native `<input type="date">` were set through the browser tool's form input — the app handlers received the changes (the edit panel regenerated the report with Riyadh, overdue, comparison with last year and the typed period); the filter-pressing, Enter/Space and Tab behaviour of all other controls was exercised with real key events.
+* **Not verified (exact interactions):** (1) choosing an option in a native select with the keyboard through the operating-system list (Arrow/Enter/type-ahead): synthetic keys did not drive it; (2) typing digits into the day/month/year segments of a native date input: the value did not change under synthetic typing; (3) the OS file chooser and the actual file save for backup/restore (Claude in Chrome was not connected); (4) screen readers.
+
+## 6. Visual evidence added (no historical «before» recreated)
+
+New «after» screenshots only: `after-m6-invoices`, `after-m6a-invoices-fab-overlap-found` (a defect found, kept for the record), `after-m7-smart-clarification`, `after-m7a-invoice-drawer`, `after-m8-smart-interpretation-summary`, `after-m9-planning-assistant`, `after-m10-version-recalculated-differs` (synthetic data). **Still missing:** matching mobile «before» shots for Invoices, the invoice drawer, the assistant overlay and the version comparison (they cannot be recreated honestly after the changes), and desktop shots of this round (the desktop pane rendered a narrow layout during capture and was not used). `after-1…4` pre-date round 4–5 changes.
+
+## 7. Readiness assessment
+
+**Ready for demo (as a clearly labelled synthetic-data demo):** the two management areas (Dashboard/Reports/Smart reports, Planning), shared metric layer with the approved identities, period-end headline with a separate «to date» figure, fixed reports with Word/Excel/PowerPoint exports whose content matches the screen (parity check 100 %), Smart reports that show how each request was read, ask before dropping anything they cannot apply, and decline actions, named scenarios kept apart from approved plans, proposal-first action register, local backup/restore, Arabic RTL with a compact phone layout, keyboard operation of the main journeys (automatic axe checks clean on the pages tested).
+
+**Remaining demo limitations:** synthetic data only; the interpreter is rule-based and will sometimes ask when it need not, and may still misread (unsafe-silent-misread class not zero); data kept in one browser (manual backup); no screen-reader, real cross-browser, real OS download/file-chooser or native-popup keyboard verification; `zh` falls back to English in the newer areas; F-23 bridge between mixed bases not shown; no accessibility **conformance** claim (clean axe ≠ conformance).
+
+**Production dependencies:** server-side store with identity, roles and audit for plans, scenarios, actions and conversations (F-19); real approval workflow and authenticated actor identity (the recorded name today is a display name by interface language); real data connections and the data-quality gaps listed in the evidence notes (e.g. missing invoice numbers on enforcement orders, unconnected collection platform); formal accessibility audit with assistive technologies; a language model — or a documented rule set with owner and test process — if free-form understanding beyond the supported wording is required; browser/device support matrix.
+
+**Unresolved business decisions:** EQ2 grace periods (collection reporting vs enforcement referral, both unset); EQ3 treatment of exclusions under unapproved rules; EQ4 approval authority; EQ5 official operating-spending coverage definition; EQ6 fiscal year and target approval (D-13); EQ9 new July reports (enforcement referral first; income participation and e-invoice need data sources); logo, Figma specification and icon licence.
+
+**Not claimed:** audit closure, accessibility conformance, or reliable AI understanding beyond the evidence above.

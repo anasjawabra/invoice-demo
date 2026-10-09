@@ -1,0 +1,26 @@
+45/64
+#5012 تقرير الإيرادات لأكبر 10 دافعين → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5014 تقرير حسب العميل → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5015 revenue report broken down by license type → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5017 invoices above 500000 SAR in Riyadh → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5018 تقرير الإيرادات بالدولار → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5019 report in euros for last month → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5020 تقرير للمستثمر شركة النور → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5022 تقرير عن حي الملقا → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5023 report for the Olaya district → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5026 report excluding Riyadh → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5027 تقرير الإيرادات ما عدا الغرامات → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5028 مقارنة بنفس الفترة قبل ثلاث سنوات → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5030 تقرير الرسوم المتعثرة فقط → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5031 report for the contract holders with arrears → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5034 تقرير نهاية العام الماضي → kind report ≠ clarify [unsafe_silent_misread]
+#5036 تقرير الأسبوعين الماضيين → kind report ≠ clarify [unsafe_silent_misread]
+#5038 تقرير أمانة الرياض وأمانة الإحساء → amanah "Riyadh Amanah" ≠ ["Riyadh Amanah","Al-Ahsa Amanah"] [unsafe_silent_misread]
+#5056 translate this report to French → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#5057 ارسل التقرير بالبريد → kind report ≠ unsupported|clarify [unsafe_silent_misread]
+{"correct_interpretation":23,"unsafe_silent_misread":19,"appropriate_clarification":22}
+
+NOTES: the raw output above is the FIRST run of this fresh set on the interpreter as it stood at the end of round 4 (no change made for it): 45/64 = 70.3 %,
+unsafe silent misreads 19 (a «top 10 payers», «by license type», «above 500000», «in dollars», «excluding Riyadh», «district», «send by email» … were dropped silently and a default report produced).
+The set emphasises requests with a part the system cannot apply, so its score is not representative of ordinary phrasing. One expectation (#5038, «Al-Ahsa») was a real failure (hamza folding).
+After this record: the unsupported-part guard (src/data/requestGuard.js), the unknown-word guard, hamza/«لل» folding for Amanah names — then 64/64, which is REGRESSION evidence only.

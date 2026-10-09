@@ -7,26 +7,27 @@
 // spec = { title, preset, scope:{from,to,amanah,source,scopeType,muni,status}, compare:'none'|'prev_month'|'prev_year',
 //          depth:'summary'|'detailed', sections:[...] }
 // ============================================================================
-import { parsePeriod, parseDayRange, monthsInOrder, parseAmanah as parseAmanahStrict, parseSource, sourcesMentioned, periodMentions } from './assistantRouter';
-import { amanahOptionsOf } from './revenueLedger';
-import { startOfYear, startOfMonth, addDaysIso, isSingleMonth, daysBetweenIso } from './clock';
+import { normAr, parsePeriod, parseDayRange, monthsInOrder, parseAmanah as parseAmanahStrict, parseSource, sourcesMentioned, periodMentions } from './assistantRouter';
+import { amanahOptionsOf, REVENUE_SOURCE_KEYS } from './revenueLedger';
+import { startOfYear, startOfMonth, addDaysIso, isSingleMonth, daysBetweenIso, fmtRangeText } from './clock';
 import { checkRange, rangeMessage } from './dateRange';
 import { detectPreset } from './periodPresets';
 import { SECTION_ORDER, SECTION_META } from './reportModel';
 import { sourceAr, sourceEn } from './insightsEngine';
+import { findUnapplied, stripUnapplied } from './requestGuard';
 
 const norm = (t) => String(t || '').toLowerCase().replace(/[ً-ٰٟ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ـ/g, '').replace(/[؟?!.,،؛:]/g, ' ').replace(/\s+/g, ' ').trim();
 const has = (s, re) => re.test(s);
 
 // Arabic names are written many ways («أمانة محافظة جدة» / «أمانة جدة» / «جدة»): drop the administrative prefix before matching
 function parseAmanah(text) {
-  const hits = new Set(parseAmanahStrict(text));
-  for (const a of amanahOptionsOf()) { const core = (a.ar || '').replace(/^أمانة\s*(منطقة|محافظة|مدينة)?\s*/, '').trim(); const short = core.replace(/^المنطقة\s+/, ''); const contr = (n) => (n.startsWith('ال') && n.length > 4 ? text.includes(`لل${n.slice(2)}`) : false); // «للقصيم» = ل + «القصيم»
-    if ((core.length > 2 && (text.includes(core) || contr(core))) || (short !== core && short.length > 2 && (text.includes(short) || contr(short)))) hits.add(a.key); }
+  const hits = new Set(parseAmanahStrict(text)); const nt = normAr(text);
+  const mentions = (n) => { const m = normAr(n); return nt.includes(m) || (n.startsWith('ال') && n.length > 4 && nt.includes(normAr(`لل${n.slice(2)}`))); }; // spelling folded; «للقصيم» = ل + «القصيم»
+  for (const a of amanahOptionsOf()) { const core = (a.ar || '').replace(/^أمانة\s*(منطقة|محافظة|مدينة)?\s*/, '').trim(); const short = core.replace(/^المنطقة\s+/, ''); if ((core.length > 2 && mentions(core)) || (short !== core && short.length > 2 && mentions(short))) hits.add(a.key); }
   for (const [re, key] of AMANAH_ALIASES) if (re.test(text) && amanahOptionsOf().some((a) => a.key === key)) hits.add(key); // short everyday names
   return [...hits];
 }
-const AMANAH_ALIASES = [[/(?:^|\s)[بلوف]?مك[ةه](?![\u0621-\u064A])|العاصم[ةه] المقدس[ةه]/, 'Makkah Amanah'], [/(?:^|\s)(?:أمانة\s+)?المدينة(?:\s|$)/, 'Al Madinah Amanah'], [/\beastern\b/i, 'Eastern Province Amanah']];
+const AMANAH_ALIASES = [[/(?:^|\s)[بلوف]?مك[ةه](?![\u0621-\u064A])|العاصم[ةه] المقدس[ةه]/, 'Makkah Amanah'], [/(?:^|\s)(?:أمانة\s+)?المدينة(?:\s|$)/, 'Al Madinah Amanah'], [/\beastern\b/i, 'Eastern Province Amanah'], [/\bha[' ’]?il\b/i, "Ha'il Amanah"], [/\bjizan\b/i, 'Jazan Amanah'], [/\b(?:mecca|makka)\b/i, 'Makkah Amanah'], [/\b(?:medina|madina)\b/i, 'Al Madinah Amanah'], [/\b(?:ahsa|al[- ]?hasa|hofuf)\b/i, 'Al-Ahsa Amanah'], [/\b(?:qassim|qasim|buraydah|buraidah)\b/i, 'Al-Qassim Amanah'], [/\b(?:hafar|hafr)\b/i, 'Hafr Al-Batin Amanah'], [/\b(?:ta[' ’]?if)\b/i, 'Taif Amanah'], [/\bbaha\b/i, 'Al Bahah Amanah'], [/\bjouf\b/i, 'Al Jawf Amanah']];
 export const defaultSpec = (today) => ({ title: '', preset: 'ytd', scope: { from: startOfYear(today), to: today, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, compare: 'none', depth: 'summary', sections: ['executive'] });
 
 const DETAILED = ['executive', 'trends', 'amanah', 'sources', 'aging', 'exclusions', 'gaps', 'status', 'quality'];
@@ -47,6 +48,56 @@ const SECTION_WORDS = [
 ];
 // English wording for the same sections (kept apart so the Arabic table stays readable)
 const SECTION_WORDS_EN = [['sources', /\b(by|per) (revenue )?source|revenue sources/], ['amanah', /\b(by|per) amanah|compare amanahs|amanahs? performance/], ['aging', /\baging\b|\boverdue (balances|amounts|debts)\b|arrears/], ['exclusions', /\bexclusions?\b/], ['trends', /\b(monthly )?trend\b|month by month/], ['gaps', /\b(collection )?gaps\b|priorities/], ['status', /payment status|invoice status breakdown/], ['quality', /data quality|reconciliation/], ['channels', /payment channels/]];
+
+// ---- words the interpreter knows: anything else next to a request is reported, not ignored ----
+// The vocabulary is built from the very patterns the interpreter applies (sections, statuses, directions) plus plain function words, amanah / source / month names.
+const FUNCTION_WORDS = `تقرير تقارير تقريرا انشئ انشي جهز جهزلي اعد اعمل ابني حضر اطلب اريد ابغي ابغى ابي ابغا اعطني اعرض اعرضه اعرضها ورني وريني اظهر شوف نشوف خلنا خلني اضف اضافه ضيف زد ازل امسح احذف الغ الغي غير غيرها غيره حول حوله حوّله حوله اجعل اجعله اجعلها ركز ركّز ثم وثم والان الان الآن ايضا كذلك مجددا
+هل ما ماذا كم كيف لماذا اين اي ايه من مع الي الى علي على عن في فيه فيها بين حتي حتى منذ خلال قبل بعد هذا هذه هذي ذلك تلك هو هي هم و او ام ثم لكن بل لا نعم فقط بس كل جميع كامل كاملة كاملا بدلا بدل منها منه عنها عنه نفس الشي الشيء الشيئ ضمن عند لدي لي لنا انا نحن انت لك له لها لهم
+عام العام السنه سنه الشهر شهر شهرا اشهر الاشهر اسبوع الاسبوع يوم اليوم الربع ربع الاول الثاني الثالث الرابع الاخير الاخيره الاولي الثانيه الماضي الماضيه السابق السابقه الحالي الحاليه الجاري الجاريه القادم الفتره فتره فترة الفترة المقارنه مقارنه قارن بالمقارنه مقابل مقارنا مقارنة بدون دون
+الايرادات الايراد ايرادات ايراد التحصيل تحصيل المحصل المحصله محصل المفوتر الفواتير فواتير الفاتوره فاتوره المتاخره المتاخرات متاخر المسدده المدفوعه المستبعده المستبعد الاستبعادات الاستبعاد الملغاه الجزئيه جزئيا القائمه المفتوحه الصادره صادره اجمالي صافي نسبه النسبه اداء الاداء وضع حاله الحاله حالات الحالات تفاصيل تفصيلي مفصل ملخص موجز مختصر شامل تنفيذي
+الامانه الامانات امانه امانات امانة البلديه البلديات بلديه المصدر المصادر مصدر الايواء الاستثمار الغرامات الرسوم رسوم الاراضي البيضاء التراخيص الرخص التبغ الاسكان المبيعات السكنيه البلدي الفرص فرص
+مركزي داخلي المركزي الداخلي شمال جنوب وسط الشمالي الجنوبي الوسطي بلدية الي
+حتي اليوم اخر آخر اول الاخير الاخيرة كذا ربما ممكن لو اذا اذا ايضاً ايضا مثلا مثل
+فات فايت الفايت اللي الذي التي الذين ثلاث ثلاثه ثلاثة اربع اربعه خمس خمسه ست ستة سبع ثمان تسع عشر اثنين اثنان شهرين سنتين العاصمه المقدسه المقدسة three two four five six seven twelve few couple
+شهري شهريا شهرياً مشابه مرفقه مبيعات تحليل بدايه نهايه جزاء جزاءات الجزاءات مخالفات المخالفات مخالفه رخص ترخيص تراخيص بناء البناء fiscal time analysis so far summary executive
+report reports create prepare generate make build show give want need please me my the a an of for in on at to from with and or by vs versus only just all every each this that these those it its is are was were be been do does did can could would should will what which when why how who whom
+revenue revenues collection collections collected invoice invoices billed billing overdue open partial partially paid unpaid cancelled canceled excluded exclusion exclusions cancelled summary detailed brief full compare compared comparison than last previous past current month months quarter quarters year years week today yesterday ytd mtd qtd q1 q2 q3 q4 first second third fourth period date dates
+amanah amanahs municipality municipalities source sources status trend trends aging gaps budget performance rate rates total net gross amount amounts figures numbers data about between during since until up
+january february march april may june july august september october november december jan feb mar apr jun jul aug sep sept oct nov dec`;
+const wordsOf = (src) => String(src).replace(/\\[a-zA-Z]/g, ' ').match(/[\u0621-\u064Aa-z0-9]{2,}/gi) || [];
+let KNOWN = null;
+function knownWords() {
+  if (KNOWN) return KNOWN;
+  const set = new Set();
+  const add = (w) => { const n = norm(w); if (n) n.split(' ').forEach((x) => x && set.add(x)); };
+  FUNCTION_WORDS.split(/\s+/).forEach(add);
+  [...SECTION_WORDS, ...SECTION_WORDS_EN, ...STATUS_WORDS, ...DIRECTION].forEach(([, re]) => wordsOf(re.source).forEach(add));
+  for (const a of amanahOptionsOf()) { [a.ar, a.en, String(a.key || '')].forEach((t) => String(t || '').split(/[\s\-/|]+/).forEach(add)); }
+  for (const k of REVENUE_SOURCE_KEYS) { [sourceAr(k), sourceEn(k), k].forEach((t) => String(t || '').split(/[\s\-/_]+/).forEach(add)); }
+  ['يناير', 'فبراير', 'مارس', 'ابريل', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'اغسطس', 'أغسطس', 'سبتمبر', 'اكتوبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'].forEach(add);
+  KNOWN = set; return set;
+}
+const PREFIXES = ['', 'و', 'ف', 'ب', 'ل', 'ك', 'ال', 'وال', 'بال', 'لل', 'كال', 'فال', 'ول', 'وب', 'ولل', 'ولا', 'لا'];
+function isKnown(tok, set) {
+  if (set.has(tok)) return true;
+  for (const p of PREFIXES) if (p && tok.startsWith(p) && tok.length - p.length >= 2 && (set.has(tok.slice(p.length)) || set.has(`ال${tok.slice(p.length)}`) || (p === 'لل' && set.has(`ال${tok.slice(2)}`)))) return true;
+  if (/^[a-z]+$/.test(tok) && (set.has(tok.replace(/(?:es|s|ed|ing)$/, '')) || set.has(tok.replace(/(?:ies)$/, 'y')))) return true;
+  return false;
+}
+// Unknown words that stand where a qualifier would: right after «report / for / of / about / in / on / عن / في / على / حول» or glued to «ل / ب».
+// (Numbers, dates and 1-2 letter words are ignored; a verb or filler the vocabulary lacks elsewhere in the sentence is not reported.)
+const CUE = new Set(['تقرير', 'تقريرا', 'تقارير', 'report', 'reports', 'for', 'of', 'about', 'regarding', 'concerning', 'on', 'in', 'عن', 'في', 'على', 'حول', 'بخصوص', 'لدي', 'خاص', 'خاصه', 'خاصة']);
+const SKIP = new Set(['the', 'a', 'an', 'my', 'our', 'this', 'that', 'these', 'those', 'all', 'every', 'each', 'هذا', 'هذه', 'ال', 'كل', 'جميع']);
+export function unknownTerms(raw) {
+  const set = knownWords(); const toks = norm(raw).split(' ').filter(Boolean); const out = [];
+  const skip = (t) => t.length < 3 || /^[\d\-/.:]+$/.test(t) || /^20\d{2}/.test(t) || /^inv-/.test(t);
+  const flag = (t) => { if (!skip(t) && !isKnown(t, set) && !out.includes(t)) out.push(t); };
+  toks.forEach((t, i) => {
+    if (CUE.has(t) || CUE.has(t.replace(/^[وفلب]/, ''))) { let k = i + 1; while (k < toks.length && SKIP.has(toks[k])) k += 1; for (let n = 0; n < 3 && k + n < toks.length; n += 1) flag(toks[k + n]); } // the next few words: the noun phrase the cue introduces
+    if (/^(?:لل|ل|ب)[\u0621-\u064A]{3,}$/.test(t)) flag(t); // an attached «for / with» + noun («للمستثمر», «بالدولار»)
+  });
+  return out;
+}
 
 export const SUPPORTED_HELP = {
   ar: ['الفترة: «هذا الشهر حتى اليوم»، «الشهر الماضي»، «السنة حتى اليوم»، «الربع الأول»، «مارس»', 'الأمانة والبلدية: «اعرض أمانة الرياض فقط»، «بلدية الرياض الشمالية»', 'المصدر: الاستثمار (فرص)، الغرامات، الرسوم البلدية، التراخيص، الإيواء، التبغ، الأراضي البيضاء', 'الحالة: «الفواتير المتأخرة فقط»، «الفواتير المحصّلة»، «الملغاة»', 'المقارنة: «قارن بالشهر الماضي»، «قارن بالعام الماضي»', 'الأقسام: مصادر الإيراد، الأمانات، المتأخرات، الاستبعادات، الاتجاه الشهري، فجوات التحصيل، حالة الدفع، جودة البيانات', 'التعميق: «حوّله إلى تقرير تفصيلي»، «أضف توزيع مصادر الإيراد»'],
@@ -77,12 +128,23 @@ export function previousMonthScope(scope, today) {
   return { from: `${py}-${mm}-01`, to: sameMonth ? `${py}-${mm}-${String(Math.min(day, dim)).padStart(2, '0')}` : `${py}-${mm}-${String(dim).padStart(2, '0')}` };
 }
 
-export function interpret(text, prev, today, { amanahLabel = (k) => k, base: baseSpec = null } = {}) {
+export function interpret(text, prev, today, { amanahLabel = (k) => k, base: baseSpec = null, noOffer = false } = {}) {
   const s = norm(text); const raw = String(text || '');
   const base = prev ? JSON.parse(JSON.stringify(prev)) : JSON.parse(JSON.stringify(baseSpec || defaultSpec(today)));
   const spec = base; const changes = []; const note = (key, label, value) => changes.push({ key, label, value });
   if (!s) return { kind: 'empty', spec, changes };
 
+  // ---- a part of the request that cannot be applied is asked about BEFORE anything is generated (never dropped silently)
+  const unapplied = findUnapplied(s);
+  if (unapplied.length) {
+    const actionOnly = unapplied.every((u) => u.action); const names = [...new Set(unapplied.map((u) => u.key))].map((k) => unapplied.find((u) => u.key === k));
+    const spans = [...new Set(unapplied.map((u) => u.span))].join('، ');
+    const rest = stripUnapplied(raw, unapplied, norm);
+    const offer = !actionOnly && !noOffer && rest.length >= 3 && ['report', 'question'].includes(interpret(rest, prev, today, { amanahLabel, base: baseSpec, noOffer: true }).kind);
+    return { kind: actionOnly ? 'unsupported' : 'clarify', spec: prev || spec, changes: [], unapplied: names.map((u) => u.key),
+      question: { ar: `لا أستطيع تطبيق ${names.map((u) => u.ar).join(' و')} (${spans}) على التقرير.${actionOnly ? ' يمكنك تصدير أي تقرير بصيغة Word أو Excel أو PowerPoint من أعلى التقرير.' : ' هل أتابع بدونه، أم تعيد صياغة الطلب؟'}`, en: `I cannot apply ${names.map((u) => u.en).join(' and ')} (${spans}) to the report.${actionOnly ? ' You can export any report as Word, Excel or PowerPoint from the top of the report.' : ' Shall I continue without it, or will you rephrase the request?'}` },
+      options: offer ? [{ label: { ar: 'تابع بدونه', en: 'Continue without it' }, text: rest }] : [] };
+  }
   // ---- one focused clarification when the request is materially ambiguous
   const amHits = parseAmanah(raw);
   if (!prev && has(s, /^(قارن|مقارنه)( بالشهر الماضي| بالعام الماضي| بالفتره السابقه)?$/)) return { kind: 'clarify', spec, changes: [], question: { ar: 'ماذا تريد أن أقارن؟ لا يوجد تقرير حالي أبني عليه المقارنة.', en: 'What should I compare? There is no current report to build the comparison on.' }, options: [{ label: { ar: 'أداء التحصيل بين الأمانات', en: 'Collection performance between Amanahs' }, text: 'قارن أداء التحصيل بين الأمانات' }, { label: { ar: 'تقرير هذا الشهر مقارناً بالشهر الماضي', en: 'This month’s report compared with last month' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم قارن بالشهر الماضي' }] };
@@ -219,6 +281,18 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   if (isQuestion && !domainQuestion && !reportNoun && !createVerb && !picked.length && !(prev && changes.some((c) => c.key === 'period'))) return { kind: 'unsupported', spec: prev || spec, changes: [] };
   const recognized = changes.length > 0 || picked.length > 0 || createVerb || reportNoun || monthlyLike || detailedWord || summaryWord || (isQuestion && domainQuestion);
   if (!recognized) return { kind: 'unsupported', spec: prev || spec, changes: [] };
+  // an unknown word where a qualifier would stand is never ignored: ask, and offer to continue without it
+  if (!noOffer) {
+    const unk = unknownTerms(raw);
+    if (unk.length) {
+      const rawWords = raw.split(/\s+/); const kept = rawWords.filter((w) => !unk.includes(norm(w))).join(' ').trim();
+      const offer = kept.length >= 3 && ['report', 'question'].includes(interpret(kept, prev, today, { amanahLabel, base: baseSpec, noOffer: true }).kind);
+      const shown = unk.map((t) => rawWords.find((w) => norm(w) === t) || t).join('، ');
+      return { kind: 'clarify', spec: prev || spec, changes: [], unknownTerms: unk,
+        question: { ar: `لم أتعرف على «${shown}» ضمن ما أستطيع تطبيقه (الفترة، الأمانة، المصدر، الحالة، المقارنة). هل أتابع بدونه، أم تعيد صياغة الطلب؟`, en: `I did not recognise “${shown}” among what I can apply (period, Amanah, source, status, comparison). Shall I continue without it, or will you rephrase?` },
+        options: offer ? [{ label: { ar: 'تابع بدونه', en: 'Continue without it' }, text: kept }] : [] };
+    }
+  }
   return { kind: isQuestion && !createVerb ? 'question' : 'report', spec, changes, sectionsChanged, startNew };
 }
 
@@ -228,6 +302,7 @@ export function describeChange(c, lang, { amanahLabel = (k) => k, spec } = {}) {
   const lab = { sections: L('أُضيف قسم', 'Section added'), period: L('الفترة', 'Period'), amanah: L('الأمانة', 'Amanah'), muni: L('البلدية', 'Municipality'), source: L('المصدر', 'Source'), status: L('حالة الفاتورة', 'Invoice status'), scopeType: L('النطاق', 'Scope'), compare: L('المقارنة', 'Comparison'), depth: L('مستوى التفصيل', 'Depth'), reset: L('المرشحات', 'Filters') }[c.key];
   const v = c.key === 'amanah' ? (c.value === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(c.value).map(amanahLabel).join('، '))
     : c.key === 'compare' ? ({ prev_month: spec && !isSingleMonth(spec.scope) ? L('الفترة السابقة المساوية في الطول', 'Preceding period of equal length') : L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)'), prev_year: L('نفس الفترة من العام السابق', 'Same period last year'), none: L('بدون', 'None') }[c.value])
+      : c.key === 'period' && /^\d{4}-\d{2}-\d{2} → \d{4}-\d{2}-\d{2}$/.test(String(c.value)) ? fmtRangeText(String(c.value).slice(0, 10), String(c.value).slice(-10), ar ? 'ar' : 'en')
       : c.key === 'sections' ? String(c.value).split(',').map((k) => SECTION_META[k]?.[ar ? 'ar' : 'en'] || k).join('، ') : c.key === 'depth' ? L('تفصيلي', 'Detailed') : c.key === 'reset' ? L('أُعيدت إلى الافتراضي', 'Reset to default') : c.key === 'muni' ? (c.value === 'all' ? L('كل البلديات', 'All municipalities') : String(c.value).split('|').pop())
         : c.key === 'source' ? (c.value === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(c.value) : sourceEn(c.value)))
           : c.key === 'status' ? (STATUS_LABELS[c.value]?.[ar ? 'ar' : 'en'] || String(c.value)) : String(c.value);

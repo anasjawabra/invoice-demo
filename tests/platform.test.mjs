@@ -23,7 +23,7 @@ import { financeProjection } from '../src/data/strategicCalc.js';
 import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress, editPlan, unsavedChanges } from '../src/data/planStore.js';
 import { addProposal, earlierDecisions } from '../src/data/actionRegister.js';
 import { actorName } from '../src/utils/actor.js';
-import { MAX_SCENARIOS, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, listScenarios, cleanScenario, changedLevers, checkName, validScenariosShape } from '../src/data/namedScenarios.js';
+import { listScenarioLog, validScenarioLogShape, MAX_SCENARIOS, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, listScenarios, cleanScenario, changedLevers, checkName, validScenariosShape } from '../src/data/namedScenarios.js';
 import { PRESETS, presetRange, detectPreset } from '../src/data/periodPresets.js';
 import { buildBackup, validateBackup, applyBackup, BACKUP_FORMAT } from '../src/data/localBackup.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
@@ -738,12 +738,13 @@ await test('EQ10: backup/export/import of the browser-local records — validate
   const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
-await test('interpreter corpus: 162 representative + 47 blind + 65 held-out + 72 held-out-2 + 64 held-out-3 (both tuned after their recorded first runs) Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
+await test('interpreter corpus: 162 representative + 47 blind + 65 held-out + 72 held-out-2 + 64 held-out-3 + 64 held-out-4 + 63 held-out-5 (all tuned after their recorded first runs) Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
   const { runCorpus, evaluate } = await import('./interpreter-eval.mjs'); const { BLIND } = await import('./interpreter-corpus-blind.mjs'); const { VERIFIED_IDS } = await import('./interpreter-corpus.mjs');
   const { HELDOUT } = await import('./interpreter-corpus-heldout.mjs'); const held = HELDOUT.map((c) => ({ c, ...evaluate(c) }));
   const { HELDOUT2 } = await import('./interpreter-corpus-heldout2.mjs'); const held2 = HELDOUT2.map((c) => ({ c, ...evaluate(c) })); // regression ONLY: tuned against after its recorded first run (docs/interpreter-heldout2-first-run.txt)
   const { HELDOUT3 } = await import('./interpreter-corpus-heldout3.mjs'); const held3 = HELDOUT3.map((c) => ({ c, ...evaluate(c) })); // regression ONLY after its recorded first run (docs/interpreter-heldout3-first-run.txt)
-  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held, ...held2, ...held3];
+  const { HELDOUT4 } = await import('./interpreter-corpus-heldout4.mjs'); const { HELDOUT5 } = await import('./interpreter-corpus-heldout5.mjs'); const held45 = [...HELDOUT4, ...HELDOUT5].map((c) => ({ c, ...evaluate(c) })); // regression ONLY after their recorded first runs (docs/interpreter-heldout4-first-run.txt, -5-)
+  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held, ...held2, ...held3, ...held45];
   const bad = all.filter((x) => !x.ok); const score = (all.length - bad.length) / all.length;
   assert.ok(all.length >= 150, `corpus size ${all.length}`);
   assert.ok(score >= 0.95, `accuracy ${(score * 100).toFixed(1)}%\n${bad.map((x) => `#${x.c.id} ${x.c.q} → ${x.why}`).join('\n')}`);
@@ -793,6 +794,9 @@ await test('Named scenarios: up to four per plan; save / rename / duplicate / up
   st = deleteScenario(st, plan.id, id4).st; assert.equal(listScenarios(st, plan.id).length, 3);
   assert.equal(addScenario(st, 'OTHER', { name: 'تحسّن التحصيل', scenario: {}, by: 'A' }).ok, true, 'scenarios belong to a plan: the same name may exist in another plan');
   assert.equal(JSON.stringify(st.plans), before, 'plan, status and saved versions are unchanged after every operation'); assert.equal(st.plans[0].versions.length, 1);
+  const log = listScenarioLog(st, plan.id); assert.ok(log.length >= 7, 'every create / duplicate / rename / update / delete is recorded'); assert.equal(log[0].action, 'deleted'); assert.ok(log.some((e) => e.action === 'renamed' && e.detail.from === 'نسخة من تحسّن التحصيل') || log.some((e) => e.action === 'renamed'));
+  assert.equal(JSON.stringify(st.plans), before, 'the scenario history is separate: the plan (content, status, history, versions) is untouched'); assert.equal(st.plans[0].history.length, plan.history.length);
+  assert.equal(validScenarioLogShape(st.scenarioLog), true); assert.equal(validScenarioLogShape([]), false); assert.equal(validScenarioLogShape({ P: [{ at: 1 }] }), false);
   assert.equal(validScenariosShape(st.scenarios), true); assert.equal(validScenariosShape(undefined), true); assert.equal(validScenariosShape([]), false); assert.equal(validScenariosShape({ P: 'x' }), false); assert.equal(validScenariosShape({ P: [{ id: 1 }] }), false);
   assert.equal(validScenariosShape({ P: [1, 2, 3, 4, 5].map((i) => ({ id: `S${i}`, name: `n${i}`, scenario: {} })) }), false, 'more than four per plan is not a valid store');
   const b = buildBackup({ getItem: (k) => (k === 'ib_plans_v1' ? JSON.stringify(st) : null) }); const v = validateBackup(b); assert.ok(v.ok); assert.equal(v.summary.scenarios, 3);
@@ -801,6 +805,32 @@ await test('Named scenarios: up to four per plan; save / rename / duplicate / up
   const base = { N: 1000, C: 600, U: 400, pool: 200, pending: 50, rate: 0.6 };
   const rs0 = runScenario(base, cleanScenario({}), 0.7); assert.equal(rs0.scenario.collected, rs0.baseline.collected);
   const rs1 = runScenario(base, cleanScenario({ dRate: 5 }), 0.7); assert.ok(rs1.scenario.collected > rs1.baseline.collected);
+});
+
+await test('D-15: a partly typed date (year 0002 / 0202) is incomplete — never applied and never reported as a data-coverage error', () => {
+  for (const y of ['0002', '0020', '0202', '1899']) assert.deepEqual(checkRange({ from: `${y}-02-01`, to: '2026-03-01' }, { today: '2026-10-09' }), { ok: false, code: 'incomplete' });
+  assert.deepEqual(checkRange({ from: '', to: '2026-03-01' }, { today: '2026-10-09' }), { ok: false, code: 'incomplete' });
+  assert.equal(checkRange({ from: '2026-02-01', to: '2026-03-01' }, { today: '2026-10-09' }).ok, true);
+  assert.ok(rangeMessage('incomplete', 'ar', { today: '2026-10-09' }).includes('لن يُطبَّق'));
+});
+
+await test('Smart-report safety: a part that cannot be applied is asked about before generating; actions are declined; follow-ups use the same checks; the offer to continue is a real request', () => {
+  const T = '2026-10-09'; const run = (q, prev = null) => interpret(q, prev, T);
+  for (const q of ['تقرير الإيرادات لأكبر 10 دافعين', 'report in euros for last month', 'invoices above 500000 SAR in Riyadh', 'report excluding Riyadh', 'تقرير حسب العميل', 'تقرير الفواتير يوم الخميس']) { const r = run(q); assert.equal(r.kind, 'clarify', q); assert.ok(r.unapplied?.length, q); }
+  const r = run('تقرير الإيرادات بالدولار'); assert.equal(r.options[0].label.ar, 'تابع بدونه'); assert.equal(run(r.options[0].text).kind, 'report'); assert.equal(run(r.options[0].text).unapplied, undefined);
+  assert.equal(run('أرسل التقرير بالبريد').kind, 'unsupported'); assert.ok(run('أرسل التقرير بالبريد').question.ar.includes('Word'));
+  const prev = run('report for last month').spec; assert.equal(run('sort by amount descending', prev).kind, 'clarify'); assert.equal(run('email it every morning', prev).kind, 'unsupported');
+  assert.equal(run('تقرير مارس').kind, 'report'); assert.equal(run('اعرض المتأخرات حسب المصدر').kind, 'report', '«by revenue source» is supported and is not interrogated');
+  const u = run('تقرير للمستثمر شركة النور'); assert.equal(u.kind, 'clarify');
+  const k = run('تقرير الرسوم المتعثرة فقط'); assert.equal(k.kind, 'clarify'); assert.ok(k.unknownTerms.length);
+});
+
+await test('F-22: the municipality table never lists two rows with the same label — invoices without a municipality form ONE group per entity', () => {
+  for (const scope of [YTD, { ...YTD, from: '2026-03-01', to: '2026-03-31' }]) {
+    const s = snapshot(st, { scope, cfg }); const labels = s.byMunicipality.map((g) => `${g.municipality ? g.municipality.ar : '—'}|${g.amanahLabel?.ar ?? g.amanahLabel}`);
+    assert.equal(new Set(labels).size, labels.length, 'duplicate municipality rows'); assert.equal(new Set(s.byMunicipality.map((g) => g.key)).size, s.byMunicipality.length);
+    assert.equal(s.byMunicipality.reduce((t, g) => t + g.count, 0), s.totals.count, 'the groups still add up to the total');
+  }
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

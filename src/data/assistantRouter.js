@@ -45,7 +45,7 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   if (/this quarter|current quarter|quarter to date|\bqtd\b|(?:ال|لل|ل)?ربع (?:ال)?(?:حالي|جاري)/.test(s)) { const q0 = Math.floor((curMonth - 1) / 3) * 3 + 1; return { from: `${year}-${String(q0).padStart(2, '0')}-01`, to: cutoff, label: 'qtd' }; } // the dashboard's «الربع الحالي حتى اليوم»
   if (/last 3 months|three months|اخر 3 (?:اشهر|شهور)|اخر ثلاثه (?:اشهر|شهور)|(?:ال)?(?:اشهر|شهور) (?:ال)?(?:3|ثلاثه) (?:ال)?(?:اخيره|ماضيه)/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
   if (/منذ\s+(?:اول|1)\s+يناير|since\s+(?:the\s+start\s+of\s+the\s+year|jan(?:uary)?\s+1(?:st)?)/.test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
-  if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|هالسنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي|${AL}(?:سنه|عام) كامل|${AL}(?:سنه|عام) حتي اليوم|منذ بدايه (?:ال)?(?:سنه|عام)`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
+  if (new RegExp(`year to date|ytd|(?:this|the) year so far|so far this year|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|هالسنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي|${AL}(?:سنه|عام) كامل|${AL}(?:سنه|عام) حتي اليوم|منذ بدايه (?:ال)?(?:سنه|عام)`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);
   const q = (n) => {

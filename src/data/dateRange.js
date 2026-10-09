@@ -3,7 +3,8 @@
 import { DATA_START } from './revenueLedger';
 import { fmtDateText } from './clock';
 
-const isIso = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
+// a year typed so far («0202», «0020») is a partly typed date, not a complete one: complete = year 1900 or later
+const isIso = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && Number(String(s).slice(0, 4)) >= 1900 && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
 
 // → { ok:false, code } | { ok:true, from, to, adjusted:[ 'from_clamped' | 'to_clamped' ] }
 export function checkRange({ from, to }, { today, start = DATA_START }) {
@@ -21,7 +22,7 @@ export function rangeMessage(code, lang, opts) {
   const ar = lang === 'ar'; const W = (d) => (d ? fmtDateText(d, lang) : d);
   const today = W(opts.today); const start = W(opts.start || DATA_START); const planMax = W(opts.planMax);
   const M = {
-    incomplete: ['أدخل تاريخ بداية ونهاية صحيحين.', 'Enter a valid start and end date.'],
+    incomplete: ['التاريخ غير مكتمل: أكمل اليوم والشهر والسنة (أربعة أرقام) للبداية والنهاية ولن يُطبَّق المرشح قبل ذلك.', 'The date is incomplete: finish the day, month and four-digit year for both ends — the filter is not applied until then.'],
     inverted: ['تاريخ البداية بعد تاريخ النهاية — صحّح الفترة.', 'The start date is after the end date — correct the period.'],
     future: [`الفترة كلها بعد ${planMax ? 'أبعد نهاية مسموحة' : 'آخر تاريخ للبيانات'} (${today}).`, `The whole period is after the ${planMax ? 'latest allowed end' : 'latest data date'} (${today}).`],
     before_data: [`الفترة كلها قبل بداية البيانات (${start}).`, `The whole period is before the data starts (${start}).`],

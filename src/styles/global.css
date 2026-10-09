@@ -1558,3 +1558,9 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
 /* Visually hidden native file input: stays in the tab order and shows its focus on the label that follows it */
 .file-pick { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 .file-pick:focus-visible + label { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* the page heading that receives focus after navigation is a target, not a control: no ring */
+main h1[tabindex="-1"]:focus { outline: none; }
+
+/* Phones: the floating assistant buttons must never cover the last lines of a page */
+@media (max-width: 720px) { main { padding-bottom: 96px; } }

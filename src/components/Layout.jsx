@@ -1,5 +1,5 @@
 import { trapTab } from '../utils/modalFocus';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
@@ -120,6 +120,15 @@ function LayoutInner() {
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
+  // after a route change, keyboard / screen-reader focus moves to the new page's heading (not on the first load, and not when only the query changes)
+  const firstRoute = useRef(true);
+  useEffect(() => {
+    if (firstRoute.current) { firstRoute.current = false; return undefined; }
+    let tries = 0; let t = null;
+    const move = () => { const h = document.querySelector('main h1'); if (h) { h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); } else if (tries < 12) { tries += 1; t = window.setTimeout(move, 100); } }; // the heading may appear after the data loads
+    t = window.setTimeout(move, 30);
+    return () => window.clearTimeout(t);
+  }, [loc.pathname]);
   useEffect(() => { document.addEventListener('keydown', trapTab); return () => document.removeEventListener('keydown', trapTab); }, []);
 
   const org = user?.org || ORGS[0];

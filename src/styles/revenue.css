@@ -602,3 +602,14 @@
 .st-card { max-width: 100%; overflow-x: auto; }
 .st-page { overflow-x: clip; }
 .rv-link { display: inline-flex; align-items: center; min-height: 24px; } /* after the reset above: link-buttons keep a 24 px target */
+
+/* Smart Reports: «how I read your request» */
+.sr-interp { display: grid; gap: 6px; padding: 10px 12px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.sr-interp__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sr-interp__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 6px 14px; margin: 0; }
+.sr-interp__item { display: grid; gap: 2px; min-width: 0; }
+.sr-interp__item dt { font-size: 12px; color: var(--txt-mute); }
+.sr-interp__item dd { margin: 0; font-size: 13px; font-weight: 600; overflow-wrap: anywhere; }
+.sr-interp__tag { margin-inline-start: 6px; font-weight: 400; font-size: 11px; color: var(--txt-mute); }
+.sr-interp__tag.is-req { color: var(--primary); font-weight: 600; }
+.sr-interp__note { font-size: 12px; }

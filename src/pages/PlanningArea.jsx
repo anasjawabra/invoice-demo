@@ -175,7 +175,8 @@ export default function PlanningArea() {
           <div className="muted" style={{ fontSize: 13 }}>{L(`${plan.name} · الإصدار ${plan.version || 'غير محفوظ'} · ${fmtRangeText(plan.period.from, plan.period.to, 'ar')} · ${scopeLabel}`, `${plan.name} · version ${plan.version || 'unsaved'} · ${fmtRangeText(plan.period.from, plan.period.to, 'en')} · ${scopeLabel}`)}{PS.loading && <span className="st-tag" role="status" style={{ marginInlineStart: 8 }}>{L('جارٍ التحديث…', 'Updating…')}</span>}</div>
         </div>
         <div className="st-head__actions">
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setAssistOpen(true)}>{L('مساعد التخطيط', 'Planning assistant')}</button>
+          {/* one entry to the assistant (F-21): a floating button that stays reachable while scrolling; it sits here in the DOM so keyboard users reach it first */}
+          {!assistOpen && <button type="button" id="st-fab" className="st-fab" onClick={() => setAssistOpen(true)} aria-label={L('فتح مساعد التخطيط', 'Open the planning assistant')}>{L('مساعد التخطيط', 'Planning assistant')}</button>}
           {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={T.count === 0} aria-disabled={!!exporting || undefined} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('ملخص الخطة', 'Plan summary')} ${n}`}</button>)}
         </div>
       </header>
@@ -229,7 +230,7 @@ export default function PlanningArea() {
       <section id="scenario" className="st-section" aria-label={L('السيناريوهات', 'Scenarios')}>
         <h2 className="st-section__title">{L('سيناريوهات «ماذا لو»', 'What-if scenarios')} <span className="st-tag st-tag--scenario">{L('سيناريو المستخدم', 'user scenario')}</span><small>{L('جزء من الخطة النشطة؛ لا يغيّر أي بيانات فعلية ولا المستهدفات', 'part of the active plan; changes no actual data and no targets')}</small></h2>
         <ScenarioPanel snapshot={snapshot} targets={targets} scenario={scenario} setScenario={setScenario} planDate={planDate} setPlanDate={setPlanDate} today={today} canEdit={canEdit} financeOk={financeOk} onSaveToRegister={proposeFromScenario} />
-        {snapshot && T.net > 0 && <NamedScenarios snapshot={snapshot} targets={targets} planId={plan.id} planName={plan.name} store={viewStore} commit={(st) => updateStore(() => st)} scenario={scenario} canEdit={canEdit} by={by} onLoad={(s) => setPlan((p) => editPlan(p, { scenario: cleanScenario(s.scenario), ...(s.planDate ? { planDate: s.planDate < today ? today : s.planDate } : {}) }, by))} />}
+        {snapshot && T.net > 0 && <NamedScenarios snapshot={snapshot} targets={targets} planId={plan.id} planName={plan.name} store={viewStore} commit={(st) => updateStore(() => st)} commitWith={(fn) => updateStore(fn)} scenario={scenario} canEdit={canEdit} by={by} onLoad={(s) => setPlan((p) => editPlan(p, { scenario: cleanScenario(s.scenario), ...(s.planDate ? { planDate: s.planDate < today ? today : s.planDate } : {}) }, by))} />}
       </section>
 
       <section id="decisions" className="st-section" aria-label={L('المبادرات والقرارات', 'Initiatives and decisions')}>
@@ -239,8 +240,7 @@ export default function PlanningArea() {
       </>)}
 
       <LocalDataPanel />
-      {!assistOpen && <button type="button" className="st-fab" onClick={() => setAssistOpen(true)} aria-label={L('فتح مساعد التخطيط', 'Open the planning assistant')}>{L('مساعد التخطيط', 'Planning assistant')}</button>}
-      <AssistantPanel open={assistOpen} onClose={() => setAssistOpen(false)} ctxFactory={ctxFactory} onAction={onAssistAction} prompts={PLANNING_PROMPTS} title={L('مساعد التخطيط', 'Planning assistant')} />
+      <AssistantPanel open={assistOpen} onClose={() => { setAssistOpen(false); window.setTimeout(() => document.getElementById('st-fab')?.focus(), 50); }} ctxFactory={ctxFactory} onAction={onAssistAction} prompts={PLANNING_PROMPTS} title={L('مساعد التخطيط', 'Planning assistant')} />
     </div>
   );
 }

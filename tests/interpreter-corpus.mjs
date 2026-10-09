@@ -113,7 +113,7 @@ add('source', 'تقرير الإيواء', { source: 'accommodation' });
 add('source', 'تقرير مبيعات الإسكان', { source: 'housing_sales' });
 add('source', 'تقرير الرسوم البلدية', { source: 'municipal_fees' });
 add('source', 'تقرير التراخيص', { source: 'licenses' });
-add('source', 'أريد تقريراً عن أكبر 5 بلديات', { source: 'all' });
+add('source', 'أريد تقريراً عن أكبر 5 بلديات', { kind: 'clarify', source: 'all' }); // «أكبر 5» (a top-N ranking) cannot be applied: asked about, never dropped silently (round 5); «بلديات» is still not the municipal-fees source
 add('source', 'تقرير عن البلديات', { source: 'all' });
 add('source', 'fines revenue report', { source: 'fines' });
 add('source', 'tobacco report for last month', { source: 'tobacco', ...per(P.lastMonth) });

@@ -6,7 +6,7 @@ import { useAr } from '../../utils/useAr';
 import { fmtRiyadh } from '../../data/clock';
 import { fmtMoney, unitOfValues } from '../../utils/money';
 import { runScenario, scenarioBase, DEFAULT_SCENARIO } from '../../data/strategicCalc';
-import { MAX_SCENARIOS, NAME_MAX, listScenarios, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, changedLevers, cleanScenario } from '../../data/namedScenarios';
+import { MAX_SCENARIOS, NAME_MAX, listScenarios, listScenarioLog, logScenario, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, changedLevers, cleanScenario } from '../../data/namedScenarios';
 import { LEVERS } from './ScenarioPanel';
 
 const ERRORS = {
@@ -17,7 +17,7 @@ const ERRORS = {
   missing: { ar: 'السيناريو غير موجود.', en: 'The scenario no longer exists.' }
 };
 
-export default function NamedScenarios({ snapshot, targets, planId, planName, store, commit, scenario, canEdit, by, onLoad }) {
+export default function NamedScenarios({ snapshot, targets, planId, planName, store, commit, commitWith, scenario, canEdit, by, onLoad }) {
   const { L, B, lang } = useAr();
   const [name, setName] = useState(''); const [renaming, setRenaming] = useState(null); const [renameTo, setRenameTo] = useState('');
   const [confirmDel, setConfirmDel] = useState(null); const [msg, setMsg] = useState(null);
@@ -60,7 +60,7 @@ export default function NamedScenarios({ snapshot, targets, planId, planName, st
     setMsg(r.ok ? { ok: true, text: L('أُنشئت نسخة من السيناريو.', 'A copy of the scenario was created.') } : { ok: false, text: B(ERRORS[r.error] || ERRORS.missing) });
   };
   const doDelete = (s) => {
-    run((st) => deleteScenario(st, planId, s.id)); setConfirmDel(null);
+    run((st) => deleteScenario(st, planId, s.id, by)); setConfirmDel(null);
     setMsg({ ok: true, text: L(`حُذف السيناريو «${s.name}». لم تتغير الخطة ولا إصداراتها.`, `Deleted scenario “${s.name}”. The plan and its versions are unchanged.`) });
     focusSoon(() => nameRef.current?.focus());
   };
@@ -108,7 +108,7 @@ export default function NamedScenarios({ snapshot, targets, planId, planName, st
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-sm" onClick={() => { onLoad(s); setMsg({ ok: true, text: L(`حُمّل «${s.name}» في المحرر. تعديل المحرر يعيد الخطة المعتمدة إلى مسودة (الإصدار المحفوظ لا يتغير).`, `“${s.name}” was loaded into the editor. Editing the editor returns an approved plan to draft (the saved version does not change).`) }); }} disabled={!canEdit}>{L('تحميل في المحرر', 'Load in the editor')}</button>
+                  <button type="button" className="btn btn-sm" onClick={() => { onLoad(s); commitWith((st) => logScenario(st, planId, { action: 'loaded_in_editor', scenarioId: s.id, name: s.name, by })); setMsg({ ok: true, text: L(`حُمّل «${s.name}» في المحرر. تعديل المحرر يعيد الخطة المعتمدة إلى مسودة (الإصدار المحفوظ لا يتغير).`, `“${s.name}” was loaded into the editor. Editing the editor returns an approved plan to draft (the saved version does not change).`) }); }} disabled={!canEdit}>{L('تحميل في المحرر', 'Load in the editor')}</button>
                   <button type="button" className="btn btn-sm" onClick={() => doUpdate(s)} disabled={!canEdit}>{L('تحديث بقيم المحرر', 'Update from the editor')}</button>
                   <button type="button" id={`ns-rename-${s.id}`} className="btn btn-sm" onClick={() => { setRenaming(s.id); setRenameTo(s.name); }} disabled={!canEdit}>{L('إعادة تسمية', 'Rename')}</button>
                   <button type="button" className="btn btn-sm" onClick={() => doDuplicate(s)} disabled={!canEdit || list.length >= MAX_SCENARIOS}>{L('تكرار', 'Duplicate')}</button>
@@ -120,6 +120,15 @@ export default function NamedScenarios({ snapshot, targets, planId, planName, st
         </ul>
       )}
 
+      {(() => {
+        const log = listScenarioLog(store, planId); const A = { created: L('أُنشئ', 'created'), renamed: L('أُعيدت تسميته', 'renamed'), levers_updated: L('حُدّثت رافعاته', 'levers updated'), deleted: L('حُذف', 'deleted'), loaded_in_editor: L('حُمّل في المحرر', 'loaded in the editor') };
+        return (
+          <details className="rv-more" id="scenario-log"><summary>{L(`سجل السيناريوهات (${log.length}) — منفصل عن سجل الخطة`, `Scenario history (${log.length}) — separate from the plan's history`)}</summary>
+            {log.length === 0 ? <div className="muted" style={{ fontSize: 13 }}>{L('لا أحداث بعد.', 'No events yet.')}</div> : <ul className="res__list res__list--plain" style={{ fontSize: 12 }}>{log.slice(0, 40).map((e, i) => <li key={i}>{fmtRiyadh(e.at)} · {e.by || '—'} · «{e.name}» {A[e.action] || e.action}{e.action === 'renamed' && e.detail?.from ? ` ← «${e.detail.from}»` : ''}</li>)}</ul>}
+            <div className="muted" style={{ fontSize: 12 }}>{L('تسجيل السيناريو أو تعديله لا يكتب شيئاً في الخطة ولا في إصداراتها ولا في حالتها.', 'Scenario events never write into the plan, its versions or its status.')}</div>
+          </details>
+        );
+      })()}
       <h3 style={{ margin: '4px 0 0', fontSize: 15 }}>{L('المقارنة جنباً إلى جنب', 'Side-by-side comparison')}</h3>
       <div className="st-table-wrap" tabIndex={0}>
         <table className="table" aria-label={L('مقارنة السيناريوهات المسمّاة بالأساس', 'Named scenarios compared with the baseline')}>
