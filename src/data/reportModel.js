@@ -6,6 +6,7 @@
 // Tables hold RAW numbers (money in SAR); the renderer / exporters show every money column in ONE unit (stated in the header)
 // and Excel also gets the exact SAR. Charts hold SAR series and use one unit per chart.
 // ============================================================================
+import { isSingleMonth } from './clock';
 import { buildSmartReport } from './smartReport';
 import { buildInsights, sourceAr, sourceEn } from './insightsEngine';
 import { fairComparison } from './strategicCalc';
@@ -50,7 +51,7 @@ export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah
     { k: 'status', label: L('حالة الفاتورة', 'Invoice status'), value: st },
     ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'scopeType', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
     { k: 'basis', label: L('أساس التقرير', 'Reporting basis'), value: L(`فواتير صادرة في الفترة؛ التحصيل حتى ${asOf}`, `Invoices issued in the period; collections up to ${asOf}`) },
-    ...(compare !== 'none' && prevScope ? [{ k: 'compare', label: L('المقارنة', 'Comparison'), value: `${prevScope.from} → ${prevScope.to}` }] : []),
+    ...(compare !== 'none' && prevScope ? [{ k: 'compare', label: L('المقارنة', 'Comparison'), value: `${prevScope.from} → ${prevScope.to}${compare === 'prev_month' && !isSingleMonth(sc) ? L(' (الفترة السابقة المساوية في الطول)', ' (preceding period of equal length)') : ''}` }] : []),
     { k: 'data', label: L('البيانات', 'Data'), value: L(`تجريبية اصطناعية${snapshotMeta?.size === 'compact' ? ` — عينة مضغوطة (${(snapshotMeta.counts?.invoicesTotal ?? 0).toLocaleString('en-US')} فاتورة)` : ''}`, `Synthetic demo data${snapshotMeta?.size === 'compact' ? ` — compact sample (${(snapshotMeta.counts?.invoicesTotal ?? 0).toLocaleString('en-US')} invoices)` : ''}`) }
   ];
   return chips;

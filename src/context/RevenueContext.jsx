@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { useAuth } from './AuthContext';
 import { ORGS } from '../data/mock';
 import { ANCHOR_ENFORCEMENT_SEED, DATA_CUTOFF, DATA_START } from '../data/revenueLedger';
+import { checkRange } from '../data/dateRange';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
 import { addCandidateLinks, reviewLink as reviewLinkFn } from '../data/enforcementMatching';
@@ -128,7 +129,12 @@ export function RevenueProvider({ children }) {
   const setPreset = useCallback((preset) => {
     if (SCOPE_PRESETS[preset]) setScope((s) => ({ ...s, preset, ...SCOPE_PRESETS[preset] }));
   }, [setScope]);
-  const setCustomRange = useCallback((from, to) => setScope((s) => ({ ...s, preset: 'custom', from, to })), [setScope]);
+  // a typed range is applied only when valid (D-01/D-02); the result tells the caller what happened so the control can explain it
+  const setCustomRange = useCallback((from, to) => {
+    const r = checkRange({ from, to }, { today: DATA_CUTOFF });
+    if (r.ok) setScope((s) => ({ ...s, preset: 'custom', from: r.from, to: r.to }));
+    return r;
+  }, [setScope]);
   const setAmanah = useCallback((amanah) => setScope((s) => ({ ...s, amanah, muni: 'all' })), [setScope]); // a municipality belongs to one Amanah
   const setScopeType = useCallback((scopeType) => setScope((s) => ({ ...s, scopeType })), [setScope]);
   const setMuni = useCallback((muni) => setScope((s) => ({ ...s, muni })), [setScope]);

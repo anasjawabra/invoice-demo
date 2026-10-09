@@ -2,10 +2,11 @@
 // active plan (whichever model, assumptions and scenario are live right
 // now) into one structured object. Purely a presentation-layer summary; no
 // new calculations, only formatting of fields cfoModel.js already computed.
+import { riyadhToday } from './clock';
 export function buildCFOBoardPackReport(model, t, money) {
   return {
     title: t('cfo_boardpack_title'),
-    generatedOn: new Date().toISOString().slice(0, 10),
+    generatedOn: riyadhToday(),
     period: `${model.periodStart} → ${model.periodEnd}`,
     keyMetrics: [
       { label: t('cfo_kpi_expected_collections'), value: money(model.expectedCollections) },

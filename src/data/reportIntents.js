@@ -9,7 +9,8 @@
 // ============================================================================
 import { parsePeriod, parseAmanah as parseAmanahStrict, parseSource } from './assistantRouter';
 import { amanahOptionsOf } from './revenueLedger';
-import { startOfYear, startOfMonth, addDaysIso } from './clock';
+import { startOfYear, startOfMonth, addDaysIso, isSingleMonth, daysBetweenIso } from './clock';
+import { checkRange, rangeMessage } from './dateRange';
 import { SECTION_ORDER, SECTION_META } from './reportModel';
 import { sourceAr, sourceEn } from './insightsEngine';
 
@@ -48,12 +49,16 @@ export const SUPPORTED_HELP = {
 const STATUS_WORDS = [['overdue', /المتاخر/], ['collected', /(المحصله|المحصل بالكامل|المسدده)/], ['cancelled', /(الملغاه|الملغيه|الملغاة)/], ['excluded', /(المستبعده|المستبعدة)/], ['partial', /(الجزئيه|المسدده جزئيا|محصله جزئيا)/], ['not_due', /(لم يحن|غير المستحقه)/], ['open', /(غير المسدده|القائمه|المفتوحه|غير المحصله)/]];
 const DIRECTION = [['North', /(شمال|الشماليه)/], ['Central', /(وسط|الوسطي|المركزيه)/], ['South', /(جنوب|الجنوبيه)/]];
 
+const QUARTER_NAMES = { q1: { ar: 'الربع الأول', en: 'The first quarter' }, q2: { ar: 'الربع الثاني', en: 'The second quarter' }, q3: { ar: 'الربع الثالث', en: 'The third quarter' }, q4: { ar: 'الربع الرابع', en: 'The fourth quarter' } };
 function periodPreset(from, to, today) {
   if (from === startOfYear(today) && to === today) return 'ytd';
   if (from === startOfMonth(today) && to === today) return 'month';
   return 'custom';
 }
 export function previousMonthScope(scope, today) {
+  // D-05: «the previous month» only makes sense for a single-month selection; for any other selection the comparison is the
+  // immediately preceding period of EQUAL LENGTH (and the report says so), never one calendar month against 282 days.
+  if (!isSingleMonth(scope)) { const len = daysBetweenIso(scope.from, scope.to) + 1; const to = addDaysIso(scope.from, -1); return { from: addDaysIso(to, -(len - 1)), to }; }
   // same elapsed days of the previous calendar month (clamped), so a partial month is compared with an equivalent partial month
   const y = Number(scope.from.slice(0, 4)); const m = Number(scope.from.slice(5, 7)); const day = Number(scope.to.slice(8, 10));
   const py = m === 1 ? y - 1 : y; const pm = m === 1 ? 12 : m - 1; const dim = new Date(Date.UTC(py, pm, 0)).getUTCDate();
@@ -89,8 +94,17 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   // ---- period
   const iso = raw.match(/(20\d{2}-\d{2}-\d{2})\s*(?:→|الى|إلى|to|-|–|حتى)\s*(20\d{2}-\d{2}-\d{2})/);
   let per = null;
-  if (iso) per = { from: iso[1], to: iso[2] > today ? today : iso[2], label: 'custom' };
-  else per = parsePeriod(t, today);
+  if (iso) {
+    const r = checkRange({ from: iso[1], to: iso[2] }, { today });
+    if (!r.ok) return { kind: 'clarify', spec, changes: [], question: { ar: rangeMessage(r.code, 'ar', { today }), en: rangeMessage(r.code, 'en', { today }) }, options: [{ label: { ar: 'السنة حتى اليوم', en: 'Year to date' }, text: 'أنشئ تقرير الإيرادات للسنة حتى اليوم' }, { label: { ar: 'هذا الشهر حتى اليوم', en: 'This month to date' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم' }] };
+    per = { from: r.from, to: r.to, label: 'custom' };
+  }
+  else per = parsePeriod(t, today, { reportFuture: true });
+  if (per && per.notStarted) { // D-04: a period that has not started is never turned into a reversed range
+    const nm = QUARTER_NAMES[per.label] || null;
+    const what = nm ? { ar: nm.ar, en: nm.en } : { ar: 'الشهر المطلوب', en: 'The month you asked for' };
+    return { kind: 'clarify', spec, changes: [], question: { ar: `${what.ar} لم يبدأ بعد (يبدأ ${per.from}، وآخر بيانات ${today}). أي فترة تريد؟`, en: `${what.en} has not started yet (it starts ${per.from}; the latest data is ${today}). Which period do you want?` }, options: [{ label: { ar: 'السنة حتى اليوم', en: 'Year to date' }, text: 'أنشئ تقرير الإيرادات للسنة حتى اليوم' }, { label: { ar: 'هذا الشهر حتى اليوم', en: 'This month to date' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم' }, { label: { ar: 'الشهر الماضي', en: 'Last month' }, text: 'أنشئ تقرير الإيرادات للشهر الماضي' }] };
+  }
   if (per && (per.from !== spec.scope.from || per.to !== spec.scope.to)) { spec.scope.from = per.from; spec.scope.to = per.to; spec.preset = periodPreset(per.from, per.to, today); note('period', 'period', `${per.from} → ${per.to}`); }
 
   // ---- Amanah / municipality
@@ -159,7 +173,7 @@ export function describeChange(c, lang, { amanahLabel = (k) => k, spec } = {}) {
   const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
   const lab = { sections: L('أُضيف قسم', 'Section added'), period: L('الفترة', 'Period'), amanah: L('الأمانة', 'Amanah'), muni: L('البلدية', 'Municipality'), source: L('المصدر', 'Source'), status: L('حالة الفاتورة', 'Invoice status'), scopeType: L('النطاق', 'Scope'), compare: L('المقارنة', 'Comparison'), depth: L('مستوى التفصيل', 'Depth'), reset: L('المرشحات', 'Filters') }[c.key];
   const v = c.key === 'amanah' ? (c.value === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(c.value).map(amanahLabel).join('، '))
-    : c.key === 'compare' ? ({ prev_month: L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)'), prev_year: L('نفس الفترة من العام السابق', 'Same period last year'), none: L('بدون', 'None') }[c.value])
+    : c.key === 'compare' ? ({ prev_month: spec && !isSingleMonth(spec.scope) ? L('الفترة السابقة المساوية في الطول', 'Preceding period of equal length') : L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)'), prev_year: L('نفس الفترة من العام السابق', 'Same period last year'), none: L('بدون', 'None') }[c.value])
       : c.key === 'sections' ? String(c.value).split(',').map((k) => SECTION_META[k]?.[ar ? 'ar' : 'en'] || k).join('، ') : c.key === 'depth' ? L('تفصيلي', 'Detailed') : c.key === 'reset' ? L('أُعيدت إلى الافتراضي', 'Reset to default') : c.key === 'muni' ? (c.value === 'all' ? L('كل البلديات', 'All municipalities') : String(c.value).split('|').pop())
         : c.key === 'source' ? (c.value === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(c.value) : sourceEn(c.value)))
           : c.key === 'status' ? (STATUS_LABELS[c.value]?.[ar ? 'ar' : 'en'] || String(c.value)) : String(c.value);

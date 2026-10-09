@@ -9,6 +9,7 @@ import { REVENUE_SOURCES } from './revenueLedger';
 import { describeScope, pickBi, bi } from './revenueInsights';
 import { fmtMoney, scaled, unitOfValues, unitLabel } from '../utils/money';
 import { BRIDGE_LABELS } from './bridgeLabels';
+import { riyadhToday } from './clock';
 
 export const REPORT_FOCUS = ['revenue', 'amanah', 'noncollection', 'investment'];
 
@@ -147,7 +148,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   return {
     title: L('Smart revenue report', 'التقرير الذكي للإيرادات'),
     subtitle,
-    generatedOn: `${L('Generated', 'أُنشئ')}: ${new Date().toISOString().slice(0, 10)} · ${L('data cutoff', 'قطع البيانات')} ${snapshot.cutoff}`,
+    generatedOn: `${L('Generated', 'أُنشئ')}: ${riyadhToday()} · ${L('data cutoff', 'قطع البيانات')} ${snapshot.cutoff}`,
     executiveSummary, keyMetrics,
     detailedAnalysis: { intro: L('Each row uses its own net billed as the denominator and the same shared metric definitions as every other screen.', 'يستخدم كل صف صافي مفوتره كمقام ونفس تعريفات المؤشرات المشتركة في بقية الشاشات.'), table: analysisTable },
     discoveries, risks, predictions, additionalReports, recommendations, assumptions, labels,

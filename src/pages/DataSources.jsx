@@ -8,6 +8,7 @@ import { importRows, parseCsv, SAMPLE_CSV, SAMPLE_LINES_CSV, REQUIRED, REPORT_TY
 import { SOURCE_ROLES, buildImportLog, freshnessOf, FRESHNESS_LEVELS, buildMatchRules, qualityOverview } from '../data/sourceMap';
 import { api } from '../api/client';
 import SourceCoverage from '../components/revenue/SourceCoverage';
+import { fmtRiyadh } from '../data/clock';
 
 const REASON_TEXT = {
   missing_invoice_id: ['Missing invoice id', 'رقم الفاتورة مفقود'],
@@ -48,7 +49,7 @@ const OPEN_DECISIONS = [
   { d: ['Which amount is authoritative when the invoice value and its items disagree', 'أي مبلغ هو المعتمد عند اختلاف قيمة الفاتورة عن بنودها'], s: ['Flagged, never corrected; metrics use the source header amount.', 'يُعلَّم ولا يُصحَّح؛ وتستخدم المؤشرات مبلغ رأس المصدر.'] }
 ];
 
-const fmtDt = (iso) => (iso ? iso.slice(0, 16).replace('T', ' ') : '—');
+const fmtDt = (iso) => (iso ? (/Z$|[+-]\d\d:\d\d$/.test(iso) ? fmtRiyadh(iso) : iso.slice(0, 16).replace('T', ' ')) : '—');
 
 export default function DataSources() {
   const rev = useRevenue();

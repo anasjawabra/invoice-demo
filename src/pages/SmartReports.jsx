@@ -15,6 +15,8 @@ import { buildReportModel, SECTION_META, SECTION_ORDER } from '../data/reportMod
 import { sourceAr, sourceEn } from '../data/insightsEngine';
 import ReportView from '../components/smart/ReportView';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
+import { fmtRiyadh } from '../data/clock';
+import { DateRangeFields } from '../components/revenue/RevenueUI';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -39,7 +41,8 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   const sp = spec || defaultSpec(today); const sc = sp.scope;
   const [d, setD] = useState({ from: sc.from, to: sc.to, amanah: Array.isArray(sc.amanah) ? 'all' : sc.amanah, muni: sc.muni, source: sc.source, status: sc.status || 'all', scopeType: sc.scopeType || 'all', compare: sp.compare });
   const munis = d.amanah !== 'all' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
-  const preset = (from, to) => setD((x) => ({ ...x, from, to }));
+  const [badRange, setBadRange] = useState(false); const [rk, setRk] = useState(0);
+  const preset = (from, to) => { setBadRange(false); setRk((n) => n + 1); setD((x) => ({ ...x, from, to })); };
   const ams = amanahOptionsOf();
   return (
     <div className="sr-filters card" role="region" aria-label={L('المرشحات', 'Filters')}>
@@ -47,9 +50,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
         <span className="rv-scope__lbl">{L('الفترة', 'Period')}</span>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => preset(startOfMonth(today), today)}>{L('هذا الشهر', 'This month')}</button>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => preset(startOfYear(today), today)}>{L('السنة حتى اليوم', 'Year to date')}</button>
-        <input className="input rv-scope__date" type="date" aria-label={L('من', 'From')} value={d.from} max={d.to} onChange={(e) => setD({ ...d, from: e.target.value })} />
-        <span className="muted">→</span>
-        <input className="input rv-scope__date" type="date" aria-label={L('إلى', 'To')} value={d.to} min={d.from} max={today} onChange={(e) => setD({ ...d, to: e.target.value })} />
+        <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={ar ? 'ar' : 'en'} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
       </div>
       <div className="sr-filters__row">
         <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة', 'Amanah')}</label>
@@ -66,7 +67,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
         <label className="rv-scope__lbl" htmlFor="sr-cm">{L('المقارنة', 'Comparison')}</label>
         <select id="sr-cm" className="select" value={d.compare} onChange={(e) => setD({ ...d, compare: e.target.value })}><option value="none">{L('بدون', 'None')}</option><option value="prev_year">{L('نفس الفترة من العام السابق', 'Same period last year')}</option><option value="prev_month">{L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)')}</option></select>
       </div>
-      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
+      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
     </div>
   );
 }
@@ -160,7 +161,7 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
     const userMsg = { id: uid(), role: 'user', text: q };
     const res = override ? { kind: 'report', spec: override.spec, changes: override.changes || [] } : interpret(q, c.messages.some((m) => m.spec) ? c.spec : null, today, { base: sharedSpec });
     const asId = uid();
-    const lbl = (ch) => describeChange(ch, lang, { amanahLabel: labelOfAmanah });
+    const lbl = (ch) => describeChange(ch, lang, { amanahLabel: labelOfAmanah, spec: res.spec });
     let aMsg;
     if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', status: 'done' };
     else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
@@ -236,7 +237,7 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
       {showHistory && (
         <div className="sr-history card" role="region" aria-label={L('سجل المحادثات', 'Conversation history')}>
           {!convs.length && <div className="muted">{L('لا محادثات بعد.', 'No conversations yet.')}</div>}
-          {convs.map((c) => <div key={c.id} className={`sr-history__item ${c.id === activeId ? 'is-active' : ''}`}><button type="button" onClick={() => { if (!busy) { setActiveId(c.id); setShowHistory(false); } }}><b>{c.title}</b><small>{new Date(c.updatedAt).toISOString().slice(0, 16).replace('T', ' ')} · {c.messages.filter((m) => m.role === 'user').length} {L('طلب', 'requests')}</small></button><button type="button" className="btn btn-sm btn-ghost" aria-label={L('حذف', 'Delete')} onClick={() => removeConv(c.id)}>×</button></div>)}
+          {convs.map((c) => <div key={c.id} className={`sr-history__item ${c.id === activeId ? 'is-active' : ''}`}><button type="button" onClick={() => { if (!busy) { setActiveId(c.id); setShowHistory(false); } }}><b>{c.title}</b><small>{fmtRiyadh(c.updatedAt)} · {c.messages.filter((m) => m.role === 'user').length} {L('طلب', 'requests')}</small></button><button type="button" className="btn btn-sm btn-ghost" aria-label={L('حذف', 'Delete')} onClick={() => removeConv(c.id)}>×</button></div>)}
         </div>
       )}
 

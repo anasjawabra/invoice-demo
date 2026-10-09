@@ -8,6 +8,7 @@ import { useL } from '../../utils/bi';
 import { fmtMoney, fmtSar } from '../../utils/money';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../../data/reportFormat';
 import FinancialRelations from '../revenue/FinancialRelations';
+import { fmtRiyadh } from '../../data/clock';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
@@ -84,7 +85,7 @@ export default function ReportView({ model }) {
     <div className="sr-report" data-report-id={model.id}>
       <div className="sr-report__head">
         <h3 className="sr-report__title">{model.title}</h3>
-        <div className="muted" style={{ fontSize: 12 }}>{model.subtitle} · {L('أُعدّ في', 'Prepared')} {model.generatedAt.slice(0, 10)}</div>
+        <div className="muted" style={{ fontSize: 12 }}>{model.subtitle} · {L('أُعدّ في', 'Prepared')} {fmtRiyadh(model.generatedAt)} ({L('بتوقيت الرياض', 'Riyadh time')})</div>
         <div className="sr-chips" aria-label={L('سياق التقرير', 'Report context')}>{model.context.filter((c) => c.k !== 'basis' && c.k !== 'data').map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
         <div className="sr-note"><b>{L('أساس التقرير', 'Basis')}:</b> {model.context.find((c) => c.k === 'basis')?.value} · <b>{L('البيانات', 'Data')}:</b> {model.context.find((c) => c.k === 'data')?.value}</div>
       </div>

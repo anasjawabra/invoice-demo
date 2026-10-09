@@ -22,7 +22,9 @@ const lastDay = (y, m) => new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
 
 // Periods are relative to the REAL date (Asia/Riyadh) passed in as `cutoff`: "this month" = month start → today,
 // "this year" = Jan 1 → today, a named month is the latest such month that is not in the future.
-export function parsePeriod(text, cutoff = DATA_CUTOFF) {
+// A quarter / month that has not started yet (nothing to report) is returned as { notStarted: true, from, label } only when the caller asks
+// for it (`reportFuture`), so it can tell the user; every other caller gets null instead of a reversed range (D-04).
+export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false } = {}) {
   const s = text.toLowerCase();
   const year = Number(cutoff.slice(0, 4));
   const curMonth = Number(cutoff.slice(5, 7));
@@ -30,8 +32,9 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF) {
   const monthRange = (m) => {
     let y = explicitYear ? Number(explicitYear) : year;
     if (!explicitYear && m > curMonth) y -= 1; // a month later than the current one means the previous year's
-    const to = lastDay(y, m);
-    return { from: `${y}-${String(m).padStart(2, '0')}-01`, to: to > cutoff ? cutoff : to, label: `m${m}` };
+    const to = lastDay(y, m); const from = `${y}-${String(m).padStart(2, '0')}-01`;
+    if (from > cutoff) return reportFuture ? { from, to, label: `m${m}`, notStarted: true } : null;
+    return { from, to: to > cutoff ? cutoff : to, label: `m${m}`, yearAssumed: !explicitYear };
   };
   if (/this month|current month|month to date|mtd|هذا الشهر|الشهر الحالي|الشهر الجاري/.test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
   if (/last month|previous month|latest month|الشهر الأخير|الشهر الماضي|الشهر السابق/.test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
@@ -39,11 +42,15 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF) {
   if (/year to date|ytd|fiscal year|this year|current year|السنة المالية|هذا العام|هذه السنة|السنة الحالية|العام الحالي/.test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (text.includes(k)) return monthRange(m);
-  const q = (n) => { const m0 = (n - 1) * 3 + 1; const y = year; const to = lastDay(y, m0 + 2); return { from: `${y}-${String(m0).padStart(2, '0')}-01`, to: to > cutoff ? cutoff : to, label: `q${n}` }; };
-  if (/q1|first quarter|الربع الأول/.test(s)) return q(1);
-  if (/q2|second quarter|الربع الثاني/.test(s)) return q(2);
-  if (/q3|third quarter|الربع الثالث/.test(s)) return q(3);
-  if (/q4|fourth quarter|الربع الرابع/.test(s)) return q(4);
+  const q = (n) => {
+    const m0 = (n - 1) * 3 + 1; const y = explicitYear ? Number(explicitYear) : year; const to = lastDay(y, m0 + 2); const from = `${y}-${String(m0).padStart(2, '0')}-01`;
+    if (from > cutoff) return reportFuture ? { from, to, label: `q${n}`, notStarted: true } : null; // the quarter has not started: no reversed range
+    return { from, to: to > cutoff ? cutoff : to, label: `q${n}` };
+  };
+  if (/q1|first quarter|(?:ال|لل|ل)?ربع (?:ال)?[أا]ول/.test(s)) return q(1);
+  if (/q2|second quarter|(?:ال|لل|ل)?ربع (?:ال)?ثاني/.test(s)) return q(2);
+  if (/q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/.test(s)) return q(3);
+  if (/q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/.test(s)) return q(4);
   if (/all data|all time|since the start|كل البيانات/.test(s)) return { from: DATA_START, to: cutoff, label: 'all' };
   return null;
 }

@@ -6,6 +6,8 @@ import { amanahOptionsOf, REVENUE_SOURCES, REVENUE_SOURCE_KEYS, UNAVAILABLE_REVE
 import { METRIC_DEFINITIONS } from '../../data/revenueMetrics';
 import { metricDictionary } from '../../data/metricDictionary';
 import { municipalitiesOf } from '../../data/catalog';
+import { DATA_START } from '../../data/revenueLedger';
+import { checkRange, rangeMessage, coverageLine } from '../../data/dateRange';
 
 /* ---------- Provenance / status badges ---------- */
 export function ProvenanceBadge({ kind = 'demo', size = 'md' }) {
@@ -93,6 +95,31 @@ export function PpDelta({ change, comparable = true, label }) {
   );
 }
 
+/* ---------- Date range fields (shared validation: inverted ranges never run, out-of-coverage dates are adjusted AND explained) ---------- */
+// `onChange({from,to})` is called only with a valid range; `onChange(null)` when the typed range is invalid.
+export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'rv' }) {
+  const [draft, setDraft] = useState({ from, to }); const [msg, setMsg] = useState(null);
+  const applied = useRef(null); // the range this control itself just applied: its own note must survive the prop update that follows
+  useEffect(() => { if (applied.current && applied.current.from === from && applied.current.to === to) return; setDraft({ from, to }); setMsg(null); }, [from, to]);
+  const ar = lang === 'ar'; const hintId = `${idPrefix}-date-hint`;
+  const apply = (next) => {
+    setDraft(next);
+    const r = checkRange(next, { today });
+    if (!r.ok) { setMsg({ code: r.code, bad: true }); onChange(null); return; }
+    if (r.adjusted.length) { setDraft({ from: r.from, to: r.to }); setMsg({ code: r.adjusted[0], bad: false }); } else setMsg(null);
+    applied.current = { from: r.from, to: r.to };
+    onChange({ from: r.from, to: r.to });
+  };
+  return (
+    <span className="rv-scope__dates">
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : 'From'} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} />
+      <span className="muted">→</span>
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : 'To'} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} />
+      <span id={hintId} className={`rv-scope__hint ${msg ? (msg.bad ? 'rv-scope__hint--bad' : 'rv-scope__hint--note') : ''}`} role={msg ? 'alert' : undefined}>{msg ? rangeMessage(msg.code, lang, { today }) : coverageLine(lang, { today })}</span>
+    </span>
+  );
+}
+
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
 export function ScopeBar({ compact = false }) {
   const { scope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
@@ -115,10 +142,7 @@ export function ScopeBar({ compact = false }) {
           {presets.map(([k, text]) => (
             <button key={k} type="button" className={`btn btn-sm ${scope.preset === k ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={scope.preset === k} onClick={() => setPreset(k)}>{text}</button>
           ))}
-          <input className="input rv-scope__date" type="date" aria-label={L('From', 'من')} value={scope.from} max={scope.to} onChange={(e) => setCustomRange(e.target.value, scope.to)} />
-          <span className="muted">→</span>
-          <input className="input rv-scope__date" type="date" aria-label={L('To', 'إلى')} value={scope.to} min={scope.from} max={cfg.cutoff} onChange={(e) => setCustomRange(scope.from, e.target.value)} />
-        </div>
+          <DateRangeFields from={scope.from} to={scope.to} today={cfg.cutoff} lang={lang} idPrefix="rv" onChange={(r) => { if (r) setCustomRange(r.from, r.to); }} /></div>
         <div className="rv-scope__group">
           <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة')}</label>
           <select id="rv-amanah" className="select" value={Array.isArray(scope.amanah) ? 'all' : scope.amanah} onChange={(e) => setAmanah(e.target.value)}>

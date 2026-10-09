@@ -6,6 +6,7 @@ import * as XLSX from 'xlsx';
 import pptxgen from 'pptxgenjs';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../data/reportFormat';
 import { fmtSar } from './money';
+import { riyadhDateOf } from '../data/clock';
 
 function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -17,7 +18,7 @@ const NA = { ar: 'غير متاحة', en: 'Not available' };
 // a rate object {calculable, value} → «57.8%» or the explicit unavailable label (never a silent zero)
 const rateText = (r, lang = 'ar') => (r && r.calculable ? `${(r.value * 100).toFixed(1)}%` : NA[lang]);
 const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
-export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${model.generatedAt.slice(0, 10)}.${ext}`;
+export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${riyadhDateOf(model.generatedAt)}.${ext}`;
 
 // the flat, text form of a model (shared by Word and PowerPoint)
 export function modelToLines(model) {

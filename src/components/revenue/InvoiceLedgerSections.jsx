@@ -5,6 +5,7 @@ import { useL } from '../../utils/bi';
 import { CATEGORY_LABELS, exclusionRecordsOf, ruleById } from '../../data/revenueMetrics';
 import { RULE_APPROVAL_LABEL } from '../../data/ruleRegistry';
 import { REVENUE_SOURCES } from '../../data/revenueLedger';
+import { riyadhToday } from '../../data/clock';
 
 const Row = ({ k, children }) => (<div className="rv-kv"><span className="rv-kv__k">{k}</span><span className="rv-kv__v" dir="auto">{children}</span></div>);
 
@@ -19,7 +20,7 @@ function downloadReview(rec, der, cls, notes, L) {
     ['CR number', rec.crNo || ''], ['CR status (raw)', rec.crStatusRaw || ''],
     ['Exclusion reasons', exclusionRecordsOf(rec).map((e) => `${e.ruleId}:${e.reviewStatus}`).join(' | ')],
     ['Notes', (notes || []).map((n) => `${n.at} ${n.by}: ${n.text}`).join(' | ')],
-    ['Generated for review', new Date().toISOString().slice(0, 10)]
+    ['Generated for review', riyadhToday()]
   ];
   const blob = new Blob([`﻿${lines.map((r) => r.map(esc).join(',')).join('\n')}`], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');

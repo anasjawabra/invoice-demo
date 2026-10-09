@@ -6,6 +6,7 @@ import { useAr } from '../../utils/useAr';
 import { fmtMoney } from '../../utils/money';
 import { fmtEvidence } from '../../data/reportFormat';
 import { STATUSES, STATUS_LABEL, PRIORITY_LABEL, createAction, updateAction, rejectProposal, pendingProposals, isOverdue } from '../../data/actionRegister';
+import { fmtRiyadh, riyadhDateOf } from '../../data/clock';
 
 const tx = (v, ar) => (v == null ? '' : typeof v === 'string' ? v : ar ? v.ar : v.en);
 
@@ -122,12 +123,12 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
                 </div>
               )}
               <details><summary className="muted" style={{ fontSize: 12 }}>{L(`سجل التغييرات (${a.history.length})`, `Change history (${a.history.length})`)}</summary>
-                <ul className="res__list res__list--plain" style={{ fontSize: 12 }}>{a.history.slice().reverse().map((h, i) => <li key={i} dir="auto">{h.at.slice(0, 16).replace('T', ' ')} · {h.by} · {h.field}: {JSON.stringify(h.from)} → {JSON.stringify(h.to)} {h.note}</li>)}</ul>
+                <ul className="res__list res__list--plain" style={{ fontSize: 12 }}>{a.history.slice().reverse().map((h, i) => <li key={i} dir="auto">{fmtRiyadh(h.at)} · {h.by} · {h.field}: {JSON.stringify(h.from)} → {JSON.stringify(h.to)} {h.note}</li>)}</ul>
               </details>
             </article>
           );
         })}
-        {register.rejected.length > 0 && <details><summary className="muted" style={{ fontSize: 12 }}>{L(`مقترحات مرفوضة (${register.rejected.length})`, `Rejected proposals (${register.rejected.length})`)}</summary><ul className="res__list res__list--plain" style={{ fontSize: 12 }}>{register.rejected.map((r, i) => <li key={i}>{r.at.slice(0, 10)} · {r.by} · {tx(r.title, ar)} {r.reason ? `— ${r.reason}` : ''}</li>)}</ul></details>}
+        {register.rejected.length > 0 && <details><summary className="muted" style={{ fontSize: 12 }}>{L(`مقترحات مرفوضة (${register.rejected.length})`, `Rejected proposals (${register.rejected.length})`)}</summary><ul className="res__list res__list--plain" style={{ fontSize: 12 }}>{register.rejected.map((r, i) => <li key={i}>{riyadhDateOf(r.at)} · {r.by} · {tx(r.title, ar)} {r.reason ? `— ${r.reason}` : ''}</li>)}</ul></details>}
       </div>
     </div>
   );

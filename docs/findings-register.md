@@ -27,3 +27,16 @@ The values before the cleanup are preserved in `docs/checkpoints/phase0-pre-data
 | C-01 | False statements | Interim wording for F-03 and the coverage line (above). The remaining C-01 items are definition-dependent (see decision table) | – | Partly done |
 
 Test count after batch 1: 61 passing (56 + 5 new).
+
+## Batch 2 — dates (technical corrections only)
+
+| Id | Change | Evidence | Status |
+|---|---|---|---|
+| D-01 | One validator (`src/data/dateRange.js`) used by the Dashboard scope bar, the Smart-report filter panel and typed requests: an inverted, empty or impossible range is **never applied**; inline message «تاريخ البداية بعد تاريخ النهاية — صحّح الفترة.»; the Smart «Apply» button is disabled while invalid | Test «D-01/D-02»; app (typed 2026-06-01 → 2026-03-01): message shown, `aria-invalid` set, scope unchanged, no empty-state | Fixed + verified |
+| D-02 | `min` = data start (2025-01-01) on both fields; a coverage line «البيانات متاحة من 2025-01-01 حتى 2026-10-09» is always visible; a partly-outside range is clamped and the control says so («البيانات تبدأ من 2025-01-01؛ ضُبط تاريخ البداية.»); a wholly-outside range is rejected | Same test; app (typed 2020-01-01): clamped to 2025-01-01 with the note | Fixed + verified |
+| D-04 | A quarter/month that has not started is no longer turned into a reversed range: the interpreter asks which period is meant and shows the start date; an explicit year («الربع الثاني 2025») is now honoured; «للربع الثاني» (ل + الربع) is now recognised; a typed ISO range is validated; the previous-year choice for a bare month name is flagged (`yearAssumed`) and the interpreted dates are always shown in the change chip | Test «D-04» | Fixed (tests only) — conversation UI not exercised end-to-end |
+| D-05 | «Previous month» compares equal elapsed days only for a single-month selection; for any other selection it is the preceding period of **equal length**, and the comparison chip/description says so | Test «D-05» (282-day YTD → the 282 days before it) | Fixed (tests only). Which comparison should be the *default* is not decided here (see EQ decision table) |
+| D-07 | `fmtRiyadh` / `riyadhDateOf` (Asia/Riyadh) now format plan versions and history, action history and rejected proposals, conversation history, data-source timestamps, the «أُعدّ في» line (with «بتوقيت الرياض»), export file names and the generated-on dates of exports; storage stays UTC ISO | Test «D-07» (22:30 UTC → next day 01:30 Riyadh) | Fixed (tests only) |
+
+Not changed on purpose: D-03 «آخر 3 أشهر» (two incompatible meanings — needs a definition), D-06 basis label (depends on EQ1).
+Test count after batch 2: 65 passing.
