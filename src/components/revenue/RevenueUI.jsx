@@ -7,6 +7,8 @@ import { METRIC_DEFINITIONS } from '../../data/revenueMetrics';
 import { metricDictionary } from '../../data/metricDictionary';
 import { municipalitiesOf } from '../../data/catalog';
 import { DATA_START } from '../../data/revenueLedger';
+import { fmtMoney } from '../../utils/money';
+import { measure, basisLabel, hasToDateVariant, BASIS } from '../../data/measure';
 import { checkRange, rangeMessage, coverageLine } from '../../data/dateRange';
 
 /* ---------- Provenance / status badges ---------- */
@@ -97,7 +99,7 @@ export function PpDelta({ change, comparable = true, label }) {
 
 /* ---------- Date range fields (shared validation: inverted ranges never run, out-of-coverage dates are adjusted AND explained) ---------- */
 // `onChange({from,to})` is called only with a valid range; `onChange(null)` when the typed range is invalid.
-export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'rv' }) {
+export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'rv', planMax = null, hint = null }) {
   const [draft, setDraft] = useState({ from, to }); const [msg, setMsg] = useState(null);
   const applied = useRef(null); // the range this control itself just applied: its own note must survive the prop update that follows
   useEffect(() => { if (applied.current && applied.current.from === from && applied.current.to === to) return; setDraft({ from, to }); setMsg(null); }, [from, to]);
@@ -115,8 +117,32 @@ export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'r
       <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : 'From'} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} />
       <span className="muted">→</span>
       <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : 'To'} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} />
-      <span id={hintId} className={`rv-scope__hint ${msg ? (msg.bad ? 'rv-scope__hint--bad' : 'rv-scope__hint--note') : ''}`} role={msg ? 'alert' : undefined}>{msg ? rangeMessage(msg.code, lang, { today }) : coverageLine(lang, { today })}</span>
+      <span id={hintId} className={`rv-scope__hint ${msg ? (msg.bad ? 'rv-scope__hint--bad' : 'rv-scope__hint--note') : ''}`} role={msg ? 'alert' : undefined}>{msg ? rangeMessage(msg.code, lang, { today, planMax }) : (hint || coverageLine(lang, { today }))}</span>
     </span>
+  );
+}
+
+/* ---------- Collections up to TODAY for a closed period: a separate, labelled figure shown on request (EQ1) ---------- */
+export function ToDateFigure({ snapshot }) {
+  const rev = useRevenue(); const { L, lang } = useL();
+  const scope = { from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status };
+  const [on, setOn] = useState(false); const [res, setRes] = useState(null); const [err, setErr] = useState(false);
+  const closed = hasToDateVariant(scope, rev.cfg.cutoff);
+  useEffect(() => {
+    if (!on || !closed) return undefined; let live = true; setRes(null); setErr(false);
+    measure(rev.data, scope, rev.cfg, BASIS.TO_DATE).then((r) => { if (live) setRes(r); }).catch(() => { if (live) setErr(true); });
+    return () => { live = false; };
+  }, [on, closed, JSON.stringify(scope), rev.cfg]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!closed) return null;
+  const fmt = (t) => `${money(t.collected)} · ${ratioText(t.collectedOverNet, lang === 'ar')}`;
+  const money = (v) => fmtMoney(v, { lang });
+  return (
+    <div className="rv-todate">
+      <button type="button" className="btn btn-sm btn-ghost" aria-expanded={on} onClick={() => setOn((v) => !v)}>{on ? L('Hide collections up to today', 'إخفاء التحصيل حتى اليوم') : L('Also show collections up to today', 'إظهار التحصيل حتى اليوم أيضاً')}</button>
+      {on && (err ? <span className="muted">{L('Could not load.', 'تعذّر التحميل.')}</span> : !res ? <span className="muted">{L('Loading…', 'جارٍ التحميل…')}</span> : (
+        <div className="rv-callout" role="note"><b>{basisLabel(scope, BASIS.TO_DATE, rev.cfg.cutoff, lang)}:</b> <bdi dir="ltr">{fmt(res.totals)}</bdi> — {L('for the same invoices; the headline above is', 'للفواتير نفسها؛ والرقم الرئيسي أعلاه هو')} {basisLabel(scope, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}: <bdi dir="ltr">{fmt(snapshot.totals)}</bdi></div>
+      ))}
+    </div>
   );
 }
 
@@ -140,7 +166,7 @@ export function ScopeBar({ compact = false }) {
     ['ytd', L('Year to date', 'السنة حتى اليوم')],
     ['month', L('This month', 'هذا الشهر')],
     ['lastMonth', L('Last month', 'الشهر الماضي')],
-    ['last3', L('Last 3 months', 'آخر 3 أشهر')],
+    ['last3', L('Last 3 complete months', 'آخر 3 أشهر مكتملة')],
     ['all', L('All data', 'كل البيانات')]
   ];
   return (

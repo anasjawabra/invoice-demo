@@ -17,6 +17,8 @@ import ReportView from '../components/smart/ReportView';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
 import { fmtRiyadh } from '../data/clock';
 import { DateRangeFields } from '../components/revenue/RevenueUI';
+import { measure, headlineCfg } from '../data/measure';
+import { usePersistOnChange } from '../utils/usePersistOnChange';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -95,13 +97,13 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const spec = conv?.spec || null;
   const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
 
-  useEffect(() => { saveConvs(convs); }, [convs]);
+  usePersistOnChange(convs, saveConvs); // written only after a user action, never when the page loads or a stored conversation is reopened
   // follow the conversation only when it GROWS while it is open (never on arrival or when reopening — F-16a)
   const seenLen = useRef({ id: null, n: 0 });
   useEffect(() => { const n = conv?.messages.length || 0; const grew = seenLen.current.id === conv?.id && n > seenLen.current.n; seenLen.current = { id: conv?.id, n }; if (grew) endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [conv?.id, conv?.messages.length]);
   useEffect(() => { const el = taRef.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 180)}px`; } }, [input]);
 
-  const patchConv = useCallback((id, fn) => setConvs((cs) => cs.map((c) => (c.id === id ? fn(c) : c))), []);
+  const patchConv = useCallback((id, fn) => setConvs((cs) => { let changed = false; const n = cs.map((c) => { if (c.id !== id) return c; const r = fn(c); if (r !== c) changed = true; return r; }); return changed ? n : cs; }), []);
 
   /* ---------------- generation ---------------- */
   const generate = useCallback(async (sp, token, setStep) => {
@@ -110,15 +112,14 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     step('scope');
     const scope = { ...sc };
     const prevSc = sp.compare === 'prev_month' ? previousMonthScope(sc, today) : sp.compare === 'prev_year' ? (({ from, to }) => ({ from, to }))(previousScope({ from: sc.from, to: sc.to })) : null;
-    const atEnd = { cfg: { ...rev.cfg, collectionsAsOf: 'periodEnd' } };
+    const atEnd = { cfg: headlineCfg(rev.cfg) }; // the SAME measurement rule as every other view (src/data/measure.js)
     step('read');
-    const needEnd = !!prevSc && sc.to < cutoff;
     const task = rev.startAnalysis('report', { focus: sp.sections.includes('exclusions') ? 'noncollection' : sp.sections.includes('amanah') ? 'amanah' : 'revenue', nonce: uid() }, { scope, background: true, inline: true, paceMs: 0, followsGlobal: false, origin: 'smart-reports' });
     token.taskId = task.id;
     const final = await task.promise;
     step('compare');
     if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw new Error('analysis_failed'); }
-    const out = needEnd ? { ...final.out, snapshot: await rev.data.snapshot(scope, atEnd) } : final.out;
+    const out = { ...final.out, snapshot: await measure(rev.data, scope, rev.cfg) };
     const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status };
     const [prev, cash, bridge] = await Promise.all([
       prevSc ? rev.data.snapshot({ ...prevSc, ...scopeKeys }, atEnd) : Promise.resolve(null),
@@ -138,7 +139,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     try {
       const model = await generate(sp, token, (k) => setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)));
       setModels((m) => ({ ...m, [msgId]: model }));
-      patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title } : m)) }));
+      patchConv(convId, (c) => (c.messages.some((m) => m.id === msgId && m.status === 'done' && m.title === model.title) ? c : { ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title } : m)) }));
     } catch (e) {
       const stopped = token.cancelled || e.stopped;
       patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: stopped ? 'stopped' : 'error' } : m)) }));

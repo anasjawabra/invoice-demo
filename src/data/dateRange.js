@@ -16,15 +16,15 @@ export function checkRange({ from, to }, { today, start = DATA_START }) {
   return { ok: true, from: f, to: t, adjusted };
 }
 
-export function rangeMessage(code, lang, { today, start = DATA_START }) {
+export function rangeMessage(code, lang, { today, start = DATA_START, planMax = null }) {
   const ar = lang === 'ar';
   const M = {
     incomplete: ['أدخل تاريخ بداية ونهاية صحيحين.', 'Enter a valid start and end date.'],
     inverted: ['تاريخ البداية بعد تاريخ النهاية — صحّح الفترة.', 'The start date is after the end date — correct the period.'],
-    future: [`الفترة كلها بعد آخر تاريخ للبيانات (${today}).`, `The whole period is after the latest data date (${today}).`],
+    future: [`الفترة كلها بعد ${planMax ? 'أبعد نهاية مسموحة' : 'آخر تاريخ للبيانات'} (${today}).`, `The whole period is after the ${planMax ? 'latest allowed end' : 'latest data date'} (${today}).`],
     before_data: [`الفترة كلها قبل بداية البيانات (${start}).`, `The whole period is before the data starts (${start}).`],
     from_clamped: [`البيانات تبدأ من ${start}؛ ضُبط تاريخ البداية.`, `Data starts on ${start}; the start date was adjusted.`],
-    to_clamped: [`لا توجد بيانات بعد ${today}؛ ضُبط تاريخ النهاية.`, `There is no data after ${today}; the end date was adjusted.`]
+    to_clamped: planMax ? [`أبعد نهاية مسموحة لفترة الخطة ${planMax}؛ ضُبط تاريخ النهاية.`, `The latest allowed plan end is ${planMax}; the end date was adjusted.`] : [`لا توجد بيانات بعد ${today}؛ ضُبط تاريخ النهاية.`, `There is no data after ${today}; the end date was adjusted.`]
   }[code];
   return M ? M[ar ? 0 : 1] : '';
 }

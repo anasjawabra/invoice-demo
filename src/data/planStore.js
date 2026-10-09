@@ -2,6 +2,8 @@
 // A plan states its period, organisational scope, owner, assumptions and VERSION; saving creates a new version and logs the change.
 // A scenario inside a plan is a user-defined set of assumptions: it never alters actual transactions or approved targets.
 import { DEFAULT_SCENARIO } from './strategicCalc';
+import { amanahOptionsOf } from './revenueLedger';
+import { sourceAr, sourceEn } from './insightsEngine';
 
 const KEY = 'ib_plans_v1';
 export const PLAN_STATUS = { draft: { ar: 'مسودة', en: 'Draft' }, review: { ar: 'قيد المراجعة', en: 'Under review' }, approved: { ar: 'معتمدة', en: 'Approved' } };
@@ -13,6 +15,26 @@ export const OBJECTIVE_METRICS = {
   budget_execution: { ar: 'نسبة الصرف من الميزانية المتناسبة (%)', en: 'Payments ÷ prorated budget (%)', unit: 'pct', higherIsBetter: null },
   coverage: { ar: 'تغطية الإنفاق التشغيلي من الإيرادات (%)', en: 'Operating-expenditure coverage (%)', unit: 'pct', higherIsBetter: true }
 };
+
+// ---- the plan's own scope: its figures are computed from THIS (never from the dashboard filter) ----
+export const DEFAULT_PLAN_SCOPE = { amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
+export function scopeLabelOf(scope, ar = true) {
+  const sc = { ...DEFAULT_PLAN_SCOPE, ...(scope || {}) };
+  const am = sc.amanah === 'all' ? (ar ? 'كل الأمانات' : 'All Amanahs') : [].concat(sc.amanah).map((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }).join(ar ? '، ' : ', ');
+  const src = sc.source === 'all' ? (ar ? 'كل المصادر' : 'All sources') : (ar ? sourceAr(sc.source) : sourceEn(sc.source));
+  const st = sc.scopeType && sc.scopeType !== 'all' ? ` · ${sc.scopeType === 'internal' ? (ar ? 'داخلي' : 'Internal') : (ar ? 'مركزي' : 'Central')}` : '';
+  return `${am} · ${src}${st}`;
+}
+// the request scope of a plan: its period (the end is capped at the data cut-off — no actual transactions after today) and its organisational scope
+export function planScopeOf(plan, today) {
+  const sc = { ...DEFAULT_PLAN_SCOPE, ...(plan?.scope || {}) };
+  return { from: plan.period.from, to: plan.period.to < today ? plan.period.to : today, amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status };
+}
+// a short stable fingerprint of the configuration a result was computed under (stored with each version)
+export function cfgHash(cfg) {
+  const t = JSON.stringify({ g: cfg.graceDays, b: cfg.collectionsAsOf, r: cfg.rules, c: cfg.crStatuses, a: cfg.amountBasis });
+  let h = 5381; for (let i = 0; i < t.length; i += 1) h = ((h << 5) + h + t.charCodeAt(i)) >>> 0; return h.toString(16);
+}
 
 export function loadPlans() {
   try { const v = JSON.parse(window.localStorage.getItem(KEY) || 'null'); if (v && Array.isArray(v.plans)) return v; } catch { /* storage unavailable */ }
@@ -26,9 +48,9 @@ export function newPlan({ by, name, scope, period, owner = '', assumptions = '' 
   return { id: uid('PLAN'), name, owner: owner || null, period, scope, assumptions, scenario: { ...DEFAULT_SCENARIO }, planDate: period.to, status: 'draft', version: 0, versions: [], createdAt: new Date().toISOString(), createdBy: by, approvedBy: null, history: [log(by, 'created')] };
 }
 // freeze the current assumptions and the headline result as the next version
-export function saveVersion(plan, { by, summary }) {
+export function saveVersion(plan, { by, summary, context = null }) {
   const v = plan.version + 1;
-  return { ...plan, version: v, versions: [{ version: v, at: new Date().toISOString(), by, scenario: { ...plan.scenario }, planDate: plan.planDate, assumptions: plan.assumptions, owner: plan.owner, scope: plan.scope, period: plan.period, summary }, ...plan.versions], status: plan.status === 'approved' ? 'draft' : plan.status, approvedBy: plan.status === 'approved' ? null : plan.approvedBy, history: [log(by, `version ${v} saved`, plan.status === 'approved' ? 'a new version returns the plan to draft; it must be approved again' : ''), ...plan.history] };
+  return { ...plan, version: v, versions: [{ version: v, at: new Date().toISOString(), by, scenario: { ...plan.scenario }, planDate: plan.planDate, assumptions: plan.assumptions, owner: plan.owner, scope: plan.scope, period: plan.period, summary, context }, ...plan.versions], status: plan.status === 'approved' ? 'draft' : plan.status, approvedBy: plan.status === 'approved' ? null : plan.approvedBy, history: [log(by, `version ${v} saved`, plan.status === 'approved' ? 'a new version returns the plan to draft; it must be approved again' : ''), ...plan.history] };
 }
 // consecutive edits of the same field by the same person within two minutes are ONE history entry (typing a name must not write 20 lines)
 const COALESCE_MS = 120000;
@@ -56,7 +78,7 @@ export function editPlan(plan, patch, by) {
 export function unsavedChanges(plan) {
   const v = plan.versions?.[0]; if (!v) return null;
   const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
-  return !(same(plan.scenario, v.scenario) && same(plan.planDate, v.planDate) && same(plan.assumptions, v.assumptions) && same(plan.owner || '', v.owner || ''));
+  return !(same(plan.scenario, v.scenario) && same(plan.planDate, v.planDate) && same(plan.assumptions, v.assumptions) && same(plan.owner || '', v.owner || '') && same(plan.period, v.period) && same({ ...DEFAULT_PLAN_SCOPE, ...(plan.scope || {}), label: 0 }, { ...DEFAULT_PLAN_SCOPE, ...(v.scope || {}), label: 0 }));
 }
 export function approvePlan(plan, by) { return { ...plan, status: 'approved', approvedBy: by, history: [log(by, 'approved'), ...plan.history] }; }
 

@@ -8,7 +8,7 @@ import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
 import { addCandidateLinks, reviewLink as reviewLinkFn } from '../data/enforcementMatching';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
-import { addDaysIso, startOfYear, startOfMonth, prevMonthEnd } from '../data/clock';
+import { addDaysIso, startOfYear, startOfMonth, prevMonthEnd, lastCompleteMonths } from '../data/clock';
 import { api, bumpEpoch } from '../api/client';
 
 const RevenueCtx = createContext(null);
@@ -18,7 +18,7 @@ export const SCOPE_PRESETS = {
   ytd: { from: startOfYear(DATA_CUTOFF), to: DATA_CUTOFF },
   month: { from: startOfMonth(DATA_CUTOFF), to: DATA_CUTOFF },
   lastMonth: { from: startOfMonth(prevMonthEnd(DATA_CUTOFF)), to: prevMonthEnd(DATA_CUTOFF) },
-  last3: { from: startOfMonth(addDaysIso(startOfMonth(DATA_CUTOFF), -62)), to: DATA_CUTOFF },
+  last3: lastCompleteMonths(DATA_CUTOFF, 3), // the three complete calendar months before the current month (EQ7)
   all: { from: DATA_START, to: DATA_CUTOFF }
 };
 const legacyPreset = (p) => (p === 'fytd' ? 'ytd' : p);
@@ -44,7 +44,7 @@ export function RevenueProvider({ children }) {
   const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
   // a stored preset always follows TODAY's date (a new day moves "year to date" / "this month" forward)
   const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : scopeRaw; }, [scopeRaw]);
-  const [cfg, setCfg] = usePersistent('ib_rev_cfg', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
+  const [cfg, setCfg] = usePersistent('ib_rev_cfg2', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
   const [targets, setTargets] = usePersistent('ib_rev_targets', DEFAULT_TARGETS);
   const [decisions, setDecisions] = usePersistent('ib_rev_decisions', {});
   const [casesSaved, setCases] = usePersistent('ib_rev_cases', null);

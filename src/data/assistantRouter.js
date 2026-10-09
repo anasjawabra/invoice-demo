@@ -4,7 +4,7 @@
 // Numbers always come from the shared metric layer via an analysis task.
 // ============================================================================
 import { amanahOptionsOf, UNAVAILABLE_REVENUE_SOURCES, DATA_CUTOFF, DATA_START } from './revenueLedger';
-import { startOfYear, startOfMonth, prevMonthEnd, addDaysIso } from './clock';
+import { startOfYear, startOfMonth, prevMonthEnd, addDaysIso, lastCompleteMonths } from './clock';
 
 const has = (s, words) => words.some((w) => s.includes(w));
 
@@ -41,7 +41,7 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   const AL = '(?:ال|لل|ل|بال|ب)?'; // the article / preposition prefixes Arabic glues onto a noun
   if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
   if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير)`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
-  if (/last 3 months|three months|اخر 3 اشهر|اخر ثلاثه اشهر/.test(s)) return { from: startOfMonth(addDaysIso(startOfMonth(cutoff), -62)), to: cutoff, label: 'last3' };
+  if (/last 3 months|three months|اخر 3 اشهر|اخر ثلاثه اشهر/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
   if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);

@@ -4,6 +4,7 @@ import { useRevenue } from '../../context/RevenueContext';
 import { useAsync } from '../../utils/useAsync';
 import { useAr } from '../../utils/useAr';
 import ReportView from '../smart/ReportView';
+import { ToDateFigure } from '../revenue/RevenueUI';
 import { AsyncBlock } from '../strategic/AsyncState';
 import { FIXED_REPORTS } from '../../data/fixedReports';
 import { buildReportModel } from '../../data/reportModel';
@@ -44,6 +45,7 @@ function ReportBody({ def }) {
         <div className="muted" style={{ fontSize: 12.5 }}>{B(def.purpose)}</div>
         <div className="sr-card__actions">{[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!model || !!exporting || snapshot.totals.count === 0} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}</div>
       </div>
+      <ToDateFigure snapshot={snapshot} />
       {exportErr && <div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر التصدير: ', 'Export failed: ')}{exportErr}</div>}
       {def.compare !== 'none' && !yoy && <div className="rv-callout">{L('لا توجد مقارنة مكافئة لهذه الفترة (العام السابق خارج نطاق البيانات)؛ تُعرض الأرقام دون مقارنة.', 'No equivalent comparison for this period (last year is outside the data); figures are shown without comparison.')}</div>}
       {snapshot.totals.count === 0 ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً.', 'No invoices in this selection; the data is unavailable, not zero.')}</div>

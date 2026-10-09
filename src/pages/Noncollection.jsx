@@ -222,15 +222,10 @@ export default function Noncollection() {
               </label>
             ))}
           </fieldset>
-          <label>{L('Grace days (unresolved)', 'أيام السماح (غير محسومة)')}
+          <label>{L('Grace days — collection reporting (unresolved; enforcement referral has its own, not set)', 'أيام السماح — تقارير التحصيل (غير محسومة؛ وللإحالة للتنفيذ معيار مستقل غير مُحدَّد)')}
             <input className="input" type="number" min="0" max="120" value={cfg.graceDays} onChange={(e) => rev.setGraceDays(e.target.value)} style={{ width: 110 }} disabled={!canReview} />
           </label>
-          <label>{L('Collected counts payments up to', 'يحتسب المحصّل المدفوعات حتى')}
-            <select className="select" value={cfg.collectionsAsOf} onChange={(e) => rev.setCollectionsAsOf(e.target.value)} disabled={!canReview}>
-              <option value="cutoff">{L('the data cutoff', 'قطع البيانات')}</option>
-              <option value="periodEnd">{L('the end of the selected period', 'نهاية الفترة المحددة')}</option>
-            </select>
-          </label>
+          <div className="muted" style={{ fontSize: 12.5, maxWidth: 420 }}>{L('Collected counts payments up to the END of the selected period in every view (approved rule). Collections up to today are shown separately, labelled, on request.', 'يحتسب المحصّل المدفوعات حتى نهاية الفترة المحددة في كل الواجهات (قاعدة معتمدة). أما التحصيل حتى اليوم فيُعرض منفصلاً وبوسمه عند الطلب.')}</div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetConfig} disabled={!canReview}>{L('Reset to defaults', 'إعادة الضبط')}</button>
         </div>
       </div>

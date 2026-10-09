@@ -6,7 +6,8 @@ import { useRevenue } from '../../context/RevenueContext';
 import { useAsync } from '../../utils/useAsync';
 import { useAr } from '../../utils/useAr';
 import { fmtMoney, fmtInt, unitOfValues, scaled, unitLabel } from '../../utils/money';
-import { MetricTile, PpDelta } from '../revenue/RevenueUI';
+import { MetricTile, PpDelta, ToDateFigure } from '../revenue/RevenueUI';
+import { basisLabel, BASIS } from '../../data/measure';
 import FinancialRelations from '../revenue/FinancialRelations';
 import { AmanahMap } from '../revenue/ExecutiveParts';
 import UnitBar from '../strategic/UnitBar';
@@ -42,7 +43,7 @@ export default function InsightsDashboard() {
         <span className="st-tag st-tag--actual">{L('بيانات حتى', 'Data to')} <bdi>{snapshot.cutoff}</bdi> ({L('الرياض', 'Riyadh')})</span>
         <span className="st-tag">{fmtInt(T.count)} {L('فاتورة', 'invoices')} · {snapshot.byAmanah.length} {L('أمانة', 'Amanahs')} · {snapshot.bySource.length} {L('مصدر', 'sources')}</span>
         <span className="st-tag st-tag--warn" title={rev.meta?.sizeNote ? B(rev.meta.sizeNote) : ''}>{L('بيانات تجريبية اصطناعية', 'Synthetic demo data')}{rev.meta?.size === 'compact' ? ` — ${L('عينة مضغوطة', 'compact sample')} ${fmtInt(rev.meta.counts?.invoicesTotal)}` : ''}</span>
-        <span className="muted" style={{ fontSize: 12 }}>{L('فواتير صادرة في الفترة؛ التحصيل حتى', 'Invoices issued in the period; collections to')} {snapshot.basis?.collectionsAsOf}</span>
+        <span className="muted" style={{ fontSize: 12 }}>{L('فواتير صادرة في الفترة. ', 'Invoices issued in the period. ')}{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</span>
       </div>
 
       <div className="rv-tiles">
@@ -54,6 +55,7 @@ export default function InsightsDashboard() {
         <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('المحصّل ÷ صافي المفوتر × 100', 'Collected ÷ net billed × 100')} />
       </div>
       <div className="card st-card"><FinancialRelations totals={T} /></div>
+      <ToDateFigure snapshot={snapshot} />
 
       <div className="st-grid">
         <div className="card st-card">

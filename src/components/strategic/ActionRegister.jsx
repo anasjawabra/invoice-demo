@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useAr } from '../../utils/useAr';
 import { fmtMoney } from '../../utils/money';
 import { fmtEvidence } from '../../data/reportFormat';
-import { STATUSES, STATUS_LABEL, PRIORITY_LABEL, createAction, updateAction, rejectProposal, pendingProposals, earlierDecisions, isOverdue } from '../../data/actionRegister';
+import { STATUSES, STATUS_LABEL, PRIORITY_LABEL, createAction, addProposal, updateAction, rejectProposal, pendingProposals, earlierDecisions, isOverdue } from '../../data/actionRegister';
 import { fmtRiyadh, riyadhDateOf } from '../../data/clock';
 import { actorName } from '../../utils/actor';
 
@@ -37,10 +37,14 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
   const lock = !canEdit; const lockTitle = lock ? L('يتطلب صلاحية المراجعة', 'Requires review permission') : '';
 
   const approve = (p) => { setRegister((r) => createAction(r, { by, proposal: p, fields: { owner: form.owner, dueDate: form.dueDate || null, priority: form.priority } })); setOpen(null); setForm({ owner: '', dueDate: '', priority: 'medium', note: '' }); };
-  const reject = (p) => { const reason = window.prompt(L('سبب الرفض (اختياري):', 'Reason for rejecting (optional):')) ?? null; if (reason === null) return; setRegister((r) => rejectProposal(r, p, by, reason)); };
+  const [rejecting, setRejecting] = useState(null); // { id, reason } — an inline field (window.prompt is blocking, unstyled and unavailable in embedded browsers)
+  const reject = (p, reason) => { setRegister((r) => rejectProposal(r, p, by, reason)); setRejecting(null); };
+  // a manually entered action is a PROPOSAL like any other: it waits in «Proposals awaiting review» until a reviewer approves it
   const addManual = () => {
     if (!mf.title.trim()) return;
-    setRegister((r) => createAction(r, { by, fields: { title: mf.title.trim(), issue: mf.issue.trim(), action: mf.action.trim(), owner: mf.owner, dueDate: mf.dueDate || null, priority: mf.priority, expectedImpact: mf.impact ? { amount: Number(mf.impact), kind: 'estimate', note: L('مُدخل يدوياً', 'entered manually') } : null, evidence: { text: L(`أُدخل يدوياً أثناء مراجعة ${scopeText}`, `Entered manually while reviewing ${scopeText}`), figures: [] } } }));
+    const p = { id: `manual:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'manual', title: mf.title.trim(), issue: mf.issue.trim(), action: mf.action.trim(), priority: mf.priority, suggestedOwner: mf.owner.trim() || null, suggestedDue: mf.dueDate || null,
+      expectedImpact: mf.impact ? { amount: Number(mf.impact), kind: 'estimate', note: L('مُدخل يدوياً', 'entered manually') } : null, evidence: { text: L(`أُدخل يدوياً أثناء مراجعة ${scopeText}`, `Entered manually while reviewing ${scopeText}`), scope: scopeText, figures: [] }, suggestedUnit: mf.owner.trim() || null };
+    setRegister((r) => addProposal(r, p, by));
     setMf({ title: '', issue: '', action: '', owner: '', dueDate: '', priority: 'medium', impact: '' }); setManual(false);
   };
 
@@ -68,7 +72,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
                 <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" onClick={() => approve(p)}>{L('اعتماد كإجراء', 'Approve as an action')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(null)}>{L('إلغاء', 'Cancel')}</button></div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm btn-primary" disabled={lock} title={lockTitle} onClick={() => { setOpen(p.id); setForm({ owner: '', dueDate: '', priority: p.priority, note: '' }); }}>{L('مراجعة واعتماد…', 'Review and approve…')}</button><button type="button" className="btn btn-sm btn-ghost" disabled={lock} title={lockTitle} onClick={() => reject(p)}>{L('رفض', 'Reject')}</button></div>
+              <div style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm btn-primary" disabled={lock} title={lockTitle} onClick={() => { setOpen(p.id); setForm({ owner: p.suggestedOwner || '', dueDate: p.suggestedDue || '', priority: p.priority, note: '' }); }}>{L('مراجعة واعتماد…', 'Review and approve…')}</button><button type="button" className="btn btn-sm btn-ghost" disabled={lock} title={lockTitle} onClick={() => setRejecting({ id: p.id, reason: '' })}>{L('رفض', 'Reject')}</button>{rejecting?.id === p.id && <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><input className="input" aria-label={L('سبب الرفض (اختياري)', 'Reason for rejecting (optional)')} placeholder={L('سبب الرفض (اختياري)', 'Reason (optional)')} value={rejecting.reason} onChange={(e) => setRejecting({ id: p.id, reason: e.target.value })} style={{ width: 220 }} /><button type="button" className="btn btn-sm" onClick={() => reject(p, rejecting.reason)}>{L('تأكيد الرفض', 'Confirm rejection')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setRejecting(null)}>{L('تراجع', 'Back')}</button></span>}</div>
             )}
           </article>
         ))}
@@ -89,10 +93,10 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
             <div className="st-field"><label htmlFor="m-due">{L('تاريخ الاستحقاق', 'Due date')}</label><input id="m-due" type="date" className="input" min={today} value={mf.dueDate} onChange={(e) => setMf({ ...mf, dueDate: e.target.value })} /></div>
             <div className="st-field"><label htmlFor="m-pr">{L('الأولوية', 'Priority')}</label><select id="m-pr" className="select" value={mf.priority} onChange={(e) => setMf({ ...mf, priority: e.target.value })}>{Object.entries(PRIORITY_LABEL).map(([k, v]) => <option key={k} value={k}>{tx(v, ar)}</option>)}</select></div>
             <div className="st-field"><label htmlFor="m-imp">{L('الأثر المتوقع (SAR، اختياري)', 'Expected impact (SAR, optional)')}</label><input id="m-imp" type="number" className="input" min="0" value={mf.impact} onChange={(e) => setMf({ ...mf, impact: e.target.value })} /></div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" disabled={!mf.title.trim()} onClick={addManual}>{L('إضافة', 'Add')}</button></div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" disabled={!mf.title.trim()} onClick={addManual}>{L('إضافة كمقترح للمراجعة', 'Add as a proposal for review')}</button></div>
           </div>
         )}
-        {!shown.length && <div className="rv-empty">{register.actions.length ? L('لا إجراءات بهذه الحالة.', 'No actions in this state.') : L('لا إجراءات بعد. اعتمد مقترحاً أو أضف إجراءً يدوياً؛ ما يُسجَّل هنا محفوظ في هذا المتصفح فقط.', 'No actions yet. Approve a proposal or add one manually; what is recorded here is stored in this browser only.')}</div>}
+        {!shown.length && <div className="rv-empty">{register.actions.length ? L('لا إجراءات بهذه الحالة.', 'No actions in this state.') : L('لا إجراءات بعد. اعتمد مقترحاً أو أضف إجراءً يدوياً؛ ما يُسجَّل هنا محفوظ في هذا المتصفح فقط.', 'No actions yet. Approve a proposal (manual entries are proposals too); what is recorded here is stored in this browser only.')}</div>}
         {shown.map((a) => {
           const late = isOverdue(a, today);
           return (

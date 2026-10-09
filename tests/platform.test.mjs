@@ -28,7 +28,9 @@ import { buildWorkbook, modelToLines, paginateRows } from '../src/utils/exportRe
 import { buildDecisionCards } from '../src/data/revenueInsights.js';
 import { describeChange } from '../src/data/reportIntents.js';
 import { checkRange, rangeMessage } from '../src/data/dateRange.js';
-import { fmtRiyadh, riyadhDateOf } from '../src/data/clock.js';
+import { fmtRiyadh, riyadhDateOf, lastCompleteMonths } from '../src/data/clock.js';
+import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisLabel } from '../src/data/measure.js';
+import { planScopeOf, cfgHash, DEFAULT_PLAN_SCOPE, scopeLabelOf } from '../src/data/planStore.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
 import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
 import { detail } from '../server/materialize.js';
@@ -156,7 +158,7 @@ await test('every month and every Amanah of the year: identities hold, months ad
   for (let m = 1; m <= Number(TODAY.slice(5, 7)); m += 1) { const mm = String(m).padStart(2, '0'); const last = m === Number(TODAY.slice(5, 7)) ? TODAY : new Date(Date.UTC(2026, m, 0)).toISOString().slice(0, 10); months.push({ from: `2026-${mm}-01`, to: last }); }
   const sum = { count: 0, gross: 0, exclusions: 0, net: 0, collected: 0, outstanding: 0 };
   for (const mo of months) {
-    const s1 = snapshot(st, { scope: { ...mo, amanah: 'all', source: 'all' }, cfg });
+    const s1 = snapshot(st, { scope: { ...mo, amanah: 'all', source: 'all' }, cfg: { ...cfg, collectionsAsOf: 'cutoff' } }); // additivity needs ONE common as-of date (the to-date basis)
     assert.ok(s1.equation.ok, `${mo.from}: ${JSON.stringify(s1.equation)}`);
     for (const k of Object.keys(sum)) sum[k] += s1.totals[k];
   }
@@ -656,6 +658,69 @@ await test('F-05 golden phrases: every request in the audit table is read as the
   const cm = run('compare with last month', run('أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم').spec); assert.equal(cm.spec.compare, 'prev_month'); assert.equal(cm.spec.scope.from, '2026-10-01', 'English «compare with last month» does not change the period');
   assert.equal(run('تقرير الإيرادات قبل شهرين').kind, 'clarify', 'an unresolved period phrase is asked about, not ignored');
   assert.equal(run('تقرير آخر 6 أشهر').kind, 'clarify');
+});
+
+/* ------------------------------------------------------------ Phase 0 · batch 6 (EQ1 shared measurement, EQ4 plan anchoring, EQ7 presets, proposals) */
+const TD = '2026-10-09'; const cfgTD = { cutoff: TD };
+const scopesMatrix = () => {
+  const periods = { ytd: { from: '2026-01-01', to: TD }, month: { from: '2026-10-01', to: TD }, lastMonth: { from: '2026-09-01', to: '2026-09-30' }, last3: lastCompleteMonths(TD, 3) };
+  const dims = [{ amanah: 'all', source: 'all' }, { amanah: 'Riyadh Amanah', source: 'all' }, { amanah: 'all', source: 'fines' }];
+  const out = []; for (const [pk, p] of Object.entries(periods)) for (const d of dims) out.push({ key: `${pk}/${d.amanah}/${d.source}`, scope: { ...p, ...d } });
+  out.push({ key: 'empty', scope: { from: '2026-01-01', to: '2026-01-31', amanah: 'all', source: 'housing_sales' } });
+  return out;
+};
+await test('EQ7: «آخر 3 أشهر» is the three complete calendar months before the current month, for every month of 2026', () => {
+  assert.deepEqual(lastCompleteMonths('2026-10-09', 3), { from: '2026-07-01', to: '2026-09-30' });
+  assert.deepEqual(lastCompleteMonths('2026-02-15', 3), { from: '2025-11-01', to: '2026-01-31' }); assert.deepEqual(lastCompleteMonths('2026-03-01', 3), { from: '2025-12-01', to: '2026-02-28' });
+  for (let m = 1; m <= 12; m += 1) { const t = `2026-${String(m).padStart(2, '0')}-15`; const r = lastCompleteMonths(t, 3); assert.ok(r.from.endsWith('-01')); assert.equal(r.to, prevMonthEnd(t)); assert.ok(r.from < r.to); }
+  assert.deepEqual(parsePeriod('آخر 3 أشهر', '2026-10-09'), { ...lastCompleteMonths('2026-10-09', 3), label: 'last3' });
+});
+await test('EQ1: the headline measures collections at the period end; «to today» is a separate figure; all views share one rule', () => {
+  const closed = { from: '2026-01-01', to: '2026-06-30', amanah: 'all', source: 'all' };
+  const head = snapshot(st, { scope: closed, cfg: cfgTD }); const toDate = snapshot(st, { scope: closed, cfg: cfgFor(cfgTD, BASIS.TO_DATE) });
+  assert.equal(head.basis.collectionsAsOf, '2026-06-30'); assert.equal(head.basis.collectionsMode, 'period_end'); assert.equal(toDate.basis.collectionsAsOf, TD);
+  assert.ok(toDate.totals.collected >= head.totals.collected, 'later payments can only add'); assert.equal(head.totals.gross, toDate.totals.gross);
+  assert.equal(hasToDateVariant(closed, TD), true); assert.equal(hasToDateVariant({ from: '2026-10-01', to: TD }, TD), false);
+  assert.equal(asOfDate(closed, BASIS.PERIOD_END, TD), '2026-06-30'); assert.equal(asOfDate(closed, BASIS.TO_DATE, TD), TD);
+  assert.ok(basisLabel(closed, BASIS.TO_DATE, TD, 'ar').includes('حتى اليوم') && basisLabel(closed, BASIS.PERIOD_END, TD, 'ar').includes('نهاية الفترة'));
+  const open = { from: '2026-10-01', to: TD, amanah: 'all', source: 'all' };
+  assert.equal(snapshot(st, { scope: open, cfg: cfgTD }).totals.collected, snapshot(st, { scope: open, cfg: cfgFor(cfgTD, BASIS.TO_DATE) }).totals.collected, 'an open period ends today: no difference');
+});
+await test('AC-A1/A2 parity: Dashboard, Fixed-report headline, Smart report (with and without comparison) and the Planning baseline give identical figures and the same comparison, over 13 selections', () => {
+  for (const { key, scope } of scopesMatrix()) {
+    const dash = snapshot(st, { scope, cfg: cfgTD });                                             // Dashboard: shared request, default config
+    const smart = snapshot(st, { scope, cfg: headlineCfg(cfgTD) });                               // Smart: headline basis via measure()
+    const plan = snapshot(st, { scope: planScopeOf({ period: { from: scope.from, to: scope.to }, scope: { amanah: scope.amanah, source: scope.source } }, TD), cfg: cfgTD }); // Planning baseline
+    const model = buildReportModel({ spec: { ...defaultSpec(TD), scope, sections: ['executive'] }, lang: 'ar', out: mkOut(dash), targets: DEFAULT_TARGETS });
+    const fields = ['count', 'gross', 'exclusions', 'net', 'collected', 'outstanding'];
+    for (const f of fields) { assert.equal(smart.totals[f], dash.totals[f], `${key} smart ${f}`); assert.equal(plan.totals[f], dash.totals[f], `${key} plan ${f}`); assert.equal(model.totals[f], dash.totals[f], `${key} fixed ${f}`); }
+    for (const [a, b] of [[smart, dash], [plan, dash]]) { assert.equal(a.totals.collectedOverNet.value, b.totals.collectedOverNet.value); assert.equal(a.totals.exclusionRate.value, b.totals.exclusionRate.value); }
+    if (dash.totals.count > 0) {
+      const pv = previousScope({ from: scope.from, to: scope.to }); const prevOf = (cfg) => snapshot(st, { scope: { ...scope, from: pv.from, to: pv.to }, cfg });
+      const c1 = compareSnapshots(dash, prevOf(cfgTD)); const c2 = compareSnapshots(smart, prevOf(headlineCfg(cfgTD)));
+      assert.deepEqual(c1.collectedOverNetPp, c2.collectedOverNetPp, `${key} comparison delta`);
+      assert.ok(model.context.some((c) => c.k === 'basis'), 'the basis is printed in every report');
+    }
+  }
+});
+await test('EQ4: plan figures are computed from the PLAN period and scope: the plan scope object ignores any dashboard filter, caps the end at the cut-off, and a version stores its calculation context', () => {
+  const plan = { period: { from: '2026-01-01', to: '2026-12-31' }, scope: { amanah: 'Riyadh Amanah', source: 'all', label: 'x' } };
+  assert.deepEqual(planScopeOf(plan, TD), { from: '2026-01-01', to: TD, amanah: 'Riyadh Amanah', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
+  assert.deepEqual(planScopeOf({ period: { from: '2026-01-01', to: '2026-06-30' }, scope: null }, TD).to, '2026-06-30'); assert.equal(planScopeOf({ period: plan.period, scope: null }, TD).amanah, 'all');
+  assert.ok(scopeLabelOf({ amanah: 'Riyadh Amanah', source: 'fines' }, true).includes('الرياض') && scopeLabelOf(DEFAULT_PLAN_SCOPE, false) === 'All Amanahs · All sources');
+  assert.equal(cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: { A: true } }), cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: { A: true } })); assert.notEqual(cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: {} }), cfgHash({ graceDays: 5, collectionsAsOf: 'periodEnd', rules: {} }));
+  const p0 = newPlan({ by: 'A', name: 'n', scope: DEFAULT_PLAN_SCOPE, period: plan.period }); const ctx = { period: p0.period, scope: p0.scope, basis: 'periodEnd', cutoff: TD, config: 'abc', targets: { collectionRate: 0.6, status: 'demo' } };
+  const v = saveVersion(p0, { by: 'A', summary: {}, context: ctx }); assert.deepEqual(v.versions[0].context, ctx);
+  assert.equal(unsavedChanges(editPlan(v, { period: { from: '2026-02-01', to: '2026-12-31' } }, 'A')), true, 'changing the period is an unsaved change');
+  assert.equal(unsavedChanges(editPlan(v, { scope: { ...DEFAULT_PLAN_SCOPE, amanah: 'Riyadh Amanah', label: 'y' } }, 'A')), true, 'changing the scope is an unsaved change');
+});
+await test('manual and scenario actions both start as PROPOSED: nothing enters the register until a reviewer approves it, and a manual approval keeps its manual origin', () => {
+  const reg0 = { actions: [], rejected: [] };
+  const man = { id: 'manual:x1', source: 'manual', title: 'عنوان', issue: '', action: '', priority: 'medium', suggestedOwner: 'وحدة', suggestedDue: '2026-11-01', expectedImpact: null, evidence: { text: 't', scope: 's', figures: [] } };
+  const reg1 = addProposal(addProposal(reg0, man, 'A'), { id: 'scenario:P:dRate=3', title: 's', priority: 'medium' }, 'A');
+  assert.equal(reg1.actions.length, 0); assert.equal(pendingProposals(reg1, []).length, 2); assert.equal('proposed' in reg0, false, 'the input record is not mutated');
+  const reg2 = createAction(reg1, { by: 'B', proposal: man, fields: { owner: man.suggestedOwner, dueDate: man.suggestedDue, priority: man.priority } });
+  assert.equal(reg2.actions[0].status, 'approved'); assert.equal(reg2.actions[0].source, 'manual'); assert.equal(reg2.actions[0].approvedBy, 'B'); assert.equal(pendingProposals(reg2, []).length, 1);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -36,7 +36,7 @@ const RULE = { cancelled: ['ملغاة في المصدر', 'Cancelled in the sou
 const ratio = (a, b) => (b > 0 ? a / b : null);
 const prevYear = (m) => `${Number(m.slice(0, 4)) - 1}${m.slice(4)}`;
 
-export const PRESET_LABEL = { ytd: ['السنة حتى اليوم', 'Year to date'], month: ['هذا الشهر حتى اليوم', 'This month to date'], lastMonth: ['الشهر الماضي', 'Last month'], last3: ['آخر 3 أشهر', 'Last 3 months'], all: ['كل البيانات', 'All data'], custom: ['فترة مخصصة', 'Custom period'] };
+export const PRESET_LABEL = { ytd: ['السنة حتى اليوم', 'Year to date'], month: ['هذا الشهر حتى اليوم', 'This month to date'], lastMonth: ['الشهر الماضي', 'Last month'], last3: ['آخر 3 أشهر مكتملة', 'Last 3 complete months'], all: ['كل البيانات', 'All data'], custom: ['فترة مخصصة', 'Custom period'] };
 
 export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah, labelOfMuni, prevScope = null, compare = 'none' }) {
   const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const sc = spec.scope;
@@ -50,7 +50,7 @@ export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah
     { k: 'source', label: L('مصدر الإيراد', 'Revenue source'), value: src },
     { k: 'status', label: L('حالة الفاتورة', 'Invoice status'), value: st },
     ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'scopeType', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
-    { k: 'basis', label: L('أساس التقرير', 'Reporting basis'), value: L(`فواتير صادرة في الفترة؛ التحصيل حتى ${asOf}`, `Invoices issued in the period; collections up to ${asOf}`) },
+    { k: 'basis', label: L('أساس التقرير', 'Reporting basis'), value: L(`فواتير صادرة في الفترة؛ التحصيل حتى ${asOf}${snapshot?.basis?.collectionsMode === 'period_end' ? ' (نهاية الفترة)' : ''}`, `Invoices issued in the period; collections up to ${asOf}${snapshot?.basis?.collectionsMode === 'period_end' ? ' (the period end)' : ''}`) },
     ...(compare !== 'none' && prevScope ? [{ k: 'compare', label: L('المقارنة', 'Comparison'), value: `${prevScope.from} → ${prevScope.to}${compare === 'prev_month' && !isSingleMonth(sc) ? L(' (الفترة السابقة المساوية في الطول)', ' (preceding period of equal length)') : ''}` }] : []),
     { k: 'data', label: L('البيانات', 'Data'), value: L(`تجريبية اصطناعية${snapshotMeta?.size === 'compact' ? ` — عينة مضغوطة (${(snapshotMeta.counts?.invoicesTotal ?? 0).toLocaleString('en-US')} فاتورة)` : ''}`, `Synthetic demo data${snapshotMeta?.size === 'compact' ? ` — compact sample (${(snapshotMeta.counts?.invoicesTotal ?? 0).toLocaleString('en-US')} invoices)` : ''}`) }
   ];

@@ -243,6 +243,7 @@
 .rv-scope__date { width: 140px; padding: 6px 8px; }
 .rv-scope .select { width: auto; min-width: 170px; max-width: 100%; }
 .rv-scope .input { width: auto; }
+.rv-todate { display: grid; gap: 6px; }
 .rv-scope__dates { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .rv-scope__hint { flex-basis: 100%; font-size: 12px; color: var(--txt-mute); }
 .rv-scope__hint--bad { color: var(--danger-text); font-weight: 700; }

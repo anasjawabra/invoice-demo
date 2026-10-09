@@ -12,9 +12,10 @@ export const STATUS_LABEL = { approved: { ar: 'معتمد — بانتظار ا�
 export const PRIORITY_LABEL = { high: { ar: 'عالية', en: 'High' }, medium: { ar: 'متوسطة', en: 'Medium' }, low: { ar: 'منخفضة', en: 'Low' } };
 
 export function loadRegister() {
-  try { const v = JSON.parse(window.localStorage.getItem(KEY) || 'null'); if (v && Array.isArray(v.actions)) return { actions: v.actions, rejected: v.rejected || [], proposed: v.proposed || [] }; } catch { /* storage unavailable */ }
-  return { actions: [], rejected: [], proposed: [] };
+  try { const v = JSON.parse(window.localStorage.getItem(KEY) || 'null'); if (v && Array.isArray(v.actions)) return { ...v, rejected: v.rejected || [] }; } catch { /* storage unavailable */ }
+  return { actions: [], rejected: [] };
 }
+// NOTE: a stored record is returned exactly as stored (defaults are applied in memory only: `reg.proposed || []`); nothing is written back on load.
 export function saveRegister(reg) { try { window.localStorage.setItem(KEY, JSON.stringify(reg)); return true; } catch { return false; } }
 
 const uid = () => `ACT-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
@@ -27,10 +28,10 @@ export function createAction(reg, { by, proposal = null, fields = {} }) {
     expectedImpact: proposal.expectedImpact, drill: proposal.drill || null
   } : { proposalId: null, title: '', issue: '', action: '', evidence: null, priority: 'medium', expectedImpact: null, drill: null };
   const a = {
-    id: uid(), createdAt: new Date().toISOString(), createdBy: by, source: proposal ? 'proposal' : 'manual', ...base, ...fields,
+    id: uid(), createdAt: new Date().toISOString(), createdBy: by, source: proposal && proposal.source !== 'manual' ? 'proposal' : 'manual', ...base, ...fields,
     owner: fields.owner && String(fields.owner).trim() ? String(fields.owner).trim() : null, dueDate: fields.dueDate || null,
     status: 'approved', approvedBy: by, approvedAt: new Date().toISOString(), outcome: null,
-    history: [entry(by, 'created', null, proposal ? 'approved from proposal' : 'manual', proposal ? proposal.id : '')]
+    history: [entry(by, 'created', null, proposal ? (proposal.source === 'manual' ? 'approved from a manually entered proposal' : 'approved from proposal') : 'manual', proposal ? proposal.id : '')]
   };
   return { ...reg, actions: [a, ...reg.actions] };
 }

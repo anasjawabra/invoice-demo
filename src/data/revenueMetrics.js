@@ -96,9 +96,9 @@ export const DEFAULT_CONFIG = {
   cutoff: DATA_CUTOFF,
   // Grace period treatment is UNRESOLVED in the supplied material. 0 = overdue the day after due date.
   graceDays: 0,
-  // 'cutoff' = every payment received up to the data cutoff counts toward its invoice;
-  // 'periodEnd' = only payments up to the end of the selected period.
-  collectionsAsOf: 'cutoff',
+  // HEADLINE basis (EQ1, approved): 'periodEnd' = only payments up to the end of the selected period (a closed period is measured at its own end;
+  // an open period at the data cutoff). 'cutoff' = every payment up to the data cutoff — shown ONLY as a separate, labelled figure on request.
+  collectionsAsOf: 'periodEnd',
   // Which RAW commercial-registration statuses qualify under CR-1. The raw status is always kept as received;
   // "Suspended" is deliberately not listed (unresolved with the business).
   crStatuses: ['Deleted', 'Cancelled'],

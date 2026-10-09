@@ -53,3 +53,9 @@ export function fmtRiyadh(at, { time = true } = {}) {
   return time ? `${date} ${parts.hour}:${parts.minute}` : date;
 }
 export const riyadhDateOf = (at) => fmtRiyadh(at, { time: false });
+// the n complete calendar months before the current month («آخر 3 أشهر» = the three complete months preceding this one; EQ7)
+export function lastCompleteMonths(today, n = 3) {
+  const y = Number(today.slice(0, 4)); const m = Number(today.slice(5, 7)) - 1; // 0-based current month
+  const startIdx = y * 12 + m - n; const sy = Math.floor(startIdx / 12); const sm = (startIdx % 12) + 1;
+  return { from: `${sy}-${String(sm).padStart(2, '0')}-01`, to: prevMonthEnd(today) };
+}

@@ -2,13 +2,12 @@
 // funding → what-if scenarios → initiatives and decisions. The dashboard's figures are the BASELINE through shared calculations; only a compact
 // summary is shown here. Actuals, approved budgets, targets, forecasts and user scenarios are kept in separate places and never mixed.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useAsync } from '../utils/useAsync';
 import { useAuth } from '../context/AuthContext';
 import { useAr } from '../utils/useAr';
 import { fmtMoney, fmtInt, unitOfValues, scaled } from '../utils/money';
-import FilterChips from '../components/strategic/FilterChips';
 import ScenarioPanel from '../components/strategic/ScenarioPanel';
 import ActionRegister from '../components/strategic/ActionRegister';
 import AssistantPanel from '../components/strategic/AssistantPanel';
@@ -29,34 +28,48 @@ import { buildDecisionCards } from '../data/revenueInsights';
 import { PLANNING_PROMPTS } from '../data/strategicAssistant';
 import { amanahOptionsOf } from '../data/revenueLedger';
 import { actorName } from '../utils/actor';
-import { DataStatus } from '../components/revenue/RevenueUI';
+import { headlineCfg, measure, BASIS } from '../data/measure';
+import { loadComparison } from '../data/comparison';
+import { usePersistOnChange } from '../utils/usePersistOnChange';
+import { DEFAULT_PLAN_SCOPE, planScopeOf, scopeLabelOf, cfgHash } from '../data/planStore';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
 
 export default function PlanningArea() {
-  const rev = useRevenue(); const { user } = useAuth();
+  const rev = useRevenue(); const { user } = useAuth(); const navigate = useNavigate();
   const { L, B, ar, lang } = useAr();
-  const today = rev.cfg.cutoff; const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const s = rev.scopeEff; const T = snapshot?.totals;
+  const today = rev.cfg.cutoff; const { data, cfg, targets } = rev;
   const [assistOpen, setAssistOpen] = useState(false);
   const [register, setRegister] = useState(loadRegister);
   const [store, setStore] = useState(loadPlans);
   const [exporting, setExporting] = useState(''); const [retry, setRetry] = useState(0); const [toast, setToast] = useState('');
   const canEdit = rev.canReview; const by = actorName(user, lang) || 'user';
-  useEffect(() => { saveRegister(register); }, [register]);
-  useEffect(() => { savePlans(store); }, [store]);
-  const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
+  // stored records are written only after a user action — never when the page loads
+  usePersistOnChange(register, saveRegister); usePersistOnChange(store, savePlans);
   const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
-  const scopeLabel = useMemo(() => `${s.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(s.amanah).map(labelOfAmanah).join('، ')} · ${s.source === 'all' ? L('كل المصادر', 'All sources') : s.source}`, [s, L, labelOfAmanah]);
-  const scopeSnapshot = useMemo(() => ({ ...scopeBase, label: scopeLabel }), [scopeBase, scopeLabel]);
 
-  // there is always an active plan; a first draft is created from the current scope (no owner assigned)
-  useEffect(() => { if (!store.plans.length) { const p = newPlan({ by, name: L(`خطة السنة المالية ${today.slice(0, 4)}`, `Fiscal year ${today.slice(0, 4)} plan`), scope: scopeSnapshot, period: { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` } }); setStore((st) => ({ ...st, plans: [p], activeId: p.id })); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const plan = store.plans.find((p) => p.id === store.activeId) || store.plans[0] || null;
-  const setPlan = useCallback((fn) => setStore((st) => ({ ...st, plans: st.plans.map((p) => (p.id === (st.activeId || st.plans[0]?.id) ? fn(p) : p)) })), []);
-  const scenario = plan?.scenario || DEFAULT_SCENARIO; const planDate = plan?.planDate || `${today.slice(0, 4)}-12-31`;
+  // there is always an ACTIVE plan; when none is stored a draft is held in memory (not saved) and is stored with the first edit
+  const draft = useMemo(() => newPlan({ by, name: L(`خطة السنة المالية ${today.slice(0, 4)}`, `Fiscal year ${today.slice(0, 4)} plan`), scope: { ...DEFAULT_PLAN_SCOPE, label: scopeLabelOf(DEFAULT_PLAN_SCOPE, lang === 'ar') }, period: { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` } }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const viewStore = store.plans.length ? store : { ...store, plans: [draft], activeId: draft.id };
+  const updateStore = useCallback((fn) => setStore((st) => fn(st.plans.length ? st : { ...st, plans: [draft], activeId: draft.id })), [draft]);
+  const plan = viewStore.plans.find((p) => p.id === viewStore.activeId) || viewStore.plans[0];
+  const setPlan = useCallback((fn) => updateStore((st) => ({ ...st, plans: st.plans.map((p) => (p.id === (st.activeId || st.plans[0]?.id) ? fn(p) : p)) })), [updateStore]);
+  const scenario = plan.scenario || DEFAULT_SCENARIO; const planDate = plan.planDate || `${today.slice(0, 4)}-12-31`;
   const setScenario = (sc) => setPlan((p) => editPlan(p, { scenario: sc }, by));
   const setPlanDate = (d) => setPlan((p) => editPlan(p, { planDate: d < today ? today : d }, by));
+
+  // ---- EVERYTHING on this page is computed from the PLAN's period and organisational scope, under the shared headline basis — never from the dashboard filter
+  const s = useMemo(() => planScopeOf(plan, today), [plan.period, plan.scope, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sKey = JSON.stringify(s);
+  const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
+  const PS = useAsync(async () => {
+    const main = await measure(data, s, cfg); const cmp = await loadComparison(data, s, cfg, main);
+    return { key: sKey, snapshot: main, prevSnapshot: cmp.prev, comparison: cmp.comparison };
+  }, [data, sKey, cfg, retry]);
+  const fresh = PS.data && PS.data.key === sKey ? PS.data : null;
+  const snapshot = fresh?.snapshot || null; const prevSnapshot = fresh?.prevSnapshot || null; const comparison = fresh?.comparison || null; const T = snapshot?.totals;
+  const scopeLabel = plan.scope?.label || scopeLabelOf(plan.scope, ar);
 
   const fy = targets.fiscalYear; const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
   const narrowed = s.amanah !== 'all' || s.source !== 'all' || s.scopeType !== 'all' || s.muni !== 'all' || !!rev.org?.amanahKeys;
@@ -96,13 +109,13 @@ export default function PlanningArea() {
   /* ---------- assistant (planning tasks only) ---------- */
   const live = useRef({}); live.current = { rev, scopeBase, s, register, proposals, targets, lang, today, labelOfAmanah, cfg, data };
   const ctxFactory = useCallback(() => {
-    const c = live.current; const sc0 = { from: c.s.from, to: c.s.to, ...c.scopeBase }; const atEnd = { cfg: { ...c.cfg, collectionsAsOf: 'periodEnd' } };
+    const c = live.current; const sc0 = { from: c.s.from, to: c.s.to, ...c.scopeBase }; const atEnd = { cfg: headlineCfg(c.cfg) };
     return {
       mode: 'planning', lang: c.lang, today: c.today, scope: sc0, targets: c.targets, register: c.register, proposals: c.proposals, labelOfAmanah: c.labelOfAmanah, compare: compareSnapshots,
       fetchSnap: (sc) => c.data.snapshot({ ...sc }),
       fetchPrev: async (sc) => { const pv = previousScope({ from: sc.from, to: sc.to }); const r = await c.data.snapshot({ ...sc, from: pv.from, to: pv.to }, atEnd); return r.totals.count > 0 ? r : null; },
       getAchievement: async (sc) => { const fc = { ...sc, from: `${c.targets.fiscalYear}-01-01`, to: c.today }; const through = sc.to < c.today ? sc.to : c.today; const series = await c.data.series({ ...fc, to: through }, { asOf: through }); return targetAchievementFrom(series, sc, c.cfg, c.targets); },
-      applyFilters: (o) => { if (o.from) c.rev.setCustomRange(o.from, o.to); if (o.amanah) c.rev.setAmanah(o.amanah); if (o.source) c.rev.setSource(o.source); }
+      applyFilters: () => {} // a period / Amanah named in a question applies to that ANSWER only; the plan scope never changes silently
     };
   }, []);
   const onAssistAction = (ac) => { if (ac.kind === 'scenario') { setScenario({ ...DEFAULT_SCENARIO, ...scenario, ...ac.patch }); setAssistOpen(false); document.getElementById('scenario')?.scrollIntoView({ behavior: 'smooth' }); } if (ac.kind === 'export') doExport('docx'); };
@@ -112,8 +125,8 @@ export default function PlanningArea() {
     try {
       const sc = { from: s.from, to: s.to, ...scopeBase }; const cash = await data.series(sc, { asOf: s.to < today ? s.to : today });
       const out = { snapshot, forecast: x?.forecast, targetPos: null, achievement: ach, coverage: null, cards: buildDecisionCards(snapshot, { enforcementCases: rev.cases }), anomalies: [] };
-      const objectivesRows = [...systemRows, ...store.objectives];
-      const model = buildCommandModel({ lang, today, spec: { preset: rev.scope.preset, scope: { ...sc } }, out, prev: comparison?.comparable ? prevSnapshot : null, prevScope: prevSnapshot?.scope, cash, bridge: null, targets, cases: rev.cases, meta: rev.meta, fair: null, achievement: ach, pace, forecast: x?.forecast, scenario, planDate, register, plan, objectivesRows, actuals, funding, fin, financeOk, fyReceiptsYtd: x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null });
+      const objectivesRows = [...systemRows, ...viewStore.objectives];
+      const model = buildCommandModel({ lang, today, spec: { preset: 'custom', scope: { ...sc } }, out, prev: comparison?.comparable ? prevSnapshot : null, prevScope: prevSnapshot?.scope, cash, bridge: null, targets, cases: rev.cases, meta: rev.meta, fair: null, achievement: ach, pace, forecast: x?.forecast, scenario, planDate, register, plan, objectivesRows, actuals, funding, fin, financeOk, fyReceiptsYtd: x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null });
       if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model);
     } catch (e) { setToast(L(`تعذّر التصدير: ${e.message}`, `Export failed: ${e.message}`)); } finally { setExporting(''); }
   }
@@ -122,17 +135,15 @@ export default function PlanningArea() {
     const p = { id: `scenario:${plan?.id}:${Object.entries(scenario).map(([k, v]) => `${k}=${v}`).join(',')}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
     setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); document.getElementById('decisions')?.scrollIntoView({ behavior: 'smooth' });
   };
-  const applyPlanScope = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); };
+  // explicit and optional: open the plan's scope in the dashboard (changes the DASHBOARD filters because the user asked; the plan is unaffected)
+  const openPlanInDashboard = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); navigate('/insights?view=dashboard'); };
   // deep links such as /planning#outlook land on their section once the page has content (the sections are not in the DOM before that)
   const hash = useLocation().hash;
-  useEffect(() => { if (hash && rev.ready && plan) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hash, rev.ready, !!plan, !!x]); // eslint-disable-line react-hooks/exhaustive-deps -- re-run once the async blocks above the section have taken their height
+  useEffect(() => { if (hash && rev.ready && plan && snapshot) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hash, rev.ready, !!snapshot, !!x]); // eslint-disable-line react-hooks/exhaustive-deps -- re-run once the async blocks above the section have taken their height
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
-  // F-04 guard: the analytics read the dashboard filter; say so whenever it differs from the plan's own period and scope
-  const planScopeMismatch = !!plan && (plan.period.from !== s.from || (plan.period.to < today ? plan.period.to : today) !== s.to
-    || JSON.stringify([].concat(plan.scope?.amanah ?? 'all')) !== JSON.stringify([].concat(s.amanah)) || (plan.scope?.source ?? 'all') !== s.source
-    || (plan.scope?.scopeType ?? 'all') !== (s.scopeType || 'all') || (plan.scope?.muni ?? 'all') !== (s.muni || 'all') || (plan.scope?.status ?? 'all') !== (s.status || 'all'));
-  if (!rev.ready || !plan) return <div className="st-page" role="status"><Skeleton height={80} /><Skeleton height={220} /></div>;
+  if (PS.error && !fresh) return <div className="st-page"><div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر احتساب أرقام الخطة لفترتها ونطاقها.', 'The plan figures could not be computed for its period and scope.')} <button type="button" className="btn btn-sm" onClick={() => setRetry((n) => n + 1)}>{L('إعادة المحاولة', 'Retry')}</button></div></div>;
+  if (!rev.ready || !snapshot) return <div className="st-page" role="status"><Skeleton height={80} /><Skeleton height={220} /></div>;
   const kpiUnit = unitOfValues([T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: kpiUnit });
   const fyMonths = monthsBetween(`${fy}-01-01`, `${fy}-12-28`);
   const outlook = (() => {
@@ -143,6 +154,7 @@ export default function PlanningArea() {
   })();
   const tvf = x?.forecast?.ready ? targetVsForecast(x.forecast, targets) : null;
   const scenarioOn = JSON.stringify(scenario) !== JSON.stringify(DEFAULT_SCENARIO);
+  const versionContext = { period: plan.period, scope: plan.scope, basis: BASIS.PERIOD_END, cutoff: snapshot.cutoff, config: cfgHash(cfg), targets: { collectionRate: targets.collectionRate.value, status: targets.collectionRate.status } };
   const summaryForVersion = { rate: scenRes?.scenario.rate ?? null, collected: scenRes?.scenario.collected ?? null, balance: funding.available ? funding.scenario.balance : null };
 
   return (
@@ -155,7 +167,7 @@ export default function PlanningArea() {
             <span className="st-tag st-tag--actual">{L('بيانات حتى', 'Data to')} <bdi>{snapshot.cutoff}</bdi> ({L('الرياض', 'Riyadh')})</span>
             <span className="st-tag st-tag--warn">{L('بيانات تجريبية اصطناعية', 'Synthetic demo data')}{rev.meta?.size === 'compact' ? ` — ${L('عينة مضغوطة', 'compact sample')} ${fmtInt(rev.meta.counts?.invoicesTotal)}` : ''}</span>
             {financeOk && <span className="st-tag st-tag--warn">{L('الميزانية والإنفاق: اصطناعية', 'Budget and expenditure: synthetic')}</span>}
-            {rev.loading && <span className="st-tag" role="status">{L('جارٍ التحديث…', 'Updating…')}</span>}
+            {PS.loading && <span className="st-tag" role="status">{L('جارٍ التحديث…', 'Updating…')}</span>}
           </div>
         </div>
         <div className="st-head__actions">
@@ -164,23 +176,22 @@ export default function PlanningArea() {
         </div>
       </header>
 
-      <PlanBar store={store} setStore={setStore} plan={plan} summary={summaryForVersion} scopeSnapshot={scopeSnapshot} canEdit={canEdit} user={user} onApplyScope={applyPlanScope} today={today} />
-      <FilterChips />
-      <DataStatus />
-      {planScopeMismatch && <div className="rv-callout rv-callout--warn" role="note"><b>{L('الأرقام أدناه تتبع مرشحات لوحة المعلومات الحالية، وليست نطاق الخطة.', 'The figures below follow the current dashboard filters, not the plan scope.')}</b> {L(`المعروض: ${s.from} → ${s.to} · ${scopeLabel}. نطاق الخطة: ${plan.period.from} → ${plan.period.to} · ${plan.scope?.label || L('كل الأمانات · كل المصادر', 'All Amanahs · all sources')}.`, `Shown: ${s.from} → ${s.to} · ${scopeLabel}. Plan scope: ${plan.period.from} → ${plan.period.to} · ${plan.scope?.label || 'All Amanahs · all sources'}.`)} <button type="button" className="btn btn-sm" onClick={() => applyPlanScope(plan)}>{L('تطبيق نطاق الخطة على المرشحات', 'Apply the plan scope to the filters')}</button></div>}
+      <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} today={today} />
+      <div className="rv-callout" role="note">{L('كل الأرقام في هذه الصفحة تُحسب من فترة الخطة ونطاقها (أعلاه)، ولا تتأثر بمرشحات لوحة المعلومات. التحصيل حتى نهاية الفترة (أو حتى ' + today + ' إن كانت الفترة مفتوحة).', 'Every figure on this page is computed from the plan period and scope (above) and is not affected by the dashboard filters. Collections count up to the end of the period (or up to ' + today + ' while it is open).')}</div>
+      {fresh === null || PS.loading ? <div className="rv-callout" role="status">{L('جارٍ احتساب أرقام الخطة…', 'Computing the plan figures…')}</div> : null}
       <nav className="st-nav" aria-label={L('أقسام التخطيط', 'Planning sections')}>{NAV.map(([id, a, e]) => <a key={id} href={`#${id}`}>{L(a, e)}</a>)}</nav>
       {toast && <div className="rv-callout" role="status">{toast}</div>}
 
       {T.count === 0 ? <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة؛ وسّع الفترة أو أزل مرشحاً.', 'No data — widen the period or remove a filter.')}</div></div> : (<>
       <div className="card st-card" aria-label={L('ملخص خط الأساس', 'Baseline summary')}>
-        <div className="st-fresh"><b>{L('خط الأساس من لوحة المعلومات', 'Baseline from the dashboard')}</b> <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span>
+        <div className="st-fresh"><b>{L('خط الأساس لفترة الخطة ونطاقها', 'Baseline for the plan period and scope')}</b> <bdi dir="ltr">{s.from} → {s.to}</bdi> <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span>
           <span>{L('صافي المفوتر', 'Net billed')} <b dir="ltr">{kp(T.net)}</b></span><span>{L('المحصّل', 'Collected')} <b dir="ltr">{kp(T.collected)}</b></span><span>{L('غير المحصّل', 'Uncollected')} <b dir="ltr">{kp(T.outstanding)}</b></span><span>{L('نسبة التحصيل', 'Rate')} <b dir="ltr">{pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'n/a'))}</b></span>
           <Link to="/insights">{L('لوحة المعلومات', 'Dashboard')}</Link></div>
       </div>
 
       <section id="objectives" className="st-section" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
         <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('لا مستهدفات معتمدة في البيانات؛ ما يُعرض مُدخل ينتظر اعتماداً', 'no approved targets exist in the data; what is shown awaits approval')}</small></h2>
-        <ObjectivesPanel store={store} setStore={setStore} actuals={actuals} systemRows={systemRows} canEdit={canEdit} user={user} today={today} />
+        <ObjectivesPanel store={viewStore} setStore={updateStore} actuals={actuals} systemRows={systemRows} canEdit={canEdit} user={user} today={today} />
         <div className="st-grid">
           <div className="card st-card"><b>{L('مدخلات المستهدف (غير معتمدة)', 'Target inputs (unapproved)')}</b>
             <div className="st-field"><label htmlFor="t-rate">{L('مستهدف معدل التحصيل (%)', 'Collection-rate target (%)')}</label><input id="t-rate" type="number" className="input" min="1" max="100" step="1" disabled={!canEdit} value={Math.round(targets.collectionRate.value * 100)} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= 100) editTarget('collectionRate', v / 100); }} /></div>
