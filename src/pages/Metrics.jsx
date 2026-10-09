@@ -43,7 +43,7 @@ export default function Metrics() {
       <ScopeBar />
       <div className="rv-callout">
         <b>{L('Two things that are not the same', 'أمران مختلفان')}</b>{' '}
-        {L('Net billed is a flow for an issue period; net uncollected is a standing balance at the cutoff. The collection rate is collected ÷ net billed × 100 within the selected scope.', 'صافي المفوتر تدفق لفترة إصدار؛ وصافي غير المحصل رصيد قائم عند القطع. ونسبة التحصيل = المحصّل ÷ صافي المفوتر ضمن النطاق المحدد؛ وأي نسبة على إجمالي المفوتر تُسمّى بوضوح وتُفصل.')}
+        {L('Net billed is a flow for an issue period; net uncollected is a standing balance at the cutoff. The collection rate is collected ÷ net billed × 100 within the selected scope.', 'صافي المفوتر تدفق لفترة إصدار؛ والرصيد القائم رصيد قائم عند القطع. ونسبة التحصيل = المحصّل ÷ صافي المفوتر ضمن النطاق المحدد؛ وأي نسبة على إجمالي المفوتر تُسمّى بوضوح وتُفصل.')}
       </div>
       <div className="rv-metric-list">
         {dict.map((m) => (

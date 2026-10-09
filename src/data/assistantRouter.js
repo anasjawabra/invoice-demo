@@ -119,7 +119,7 @@ export function parseInvoiceId(text) {
 export function classify(text) {
   const s = text.toLowerCase();
   if (/inv-\d{4}-\d{4,7}/i.test(text)) return 'invoice';
-  if (has(s, ['analyze uncollected', 'analyse uncollected', 'net uncollected', 'uncollected bridge', 'حلل غير المحصل', 'تحليل غير المحصل', 'صافي غير المحصل', 'جسر غير المحصل'])) return 'uncollected';
+  if (has(s, ['analyze uncollected', 'analyse uncollected', 'net uncollected', 'uncollected bridge', 'حلل غير المحصل', 'حلل الرصيد القائم', 'تحليل الرصيد القائم', 'تحليل غير المحصل', 'صافي غير المحصل', 'جسر غير المحصل'])) return 'uncollected';
   if (has(s, ['why did collection', 'why has collection', 'why collection', 'collection fell', 'collection fall', 'collection drop', 'collection decline', 'collection decrease', 'لماذا انخفض', 'لماذا تراجع', 'ليه انخفض', 'انخفاض التحصيل', 'تراجع التحصيل'])) return 'why_decline';
   if (has(s, ['report', 'تقرير'])) return 'report';
   if (has(s, ['forecast', 'predict', 'projection', 'next month', 'rest of the year', 'تنبؤ', 'توقع'])) return 'forecast';

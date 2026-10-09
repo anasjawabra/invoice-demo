@@ -79,7 +79,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
     const src = concentrationBy(snap, 'source').slice(0, 4).map((g) => `${REVENUE_SOURCES[g.key] ? pickBi(REVENUE_SOURCES[g.key], lang) : g.key}: ${M(g.outstanding)}`).join('; ');
     text = L(
       `${scopeTxt}. Net uncollected is ${M(S.netUncollected)} at ${snap.cutoff} (a standing balance of everything issued up to the cutoff, whatever the selected issue period): overdue ${M(S.overdue)}, not yet due ${M(S.notYetDue)} (future installments are never arrears). Bridge — ${lines.join(' → ')}. By age (from the due date): ${aging || '—'}. By Amanah: ${am || '—'}. By revenue source: ${src || '—'}.`,
-      `${scopeTxt}. صافي غير المحصل ${M(S.netUncollected)} عند ${snap.cutoff} (رصيد قائم لكل ما صدر حتى القطع بغض النظر عن فترة الإصدار المحددة): متأخر ${M(S.overdue)} ولم يحن استحقاقه ${M(S.notYetDue)} (الأقساط المستقبلية ليست متأخرات). الجسر — ${lines.join(' ← ')}. حسب العمر (من تاريخ الاستحقاق): ${aging || '—'}. حسب الأمانة: ${am || '—'}. حسب مصدر الإيراد: ${src || '—'}.`
+      `${scopeTxt}. الرصيد القائم ${M(S.netUncollected)} عند ${snap.cutoff} (رصيد قائم لكل ما صدر حتى القطع بغض النظر عن فترة الإصدار المحددة): متأخر ${M(S.overdue)} ولم يحن استحقاقه ${M(S.notYetDue)} (الأقساط المستقبلية ليست متأخرات). الجسر — ${lines.join(' ← ')}. حسب العمر (من تاريخ الاستحقاق): ${aging || '—'}. حسب الأمانة: ${am || '—'}. حسب مصدر الإيراد: ${src || '—'}.`
     );
     facts.length = 0;
     facts.push(netU, { k: L('Overdue', 'متأخر'), v: M(S.overdue) }, { k: L('Not yet due', 'لم يحن'), v: M(S.notYetDue) }, { k: L('Cancelled', 'الملغى'), v: M(T.cancelled) }, { k: L('Rule-excluded', 'المستبعد بقواعد'), v: M(T.exclusionsRules) });
@@ -99,7 +99,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
       out.explanation = ex;
     }
   } else if (intent === 'overview' || intent === 'target_coverage' || intent === 'amanah_compare') {
-    text += ' ' + L(`Net uncollected (a standing balance, not the same as net billed) is ${M(S.netUncollected)}.`, `صافي غير المحصل (رصيد قائم وليس هو صافي المفوتر) ${M(S.netUncollected)}.`);
+    text += ' ' + L(`Net uncollected (a standing balance, not the same as net billed) is ${M(S.netUncollected)}.`, `الرصيد القائم (رصيد قائم وليس هو صافي المفوتر) ${M(S.netUncollected)}.`);
     facts.push(netU);
   }
 
@@ -121,7 +121,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
 
   const def = {
     overview: BI('نسبة التحصيل = المحصّل ÷ صافي المفوتر × 100؛ صافي المفوتر = إجمالي المفوتر − الاستبعادات = المحصّل + غير المحصّل', 'Collection rate = collected ÷ net billed × 100; net billed = gross billed − exclusions = collected + uncollected'),
-    uncollected: BI('صافي غير المحصل = رصيد غير مسدد بعد المطابقة − الملغى − المستبعد غير المتداخل', 'Net uncollected = unpaid balance after matching − cancelled − non-overlapping exclusions'),
+    uncollected: BI('الرصيد القائم = رصيد غير مسدد بعد المطابقة − الملغى − المستبعد غير المتداخل', 'Net uncollected = unpaid balance after matching − cancelled − non-overlapping exclusions'),
     why_decline: BI('تغير المحصّل ÷ صافي المفوتر بنقاط مئوية مقابل فترة مماثلة', 'Change in collected ÷ net billed, percentage points vs a like-for-like period'),
     exclusions: BI('الاستبعادات = الملغى + فواتير ذات سبب استبعاد معتمد (سبب رئيسي واحد، تُخصم مرة واحدة من إجمالي المفوتر)', 'Exclusions = cancelled + invoices with an approved exclusion (one primary reason; deducted once from gross billed)')
   };

@@ -92,7 +92,7 @@ const S = {
         ctx.prevSnapshot = cmp.prev; ctx.currAtEnd = cmp.curr;
         if (ctx.params?.q === 'why_decline') ctx.explanation = await explainChange(ctx.data, ctx.scope, ctx.cfg, { curr: cmp.curr, prev: cmp.prev });
       }
-      h.detail(bi('Breakdowns and the net-uncollected bridge reconcile to the totals', 'التفصيلات وجسر صافي غير المحصل تتطابق مع الإجماليات'));
+      h.detail(bi('Breakdowns and the net-uncollected bridge reconcile to the totals', 'التفصيلات وجسر الرصيد القائم تتطابق مع الإجماليات'));
       if (!t.collectedOverNet.calculable) h.warn(bi('Collected ÷ net billed is not calculable (net billed is zero).', 'المحصّل ÷ صافي المفوتر غير قابل للاحتساب (صافي المفوتر صفر).'), { limitation: true });
       ctx.targets = ctx.targets || DEFAULT_TARGETS;
       const through = ctx.scope.to < ctx.cfg.cutoff ? ctx.scope.to : ctx.cfg.cutoff;

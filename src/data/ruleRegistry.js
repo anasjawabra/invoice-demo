@@ -67,7 +67,7 @@ export const RULE_DETAILS = {
 };
 
 export const RULE_EFFECT = BI(
-  'يخفض صافي المفوتر وصافي غير المحصل مرة واحدة (السبب الرئيسي فقط) ويغيّر المقام لا القابلية للتحصيل',
+  'يخفض صافي المفوتر والرصيد القائم مرة واحدة (السبب الرئيسي فقط) ويغيّر المقام لا القابلية للتحصيل',
   'Lowers net billed and net uncollected once (primary reason only); changes the denominator, not collectability'
 );
 

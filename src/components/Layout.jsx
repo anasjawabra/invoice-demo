@@ -112,6 +112,7 @@ function LayoutInner() {
   const rev = useRevenue();
   // D-12: «today» is read once when the page loads; a tab left open past midnight (Riyadh) says so instead of silently showing yesterday
   const [dayChanged, setDayChanged] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false); // phones: language, theme, organisation, notifications and the account sit behind one button
   useEffect(() => { const check = () => { if (!IS_TIME_TRAVEL && riyadhToday() !== DEMO_TODAY) setDayChanged(true); }; check(); const id = setInterval(check, 300000); document.addEventListener('visibilitychange', check); window.addEventListener('focus', check); return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); }; }, []);
   const { user, orgScoped, logout, switchOrg } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -192,7 +193,8 @@ function LayoutInner() {
             </details>
           </div>
 
-          <div className="topbar-right">
+          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'الإعدادات والحساب' : 'Settings and account'} <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span></button>
+          <div className="topbar-right" id="topbar-controls" data-open={moreOpen ? 'true' : undefined}>
             <button
               type="button"
               className="btn btn-ghost btn-sm theme-toggle"
