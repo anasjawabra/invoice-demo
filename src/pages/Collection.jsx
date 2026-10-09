@@ -87,7 +87,7 @@ export default function Collection() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with data problems (amount conflicts, missing fields, risk flags) are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات مشكلات البيانات (تعارض مبلغ، حقول ناقصة، تنبيهات مخاطر) فتُراجع في ')}<Link to="/risk">{L('Data Quality & Risk', 'جودة البيانات والمخاطر')}</Link>.</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with data problems (amount conflicts, missing fields, risk flags) are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات مشكلات البيانات (تعارض مبلغ، حقول ناقصة، تنبيهات مخاطر) فتُراجع في ')}<Link className="xref" to="/risk">{L('Data Quality & Risk', 'جودة البيانات والمخاطر')}</Link>.</p>
       </div>
     </div>
   );

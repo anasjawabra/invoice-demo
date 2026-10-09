@@ -1,0 +1,13 @@
+59/64
+#4007 report for the winter months → kind report ≠ clarify [unsafe_silent_misread]
+#4020 ما نسبة التحصيل في حائل؟ → amanah "Ha'il Amanah" ≠ "Hail Amanah" [unsafe_silent_misread]
+#4029 تقرير الغرامات للقصيم → amanah "all" ≠ "Al-Qassim Amanah" [unsafe_silent_misread]
+#4046 remove the source filter → kind unsupported ≠ report [over_clarification]
+#4062 تقرير هذا الشهر والعام الماضي → kind report ≠ clarify [unsafe_silent_misread]
+{"correct_interpretation":38,"appropriate_clarification":21,"unsafe_silent_misread":4,"over_clarification":1}
+
+NOTES (added after the run, raw output above is unedited):
+* Fresh set written AFTER the set-2 tuning, run once before any change for it.
+* #4020 is an error in MY expectation (the stored key is "Ha'il Amanah", I wrote "Hail Amanah"): the interpreter resolved the right Amanah. The first-run score is reported as raw 59/64 = 92.2% (below the 95% target); with that expectation corrected it would be 60/64 = 93.8% — still below target.
+* Classes (raw): correct_interpretation 38, appropriate_clarification 21, over_clarification 1, unsafe_silent_misread 4 (one of the four is the expectation error above).
+* After this record the genuine failures were fixed (English seasons, «لل» contraction «للقصيم», «remove the source filter», two periods «هذا الشهر والعام الماضي») and the set became a regression set.

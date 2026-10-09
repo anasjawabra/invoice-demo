@@ -30,7 +30,8 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   const s = normAr(text); // hamza / ta-marbuta / alef-maqsura folded, so «للشهر الماضي» and «الشهر الماضي» are read alike
   const year = Number(cutoff.slice(0, 4));
   const curMonth = Number(cutoff.slice(5, 7));
-  const explicitYear = (s.match(/\b(20\d{2})\b/) || [])[1];
+  const lastYearWord = /(?:ال|لل|ل)?(?:عام|سنه)\s*(?:ال)?(?:ماضي|سابق)|\b(?:last|previous)\s+year\b/.test(s);
+  const explicitYear = (s.match(/\b(20\d{2})\b/) || [])[1] || (lastYearWord ? String(year - 1) : undefined); // «الربع الأول للعام الماضي» → that quarter of the previous year
   const monthRange = (m) => {
     let y = explicitYear ? Number(explicitYear) : year;
     if (!explicitYear && m > curMonth) y -= 1; // a month later than the current one means the previous year's
@@ -42,6 +43,7 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|هالشهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
   if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير|اللي فات|الفايت|الي فات)|الشهر اللي فات`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
   if (/last 3 months|three months|اخر 3 (?:اشهر|شهور)|اخر ثلاثه (?:اشهر|شهور)|(?:ال)?(?:اشهر|شهور) (?:ال)?(?:3|ثلاثه) (?:ال)?(?:اخيره|ماضيه)/.test(s)) return { ...lastCompleteMonths(cutoff, 3), label: 'last3' };
+  if (/منذ\s+(?:اول|1)\s+يناير|since\s+(?:the\s+start\s+of\s+the\s+year|jan(?:uary)?\s+1(?:st)?)/.test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|هالسنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي|${AL}(?:سنه|عام) كامل|${AL}(?:سنه|عام) حتي اليوم|منذ بدايه (?:ال)?(?:سنه|عام)`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);
@@ -65,12 +67,38 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   if (/(?:^|\s)(?:تقرير|ايرادات|الايرادات)?\s*اليوم(?:\s|$)|\btoday\b/.test(s) && !/(حتي|الي|until|up to|to)\s*(اليوم|today)/.test(s)) return { from: cutoff, to: cutoff, label: 'today' };
   return null;
 }
+
+// «من 1 مارس إلى 15 مارس» / «1 march to 15 march»: a range written with day numbers and month names (the second month defaults to the first)
+const MONTH_TOKENS = { يناير: 1, فبراير: 2, مارس: 3, ابريل: 4, مايو: 5, يونيو: 6, يوليو: 7, اغسطس: 8, سبتمبر: 9, اكتوبر: 10, نوفمبر: 11, ديسمبر: 12, january: 1, jan: 1, february: 2, feb: 2, march: 3, mar: 3, april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7, august: 8, aug: 8, september: 9, sept: 9, sep: 9, october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12 };
+// the months named in a text, in the order they are written (used for «قارن أغسطس بيوليو» — the first is the report month)
+export function monthsInOrder(text) {
+  const s = normAr(text); const found = [];
+  for (const [k, m] of Object.entries(MONTH_TOKENS)) { const i = s.search(new RegExp(`(?<![a-z\\u0621-\\u064A])[بلوف]?${k}(?![a-z\\u0621-\\u064A])`)); if (i >= 0) found.push([i, m]); }
+  const out = []; for (const [, m] of found.sort((a, b) => a[0] - b[0])) if (!out.includes(m)) out.push(m);
+  return out;
+}
+const MON = Object.keys(MONTH_TOKENS).sort((a, b) => b.length - a.length).join('|');
+export function parseDayRange(text, cutoff = DATA_CUTOFF) {
+  const s = normAr(text);
+  const m = s.match(new RegExp(`(?:^|\\s)(?:من |from )?(\\d{1,2}) (${MON}) (?:الي|حتي|to|until|-) (\\d{1,2})(?: (${MON}))?(?: (20\\d{2}))?(?=\\s|$)`));
+  if (!m) return null;
+  const m1 = MONTH_TOKENS[m[2]]; const m2 = m[4] ? MONTH_TOKENS[m[4]] : m1; const y = m[5] ? Number(m[5]) : Number(cutoff.slice(0, 4));
+  const iso = (yy, mm, dd) => `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`;
+  const valid = (yy, mm, dd) => dd >= 1 && mm >= 1 && mm <= 12 && dd <= Number(lastDay(yy, mm).slice(8, 10));
+  const d1 = Number(m[1]); const d2 = Number(m[3]);
+  if (!valid(y, m1, d1) || !valid(y, m2, d2)) return null;
+  return { from: iso(y, m1, d1), to: iso(y, m2, d2), label: 'custom' };
+}
 // how many different months / quarters the text names (two of them in one request cannot be applied as ONE period)
 export function periodMentions(text) {
   const s = normAr(text); const found = new Set();
   for (const [m, re] of MONTH_RES) if (re.test(s)) found.add(`m${m}`);
   for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) found.add(`m${m}`);
   [/q1|first quarter|(?:ال|لل|ل)?ربع (?:ال)?اول/, /q2|second quarter|(?:ال|لل|ل)?ربع (?:ال)?ثاني/, /q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/, /q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/].forEach((re, i) => { if (re.test(s)) found.add(`q${i + 1}`); });
+  if (/(?:ال|لل|ل)?(?:عام|سنه)\s*(?:ال)?(?:ماضي|سابق)|\b(?:last|previous)\s+year\b/.test(s)) found.add('rel:lastyear');
+  if (/this month|current month|هذا (?:ال)?شهر|الشهر (?:ال)?(?:حالي|جاري)|هالشهر/.test(s)) found.add('rel:month');
+  if (/last month|previous month|الشهر (?:ال)?(?:ماضي|سابق)/.test(s)) found.add('rel:last');
+  if (/year to date|ytd|السنه حتي اليوم|(?:هذا|هذه) (?:ال)?(?:عام|سنه)/.test(s)) found.add('rel:ytd');
   return found.size;
 }
 

@@ -55,7 +55,7 @@ export default function SourceRecordSection({ sr }) {
 
       {sr.views.map((v) => (
         <div key={v.id} style={{ marginTop: 10 }}>
-          <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!open[v.id]} onClick={() => setOpen((o) => ({ ...o, [v.id]: !o[v.id] }))}>
+          <button type="button" className="btn btn-sm btn-ghost btn-wrap" aria-expanded={!!open[v.id]} onClick={() => setOpen((o) => ({ ...o, [v.id]: !o[v.id] }))}>
             {open[v.id] ? '▾' : '▸'} <span dir="ltr">{v.id}</span> — {B(v.title)} <span className="muted" dir="ltr">({v.table} · {v.fields.length})</span>
           </button>
           {open[v.id] && (
@@ -69,7 +69,7 @@ export default function SourceRecordSection({ sr }) {
 
       {sr.revenueLines?.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!open.__lines} onClick={() => setOpen((o) => ({ ...o, __lines: !o.__lines }))}>{open.__lines ? '▾' : '▸'} ENT_REVENUES — {L('Incorta revenue lines', 'بنود الإيراد في إنكورتا')} ({sr.revenueLines.length})</button>
+          <button type="button" className="btn btn-sm btn-ghost btn-wrap" aria-expanded={!!open.__lines} onClick={() => setOpen((o) => ({ ...o, __lines: !o.__lines }))}>{open.__lines ? '▾' : '▸'} ENT_REVENUES — {L('Incorta revenue lines', 'بنود الإيراد في إنكورتا')} ({sr.revenueLines.length})</button>
           {open.__lines && (
             <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th dir="ltr">DETAIL_ID</th><th dir="ltr">ACCOUNT_NO</th><th>GFS</th><th className="num" dir="ltr">DETAIL_AMOUNT</th><th className="num" dir="ltr">TOTAL_AMOUNT</th><th>{L('Status', 'الحالة')}</th></tr></thead>

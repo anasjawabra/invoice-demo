@@ -447,7 +447,7 @@ button {
   transform: scale(0.98);
 }
 
-.btn:disabled {
+.btn:disabled, .btn[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
@@ -1548,3 +1548,13 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
   .sr-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
   .sr-tab { padding: 8px 4px; text-align: center; font-size: 13px; }
 }
+
+/* Long disclosure labels (source table names) wrap inside narrow panels instead of widening them */
+.btn-wrap { white-space: normal; overflow-wrap: anywhere; text-align: start; height: auto; max-width: 100%; line-height: 1.5; padding-block: 6px; }
+
+/* Cross-reference links keep a 24px-tall target (WCAG 2.5.8) without changing their look */
+.xref { display: inline-flex; align-items: center; min-height: 24px; }
+
+/* Visually hidden native file input: stays in the tab order and shows its focus on the label that follows it */
+.file-pick { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.file-pick:focus-visible + label { outline: 2px solid var(--primary); outline-offset: 2px; }

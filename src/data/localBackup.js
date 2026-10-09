@@ -1,5 +1,6 @@
 // Backup / restore of what the demo keeps in THIS browser (EQ10): plans and objectives, the action register and the Smart-report conversations.
 // A backup is a plain JSON file; an import is validated before anything is written and replaces the three records as a unit.
+import { validScenariosShape } from './namedScenarios';
 export const BACKUP_FORMAT = 'revenue-demo-local-backup';
 export const BACKUP_KEYS = ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1'];
 
@@ -15,9 +16,10 @@ export function validateBackup(obj) {
   if (obj.version !== 1) return { ok: false, error: 'unsupported_version' };
   const d = obj.data || {};
   if (d.ib_plans_v1 != null && !(Array.isArray(d.ib_plans_v1.plans) && Array.isArray(d.ib_plans_v1.objectives))) return { ok: false, error: 'bad_plans' };
+  if (d.ib_plans_v1 != null && !validScenariosShape(d.ib_plans_v1.scenarios)) return { ok: false, error: 'bad_scenarios' };
   if (d.ib_actions_v1 != null && !(Array.isArray(d.ib_actions_v1.actions))) return { ok: false, error: 'bad_actions' };
   if (d.ib_smart_convs_v1 != null && !Array.isArray(d.ib_smart_convs_v1)) return { ok: false, error: 'bad_conversations' };
-  return { ok: true, summary: { plans: d.ib_plans_v1?.plans.length ?? 0, objectives: d.ib_plans_v1?.objectives.length ?? 0, actions: d.ib_actions_v1?.actions.length ?? 0, proposals: d.ib_actions_v1?.proposed?.length ?? 0, conversations: d.ib_smart_convs_v1?.length ?? 0, createdAt: obj.createdAt } };
+  return { ok: true, summary: { plans: d.ib_plans_v1?.plans.length ?? 0, objectives: d.ib_plans_v1?.objectives.length ?? 0, scenarios: Object.values(d.ib_plans_v1?.scenarios || {}).reduce((t, l) => t + l.length, 0), actions: d.ib_actions_v1?.actions.length ?? 0, proposals: d.ib_actions_v1?.proposed?.length ?? 0, conversations: d.ib_smart_convs_v1?.length ?? 0, createdAt: obj.createdAt } };
 }
 
 // replaces the three records (a key that is null in the backup is removed). Returns the validation result.

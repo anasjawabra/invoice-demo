@@ -93,7 +93,7 @@ export default function InsightsDashboard() {
         <div className="card st-card">
           <b>{L('الأمانات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
-          <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
+          <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div className="card st-card">
@@ -121,7 +121,7 @@ export default function InsightsDashboard() {
               <div className="rv-tile"><div className="rv-tile__label">{L('المصروف نقداً', 'Paid (cash)')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.paid, { lang })}</div><div className="rv-tile__sub">{L('من الميزانية حتى اليوم', 'of the budget to date')} {pct(ex.total.execution, '—')}</div></div>
               <div className="rv-tile"><div className="rv-tile__label">{L('تغطية المصروفات التشغيلية', 'Operating-spending coverage')}</div><div className="rv-tile__value" dir="ltr">{pct(cov?.ratio, L('غير متاحة', 'n/a'))}</div><div className="rv-tile__sub">{L('المقبوضات ÷ المصروف نقداً', 'receipts ÷ cash paid')}</div></div>
             </div>
-            <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
+            <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link className="xref" to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
           </AsyncBlock>
         ) : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b><div style={{ fontSize: 13 }}>{L('الميزانية والإنفاق على مستوى وطني لكل المصادر فقط؛ أزل مرشحات الأمانة والبلدية والمصدر والحالة لعرضها.', 'Budget and expenditure exist at national level for all sources only; clear the Amanah, municipality, source and status filters to see them.')}</div></div>}
       </div>

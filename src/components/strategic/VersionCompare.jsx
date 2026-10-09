@@ -27,8 +27,21 @@ export default function VersionCompare({ plan, versionContext, onRecompute }) {
     return (
       <td>
         <button type="button" className="btn btn-sm" disabled={busy === col(v)} onClick={() => recompute(v)}>{busy === col(v) ? L('جارٍ الاحتساب…', 'Calculating…') : L('إعادة الاحتساب بالبيانات الحالية', 'Recalculate on current data')}</button>
-        {r && <div className="rv-callout" role="status" style={{ marginTop: 6 }}><span className="st-tag st-tag--forecast">{L('محسوب الآن', 'recalculated now')}</span> {L('نسبة التحصيل', 'rate')} <b dir="ltr">{pct(r.rate)}</b> · {L('المحصّل', 'collected')} <b dir="ltr">{money(r.collected)}</b> · {L('قطع البيانات', 'cut-off')} {r.cutoff}
-          <div className="muted" style={{ fontSize: 12 }}>{diff(saved.rate, r.rate) || diff(saved.collected, r.collected) ? L('تختلف عن المحفوظ: البيانات أو الإعداد تغيّرا منذ الحفظ.', 'Differs from the saved figures: the data or the configuration changed since saving.') : L('تطابق المحفوظ.', 'Matches the saved figures.')} {L('يُعاد احتساب النسبة والمحصّل فقط؛ الميزان التمويلي يبقى كما حُفظ.', 'Only the rate and collected are recalculated; the funding balance stays as saved.')}</div></div>}
+        {r && (() => {
+          const sameRate = !diff(saved.rate, r.rate); const sameCol = !diff(saved.collected, r.collected);
+          const dPp = saved.rate == null || r.rate == null ? null : (r.rate - saved.rate) * 100; const dCol = saved.collected == null || r.collected == null ? null : r.collected - saved.collected;
+          const sgn = (x) => (x > 0 ? '+' : '');
+          return (
+            <div className="rv-callout" role="status" style={{ marginTop: 6 }}>
+              <span className="st-tag st-tag--forecast">{L('محسوب الآن', 'recalculated now')}</span> {L('قطع البيانات', 'data cut-off')} {r.cutoff}
+              <table className="table" style={{ marginTop: 6 }}><thead><tr><th scope="col">{L('البند', 'Item')}</th><th scope="col">{L('المحفوظ', 'Saved')}</th><th scope="col">{L('المحسوب الآن', 'Recalculated')}</th><th scope="col">{L('الفرق', 'Difference')}</th></tr></thead><tbody>
+                <tr className={sameRate ? '' : 'rv-diff'}><th scope="row">{L('نسبة التحصيل', 'Collection rate')}</th><td dir="ltr">{pct(saved.rate)}</td><td dir="ltr">{pct(r.rate)}</td><td dir="ltr">{dPp == null ? '—' : `${sgn(dPp)}${dPp.toFixed(1)} ${L('نقطة', 'pp')}`}</td></tr>
+                <tr className={sameCol ? '' : 'rv-diff'}><th scope="row">{L('المحصّل', 'Collected')}</th><td dir="ltr">{money(saved.collected)}</td><td dir="ltr">{money(r.collected)}</td><td dir="ltr">{dCol == null ? '—' : `${sgn(dCol)}${money(dCol)}`}</td></tr>
+              </tbody></table>
+              <div className="muted" style={{ fontSize: 12 }}>{!sameRate || !sameCol ? L('تختلف عن المحفوظ: البيانات أو الإعداد تغيّرا منذ الحفظ. الإصدار المحفوظ لم يتغيّر ولا يُستبدل بهذه الأرقام.', 'Differs from the saved figures: the data or the configuration changed since saving. The saved version is unchanged and is not replaced by these figures.') : L('تطابق المحفوظ.', 'Matches the saved figures.')} {L('يُعاد احتساب النسبة والمحصّل فقط؛ الميزان التمويلي يبقى كما حُفظ.', 'Only the rate and collected are recalculated; the funding balance stays as saved.')}</div>
+            </div>
+          );
+        })()}
       </td>
     );
   };

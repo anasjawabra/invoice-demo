@@ -36,22 +36,22 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
   const shown = register.actions.filter((a) => (filter === 'all' ? true : filter === 'open' ? a.status === 'approved' || a.status === 'in_progress' : a.status === filter));
   const lock = !canEdit; const lockTitle = lock ? L('يتطلب صلاحية المراجعة', 'Requires review permission') : '';
 
-  const approve = (p) => { setRegister((r) => createAction(r, { by, proposal: p, fields: { owner: form.owner, dueDate: form.dueDate || null, priority: form.priority } })); setOpen(null); setForm({ owner: '', dueDate: '', priority: 'medium', note: '' }); };
+  const approve = (p) => { setRegister((r) => createAction(r, { by, proposal: p, fields: { owner: form.owner, dueDate: form.dueDate || null, priority: form.priority } })); setOpen(null); setForm({ owner: '', dueDate: '', priority: 'medium', note: '' }); window.setTimeout(() => document.getElementById('ar-register-head')?.focus(), 0); };
   const [rejecting, setRejecting] = useState(null); // { id, reason } — an inline field (window.prompt is blocking, unstyled and unavailable in embedded browsers)
-  const reject = (p, reason) => { setRegister((r) => rejectProposal(r, p, by, reason)); setRejecting(null); };
+  const reject = (p, reason) => { setRegister((r) => rejectProposal(r, p, by, reason)); setRejecting(null); window.setTimeout(() => document.getElementById('ar-proposals-head')?.focus(), 0); };
   // a manually entered action is a PROPOSAL like any other: it waits in «Proposals awaiting review» until a reviewer approves it
   const addManual = () => {
     if (!mf.title.trim()) return;
     const p = { id: `manual:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, source: 'manual', title: mf.title.trim(), issue: mf.issue.trim(), action: mf.action.trim(), priority: mf.priority, suggestedOwner: mf.owner.trim() || null, suggestedDue: mf.dueDate || null,
       expectedImpact: mf.impact ? { amount: Number(mf.impact), kind: 'estimate', note: L('مُدخل يدوياً', 'entered manually') } : null, evidence: { text: L(`أُدخل يدوياً أثناء مراجعة ${scopeText}`, `Entered manually while reviewing ${scopeText}`), scope: scopeText, figures: [] }, suggestedUnit: mf.owner.trim() || null };
     setRegister((r) => addProposal(r, p, by));
-    setMf({ title: '', issue: '', action: '', owner: '', dueDate: '', priority: 'medium', impact: '' }); setManual(false);
+    setMf({ title: '', issue: '', action: '', owner: '', dueDate: '', priority: 'medium', impact: '' }); setManual(false); window.setTimeout(() => document.getElementById('ar-manual-toggle')?.focus(), 0);
   };
 
   return (
     <div className="st-grid" style={{ gridTemplateColumns: '1fr' }}>
       <div className="card st-card">
-        <div className="st-section__title" style={{ fontSize: 16 }}>{L('مقترحات بانتظار المراجعة', 'Proposals awaiting review')} <small>{pend.length}</small></div>
+        <div id="ar-proposals-head" tabIndex={-1} className="st-section__title" style={{ fontSize: 16 }}>{L('مقترحات بانتظار المراجعة', 'Proposals awaiting review')} <small>{pend.length}</small></div>
         <div className="muted" style={{ fontSize: 13 }}>{L('مقترحات محسوبة من بيانات المرشحات الحالية. ليست قرارات ولا مسندة لأحد حتى يعتمدها مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Proposals computed from the current filters. They are not decisions and not assigned to anyone until a reviewer approves them and sets the owner and due date.')}</div>
         {lock && <div className="rv-callout rv-callout--warn">{L('صلاحيتك للعرض فقط: الاعتماد والإسناد والتعديل يتطلب صلاحية المراجعة.', 'You have read-only access: approving, assigning and editing need review permission.')}</div>}
         {!pend.length && <div className="rv-empty">{L('لا مقترحات معلّقة لهذا الاختيار.', 'No pending proposals for this selection.')}</div>}
@@ -71,20 +71,20 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
                 <div className="st-field"><label htmlFor={`o-${p.id}`}>{L('المسؤول (يحدده المراجع)', 'Owner (set by the reviewer)')}</label><input id={`o-${p.id}`} className="input" value={form.owner} placeholder={L('اسم الجهة أو الشخص', 'Entity or person')} onChange={(e) => setForm({ ...form, owner: e.target.value })} /></div>
                 <div className="st-field"><label htmlFor={`d-${p.id}`}>{L('تاريخ الاستحقاق', 'Due date')}</label><input id={`d-${p.id}`} type="date" className="input" min={today} value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} /></div>
                 <div className="st-field"><label htmlFor={`p-${p.id}`}>{L('الأولوية', 'Priority')}</label><select id={`p-${p.id}`} className="select" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>{Object.entries(PRIORITY_LABEL).map(([k, v]) => <option key={k} value={k}>{tx(v, ar)}</option>)}</select></div>
-                <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" onClick={() => approve(p)}>{L('اعتماد كإجراء', 'Approve as an action')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setOpen(null)}>{L('إلغاء', 'Cancel')}</button></div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" onClick={() => approve(p)}>{L('اعتماد كإجراء', 'Approve as an action')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => { setOpen(null); window.setTimeout(() => document.getElementById(`rv-${p.id}`)?.focus(), 0); }}>{L('إلغاء', 'Cancel')}</button></div>
               </div>
             ) : (
-              <div style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm btn-primary" disabled={lock} title={lockTitle} onClick={() => { setOpen(p.id); setForm({ owner: p.suggestedOwner || '', dueDate: p.suggestedDue || '', priority: p.priority, note: '' }); }}>{L('مراجعة واعتماد…', 'Review and approve…')}</button><button type="button" className="btn btn-sm btn-ghost" disabled={lock} title={lockTitle} onClick={() => setRejecting({ id: p.id, reason: '' })}>{L('رفض', 'Reject')}</button>{rejecting?.id === p.id && <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><input className="input" aria-label={L('سبب الرفض (اختياري)', 'Reason for rejecting (optional)')} placeholder={L('سبب الرفض (اختياري)', 'Reason (optional)')} value={rejecting.reason} onChange={(e) => setRejecting({ id: p.id, reason: e.target.value })} style={{ width: 220 }} /><button type="button" className="btn btn-sm" onClick={() => reject(p, rejecting.reason)}>{L('تأكيد الرفض', 'Confirm rejection')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setRejecting(null)}>{L('تراجع', 'Back')}</button></span>}</div>
+              <div style={{ display: 'flex', gap: 6 }}><button type="button" id={`rv-${p.id}`} className="btn btn-sm btn-primary" disabled={lock} title={lockTitle} onClick={() => { setOpen(p.id); setForm({ owner: p.suggestedOwner || '', dueDate: p.suggestedDue || '', priority: p.priority, note: '' }); window.setTimeout(() => document.getElementById(`o-${p.id}`)?.focus(), 0); }}>{L('مراجعة واعتماد…', 'Review and approve…')}</button><button type="button" className="btn btn-sm btn-ghost" disabled={lock} title={lockTitle} onClick={() => setRejecting({ id: p.id, reason: '' })}>{L('رفض', 'Reject')}</button>{rejecting?.id === p.id && <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><input className="input" aria-label={L('سبب الرفض (اختياري)', 'Reason for rejecting (optional)')} placeholder={L('سبب الرفض (اختياري)', 'Reason (optional)')} value={rejecting.reason} onChange={(e) => setRejecting({ id: p.id, reason: e.target.value })} style={{ width: 220 }} /><button type="button" className="btn btn-sm" onClick={() => reject(p, rejecting.reason)}>{L('تأكيد الرفض', 'Confirm rejection')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setRejecting(null)}>{L('تراجع', 'Back')}</button></span>}</div>
             )}
           </article>
         ))}
       </div>
 
       <div className="card st-card" id="action-register">
-        <div className="st-section__title" style={{ fontSize: 16 }}>{L('سجل الإجراءات', 'Action register')} <small>{register.actions.length}</small></div>
+        <div id="ar-register-head" tabIndex={-1} className="st-section__title" style={{ fontSize: 16 }}>{L('سجل الإجراءات', 'Action register')} <small>{register.actions.length}</small></div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {[['open', L('مفتوحة', 'Open')], ['all', L('الكل', 'All')], ['done', L('مكتملة', 'Done')], ['cancelled', L('ملغاة', 'Cancelled')]].map(([k, t]) => <button key={k} type="button" className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>{t}</button>)}
-          <button type="button" className="btn btn-sm" disabled={lock} title={lockTitle} onClick={() => setManual((v) => !v)}>＋ {L('إجراء يدوي', 'Manual action')}</button>
+          <button type="button" id="ar-manual-toggle" className="btn btn-sm" aria-expanded={manual} disabled={lock} title={lockTitle} onClick={() => setManual((v) => !v)}>＋ {L('إجراء يدوي', 'Manual action')}</button>
         </div>
         {manual && (
           <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>

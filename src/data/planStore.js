@@ -38,7 +38,7 @@ export function cfgHash(cfg) {
 
 export function loadPlans() {
   try { const v = JSON.parse(window.localStorage.getItem(KEY) || 'null'); if (v && Array.isArray(v.plans)) return v; } catch { /* storage unavailable */ }
-  return { plans: [], objectives: [], activeId: null };
+  return { plans: [], objectives: [], activeId: null, scenarios: {} };
 }
 export function savePlans(st) { try { window.localStorage.setItem(KEY, JSON.stringify(st)); return true; } catch { return false; } }
 const uid = (p) => `${p}-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 4).toUpperCase()}`;

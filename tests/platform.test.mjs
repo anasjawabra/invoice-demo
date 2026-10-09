@@ -23,6 +23,7 @@ import { financeProjection } from '../src/data/strategicCalc.js';
 import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress, editPlan, unsavedChanges } from '../src/data/planStore.js';
 import { addProposal, earlierDecisions } from '../src/data/actionRegister.js';
 import { actorName } from '../src/utils/actor.js';
+import { MAX_SCENARIOS, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, listScenarios, cleanScenario, changedLevers, checkName, validScenariosShape } from '../src/data/namedScenarios.js';
 import { PRESETS, presetRange, detectPreset } from '../src/data/periodPresets.js';
 import { buildBackup, validateBackup, applyBackup, BACKUP_FORMAT } from '../src/data/localBackup.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
@@ -729,7 +730,7 @@ await test('manual and scenario actions both start as PROPOSED: nothing enters t
 await test('EQ10: backup/export/import of the browser-local records — validated before anything is written, replaces the three records as a unit, round-trips exactly', () => {
   const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m }; };
   const a = mem(); a.setItem('ib_plans_v1', JSON.stringify({ plans: [{ id: 'P1' }], objectives: [], activeId: 'P1' })); a.setItem('ib_actions_v1', JSON.stringify({ actions: [{ id: 'A1' }], rejected: [] })); a.setItem('ib_smart_convs_v1', JSON.stringify([{ id: 'C1', messages: [] }]));
-  const b = buildBackup(a, new Date('2026-10-09T10:00:00Z')); assert.equal(b.format, BACKUP_FORMAT); assert.deepEqual(validateBackup(b), { ok: true, summary: { plans: 1, objectives: 0, actions: 1, proposals: 0, conversations: 1, createdAt: '2026-10-09T10:00:00.000Z' } });
+  const b = buildBackup(a, new Date('2026-10-09T10:00:00Z')); assert.equal(b.format, BACKUP_FORMAT); assert.deepEqual(validateBackup(b), { ok: true, summary: { plans: 1, objectives: 0, scenarios: 0, actions: 1, proposals: 0, conversations: 1, createdAt: '2026-10-09T10:00:00.000Z' } });
   const t = mem(); t.setItem('ib_plans_v1', 'old'); const r = applyBackup(JSON.parse(JSON.stringify(b)), t); assert.equal(r.ok, true);
   for (const k of ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1']) assert.deepEqual(JSON.parse(t.getItem(k)), JSON.parse(a.getItem(k)), `${k} round-trips`);
   const before = JSON.stringify([...t._m]); for (const bad of [null, {}, { format: 'x' }, { ...b, version: 2 }, { ...b, data: { ib_plans_v1: { plans: 'no' } } }, { ...b, data: { ib_actions_v1: {} } }, { ...b, data: { ib_smart_convs_v1: {} } }]) { assert.equal(applyBackup(bad, t).ok, false); }
@@ -737,10 +738,12 @@ await test('EQ10: backup/export/import of the browser-local records — validate
   const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
-await test('interpreter corpus: 162 representative + 47 blind + 65 held-out Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
+await test('interpreter corpus: 162 representative + 47 blind + 65 held-out + 72 held-out-2 + 64 held-out-3 (both tuned after their recorded first runs) Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
   const { runCorpus, evaluate } = await import('./interpreter-eval.mjs'); const { BLIND } = await import('./interpreter-corpus-blind.mjs'); const { VERIFIED_IDS } = await import('./interpreter-corpus.mjs');
   const { HELDOUT } = await import('./interpreter-corpus-heldout.mjs'); const held = HELDOUT.map((c) => ({ c, ...evaluate(c) }));
-  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held];
+  const { HELDOUT2 } = await import('./interpreter-corpus-heldout2.mjs'); const held2 = HELDOUT2.map((c) => ({ c, ...evaluate(c) })); // regression ONLY: tuned against after its recorded first run (docs/interpreter-heldout2-first-run.txt)
+  const { HELDOUT3 } = await import('./interpreter-corpus-heldout3.mjs'); const held3 = HELDOUT3.map((c) => ({ c, ...evaluate(c) })); // regression ONLY after its recorded first run (docs/interpreter-heldout3-first-run.txt)
+  const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held, ...held2, ...held3];
   const bad = all.filter((x) => !x.ok); const score = (all.length - bad.length) / all.length;
   assert.ok(all.length >= 150, `corpus size ${all.length}`);
   assert.ok(score >= 0.95, `accuracy ${(score * 100).toFixed(1)}%\n${bad.map((x) => `#${x.c.id} ${x.c.q} → ${x.why}`).join('\n')}`);
@@ -763,6 +766,40 @@ await test('AC-D2/D3: every preset equals its definition for 24 reference dates 
     assert.equal(parsePeriod('آخر 3 أشهر', t).from, l3.from); assert.equal(parsePeriod('آخر 3 أشهر', t).to, l3.to); assert.equal(parsePeriod('هذا الشهر', t).from, presetRange('month', t).from);
   }
   assert.equal(detectPreset('2026-01-01', '2026-10-09', '2026-10-09'), 'ytd'); assert.equal(detectPreset('2026-02-03', '2026-02-04', '2026-10-09'), 'custom'); assert.equal(PRESETS.length, 7);
+});
+
+await test('Named scenarios: up to four per plan; save / rename / duplicate / update / delete; unique names; separate from the plan; backup validates the shape', () => {
+  const plan = approvePlan(saveVersion(newPlan({ by: 'A', name: 'P', scope: DEFAULT_PLAN_SCOPE, period: { from: '2026-01-01', to: '2026-12-31' } }), { by: 'A', summary: { rate: 0.5 } }), 'A');
+  let st = { plans: [plan], objectives: [], activeId: plan.id, scenarios: {} };
+  const before = JSON.stringify(st.plans);
+  let r = addScenario(st, plan.id, { name: ' تحسّن التحصيل ', scenario: { dRate: 2, recovery: 999, bogus: 5 }, by: 'A' }); assert.ok(r.ok); st = r.st;
+  assert.equal(listScenarios(st, plan.id)[0].name, 'تحسّن التحصيل', 'the name is trimmed');
+  assert.deepEqual(listScenarios(st, plan.id)[0].scenario, { ...DEFAULT_SCENARIO, dRate: 2, recovery: 100 }, 'levers are clamped to their limits and unknown keys dropped');
+  assert.equal(JSON.stringify(st.plans), before, 'saving a scenario does not touch the plan, its status or its versions (still approved)');
+  assert.equal(st.plans[0].status, 'approved');
+  assert.deepEqual(addScenario(st, plan.id, { name: 'تحسّن التحصيل', scenario: {}, by: 'A' }), { ok: false, error: 'name_dup' }, 'names are unique within a plan');
+  r = addScenario(st, plan.id, { name: 'TAHSIN التحصيل', scenario: {}, by: 'A' }); assert.ok(r.ok); st = r.st;
+  assert.equal(checkName(st, plan.id, 'Same', null), null); assert.equal(checkName(st, plan.id, '   '), 'name_empty'); assert.equal(checkName(st, plan.id, 'x'.repeat(61)), 'name_long');
+  r = duplicateScenario(st, plan.id, listScenarios(st, plan.id)[0].id, 'B', 'نسخة من'); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id).length, 3);
+  assert.equal(listScenarios(st, plan.id)[2].name, 'نسخة من تحسّن التحصيل'); assert.deepEqual(listScenarios(st, plan.id)[2].scenario, listScenarios(st, plan.id)[0].scenario);
+  r = addScenario(st, plan.id, { name: 'الرابع', scenario: { billing: 10 }, by: 'A' }); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id).length, MAX_SCENARIOS);
+  assert.deepEqual(addScenario(st, plan.id, { name: 'الخامس', scenario: {}, by: 'A' }), { ok: false, error: 'limit' }, 'a fifth scenario is refused');
+  assert.deepEqual(duplicateScenario(st, plan.id, listScenarios(st, plan.id)[0].id, 'A'), { ok: false, error: 'limit' });
+  const id4 = listScenarios(st, plan.id)[3].id;
+  r = renameScenario(st, plan.id, id4, 'نمو الفوترة', 'C'); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id)[3].name, 'نمو الفوترة'); assert.equal(listScenarios(st, plan.id)[3].updatedBy, 'C'); assert.equal(listScenarios(st, plan.id)[3].createdBy, 'A');
+  assert.equal(renameScenario(st, plan.id, id4, 'تحسّن التحصيل', 'C').error, 'name_dup'); assert.equal(renameScenario(st, plan.id, id4, 'نمو الفوترة', 'C').ok, true, 'keeping its own name is allowed');
+  r = updateScenario(st, plan.id, id4, { scenario: { billing: -5, dRate: 1 } }, 'C'); st = r.st; assert.deepEqual(changedLevers(listScenarios(st, plan.id)[3].scenario), [['dRate', 1], ['billing', -5]].sort((a, b) => Object.keys(DEFAULT_SCENARIO).indexOf(a[0]) - Object.keys(DEFAULT_SCENARIO).indexOf(b[0])));
+  st = deleteScenario(st, plan.id, id4).st; assert.equal(listScenarios(st, plan.id).length, 3);
+  assert.equal(addScenario(st, 'OTHER', { name: 'تحسّن التحصيل', scenario: {}, by: 'A' }).ok, true, 'scenarios belong to a plan: the same name may exist in another plan');
+  assert.equal(JSON.stringify(st.plans), before, 'plan, status and saved versions are unchanged after every operation'); assert.equal(st.plans[0].versions.length, 1);
+  assert.equal(validScenariosShape(st.scenarios), true); assert.equal(validScenariosShape(undefined), true); assert.equal(validScenariosShape([]), false); assert.equal(validScenariosShape({ P: 'x' }), false); assert.equal(validScenariosShape({ P: [{ id: 1 }] }), false);
+  assert.equal(validScenariosShape({ P: [1, 2, 3, 4, 5].map((i) => ({ id: `S${i}`, name: `n${i}`, scenario: {} })) }), false, 'more than four per plan is not a valid store');
+  const b = buildBackup({ getItem: (k) => (k === 'ib_plans_v1' ? JSON.stringify(st) : null) }); const v = validateBackup(b); assert.ok(v.ok); assert.equal(v.summary.scenarios, 3);
+  b.data.ib_plans_v1.scenarios = { P: 'bad' }; assert.deepEqual(validateBackup(b), { ok: false, error: 'bad_scenarios' });
+  // comparison: a scenario at the defaults equals the baseline; a changed lever moves the collected amount in the stated direction
+  const base = { N: 1000, C: 600, U: 400, pool: 200, pending: 50, rate: 0.6 };
+  const rs0 = runScenario(base, cleanScenario({}), 0.7); assert.equal(rs0.scenario.collected, rs0.baseline.collected);
+  const rs1 = runScenario(base, cleanScenario({ dRate: 5 }), 0.7); assert.ok(rs1.scenario.collected > rs1.baseline.collected);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

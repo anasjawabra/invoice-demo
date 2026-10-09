@@ -9,6 +9,8 @@ import { useAuth } from '../context/AuthContext';
 import { useAr } from '../utils/useAr';
 import { fmtMoney, fmtInt, unitOfValues, scaled } from '../utils/money';
 import ScenarioPanel from '../components/strategic/ScenarioPanel';
+import NamedScenarios from '../components/strategic/NamedScenarios';
+import { cleanScenario } from '../data/namedScenarios';
 import ActionRegister from '../components/strategic/ActionRegister';
 import AssistantPanel from '../components/strategic/AssistantPanel';
 import ObjectivesPanel from '../components/strategic/ObjectivesPanel';
@@ -174,7 +176,7 @@ export default function PlanningArea() {
         </div>
         <div className="st-head__actions">
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setAssistOpen(true)}>{L('مساعد التخطيط', 'Planning assistant')}</button>
-          {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!!exporting || T.count === 0} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('ملخص الخطة', 'Plan summary')} ${n}`}</button>)}
+          {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={T.count === 0} aria-disabled={!!exporting || undefined} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('ملخص الخطة', 'Plan summary')} ${n}`}</button>)}
         </div>
       </header>
 
@@ -227,6 +229,7 @@ export default function PlanningArea() {
       <section id="scenario" className="st-section" aria-label={L('السيناريوهات', 'Scenarios')}>
         <h2 className="st-section__title">{L('سيناريوهات «ماذا لو»', 'What-if scenarios')} <span className="st-tag st-tag--scenario">{L('سيناريو المستخدم', 'user scenario')}</span><small>{L('جزء من الخطة النشطة؛ لا يغيّر أي بيانات فعلية ولا المستهدفات', 'part of the active plan; changes no actual data and no targets')}</small></h2>
         <ScenarioPanel snapshot={snapshot} targets={targets} scenario={scenario} setScenario={setScenario} planDate={planDate} setPlanDate={setPlanDate} today={today} canEdit={canEdit} financeOk={financeOk} onSaveToRegister={proposeFromScenario} />
+        {snapshot && T.net > 0 && <NamedScenarios snapshot={snapshot} targets={targets} planId={plan.id} planName={plan.name} store={viewStore} commit={(st) => updateStore(() => st)} scenario={scenario} canEdit={canEdit} by={by} onLoad={(s) => setPlan((p) => editPlan(p, { scenario: cleanScenario(s.scenario), ...(s.planDate ? { planDate: s.planDate < today ? today : s.planDate } : {}) }, by))} />}
       </section>
 
       <section id="decisions" className="st-section" aria-label={L('المبادرات والقرارات', 'Initiatives and decisions')}>

@@ -193,6 +193,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   };
 
   async function doExport(kind, model) {
+    if (exporting) return;
     setExporting(kind);
     try { if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model); } finally { setExporting(''); }
   }
@@ -291,7 +292,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     <div className="sr-card__bar">
                       <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${model.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
                       {isLast && <div className="sr-card__actions">
-                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!!exporting || model.empty} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
+                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={model.empty} aria-disabled={!!exporting || undefined} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
                         <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>
                       </div>}
                     </div>

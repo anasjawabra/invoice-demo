@@ -85,7 +85,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
             <tr style={{ fontWeight: 700 }}><td>{L('الإجمالي', 'Total')}</td><td /><td dir="ltr">{scaled(res.scenario.net - res.baseline.net, unit)}</td><td dir="ltr">{scaled(res.deltaCollected, unit)}</td></tr>
           </tbody>
         </table></div>
-        <div className="muted" style={{ fontSize: 12 }}>{L(`المبالغ بوحدة: ${fmtMoney(0, { lang, unit }).replace('0 ', '')}.`, `Amounts in: ${fmtMoney(0, { lang, unit }).replace('0 ', '')}.`)} {res.nonCash.netReduction > 0 && L(`الحسم كاستبعاد يخفض الصافي بـ ${mAuto(res.nonCash.netReduction)} فيرفع النسبة ${res.nonCash.rateEffectPp?.toFixed(1)} نقطة حسابياً دون أي نقد.`, `Exclusions reduce net by ${mAuto(res.nonCash.netReduction)} and lift the rate by ${res.nonCash.rateEffectPp?.toFixed(1)} pp arithmetically with no cash.`)}</div>
+        <div className="muted" style={{ fontSize: 12 }}>{L('كل مبلغ مكتوب مع وحدته.', 'Every amount is written with its unit.')} {res.nonCash.netReduction > 0 && L(`الحسم كاستبعاد يخفض الصافي بـ ${mAuto(res.nonCash.netReduction)} فيرفع النسبة ${res.nonCash.rateEffectPp?.toFixed(1)} نقطة حسابياً دون أي نقد.`, `Exclusions reduce net by ${mAuto(res.nonCash.netReduction)} and lift the rate by ${res.nonCash.rateEffectPp?.toFixed(1)} pp arithmetically with no cash.`)}</div>
         {children}
         <details><summary>{L('الافتراضات والحدود', 'Assumptions and limits')}</summary>
           <ul className="res__list res__list--plain">

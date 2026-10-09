@@ -1,3 +1,4 @@
+import { trapTab } from '../utils/modalFocus';
 import React, { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -119,6 +120,7 @@ function LayoutInner() {
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
+  useEffect(() => { document.addEventListener('keydown', trapTab); return () => document.removeEventListener('keydown', trapTab); }, []);
 
   const org = user?.org || ORGS[0];
 
