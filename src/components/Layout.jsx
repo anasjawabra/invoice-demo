@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
@@ -142,8 +142,13 @@ function LayoutInner() {
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
+    if (p.startsWith('/investment-invoices')) return lang === 'ar' ? 'ربط العقود الاستثمارية' : lang === 'zh' ? '投资合同关联' : 'Investment contract linkage';
     return 'INTELLIBILL';
-  }, [loc.pathname, t]);
+  }, [loc.pathname, t, lang]);
+
+  // the browser tab names the page (history, bookmarks and screen readers announce it); the product name stays as set in index.html
+  const baseTitle = useMemo(() => document.title.split(' | ').pop(), []);
+  useEffect(() => { document.title = pageTitle && pageTitle !== 'INTELLIBILL' ? `${pageTitle} | ${baseTitle}` : baseTitle; }, [pageTitle, baseTitle]);
 
   return (
     <div className="app-shell">

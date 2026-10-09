@@ -330,7 +330,8 @@
 .rv-table td.num, .rv-table th.num { text-align: end; font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rv-table tr[data-clickable='true'] { cursor: pointer; }
 .rv-table tr[data-clickable='true']:hover { background: rgba(27, 131, 84, 0.05); }
-.rv-table a { color: var(--secondary); text-decoration: none; font-weight: 700; }
+.rv-table a:not(.btn) { color: var(--secondary); text-decoration: none; font-weight: 700; }
+.rv-table a.btn-primary { color: #fff; } /* a button that is a link keeps its button text colour (was blue on green = 1.15:1) */
 
 .rv-cat { display: inline-block; font-size: 11px; font-weight: 800; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line-strong); color: var(--txt-dim); background: var(--bg-0); white-space: nowrap; }
 .rv-cat--overdue { color: #C4514C; border-color: rgba(196, 81, 76, 0.4); background: rgba(196, 81, 76, 0.08); }
@@ -559,7 +560,7 @@
 .st-nav { position: sticky; top: 0; z-index: 8; display: flex; gap: 4px; flex-wrap: wrap; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(6px); padding: 6px 0; border-bottom: 1px solid var(--line); }
 .st-nav a { padding: 5px 12px; border-radius: 999px; font-size: 13px; color: var(--txt-dim); text-decoration: none; }
 .st-nav a:hover, .st-nav a:focus-visible { background: color-mix(in srgb, var(--primary) 12%, transparent); outline: none; }
-.st-section { display: grid; gap: 12px; scroll-margin-top: 54px; }
+.st-section { display: grid; gap: 12px; scroll-margin-top: 136px; /* clears the sticky header (ends ~123px) */ }
 .st-section__title { margin: 0; font-size: 19px; color: var(--heading); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .st-section__title small { font-size: 12px; font-weight: 500; color: var(--txt-mute); }
 .st-card { padding: 16px; display: grid; gap: 10px; }

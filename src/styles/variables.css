@@ -14,6 +14,7 @@
   --warning: #8c5f00;
   --danger: #C4514C;
   --danger-text: #B42318; /* DGA Error 700 — AA on light grounds for small text */
+  --focus-ring: #166A45; /* DGA SA 700: 7:1 on white */
   --low: #8a978f;        /* 4th neutral "no/low data" status */
 
   /* Text */
@@ -85,6 +86,7 @@
     --warning: #d1a53d;
     --danger: #e08a85;
     --danger-text: #F97066; /* DGA Error 400 — AA on dark grounds */
+    --focus-ring: #88D8AD; /* DGA SA 300 on dark grounds */
     --low: #6b7a72;
 
     --heading: #eaf6ef;
@@ -124,6 +126,7 @@
   --warning: #d1a53d;
   --danger: #e08a85;
   --danger-text: #F97066; /* DGA Error 400 — AA on dark grounds */
+  --focus-ring: #88D8AD; /* DGA SA 300 on dark grounds */
   --low: #6b7a72;
 
   --heading: #eaf6ef;

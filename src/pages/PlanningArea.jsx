@@ -2,7 +2,7 @@
 // funding → what-if scenarios → initiatives and decisions. The dashboard's figures are the BASELINE through shared calculations; only a compact
 // summary is shown here. Actuals, approved budgets, targets, forecasts and user scenarios are kept in separate places and never mixed.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useAsync } from '../utils/useAsync';
 import { useAuth } from '../context/AuthContext';
@@ -122,6 +122,9 @@ export default function PlanningArea() {
     setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); document.getElementById('decisions')?.scrollIntoView({ behavior: 'smooth' });
   };
   const applyPlanScope = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); };
+  // deep links such as /planning#outlook land on their section once the page has content (the sections are not in the DOM before that)
+  const hash = useLocation().hash;
+  useEffect(() => { if (hash && rev.ready && plan) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hash, rev.ready, !!plan, !!x]); // eslint-disable-line react-hooks/exhaustive-deps -- re-run once the async blocks above the section have taken their height
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
   if (!rev.ready || !plan) return <div className="st-page" role="status"><Skeleton height={80} /><Skeleton height={220} /></div>;

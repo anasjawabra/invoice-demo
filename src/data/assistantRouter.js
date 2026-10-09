@@ -18,6 +18,8 @@ const MONTH_RES = [
 ];
 const AR_MONTHS = { 'يناير': 1, 'فبراير': 2, 'مارس': 3, 'أبريل': 4, 'ابريل': 4, 'مايو': 5, 'يونيو': 6, 'يوليو': 7, 'أغسطس': 8, 'سبتمبر': 9, 'أكتوبر': 10, 'نوفمبر': 11, 'ديسمبر': 12 };
 
+// Arabic spelling variants folded to one form (used wherever free text is matched)
+export const normAr = (t) => String(t || '').toLowerCase().replace(/[\u064B-\u0670]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ـ/g, '').replace(/\s+/g, ' ').trim();
 const lastDay = (y, m) => new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
 
 // Periods are relative to the REAL date (Asia/Riyadh) passed in as `cutoff`: "this month" = month start → today,
@@ -25,7 +27,7 @@ const lastDay = (y, m) => new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10)
 // A quarter / month that has not started yet (nothing to report) is returned as { notStarted: true, from, label } only when the caller asks
 // for it (`reportFuture`), so it can tell the user; every other caller gets null instead of a reversed range (D-04).
 export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false } = {}) {
-  const s = text.toLowerCase();
+  const s = normAr(text); // hamza / ta-marbuta / alef-maqsura folded, so «للشهر الماضي» and «الشهر الماضي» are read alike
   const year = Number(cutoff.slice(0, 4));
   const curMonth = Number(cutoff.slice(5, 7));
   const explicitYear = (s.match(/\b(20\d{2})\b/) || [])[1];
@@ -36,18 +38,19 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
     if (from > cutoff) return reportFuture ? { from, to, label: `m${m}`, notStarted: true } : null;
     return { from, to: to > cutoff ? cutoff : to, label: `m${m}`, yearAssumed: !explicitYear };
   };
-  if (/this month|current month|month to date|mtd|هذا الشهر|الشهر الحالي|الشهر الجاري/.test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
-  if (/last month|previous month|latest month|الشهر الأخير|الشهر الماضي|الشهر السابق/.test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
-  if (/last 3 months|three months|آخر 3 أشهر|آخر ثلاثة أشهر/.test(s)) return { from: startOfMonth(addDaysIso(startOfMonth(cutoff), -62)), to: cutoff, label: 'last3' };
-  if (/year to date|ytd|fiscal year|this year|current year|السنة المالية|هذا العام|هذه السنة|السنة الحالية|العام الحالي/.test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
+  const AL = '(?:ال|لل|ل|بال|ب)?'; // the article / preposition prefixes Arabic glues onto a noun
+  if (new RegExp(`this month|current month|month to date|\\bmtd\\b|هذا ${AL}شهر|${AL}شهر (?:ال)?(?:حالي|جاري)|الشهر الحالي|الشهر الجاري`).test(s)) return { from: startOfMonth(cutoff), to: cutoff, label: 'month' };
+  if (new RegExp(`last month|previous month|latest month|${AL}شهر (?:ال)?(?:ماضي|سابق|اخير)`).test(s)) { const e = prevMonthEnd(cutoff); return { from: startOfMonth(e), to: e, label: 'lastMonth' }; }
+  if (/last 3 months|three months|اخر 3 اشهر|اخر ثلاثه اشهر/.test(s)) return { from: startOfMonth(addDaysIso(startOfMonth(cutoff), -62)), to: cutoff, label: 'last3' };
+  if (new RegExp(`year to date|ytd|fiscal year|this year|current year|السنه الماليه|هذا العام|هذه السنه|${AL}سنه (?:ال)?حاليه|${AL}عام (?:ال)?حالي`).test(s)) return { from: startOfYear(cutoff), to: cutoff, label: 'ytd' };
   for (const [m, re] of MONTH_RES) if (re.test(s)) return monthRange(m);
-  for (const [k, m] of Object.entries(AR_MONTHS)) if (text.includes(k)) return monthRange(m);
+  for (const [k, m] of Object.entries(AR_MONTHS)) if (s.includes(normAr(k))) return monthRange(m);
   const q = (n) => {
     const m0 = (n - 1) * 3 + 1; const y = explicitYear ? Number(explicitYear) : year; const to = lastDay(y, m0 + 2); const from = `${y}-${String(m0).padStart(2, '0')}-01`;
     if (from > cutoff) return reportFuture ? { from, to, label: `q${n}`, notStarted: true } : null; // the quarter has not started: no reversed range
     return { from, to: to > cutoff ? cutoff : to, label: `q${n}` };
   };
-  if (/q1|first quarter|(?:ال|لل|ل)?ربع (?:ال)?[أا]ول/.test(s)) return q(1);
+  if (/q1|first quarter|(?:ال|لل|ل)?ربع (?:ال)?اول/.test(s)) return q(1);
   if (/q2|second quarter|(?:ال|لل|ل)?ربع (?:ال)?ثاني/.test(s)) return q(2);
   if (/q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/.test(s)) return q(3);
   if (/q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/.test(s)) return q(4);
@@ -74,7 +77,7 @@ export function parseSource(text) {
   if (/tobacco|التبغ/.test(s)) return 'tobacco';
   if (/accommodation|إيواء|الايواء|الإيواء/.test(s)) return 'accommodation';
   if (/housing|إسكان|الاسكان|مبيعات سكن/.test(s)) return 'housing_sales';
-  if (/municipal fee|baladi|بلدي|رسوم بلدية/.test(s)) return 'municipal_fees';
+  if (/municipal fees?|baladi|رسوم (?:ال)?بلديه|رسوم (?:ال)?بلديه|(?:^|\s)بلدي(?:\s|$)/.test(normAr(text))) return 'municipal_fees'; // not «بلديات / بلدية» (municipalities)
   if (/licen[cs]e|ترخيص|رخص/.test(s)) return 'licenses';
   return null;
 }

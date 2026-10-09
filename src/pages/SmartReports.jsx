@@ -72,7 +72,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   );
 }
 
-export default function SmartReports({ embedded = false, initialQuery = null }) {
+export default function SmartReports({ embedded = false, initialQuery = null, onQueryConsumed = null }) {
   const rev = useRevenue();
   const { lang, ar } = useL();
   const L = useCallback((a, e) => (ar ? a : e), [ar]); // Arabic first, English second (the shared useL().L is English first)
@@ -96,7 +96,9 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
   const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
 
   useEffect(() => { saveConvs(convs); }, [convs]);
-  useEffect(() => { endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [conv?.messages.length, busy?.step]);
+  // follow the conversation only when it GROWS while it is open (never on arrival or when reopening — F-16a)
+  const seenLen = useRef({ id: null, n: 0 });
+  useEffect(() => { const n = conv?.messages.length || 0; const grew = seenLen.current.id === conv?.id && n > seenLen.current.n; seenLen.current = { id: conv?.id, n }; if (grew) endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [conv?.id, conv?.messages.length]);
   useEffect(() => { const el = taRef.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 180)}px`; } }, [input]);
 
   const patchConv = useCallback((id, fn) => setConvs((cs) => cs.map((c) => (c.id === id ? fn(c) : c))), []);
@@ -153,10 +155,10 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
   }, [conv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- sending ---------------- */
-  const send = useCallback((text, override = null) => {
+  const send = useCallback((text, override = null, { fresh = false } = {}) => {
     const q = (text || '').trim();
     if (!q || busy) return;
-    let c = conv;
+    let c = fresh ? null : conv; // a request that arrives through a link starts its own conversation
     if (!c) { c = { id: uid(), title: q.slice(0, 48), createdAt: Date.now(), updatedAt: Date.now(), spec: sharedSpec, messages: [] }; }
     const userMsg = { id: uid(), role: 'user', text: q };
     const res = override ? { kind: 'report', spec: override.spec, changes: override.changes || [] } : interpret(q, c.messages.some((m) => m.spec) ? c.spec : null, today, { base: sharedSpec });
@@ -198,7 +200,8 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
   useEffect(() => {
     if (deepRef.current) return; deepRef.current = true;
     const sp = new URLSearchParams(window.location.search); const r = sp.get('r'); const q = sp.get('q');
-    if (q) send(q); else if (initialQuery) send(initialQuery);
+    const link = q || initialQuery;
+    if (link) { send(link, null, { fresh: true }); onQueryConsumed?.(); } // consumed once: reloading the page does not send it again (F-16b)
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(input); } };
@@ -269,7 +272,7 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
               <div className="sr-ai">
                 {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{m.options.map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
                 {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{L('لم أستطع تحويل هذا الطلب إلى تقرير.', 'I could not turn this request into a report.')}</b><div>{L('أفهم طلبات محددة بقواعد وليس نصاً حراً. جرّب أحد الاقتراحات أو أعد صياغة الطلب:', 'I understand a defined set of requests, not free text. Try a suggestion or rephrase:')}</div><ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].slice(0, 5).map((h, i) => <li key={i}>{h}</li>)}</ul><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind !== 'unsupported' && (
+                {m.kind !== 'unsupported' && m.kind !== 'clarify' && (
                   <div className="sr-bubble sr-bubble--ai">
                     {m.kind === 'question' ? L('إجابة محسوبة من البيانات (وليست من نموذج لغوي):', 'Answer computed from the data (not from a language model):') : L('أعددتُ التقرير من بيانات النظام.', 'I prepared the report from the system data.')}
                     {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}<small className="muted">{L('وأبقيتُ بقية المرشحات كما هي.', 'All other filters were kept.')}</small></div>}

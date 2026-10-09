@@ -41,7 +41,7 @@ export default function InsightsHub() {
         {!rev.ready ? <div role="status"><Skeleton height={220} /></div>
           : view === 'dashboard' ? <InsightsDashboard />
             : view === 'reports' ? <FixedReports reportKey={report} setReport={(k) => go('reports', { report: k })} />
-              : <SmartReports embedded initialQuery={initialQuery} />}
+              : <SmartReports embedded initialQuery={initialQuery} onQueryConsumed={() => { const n = new URLSearchParams(sp); n.delete('q'); setSp(n, { replace: true }); }} />}
       </div>
     </div>
   );
