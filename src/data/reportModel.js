@@ -7,7 +7,7 @@
 // and Excel also gets the exact SAR. Charts hold SAR series and use one unit per chart.
 // ============================================================================
 import { isSingleMonth } from './clock';
-import { PRESETS } from './periodPresets';
+import { PRESETS, detectPreset } from './periodPresets';
 import { buildSmartReport } from './smartReport';
 import { buildInsights, sourceAr, sourceEn } from './insightsEngine';
 import { fairComparison } from './strategicCalc';
@@ -15,6 +15,7 @@ import { CATEGORY_LABELS, EXCLUSION_RULES, compareSnapshots } from './revenueMet
 import { fmtMoney, unitOfValues, unitLabel, scaled, fmtInt } from '../utils/money';
 import { budgetExecution, operatingCoverage, FINANCE_STATUS } from './syntheticFinance';
 import { BRIDGE_LABELS } from './bridgeLabels';
+import { amanahOptionsOf } from './revenueLedger';
 
 export const SECTION_ORDER = ['executive', 'trends', 'amanah', 'sources', 'aging', 'exclusions', 'gaps', 'status', 'budget', 'quality', 'bases', 'channels'];
 export const SECTION_META = {
@@ -45,8 +46,8 @@ export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah
   const asOf = snapshot?.basis?.collectionsAsOf || snapshot?.cutoff;
   const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('محصّلة جزئياً', 'Partial'), not_due: L('لم يحن استحقاقها', 'Not yet due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'] || sc.status;
   const chips = [
-    { k: 'period', label: L('الفترة', 'Period'), value: `${sc.from} → ${sc.to}${spec.preset && PRESET_LABEL[spec.preset] ? ` (${PRESET_LABEL[spec.preset][ar ? 0 : 1]})` : ''}` },
-    { k: 'amanah', label: L('الأمانة', 'Amanah'), value: sc.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : labelOfAmanah(sc.amanah) },
+    { k: 'period', label: L('الفترة', 'Period'), value: `${sc.from} → ${sc.to}${(() => { const pk = detectPreset(sc.from, sc.to, snapshot?.cutoff || sc.to); return pk && PRESET_LABEL[pk] ? ` (${PRESET_LABEL[pk][ar ? 0 : 1]})` : ''; })()}` },
+    { k: 'amanah', label: L('الأمانة', 'Amanah'), value: sc.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join(L('، ', ', ')) },
     { k: 'muni', label: L('البلدية', 'Municipality'), value: sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : labelOfMuni(sc.muni) },
     { k: 'source', label: L('مصدر الإيراد', 'Revenue source'), value: src },
     { k: 'status', label: L('حالة الفاتورة', 'Invoice status'), value: st },
@@ -62,7 +63,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const B = (o) => (o == null ? '' : typeof o === 'string' ? o : (ar ? o.ar : o.en) || o.en || '');
   const snapshot = out.snapshot; const T = snapshot.totals; const comparable = !!prev && prev.totals.count > 0;
   const comparison = comparable ? compareSnapshots(snapshot, prev) : null;
-  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || k;
+  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || (() => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; })(); // never a raw key (an Amanah with no invoices in the selection still has a name)
   const labelOfMuni = (k) => { const m = snapshot.byMunicipality.find((x) => x.municipality?.key === k)?.municipality; return m ? (ar ? m.ar : m.en) : String(k).split('|').pop(); };
   const chips = contextChips(spec, { lang, snapshot, snapshotMeta: meta, labelOfAmanah, labelOfMuni, prevScope, compare });
   const insightsRes = buildInsights({ snapshot, prev: comparable ? prev : null, comparison, forecast: out.forecast, targets });

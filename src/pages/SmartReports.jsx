@@ -20,7 +20,7 @@ import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import LocalDataPanel from '../components/LocalDataPanel';
-import { PRESETS } from '../data/periodPresets';
+import { PRESETS, detectPreset } from '../data/periodPresets';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -47,8 +47,8 @@ const STEPS = { scope: ['أحدد النطاق والمرشحات', 'Setting the
 
 function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   const sp = spec || defaultSpec(today); const sc = sp.scope;
-  const [d, setD] = useState({ from: sc.from, to: sc.to, amanah: Array.isArray(sc.amanah) ? 'all' : sc.amanah, muni: sc.muni, source: sc.source, status: sc.status || 'all', scopeType: sc.scopeType || 'all', compare: sp.compare });
-  const munis = d.amanah !== 'all' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
+  const [d, setD] = useState({ from: sc.from, to: sc.to, amanah: Array.isArray(sc.amanah) ? '__multi' : sc.amanah, muni: sc.muni, source: sc.source, status: sc.status || 'all', scopeType: sc.scopeType || 'all', compare: sp.compare });
+  const munis = d.amanah !== 'all' && d.amanah !== '__multi' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
   const [badRange, setBadRange] = useState(false); const [rk, setRk] = useState(0);
   const preset = (from, to) => { setBadRange(false); setRk((n) => n + 1); setD((x) => ({ ...x, from, to })); };
   const ams = amanahOptionsOf();
@@ -61,7 +61,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
       </div>
       <div className="sr-filters__row">
         <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة', 'Amanah')}</label>
-        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات', 'All Amanahs')}</option>{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
+        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : x.en) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
         {munis.length > 0 && <><label className="rv-scope__lbl" htmlFor="sr-mu">{L('البلدية', 'Municipality')}</label><select id="sr-mu" className="select" value={d.muni} onChange={(e) => setD({ ...d, muni: e.target.value })}><option value="all">{L('كل البلديات', 'All municipalities')}</option>{munis.map((m) => <option key={m.key} value={m.key}>{ar ? m.ar : m.en}</option>)}</select></>}
         <label className="rv-scope__lbl" htmlFor="sr-src">{L('المصدر', 'Source')}</label>
         <select id="sr-src" className="select" value={d.source} onChange={(e) => setD({ ...d, source: e.target.value })}><option value="all">{L('كل المصادر', 'All sources')}</option>{REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{sourceName(k)}</option>)}</select>
@@ -74,7 +74,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
         <label className="rv-scope__lbl" htmlFor="sr-cm">{L('المقارنة', 'Comparison')}</label>
         <select id="sr-cm" className="select" value={d.compare} onChange={(e) => setD({ ...d, compare: e.target.value })}><option value="none">{L('بدون', 'None')}</option><option value="prev_year">{L('نفس الفترة من العام السابق', 'Same period last year')}</option><option value="prev_month">{L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)')}</option></select>
       </div>
-      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
+      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah === '__multi' ? sc.amanah : d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
     </div>
   );
 }
@@ -82,7 +82,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
 // «How I understood your request»: the six things that decide what the report says, each tagged with where it came from.
 // It states what WAS applied (never that the request was applied in full); the latest report can be edited with the filter panel.
 const FIELD_GROUPS = [['period', ['period']], ['amanah', ['amanah', 'muni']], ['source', ['source']], ['status', ['status', 'st']], ['cmp', ['cmp']], ['basis', ['basis']]];
-function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel }) {
+function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel, pending = false }) {
   const by = Object.fromEntries(chips.map((c) => [c.k, c]));
   const changed = new Set(msg.changeKeys || []); const keyOf = { period: ['period'], amanah: ['amanah', 'muni'], source: ['source'], status: ['status', 'scopeType'], cmp: ['compare'], basis: [] };
   const rows = [
@@ -98,7 +98,7 @@ function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel
     <div className="sr-interp" role="group" aria-label={L('كيف فهمتُ طلبك', 'How I read your request')}>
       <div className="sr-interp__head"><b>{L('كيف فهمتُ طلبك', 'How I read your request')}</b>{editable && <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!editing} onClick={onEdit}>{editing ? L('إغلاق التعديل', 'Close editing') : L('تعديل', 'Edit')}</button>}</div>
       <dl className="sr-interp__grid">{rows.map(([k, v, g]) => <div key={g} className="sr-interp__item"><dt>{k}</dt><dd><bdi>{v}</bdi>{tag(g) && <small className={`sr-interp__tag${keyOf[g].some((x) => changed.has(x)) ? ' is-req' : ''}`}>{tag(g)}</small>}</dd></div>)}</dl>
-      <div className="muted sr-interp__note">{L('هذا ما طُبّق على التقرير. إن لم يطابق ما قصدته فعدّله هنا أو أعد صياغة الطلب؛ وما لا أستطيع تطبيقه أسألك عنه قبل الإعداد.', 'This is what was applied to the report. If it is not what you meant, edit it here or rephrase; anything I cannot apply I ask about before generating.')}</div>
+      <div className="muted sr-interp__note">{pending ? L('هذا ما سأطبّقه إن أكّدت. عدّله إن لم يطابق ما قصدته.', 'This is what I will apply if you confirm. Edit it if it is not what you meant.') : L('هذا ما طُبّق على التقرير. إن لم يطابق ما قصدته فعدّله هنا أو أعد صياغة الطلب؛ وما لا أستطيع تطبيقه أسألك عنه قبل الإعداد.', 'This is what was applied to the report. If it is not what you meant, edit it here or rephrase; anything I cannot apply I ask about before generating.')}</div>
       {editing && panel}
     </div>
   );
@@ -116,7 +116,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const [showFilters, setShowFilters] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false); const [editPendingId, setEditPendingId] = useState(null);
   const [exporting, setExporting] = useState('');
   const [models, setModels] = useState({}); // msgId -> model (in memory; regenerated from the spec when a stored conversation is reopened)
   const [collapsed, setCollapsed] = useState({});
@@ -153,7 +153,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     token.taskId = task.id;
     const final = await task.promise;
     step('compare');
-    if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw new Error('analysis_failed'); }
+    if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw Object.assign(new Error('analysis_failed'), { status: final.status, reason: final.error || final.errors || final.message || null }); }
     const out = { ...final.out, snapshot: await measure(rev.data, scope, rev.cfg) };
     const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status };
     const [prev, cash, bridge] = await Promise.all([
@@ -180,6 +180,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       patchConv(convId, (c) => { const t = c.titleSource !== 'user' && firstId(c) === msgId ? nameOf() : c.title; return c.messages.some((m) => m.id === msgId && m.status === 'done' && m.title === model.title) && t === c.title ? c : { ...c, title: t, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title } : m)) }; });
     } catch (e) {
       const stopped = token.cancelled || e.stopped;
+      if (!stopped) console.error('[smart-reports] the report could not be prepared:', e);
       patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: stopped ? 'stopped' : 'error' } : m)) }));
     } finally { setBusy((b) => (b && b.msgId === msgId ? null : b)); }
   }, [generate, patchConv, labelOfAmanah, ar]);
@@ -206,23 +207,32 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     let aMsg;
     if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', question: res.question || null, status: 'done' };
     else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
+    else if (res.confirm?.length && !override) aMsg = { id: asId, role: 'assistant', kind: 'confirm', status: 'pending', confirm: res.confirm, pending: { kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec) } };
     else aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working' };
-    const next = { ...c, title: c.messages.length ? c.title : q.slice(0, 48), updatedAt: Date.now(), spec: aMsg.spec || c.spec, messages: [...c.messages, userMsg, aMsg] };
+    const next = { ...c, title: c.messages.length ? c.title : q.slice(0, 48), updatedAt: Date.now(), spec: aMsg.spec || c.spec, messages: [...c.messages.map((m) => (m.kind === 'confirm' && m.status === 'pending' ? { ...m, status: 'superseded' } : m)), userMsg, aMsg] };
     setConvs((cs) => (cs.some((x) => x.id === c.id) ? cs.map((x) => (x.id === c.id ? next : x)) : [next, ...cs]));
     setActiveId(c.id); setInput(''); writeDraft(c.id, ''); writeDraft(draftFor.current, '');
     if (aMsg.spec) run(c.id, asId, aMsg.spec);
   }, [busy, conv, today, lang, labelOfAmanah, run, sharedSpec]);
 
+  // the demo asks the user to confirm the interpreted scope in the risky categories BEFORE anything is generated
+  const confirmPending = (msg) => {
+    const pd = msg.pending; if (busy || !pd) return;
+    patchConv(conv.id, (c) => ({ ...c, spec: pd.spec, updatedAt: Date.now(), messages: c.messages.map((m) => (m.id === msg.id ? { id: m.id, role: 'assistant', kind: pd.kind, spec: pd.spec, changes: pd.changes, changeKeys: pd.changeKeys, firstReport: pd.firstReport, confirmedByUser: true, status: 'working' } : m)) }));
+    run(conv.id, msg.id, pd.spec);
+  };
+  const cancelPending = (msg) => patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'cancelled' } : m)) }));
   const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec); };
   const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); taRef.current?.focus(); };
   const [renaming, setRenaming] = useState(null); // { id, text }
   const renameConv = (id, text) => { const t = text.trim().slice(0, 80); if (t) patchConv(id, (c) => ({ ...c, title: t, titleSource: 'user' })); setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${id}`)?.focus(), 0); };
   const removeConv = (id) => { setConvs((cs) => cs.filter((c) => c.id !== id)); if (id === activeId) setActiveId(null); };
 
-  const applyFilters = (patch) => {
+  const applyFilters = (patch, baseSpec = null) => {
     setShowFilters(false);
-    const base = spec ? JSON.parse(JSON.stringify(spec)) : JSON.parse(JSON.stringify(sharedSpec));
+    const base = baseSpec ? JSON.parse(JSON.stringify(baseSpec)) : spec ? JSON.parse(JSON.stringify(spec)) : JSON.parse(JSON.stringify(sharedSpec));
     const next = { ...base, ...patch, scope: { ...base.scope, ...(patch.scope || {}) } };
+    next.preset = detectPreset(next.scope.from, next.scope.to, today); // the label of the period follows the dates that were actually chosen
     const changes = [];
     for (const k of ['from', 'to']) if (patch.scope && patch.scope[k] && patch.scope[k] !== base.scope[k]) { if (!changes.some((x) => x.key === 'period')) changes.push({ key: 'period', value: `${next.scope.from} → ${next.scope.to}` }); }
     for (const k of ['amanah', 'muni', 'source', 'status', 'scopeType']) if (patch.scope && JSON.stringify(patch.scope[k]) !== undefined && JSON.stringify(patch.scope[k]) !== JSON.stringify(base.scope[k])) changes.push({ key: k, value: patch.scope[k] });
@@ -326,7 +336,17 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
               <div className="sr-ai">
                 {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
                 {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')}</b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind !== 'unsupported' && m.kind !== 'clarify' && (
+                {m.kind === 'confirm' && (
+                  <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
+                    <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
+                    <div className="muted" style={{ fontSize: 13 }}>{L('يستدعي التأكيد: ', 'Needs confirmation: ')}{m.confirm.map((c) => (ar ? c.ar : c.en)).join(L('؛ ', '; '))}.</div>
+                    <InterpretationSummary pending msg={{ changeKeys: m.pending.changeKeys, firstReport: m.pending.firstReport }} chips={specChips(m.pending.spec)} L={L} editable={m.status === 'pending' && !busy} editing={m.status === 'pending' && editPendingId === m.id} onEdit={() => setEditPendingId((v) => (v === m.id ? null : m.id))} panel={<FilterPanel key={`${m.id}${JSON.stringify(m.pending.spec.scope)}`} spec={m.pending.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditPendingId(null); applyFilters(p, m.pending.spec); }} />} />
+                    {m.status === 'pending' && <div className="sr-suggest sr-suggest--inline"><button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => confirmPending(m)}>{L('تأكيد وإعداد التقرير', 'Confirm and build the report')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => cancelPending(m)}>{L('إلغاء', 'Cancel')}</button></div>}
+                    {m.status === 'cancelled' && <div className="muted">{L('أُلغي الطلب ولم يُعدّ تقرير.', 'Cancelled — no report was built.')}</div>}
+                    {m.status === 'superseded' && <div className="muted">{L('حلّ محلّه طلب أحدث.', 'Replaced by a newer request.')}</div>}
+                  </div>
+                )}
+                {m.kind !== 'unsupported' && m.kind !== 'clarify' && m.kind !== 'confirm' && (
                   <div className="sr-bubble sr-bubble--ai">
                     {m.kind === 'question' ? L('الإجابة:', 'Answer:') : (m.changes?.length > 0 ? L('فهمتُ الطلب:', 'Understood:') : L('التقرير بالنطاق الحالي.', 'Report for the current scope.'))}
                     {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}</div>}

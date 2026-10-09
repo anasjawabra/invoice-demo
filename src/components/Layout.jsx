@@ -230,6 +230,7 @@ function LayoutInner() {
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
+                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
                 onClick={() => {
                   setLang('zh');
                   toast.info(t('switched_zh'));
@@ -361,7 +362,8 @@ function LayoutInner() {
         </nav>
 
         <section className="content" id="main-content" tabIndex={-1}>
-          <Outlet />
+          {lang === 'zh' && <div className="rv-callout" role="note" data-testid="zh-notice"><span lang="zh-CN">中文翻译不完整：当前大部分页面、导航和报告尚未翻译，以英文显示（仅部分旧版文本为中文）。</span> <span lang="en">The Chinese translation is incomplete: most current pages, navigation and reports are not translated and are shown in English (only some legacy text is Chinese). Arabic and English are the fully authored languages.</span></div>}
+          <div lang={lang === 'zh' ? 'en' : undefined}><Outlet /></div>
         </section>
         <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data · dates and times are Asia/Riyadh'}</footer>
 

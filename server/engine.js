@@ -164,7 +164,7 @@ export function derive(ctx, i, asOfN) {
 export function resolveScope(ctx, scope = {}) {
   const st = ctx.st; const cfg = ctx.cfg;
   const toS = scope.to || cfg.cutoff; const fromS = scope.from || `${cfg.cutoff.slice(0, 4)}-01-01`;
-  const out = { owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? 'all', muni: scope.muni ?? 'all', item: scope.item ?? 'all' };
+  const out = { owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? 'all', muni: scope.muni ?? 'all', item: scope.item ?? 'all', issuedFromN: scope.issuedFrom ? dayNum(scope.issuedFrom) : null, issuedToN: scope.issuedTo ? dayNum(scope.issuedTo) : null };
   const orgKeys = scope.org?.amanahKeys || scope.orgKeys || null;
   const am = scope.amanah ?? 'all';
   const amSet = am === 'all' ? null : new Set([].concat(am));
@@ -380,6 +380,7 @@ export function series(st, req) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i)) continue;
     const iss = st.issue[i];
     if (iss >= sc.fromN && iss <= sc.toN) { const k = idx.get(isoOf(iss).slice(0, 7)); if (k !== undefined) { billed[k] += st.gross[i]; count[k] += 1; } }
+    if (sc.issuedFromN != null && (iss < sc.issuedFromN || iss > (sc.issuedToN ?? iss))) continue; // optional: only payments on invoices ISSUED in this window (used by the Planning reconciliation of bases)
     const pc = st.payCount[i]; if (!pc) continue;
     const ps = st.payStart[i];
     let hasReason = -1;
@@ -415,6 +416,7 @@ export function bridge(st, req) {
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i)) continue;
     derive(ctx, i, ctx.cutoffN);
+    if (sc.statusSet && !sc.statusSet[D.cls]) continue; // the invoice-status filter applies to the bridge exactly as it does to the standing balance (it used to be ignored, so a status-filtered report could not reconcile)
     if (st.scope[i] !== 0) { if (D.outstanding > 0) { internal += D.outstanding; internalCount += 1; } continue; }
     const iss = st.issue[i];
     let inReport = false; let rem0 = 0;

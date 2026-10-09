@@ -613,3 +613,7 @@
 .sr-interp__tag { margin-inline-start: 6px; font-weight: 400; font-size: 11px; color: var(--txt-mute); }
 .sr-interp__tag.is-req { color: var(--primary); font-weight: 600; }
 .sr-interp__note { font-size: 12px; }
+
+/* Planning: the reconciliation bridge wraps its long row labels instead of running off the card */
+#bases .bridge th, #bases .bridge td { white-space: normal; }
+#bases .bridge td { min-width: 96px; }

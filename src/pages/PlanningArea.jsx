@@ -10,6 +10,7 @@ import { useAr } from '../utils/useAr';
 import { fmtMoney, fmtInt, unitOfValues, scaled } from '../utils/money';
 import ScenarioPanel from '../components/strategic/ScenarioPanel';
 import NamedScenarios from '../components/strategic/NamedScenarios';
+import BasesReconciliation from '../components/strategic/BasesReconciliation';
 import { cleanScenario } from '../data/namedScenarios';
 import ActionRegister from '../components/strategic/ActionRegister';
 import AssistantPanel from '../components/strategic/AssistantPanel';
@@ -85,6 +86,14 @@ export default function PlanningArea() {
     const forecast = await forecastReceipts(data, scopeBase, cfg, { targets });
     return { fyFull, achievement, forecast };
   }, [data, JSON.stringify(scopeBase), s.to, cfg, targets, retry]);
+  // F-23: receipts by payment date vs collected on the plan period's invoices — the same payment window, split by the invoice's issue date (exact when the plan period is inside the fiscal year)
+  const REC = useAsync(async () => {
+    const fyFrom = `${fy}-01-01`; const through = s.to < today ? s.to : today;
+    if (!(plan.period.from >= fyFrom && plan.period.to <= `${fy}-12-31`)) return { key: sKey, available: false };
+    const w = { ...scopeBase, from: fyFrom, to: through }; const sum = (r) => r.values.reduce((t, v) => t + v, 0);
+    const [all, onPeriod] = await Promise.all([data.series(w, { asOf: through }), data.series({ ...w, issuedFrom: s.from, issuedTo: s.to }, { asOf: through })]);
+    return { key: sKey, available: true, receiptsWindow: sum(all), onPeriodInvoices: sum(onPeriod) };
+  }, [data, sKey, fy, JSON.stringify(plan.period), cfg, retry]);
   const x = X.data; const ach = x?.achievement; const achAvail = !!ach && !ach.scopeCaveat && ach.annualTarget != null;
 
   const scopeText = snapshot ? `${snapshot.scope.from} → ${snapshot.scope.to}` : '';
@@ -193,6 +202,8 @@ export default function PlanningArea() {
           <span>{L('صافي المفوتر', 'Net billed')} <b dir="ltr">{kp(T.net)}</b></span><span>{L('المحصّل', 'Collected')} <b dir="ltr">{kp(T.collected)}</b></span><span>{L('غير المحصّل', 'Uncollected')} <b dir="ltr">{kp(T.outstanding)}</b></span><span>{L('نسبة التحصيل', 'Rate')} <b dir="ltr">{pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'n/a'))}</b></span>
           <Link to="/insights">{L('لوحة المعلومات', 'Dashboard')}</Link></div>
       </div>
+
+      {snapshot && T.count > 0 && <BasesReconciliation plan={plan} scopeLabel={scopeLabel} s={s} today={today} fy={fy} snapshot={snapshot} receipts={x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null} rec={REC.data && REC.data.key === sKey ? REC.data : null} funding={funding} scenRes={scenRes} scenarioOn={scenarioOn} cov={cov} />}
 
       <section id="objectives" className="st-section" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
         <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('المستهدفات الحالية تجريبية وغير معتمدة.', 'The current targets are demo inputs and are not approved.')}</small></h2>

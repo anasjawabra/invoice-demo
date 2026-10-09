@@ -35,10 +35,11 @@ export function classifyOutcome(c, res) {
   const gotAsk = safeKinds.includes(res.r?.kind);
   if (res.ok) return wantsAsk || (gotAsk && wanted.some((k) => safeKinds.includes(k))) ? 'appropriate_clarification' : 'correct_interpretation';
   if (gotAsk) return wantsAsk ? 'appropriate_clarification' : 'over_clarification';
+  if (res.r?.confirm?.length) return 'caught_by_confirmation'; // a wrong or doubtful scope that the demo shows to the user for confirmation before generating
   return 'unsafe_silent_misread';
 }
 export function summarize(items) {
-  const out = { correct_interpretation: 0, appropriate_clarification: 0, over_clarification: 0, unsafe_silent_misread: 0 };
+  const out = { correct_interpretation: 0, appropriate_clarification: 0, over_clarification: 0, caught_by_confirmation: 0, unsafe_silent_misread: 0 };
   items.forEach((x) => { out[classifyOutcome(x.c, x)] += 1; });
   return out;
 }

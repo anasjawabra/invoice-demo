@@ -2861,7 +2861,7 @@ function resolveScope(ctx, scope = {}) {
   const cfg = ctx.cfg;
   const toS = scope.to || cfg.cutoff;
   const fromS = scope.from || `${cfg.cutoff.slice(0, 4)}-01-01`;
-  const out = { owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? "all", muni: scope.muni ?? "all", item: scope.item ?? "all" };
+  const out = { owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? "all", muni: scope.muni ?? "all", item: scope.item ?? "all", issuedFromN: scope.issuedFrom ? dayNum(scope.issuedFrom) : null, issuedToN: scope.issuedTo ? dayNum(scope.issuedTo) : null };
   const orgKeys = scope.org?.amanahKeys || scope.orgKeys || null;
   const am = scope.amanah ?? "all";
   const amSet = am === "all" ? null : new Set([].concat(am));
@@ -3291,6 +3291,7 @@ function series(st, req) {
         count[k] += 1;
       }
     }
+    if (sc.issuedFromN != null && (iss < sc.issuedFromN || iss > (sc.issuedToN ?? iss))) continue;
     const pc = st.payCount[i];
     if (!pc) continue;
     const ps = st.payStart[i];
@@ -3356,6 +3357,7 @@ function bridge(st, req) {
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i)) continue;
     derive(ctx, i, ctx.cutoffN);
+    if (sc.statusSet && !sc.statusSet[D.cls]) continue;
     if (st.scope[i] !== 0) {
       if (D.outstanding > 0) {
         internal += D.outstanding;

@@ -738,12 +738,12 @@ await test('EQ10: backup/export/import of the browser-local records — validate
   const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
-await test('interpreter corpus: 162 representative + 47 blind + 65 held-out + 72 held-out-2 + 64 held-out-3 + 64 held-out-4 + 63 held-out-5 (all tuned after their recorded first runs) Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
+await test('interpreter corpus: 162 representative + 47 blind + 65 held-out + 72 held-out-2 + 64 held-out-3 + 64 held-out-4 + 63 held-out-5 + 42 held-out-6 (all tuned after their recorded first runs) Arabic / English phrases (regression guard; the first-run scores are in the register) — correct reading or an appropriate clarification / refusal', async () => {
   const { runCorpus, evaluate } = await import('./interpreter-eval.mjs'); const { BLIND } = await import('./interpreter-corpus-blind.mjs'); const { VERIFIED_IDS } = await import('./interpreter-corpus.mjs');
   const { HELDOUT } = await import('./interpreter-corpus-heldout.mjs'); const held = HELDOUT.map((c) => ({ c, ...evaluate(c) }));
   const { HELDOUT2 } = await import('./interpreter-corpus-heldout2.mjs'); const held2 = HELDOUT2.map((c) => ({ c, ...evaluate(c) })); // regression ONLY: tuned against after its recorded first run (docs/interpreter-heldout2-first-run.txt)
   const { HELDOUT3 } = await import('./interpreter-corpus-heldout3.mjs'); const held3 = HELDOUT3.map((c) => ({ c, ...evaluate(c) })); // regression ONLY after its recorded first run (docs/interpreter-heldout3-first-run.txt)
-  const { HELDOUT4 } = await import('./interpreter-corpus-heldout4.mjs'); const { HELDOUT5 } = await import('./interpreter-corpus-heldout5.mjs'); const held45 = [...HELDOUT4, ...HELDOUT5].map((c) => ({ c, ...evaluate(c) })); // regression ONLY after their recorded first runs (docs/interpreter-heldout4-first-run.txt, -5-)
+  const { HELDOUT4 } = await import('./interpreter-corpus-heldout4.mjs'); const { HELDOUT5 } = await import('./interpreter-corpus-heldout5.mjs'); const { HELDOUT6 } = await import('./interpreter-corpus-heldout6.mjs'); const held45 = [...HELDOUT4, ...HELDOUT5, ...HELDOUT6].map((c) => ({ c, ...evaluate(c) })); // regression ONLY after their recorded first runs (docs/interpreter-heldout4-first-run.txt, -5-)
   const main = runCorpus(); const blind = BLIND.map((c) => ({ c, ...evaluate(c) })); const all = [...main, ...blind, ...held, ...held2, ...held3, ...held45];
   const bad = all.filter((x) => !x.ok); const score = (all.length - bad.length) / all.length;
   assert.ok(all.length >= 150, `corpus size ${all.length}`);
@@ -830,6 +830,35 @@ await test('F-22: the municipality table never lists two rows with the same labe
     const s = snapshot(st, { scope, cfg }); const labels = s.byMunicipality.map((g) => `${g.municipality ? g.municipality.ar : '—'}|${g.amanahLabel?.ar ?? g.amanahLabel}`);
     assert.equal(new Set(labels).size, labels.length, 'duplicate municipality rows'); assert.equal(new Set(s.byMunicipality.map((g) => g.key)).size, s.byMunicipality.length);
     assert.equal(s.byMunicipality.reduce((t, g) => t + g.count, 0), s.totals.count, 'the groups still add up to the total');
+  }
+});
+
+await test('F-23: receipts by payment date reconcile to collections on the period\'s invoices — receipts on invoices issued in the period equal the headline collected (within the invoice-amount cap), the rest are receipts on other invoices', () => {
+  const sum = (r) => r.values.reduce((t, v) => t + v, 0);
+  for (const sc of [{ amanah: 'all', source: 'all' }, { amanah: 'Riyadh Amanah', source: 'all' }, { amanah: 'all', source: 'fines' }]) {
+    const from = '2026-01-01'; const C = snapshot(st, { scope: { from, to: TODAY, ...sc }, cfg }).totals.collected;
+    const A = sum(series(st, { scope: { from, to: TODAY, ...sc }, cfg })); const B = sum(series(st, { scope: { from, to: TODAY, ...sc, issuedFrom: from, issuedTo: TODAY }, cfg }));
+    assert.ok(A >= B && B > 0, 'receipts on all invoices ≥ receipts on the period\'s invoices'); assert.ok(Math.abs(B - C) / C < 0.0001, `receipts on the period's invoices ≈ collected (${B} vs ${C})`);
+    const other = sum(series(st, { scope: { from, to: TODAY, ...sc, issuedFrom: '2000-01-01', issuedTo: '2025-12-31' }, cfg })); assert.ok(Math.abs(A - B - other) < 1, 'the remainder is exactly the receipts on invoices issued before the period');
+  }
+  const cq = { cutoff: '2026-06-30' }; const q = { from: '2026-04-01', to: '2026-06-30', amanah: 'all', source: 'all' };
+  assert.equal(sum(series(st, { scope: { ...q, from: '2026-01-01', issuedFrom: q.from, issuedTo: q.to }, cfg: cq })), snapshot(st, { scope: q, cfg: cq }).totals.collected, 'a closed period reconciles exactly at its own end');
+});
+
+await test('Demo safety: the risky categories (several Amanahs, a variant name, a non-standard period, an inferred comparison, many changes at once) require confirmation; standard requests do not', () => {
+  const T = '2026-10-09'; const run = (q, prev = null) => interpret(q, prev, T); const keys = (r) => (r.confirm || []).map((c) => c.key);
+  assert.ok(keys(run('تقرير الرياض وجدة ومكة')).includes('multi_amanah')); assert.ok(keys(run('report for Mecca')).includes('variant_name'));
+  assert.ok(keys(run('تقرير من 3 مارس إلى 20 مارس')).includes('period_variant')); assert.ok(keys(run('compare September with August for Riyadh')).includes('inferred_comparison'));
+  const prev = run('تقرير الشهر الماضي').spec; assert.ok(keys(run('خله لجدة ولمصدر الغرامات وللربع الثاني', prev)).includes('multi_change'));
+  for (const q of ['تقرير الإيرادات لهذا الشهر', 'تقرير أمانة الرياض للربع الثاني', 'show overdue invoices in Jeddah', 'قارن بالشهر الماضي', 'تقرير الغرامات لهذا العام']) assert.deepEqual(keys(run(q, q.startsWith('قارن') ? prev : null)), [], `no confirmation for a standard request: ${q}`);
+  assert.equal(run('تقرير الرياض وجدة ومكة').kind, 'report', 'the reading is still returned (the UI shows it and waits for the user)');
+});
+
+await test('Invoice-status filter: the net-uncollected bridge lands on the standing balance for EVERY status (a status-filtered report used to fail reconciliation and could not be built)', () => {
+  for (const status of ['all', 'overdue', 'open', 'partial', 'collected', 'not_due', 'cancelled', 'excluded']) {
+    const sc = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status };
+    const snap = snapshot(st, { scope: sc, cfg }); const b = bridge(st, { scope: { ...sc, from: '2000-01-01', to: TODAY }, cfg });
+    assert.ok(Math.abs(b.check) < 0.5 && Math.abs(b.net - snap.stock.netUncollected) < 0.5, `status ${status}: bridge ${b.net} vs stock ${snap.stock.netUncollected}`);
   }
 });
 

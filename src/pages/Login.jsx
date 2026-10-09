@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,7 @@ export default function Login() {
   const [scopeByOrg, setScopeByOrg] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const loginTimer = useRef(null); useEffect(() => () => window.clearTimeout(loginTimer.current), []); // a pending sign-in must not navigate after the page was left
 
   // The consolidated HQ org is the "all-orgs" context used when org scoping
   // is turned off, so downstream pages still have a valid org to render.
@@ -30,7 +31,7 @@ export default function Login() {
     setErr('');
     setBusy(true);
 
-    setTimeout(() => {
+    loginTimer.current = window.setTimeout(() => {
       const effectiveOrgId = scopeByOrg ? orgId : consolidatedOrgId;
       const ok = login(username.trim(), password, effectiveOrgId, scopeByOrg);
       setBusy(false);
@@ -104,6 +105,7 @@ export default function Login() {
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
+                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
                 onClick={() => setLang('zh')}
               >
                 中文
