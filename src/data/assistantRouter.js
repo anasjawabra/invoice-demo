@@ -78,7 +78,7 @@ export function parseSource(text) {
   if (/accommodation|إيواء|الايواء|الإيواء/.test(s)) return 'accommodation';
   if (/housing|إسكان|الاسكان|مبيعات سكن/.test(s)) return 'housing_sales';
   if (/municipal fees?|baladi|رسوم (?:ال)?بلديه|رسوم (?:ال)?بلديه|(?:^|\s)بلدي(?:\s|$)/.test(normAr(text))) return 'municipal_fees'; // not «بلديات / بلدية» (municipalities)
-  if (/licen[cs]e|ترخيص|رخص/.test(s)) return 'licenses';
+  if (/licen[cs]e|ترخيص|تراخيص|رخص/.test(s)) return 'licenses';
   return null;
 }
 

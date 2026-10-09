@@ -21,8 +21,10 @@ const has = (s, re) => re.test(s);
 function parseAmanah(text) {
   const hits = new Set(parseAmanahStrict(text));
   for (const a of amanahOptionsOf()) { const core = (a.ar || '').replace(/^أمانة\s*(منطقة|محافظة|مدينة)?\s*/, '').trim(); const short = core.replace(/^المنطقة\s+/, ''); if ((core.length > 2 && text.includes(core)) || (short !== core && short.length > 2 && text.includes(short))) hits.add(a.key); }
+  for (const [re, key] of AMANAH_ALIASES) if (re.test(text) && amanahOptionsOf().some((a) => a.key === key)) hits.add(key); // short everyday names
   return [...hits];
 }
+const AMANAH_ALIASES = [[/(?:^|\s)مكة(?:\s|$)|مكه/, 'Makkah Amanah'], [/(?:^|\s)(?:أمانة\s+)?المدينة(?:\s|$)/, 'Al Madinah Amanah']];
 export const defaultSpec = (today) => ({ title: '', preset: 'ytd', scope: { from: startOfYear(today), to: today, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, compare: 'none', depth: 'summary', sections: ['executive'] });
 
 const DETAILED = ['executive', 'trends', 'amanah', 'sources', 'aging', 'exclusions', 'gaps', 'status', 'quality'];
@@ -39,15 +41,17 @@ const SECTION_WORDS = [
   ['quality', /(جوده البيانات|اكتمال|مطابقه|تعارضات)/],
   ['bases', /(اساس القياس|اساسين|اساس التقرير)/],
   ['channels', /(قنوات الدفع|قنوات السداد|قنوات)/],
-  ['budget', /(الميزانيه|الميزانيات|المصروفات|المصاريف|الانفاق|النفقات|نغطي|تغطيه|تغطي)/]
+  ['budget', /(الميزانيه|الميزانيات|المصروفات|المصاريف|الانفاق|النفقات|نغطي|تغطيه|تغطي|\bbudget\b|\bexpenditure\b|\bspending\b)/]
 ];
+// English wording for the same sections (kept apart so the Arabic table stays readable)
+const SECTION_WORDS_EN = [['sources', /\b(by|per) (revenue )?source|revenue sources/], ['amanah', /\b(by|per) amanah|compare amanahs|amanahs? performance/], ['aging', /\baging\b|\boverdue (balances|amounts|debts)\b|arrears/], ['exclusions', /\bexclusions?\b/], ['trends', /\b(monthly )?trend\b|month by month/], ['gaps', /\b(collection )?gaps\b|priorities/], ['status', /payment status|invoice status breakdown/], ['quality', /data quality|reconciliation/], ['channels', /payment channels/]];
 
 export const SUPPORTED_HELP = {
   ar: ['الفترة: «هذا الشهر حتى اليوم»، «الشهر الماضي»، «السنة حتى اليوم»، «الربع الأول»، «مارس»', 'الأمانة والبلدية: «اعرض أمانة الرياض فقط»، «بلدية الرياض الشمالية»', 'المصدر: الاستثمار (فرص)، الغرامات، الرسوم البلدية، التراخيص، الإيواء، التبغ، الأراضي البيضاء', 'الحالة: «الفواتير المتأخرة فقط»، «الفواتير المحصّلة»، «الملغاة»', 'المقارنة: «قارن بالشهر الماضي»، «قارن بالعام الماضي»', 'الأقسام: مصادر الإيراد، الأمانات، المتأخرات، الاستبعادات، الاتجاه الشهري، فجوات التحصيل، حالة الدفع، جودة البيانات', 'التعميق: «حوّله إلى تقرير تفصيلي»، «أضف توزيع مصادر الإيراد»'],
   en: ['Period: “this month to date”, “last month”, “year to date”, “Q1”, “March”', 'Amanah / municipality: “show Riyadh Amanah only”', 'Source: Furas investment, fines, municipal fees, licences, accommodation, tobacco, white lands', 'Status: “overdue invoices only”, “collected”, “cancelled”', 'Comparison: “compare with last month / last year”', 'Sections: sources, Amanahs, aging, exclusions, monthly trend, gaps, payment status, data quality', 'Depth: “make it a detailed report”, “add the source breakdown”']
 };
 
-const STATUS_WORDS = [['overdue', /المتاخر/], ['collected', /(المحصله|المحصل بالكامل|المسدده)/], ['cancelled', /(الملغاه|الملغيه|الملغاة)/], ['excluded', /(المستبعده|المستبعدة)/], ['partial', /(الجزئيه|المسدده جزئيا|محصله جزئيا)/], ['not_due', /(لم يحن|غير المستحقه)/], ['open', /(غير المسدده|القائمه|المفتوحه|غير المحصله)/]];
+const STATUS_WORDS = [['overdue', /المتاخر|\boverdue\b/], ['collected', /(المحصله|المحصل بالكامل|المسدده|\bcollected invoices\b)/], ['cancelled', /(الملغاه|الملغيه|الملغاة|\bcancell?ed\b)/], ['excluded', /(المستبعده|المستبعدة|\bexcluded invoices\b)/], ['partial', /(الجزئيه|المسدده جزئيا|محصله جزئيا|\bpartial(ly paid)?\b)/], ['not_due', /(لم يحن|غير المستحقه|\bnot (yet )?due\b)/], ['open', /(غير المسدده|القائمه|المفتوحه|غير المحصله|\bopen invoices\b)/]];
 const DIRECTION = [['North', /(شمال|الشماليه)/], ['Central', /(وسط|الوسطي|المركزيه)/], ['South', /(جنوب|الجنوبيه)/]];
 
 const PERIOD_OPTIONS = [{ label: { ar: 'السنة حتى اليوم', en: 'Year to date' }, text: 'أنشئ تقرير الإيرادات للسنة حتى اليوم' }, { label: { ar: 'هذا الشهر حتى اليوم', en: 'This month to date' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم' }, { label: { ar: 'الشهر الماضي', en: 'Last month' }, text: 'أنشئ تقرير الإيرادات للشهر الماضي' }];
@@ -129,7 +133,7 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   const am = parseAmanah(raw);
   const onlyOne = am.length === 1 ? am[0] : null;
   const cmpAmanahs = am.length >= 2 && !!trig; // «قارن الرياض بجدة»
-  if (am.length >= 1 && (am.length === 1 ? !has(s, /بين الامانات/) : (cmpAmanahs || has(s, /(فقط|الامانات)/)) && !has(s, /بين الامانات/))) {
+  if (am.length >= 1 && (am.length === 1 ? !has(s, /بين الامانات/) : (cmpAmanahs || has(s, /(فقط|الامانات|^اعرض|^عرض|\bshow\b)/)) && !has(s, /بين الامانات/))) {
     const val = am.length === 1 ? am[0] : am;
     if (JSON.stringify(val) !== JSON.stringify(spec.scope.amanah)) { spec.scope.amanah = val; spec.scope.muni = 'all'; note('amanah', 'amanah', val); }
   }
@@ -146,7 +150,7 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   if (src && src !== spec.scope.source && !has(s, /(توزيع|حسب).{0,12}(مصدر|المصادر)/)) { spec.scope.source = src; note('source', 'source', src); }
 
   // ---- status and scope type (only with an explicit "invoices … only" phrasing, so «المتأخرات حسب المصدر» stays a report SECTION)
-  const statusPhrase = has(s, /(الفواتير|فواتير)/) || has(s, /فقط/);
+  const statusPhrase = has(s, /(الفواتير|فواتير|invoices)/) || has(s, /فقط|\bonly\b/) || has(s, /(كل الحالات|جميع الحالات|all statuses)/);
   if (statusPhrase) {
     const st = STATUS_WORDS.find(([, re]) => re.test(s));
     if (st && st[0] !== spec.scope.status) { spec.scope.status = st[0]; note('status', 'status', st[0]); }
@@ -157,15 +161,15 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
 
   // ---- depth and sections
   const isQuestion = has(norm(raw + ' '), /^(كم|ما|ماذا|هل|لماذا|كيف|اين|اي|من)\b/) || /[؟?]\s*$/.test(raw);
-  const createVerb = has(s, /(انشئ|جهز|اعد|اعمل|ابني|حضر|اطلب|اريد|ابغى|ابي|اعطني|اعرض لي)/) && has(s, /تقرير/);
+  const createVerb = (has(s, /(انشئ|جهز|اعد|اعمل|ابني|حضر|اطلب|اريد|ابغى|ابي|اعطني|اعرض لي)/) && has(s, /تقرير/)) || (has(s, /\b(create|prepare|generate|make|build|show me|give me|i want|i need)\b/) && has(s, /\breport\b/));
   const monthlyLike = has(s, /(مشابه|مماثل|كالتقارير|التقارير المرفقه|تقرير شهري|تقريرا شهريا)/);
-  const detailedWord = has(s, /(تفصيلي|مفصل|شامل|بالتفصيل)/);
-  const summaryWord = has(s, /(ملخص|موجز|مختصر|باختصار)/);
-  const picked = SECTION_WORDS.filter(([, re]) => re.test(s)).map(([k]) => k);
+  const detailedWord = has(s, /(تفصيلي|مفصل|شامل|بالتفصيل|\bdetailed\b|\bfull report\b)/);
+  const summaryWord = has(s, /(ملخص|موجز|مختصر|باختصار|\bsummary\b|\bbrief\b)/);
+  const picked = [...SECTION_WORDS, ...SECTION_WORDS_EN].filter(([, re]) => re.test(s)).map(([k]) => k);
   if (has(s, /عدم التحصيل/) && !picked.includes('status')) picked.push('status');
   if (cmpAmanahs && !picked.includes('amanah')) picked.push('amanah'); // «قارن الرياض بجدة» → the Amanah comparison table for those two
   if (has(s, /المتاخرات/) && has(s, /(حسب مصدر|مصدر الايراد)/)) { if (!picked.includes('aging')) picked.push('aging'); if (!picked.includes('sources')) picked.push('sources'); }
-  const addVerb = has(s, /(اضف|اضافه|ضيف|زد|اعرض ايضا|^مع )/);
+  const addVerb = has(s, /(اضف|اضافه|ضيف|زد|اعرض ايضا|^مع |^و(?=مصادر|الاتجاه|المتاخر|الاستبعاد)|\badd\b|\balso\b|\binclude\b)/);
   let sections = spec.sections.slice();
   if (monthlyLike) {
     sections = MONTHLY_TEMPLATE.slice(); spec.depth = 'summary';
@@ -182,8 +186,10 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   if (!detailedWord && (summaryWord || createVerb || !prev) && !monthlyLike) spec.depth = 'summary';
   const startNew = createVerb || reset || !prev;
 
+  if (trig && !compareNew && !cmpPeriod && !picked.length && !changes.length && !prev) return { kind: 'clarify', spec, changes: [], question: { ar: 'ماذا تريد أن أقارن؟ لا يوجد تقرير حالي أبني عليه المقارنة.', en: 'What should I compare? There is no current report to build the comparison on.' }, options: [{ label: { ar: 'أداء التحصيل بين الأمانات', en: 'Collection performance between Amanahs' }, text: 'قارن أداء التحصيل بين الأمانات' }, { label: { ar: 'تقرير هذا الشهر مقارناً بالشهر الماضي', en: 'This month’s report compared with last month' }, text: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم قارن بالشهر الماضي' }] };
+  const domainQuestion = has(s, /(تحصيل|محصل|فاتور|ايراد|مفوتر|مستحق|متاخر|استبعاد|امانه|امانات|ميزاني|مصروف|انفاق|نفقات|نسبه|اداء|وضع|مبلغ|مبالغ|مصدر|collection|revenue|invoice|billed|overdue|exclusion|performance|doing|status|amanah|budget|rate|\bgaps?\b)/);
   const reportNoun = has(s, /(تقرير|تقريرا|report)/); // «تقرير الشهر الماضي» is a report request even when nothing needs to change
-  const recognized = changes.length > 0 || picked.length > 0 || createVerb || reportNoun || monthlyLike || detailedWord || summaryWord || isQuestion;
+  const recognized = changes.length > 0 || picked.length > 0 || createVerb || reportNoun || monthlyLike || detailedWord || summaryWord || (isQuestion && domainQuestion);
   if (!recognized) return { kind: 'unsupported', spec: prev || spec, changes: [] };
   return { kind: isQuestion && !createVerb ? 'question' : 'report', spec, changes, sectionsChanged, startNew };
 }
