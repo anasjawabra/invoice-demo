@@ -494,12 +494,12 @@ await test('synthetic finance: labelled, no actual after today, commitment ≥ a
   assert.equal(financeCompatible({ amanah: 'all', source: 'all', muni: 'all', scopeType: 'all', status: 'all' }), true); assert.equal(financeCompatible({ amanah: 'Riyadh Amanah', source: 'all' }), false); assert.equal(financeCompatible({ amanah: 'all', source: 'fines' }), false);
   const cov = operatingCoverage(fin, 8e9); assert.ok(Math.abs(cov.ratio - 8e9 / ex.operating.paid) < 1e-9 && cov.basis.ar.includes('نقدي'));
 });
-await test('funding projection: scenario cash is added to receipts (timing slip excluded), expenditure change touches only remaining payments, unavailable stays unavailable', () => {
+await test('funding projection: baseline receipts and payments are both cash by payment date; the scenario is NOT combined with them (no scenario receipts, payments or balance) and its effects are returned separately', () => {
   const base = { receiptsYtd: 8e9, paymentsYtd: 16e9, series: { values: [1e9, 1e9, 1e9, 1e9, 0.5e9] }, paymentsByMonth: [1.6e9, 1.6e9, 1.6e9, 1.6e9, 0.8e9], forecast: { ready: false }, monthsLeft: 2.5 };
   const p0 = financeProjection({ ...base }); assert.ok(p0.available && p0.method === 'illustrative');
   const p1 = financeProjection({ ...base, scenarioDeltaCash: 1e9, scenario: { slip: 25, expense: 10 } });
-  assert.ok(Math.abs(p1.scenario.receipts - (p0.base.receipts + 0.75e9)) < 1, 'only the non-slipped share counts inside the horizon'); assert.ok(Math.abs(p1.slipped - 0.25e9) < 1);
-  assert.ok(Math.abs(p1.scenario.payments - (16e9 + p0.restPay * 1.1)) < 1, 'actual payments untouched'); assert.equal(p1.base.payments, p0.base.payments);
+  assert.equal(p1.scenario, undefined, 'no combined scenario figure'); assert.deepEqual(p1.base, p0.base, 'the baseline does not move with the scenario');
+  assert.ok(Math.abs(p1.scenarioEffects.collectionDelta - 1e9) < 1 && Math.abs(p1.scenarioEffects.collectionSlipped - 0.25e9) < 1 && Math.abs(p1.scenarioEffects.remainingPaymentsDelta - p0.restPay * 0.1) < 1);
   assert.equal(financeProjection({ ...base, receiptsYtd: null }).available, false);
 });
 await test('plans: version, owner, approval; a new version returns an approved plan to draft; scenarios never touch targets; objectives need review to be approved', () => {

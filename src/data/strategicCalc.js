@@ -103,8 +103,9 @@ export function requiredPace({ achievement, series, today, planDate }) {
 
 /* ---------- funding outlook (receipts vs payments) — national, cash basis, illustrative while expenditure is synthetic ---------- */
 // receipts: actual year to date + the rest of the year (forecast when it is reliable, otherwise the recent monthly average = illustrative)
-// payments: actual year to date + the rest of the year at the recent monthly average. The scenario adds its CASH effects to receipts (the part
-// that slips past the planning date is excluded) and applies its expenditure change to the projected remaining payments only.
+// payments: actual year to date + the rest of the year at the recent monthly average. Receipts and payments are both CASH by payment date.
+// The scenario is NOT combined with them: its collection effect is measured on the plan period's INVOICES (a different basis from receipts by payment date),
+// so no scenario balance is produced. The scenario's effects are returned beside the baseline (`scenarioEffects`) to be shown separately, never summed.
 export function financeProjection({ receiptsYtd, paymentsYtd, series, paymentsByMonth, forecast, monthsLeft, scenarioDeltaCash = 0, scenario = DEFAULT_SCENARIO }) {
   if (receiptsYtd == null || paymentsYtd == null || !(monthsLeft >= 0)) return { available: false };
   const recent = (vals) => { const v = (vals || []).slice(-4, -1); return v.length ? v.reduce((t, x) => t + x, 0) / v.length : null; };
@@ -116,7 +117,6 @@ export function financeProjection({ receiptsYtd, paymentsYtd, series, paymentsBy
   const restPay = recentPay * monthsLeft;
   const base = { receipts: receiptsYtd + restReceipts, payments: paymentsYtd + restPay };
   const s = validateScenario(scenario).value;
-  const within = scenarioDeltaCash * (1 - s.slip / 100);
-  const scen = { receipts: base.receipts + within, payments: paymentsYtd + restPay * (1 + s.expense / 100) };
-  return { available: true, method: fcRest != null ? 'forecast' : 'illustrative', restReceipts, restPay, base: { ...base, balance: base.receipts - base.payments }, scenario: { ...scen, balance: scen.receipts - scen.payments }, slipped: scenarioDeltaCash * (s.slip / 100) };
+  const scenarioEffects = { collectionDelta: scenarioDeltaCash, collectionSlipped: scenarioDeltaCash * (s.slip / 100), remainingPaymentsDelta: restPay * (s.expense / 100) }; // shown separately; no combined total
+  return { available: true, method: fcRest != null ? 'forecast' : 'illustrative', restReceipts, restPay, base: { ...base, balance: base.receipts - base.payments }, scenarioEffects };
 }

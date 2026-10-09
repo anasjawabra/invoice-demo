@@ -8,6 +8,7 @@ import { loadStore } from '../server/store.js';
 import { snapshot } from '../server/engine.js';
 import { buildReportModel, SECTION_ORDER } from '../src/data/reportModel.js';
 import { buildCommandModel } from '../src/data/commandModel.js';
+import { financeProjection } from '../src/data/strategicCalc.js';
 import { defaultSpec } from '../src/data/reportIntents.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
 import { DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
@@ -31,7 +32,7 @@ const models = [];
 for (const def of FIXED_REPORTS) models.push({ id: `fixed-${def.key}`, model: buildReportModel({ spec: { ...defaultSpec(TODAY), sections: def.sections, compare: def.compare }, lang: 'ar', out: mkOut(cYtd), prev: def.compare === 'none' ? null : prev, compare: def.compare, prevScope: { from: '2025-01-01', to: '2025-10-09' }, cash, bridge: null, targets: DEFAULT_TARGETS, meta, finance: fin, financeOk: true, fyReceiptsYtd: 8e9 }) });
 models.push({ id: 'smart-detailed', model: buildReportModel({ spec: { ...defaultSpec(TODAY), sections: SECTION_ORDER.filter((k) => k !== 'budget'), depth: 'detailed', compare: 'prev_year' }, lang: 'ar', out: mkOut(cYtd), prev, compare: 'prev_year', prevScope: { from: '2025-01-01', to: '2025-10-09' }, cash, bridge: null, targets: DEFAULT_TARGETS, meta }) });
 const reg = createAction({ actions: [], rejected: [] }, { by: 'x', fields: { title: 'إجراء يدوي', owner: '', dueDate: '2026-10-30' } });
-models.push({ id: 'plan-summary', model: buildCommandModel({ lang: 'ar', today: TODAY, spec: { preset: 'custom', scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' } }, out: mkOut(cYtd), prev, prevScope: { from: '2025-01-01', to: '2025-10-09' }, cash, bridge: null, targets: DEFAULT_TARGETS, cases: [], meta, fair: fairComparison(cYtd), achievement: null, pace: { available: false }, forecast: { ready: false, reasonNotReady: { ar: 'لا يكفي', en: 'short' } }, scenario: { ...DEFAULT_SCENARIO, dRate: 5 }, planDate: '2026-12-31', register: reg }) });
+models.push({ id: 'plan-summary', model: buildCommandModel({ lang: 'ar', today: TODAY, spec: { preset: 'custom', scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' } }, out: mkOut(cYtd), prev, prevScope: { from: '2025-01-01', to: '2025-10-09' }, cash, bridge: null, targets: DEFAULT_TARGETS, cases: [], meta, fair: fairComparison(cYtd), achievement: null, pace: { available: false }, forecast: { ready: false, reasonNotReady: { ar: 'لا يكفي', en: 'short' } }, scenario: { ...DEFAULT_SCENARIO, dRate: 5, slip: 20, expense: 10 }, funding: financeProjection({ receiptsYtd: 8e9, paymentsYtd: 16e9, series: { values: [1e9, 1e9, 1e9, 1e9, 0.5e9] }, paymentsByMonth: [1.6e9, 1.6e9, 1.6e9, 1.6e9, 0.8e9], forecast: { ready: false }, monthsLeft: 2.5, scenarioDeltaCash: 5e8, scenario: { ...DEFAULT_SCENARIO, slip: 20, expense: 10 } }), planDate: '2026-12-31', register: reg }) });
 
 // what the model shows on screen: every table row (first cell) and total, chart label, callout / text / list line, insight title, KPI label+value, relations
 const shown = (m) => {

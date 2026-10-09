@@ -63,8 +63,8 @@ export default function VersionCompare({ plan, versionContext, onRecompute }) {
             <tr><td>{L('السياق المحفوظ', 'Stored context')}</td><td>{ctxLine(va)}</td><td>{ctxLine(vb)}</td></tr>
             {LEVERS.map((lv) => (<tr key={lv.k} className={diff(lever(va, lv.k), lever(vb, lv.k)) ? 'rv-diff' : ''}><td>{B(lv)}</td><td dir="ltr">{lever(va, lv.k)}</td><td dir="ltr">{lever(vb, lv.k)}</td></tr>))}
             <tr><td colSpan={3}><span className="st-tag st-tag--actual">{L('نتائج محفوظة وقت الحفظ', 'saved results (frozen at save time)')}</span></td></tr>
-            {[['rate', L('نسبة التحصيل (سيناريو)', 'Collection rate (scenario)'), pct], ['collected', L('المحصّل (سيناريو)', 'Collected (scenario)'), money], ['balance', L('الميزان التمويلي المتوقع', 'Projected funding balance'), money]].map(([k, label, f]) => (
-              <tr key={k} className={diff(va.summary?.[k], vb.summary?.[k]) ? 'rv-diff' : ''}><td>{label}</td><td dir="ltr">{f(va.summary?.[k])}</td><td dir="ltr">{f(vb.summary?.[k])}</td></tr>
+            {[['rate', L('نسبة التحصيل (سيناريو)', 'Collection rate (scenario)'), pct], ['collected', L('المحصّل (سيناريو)', 'Collected (scenario)'), money], ['balance', L('الميزان التمويلي المتوقع (الأساس، بلا أثر السيناريو)', 'Projected funding balance (baseline, without the scenario)'), money]].map(([k, label, f]) => (
+              <tr key={k} className={diff(va.summary?.[k], vb.summary?.[k]) ? 'rv-diff' : ''}><td>{label}{k === 'balance' && [va, vb].some((v) => v.summary?.balance != null && v.summary?.balanceBasis !== 'baseline') && <small className="muted"> {L('— الإصدارات المحفوظة قبل هذا التعديل قد تتضمن أثر السيناريو', '— versions saved before this change may include the scenario effect')}</small>}</td><td dir="ltr">{f(va.summary?.[k])}</td><td dir="ltr">{f(vb.summary?.[k])}</td></tr>
             ))}
             <tr><td>{L('إعادة الاحتساب', 'Recalculation')}</td><Recalc v={va} /><Recalc v={vb} /></tr>
           </tbody>

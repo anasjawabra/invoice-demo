@@ -2,7 +2,7 @@
 // Demo clock. "Today" is the real calendar date in Asia/Riyadh each time the
 // system loads — the demo is NOT pinned to a fixed date.
 //
-// Overrides exist only so tests and reviewers can time-travel deterministically:
+// Overrides are DEMO / REVIEW ONLY (they pin the displayed date; the UI shows a banner while one is active; they are not a production feature):
 //   * globalThis.__DEMO_TODAY__ = 'YYYY-MM-DD'   (tests)
 //   * ?demoToday=YYYY-MM-DD in the URL           (remembered for the session)
 // ============================================================================

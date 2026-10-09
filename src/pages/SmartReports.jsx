@@ -314,7 +314,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
 
       <div className="sr-note" role="note">
-        {L('اكتب طلبك: الفترة أو الأمانة أو المصدر أو المقارنة.', 'Write your request: period, Amanah, source or comparison.')}
+        {L('اكتب طلبك: الفترة أو الأمانة أو المصدر أو المقارنة.', 'Write your request: period, Amanah, source or comparison.')} <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result.')}</b>
         <details className="rv-more"><summary>{L('أمثلة لما يمكنك طلبه', 'Examples of what you can ask')}</summary><ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}</ul></details>
         <details className="rv-more"><summary>{L('عن المساعد', 'About the assistant')}</summary><div>{L('يفهم المساعد صيغاً محددة بقواعد حسابية وليس بنموذج لغوي، وتُبنى التقارير من بيانات النظام التجريبية.', 'The assistant understands defined phrasings with rules, not a language model, and reports are built from the system’s demo data.')}</div></details>
       </div>

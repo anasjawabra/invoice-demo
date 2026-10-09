@@ -184,6 +184,7 @@ function LayoutInner() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'}</a>
+      {IS_TIME_TRAVEL && <div className="day-banner" role="status" data-testid="demo-date-banner">{lang === 'ar' ? `وضع العرض: التاريخ مثبّت على ${DEMO_TODAY} (عبر demoToday — للعرض والمراجعة فقط، وليس تاريخ اليوم الفعلي).` : `Demo mode: the date is pinned to ${DEMO_TODAY} (via demoToday — for demonstration and review only, not today's real date).`} <a href="?demoToday=reset">{lang === 'ar' ? 'إلغاء التثبيت' : 'Unpin'}</a></div>}
       {dayChanged && <div className="day-banner" role="status">{lang === 'ar' ? 'تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق.' : 'The date has changed since this page was opened; figures belong to the previous day.'} <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>{lang === 'ar' ? 'تحديث الآن' : 'Refresh now'}</button></div>}
       <div className="bg-fx" />
       <div className="bg-grid" />

@@ -174,7 +174,7 @@ export default function PlanningArea() {
   const tvf = x?.forecast?.ready ? targetVsForecast(x.forecast, targets) : null;
   const scenarioOn = JSON.stringify(scenario) !== JSON.stringify(DEFAULT_SCENARIO);
   const versionContext = { period: plan.period, scope: plan.scope, basis: BASIS.PERIOD_END, cutoff: snapshot.cutoff, config: cfgHash(cfg), targets: { collectionRate: targets.collectionRate.value, status: targets.collectionRate.status } };
-  const summaryForVersion = { rate: scenRes?.scenario.rate ?? null, collected: scenRes?.scenario.collected ?? null, balance: funding.available ? funding.scenario.balance : null };
+  const summaryForVersion = { rate: scenRes?.scenario.rate ?? null, collected: scenRes?.scenario.collected ?? null, balance: funding.available ? funding.base.balance : null, balanceBasis: 'baseline' }; // the funding balance never includes the scenario (different measurement bases)
 
   return (
     <div className="st-page" dir={ar ? 'rtl' : 'ltr'}>
