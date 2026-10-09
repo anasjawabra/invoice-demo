@@ -1,100 +1,76 @@
-import React, { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useI18n } from '../context/I18nContext';
-import { fmtMoney, SANAD_ENFORCEMENT } from '../data/mock';
+import React, { useState } from 'react';
+import Pager from '../components/Pager';
+import { Link, useNavigate } from 'react-router-dom';
+import { useRevenue } from '../context/RevenueContext';
+import { useL } from '../utils/bi';
+import { MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
+import { caseSummary } from '../data/enforcementMatching';
+import { SANAD_ENFORCEMENT } from '../data/mock';
 
-const PAGE_SIZE = 5;
+const STATE_LABEL = {
+  linked: { en: 'Linked (confirmed)', ar: 'مربوطة (مؤكدة)', cls: 'rv-cat--enforcement' },
+  candidate: { en: 'Candidate — needs review', ar: 'مرشح — يحتاج مراجعة', cls: 'rv-cat--partial' },
+  ambiguous: { en: 'Ambiguous — needs a human choice', ar: 'ملتبس — يحتاج اختياراً بشرياً', cls: 'rv-cat--partial' },
+  unresolved: { en: 'Unresolved', ar: 'غير محسومة', cls: '' }
+};
 
-// Dedicated page for the enforcement orders that still need a document
-// attached and OCR-scanned to find a linked invoice number — moved out of
-// the Dashboard's Sanad snapshot card so the list has room to grow into its
-// own worklist instead of living inline in a summary widget.
+// Enforcement workspace: Sanad / Efaa cases and their (human-reviewed) links to invoices.
 export default function SanadOrders() {
-  const { t, lang, isRtl } = useI18n();
+  const { cases } = useRevenue();
+  const { L, B, short, ar, sar, count: fmt } = useL();
   const nav = useNavigate();
   const [page, setPage] = useState(0);
-
-  const pageCount = Math.max(1, Math.ceil(SANAD_ENFORCEMENT.sample.length / PAGE_SIZE));
-  const pageItems = useMemo(
-    () => SANAD_ENFORCEMENT.sample.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
-    [page]
-  );
+  const rows = cases.map((c) => ({ c, s: caseSummary(c) }));
+  const count = (st) => rows.filter((r) => r.s.state === st).length;
+  const totalUnalloc = rows.reduce((a, r) => a + r.s.unallocated, 0);
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="rv-page">
       <div className="page-head">
         <div>
-          <div className="page-title">{t('sanad_orders_title')}</div>
-          <div className="page-sub">{t('sanad_orders_sub')}</div>
+          <div className="page-title">{L('Enforcement workspace — case-to-invoice linking', 'مساحة عمل الإنفاذ — ربط القضايا بالفواتير')}</div>
+          <div className="page-sub">{L('Structured identifiers first; document-extracted references when needed. One case can link to several invoices. Ambiguous matches stay unresolved until a person decides, and every decision keeps its history inside this solution — no source system is changed.', 'المعرّفات المهيكلة أولاً؛ ثم المراجع المستخرجة من المستندات عند الحاجة. يمكن لقضية واحدة أن ترتبط بعدة فواتير. تبقى المطابقات الملتبسة غير محسومة حتى يقرر شخص، ويحتفظ كل قرار بسجله داخل هذه المنصة — ولا يتغير أي نظام مصدر.')}</div>
         </div>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
-          {isRtl ? `${t('back_to_dashboard')} ←` : `${t('back_to_dashboard')} →`}
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <ProvenanceBadge kind="demo" />
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/noncollection')}>{L('Noncollection & exclusions', 'عدم التحصيل والاستبعادات')}</button>
+        </div>
+      </div>
+
+      <div className="rv-callout">{L('Requests and statuses come from the Sanad report loaded in Data sources (demo data). A request linked to a contract number without identified invoices stays at contract level and is never added to the uncollected debt.', 'الطلبات وحالاتها من تقرير سند المحمّل في مصادر البيانات (بيانات تجريبية). والطلب المرتبط برقم عقد دون فواتير محددة يبقى على مستوى العقد ولا يُضاف إلى المديونية غير المحصلة.')}</div>
+
+      <div className="rv-tiles">
+        <MetricTile label={L('Cases', 'القضايا')} value={fmt(cases.length)} />
+        <MetricTile label={L('Linked (confirmed)', 'مربوطة (مؤكدة)')} value={fmt(count('linked'))} />
+        <MetricTile label={L('Awaiting review', 'بانتظار المراجعة')} value={fmt(count('candidate') + count('ambiguous'))} tone={count('candidate') + count('ambiguous') ? 'warn' : undefined} />
+        <MetricTile label={L('Unresolved', 'غير محسومة')} value={fmt(count('unresolved'))} />
+        <MetricTile label={L('Unallocated case amount', 'مبلغ القضايا غير الموزع')} value={short(totalUnalloc)} sub={L('Case amounts are not spread across invoices unless the pair is exact', 'لا تُوزّع مبالغ القضايا على الفواتير ما لم يكن الزوج مطابقاً')} />
       </div>
 
       <div className="card card-pad">
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div className="kpi__value">{fmtMoney(SANAD_ENFORCEMENT.recordsReviewed)}</div>
-            <div className="kpi__label">{t('dash_sanad_stat_reviewed')}</div>
-          </div>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div className="kpi__value" style={{ color: 'var(--red)' }}>{SANAD_ENFORCEMENT.missingInvoicePct}%</div>
-            <div className="kpi__label">{t('dash_sanad_stat_missing')}</div>
-          </div>
+        <div className="rv-table-wrap">
+          <table className="rv-table">
+            <thead><tr><th>{L('Case', 'القضية')}</th><th>{L('Platform', 'المنصة')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Case amount', 'مبلغ القضية')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Linked invoices', 'فواتير مربوطة')}</th><th className="num">{L('Unallocated', 'غير موزع')}</th><th /></tr></thead>
+            <tbody>
+              {rows.slice(page * 25, (page + 1) * 25).map(({ c, s }) => (
+                <tr key={c.enforceNum}>
+                  <td dir="ltr"><b>{c.enforceNum}</b></td>
+                  <td>{c.system === 'sanad' ? 'Sanad' : c.system === 'white_lands' ? L('White-lands file', 'ملف الأراضي البيضاء') : 'Efaa'}</td>
+                  <td>{c.amanahEn}</td>
+                  <td className="num" dir="ltr">{sar(c.amount)}</td>
+                  <td><span className={`rv-cat ${STATE_LABEL[s.state].cls}`}>{B(STATE_LABEL[s.state])}</span>{s.candidates > 0 && <span className="rv-tag" style={{ marginInlineStart: 6 }}>{L(`${s.candidates} candidate(s)`, `${s.candidates} مرشح`)}</span>}</td>
+                  <td className="num">{s.confirmed}</td>
+                  <td className="num" dir="ltr">{sar(s.unallocated)}</td>
+                  <td><Link className="btn btn-sm btn-primary" to={`/sanad-orders/${encodeURIComponent(c.enforceNum)}`}>{L('Open', 'فتح')}</Link></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div className="kpi__value">{fmtMoney(SANAD_ENFORCEMENT.ordersIssued)}</div>
-            <div className="kpi__label">{t('dash_sanad_stat_orders')}</div>
-          </div>
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div className="kpi__value" style={{ color: 'var(--red)' }}>
-              {fmtMoney(SANAD_ENFORCEMENT.ordersUnlinked)}<span style={{ fontSize: 13, fontWeight: 700 }}> / {fmtMoney(SANAD_ENFORCEMENT.ordersIssued)}</span>
-            </div>
-            <div className="kpi__label">{t('dash_sanad_stat_unlinked')}</div>
-          </div>
-        </div>
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.6 }}>{t('dash_sanad_note_orders')}</div>
-      </div>
-
-      <div className="card card-pad">
-        <div className="page-title" style={{ fontSize: 16, marginBottom: 4 }}>{t('dash_sanad_sample_title')}</div>
-        <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>{t('sanad_orders_list_sub')}</div>
-        <div className="grid" style={{ gap: 8 }}>
-          {pageItems.map((s) => {
-            const amanah = lang === 'zh' ? s.amanah : lang === 'ar' ? s.amanahAr : s.amanahEn;
-            const defendant = lang === 'zh' ? s.defendant.zh : lang === 'ar' ? s.defendant.ar : s.defendant.en;
-            return (
-              <div key={s.enforceNum} className="card" style={{ padding: 10, background: 'rgba(175, 8, 24, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{s.enforceNum}</span>
-                    <span className="badge badge--red">{fmtMoney(s.amount)} SAR</span>
-                  </div>
-                  <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{amanah} · {defendant}</div>
-                </div>
-                <button type="button" className="btn btn-sm btn-primary" onClick={() => nav(`/sanad-orders/${encodeURIComponent(s.enforceNum)}`)}>
-                  {t('sanad_order_details_btn')}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {pageCount > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 }}>
-            <button type="button" className="btn btn-sm btn-ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-              {isRtl ? `→ ${t('pagination_prev')}` : `← ${t('pagination_prev')}`}
-            </button>
-            <span className="muted" style={{ fontSize: 12 }} dir="ltr">{page + 1} / {pageCount}</span>
-            <button type="button" className="btn btn-sm btn-ghost" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
-              {isRtl ? `${t('pagination_next')} ←` : `${t('pagination_next')} →`}
-            </button>
-          </div>
-        )}
-
-        <div className="muted" style={{ fontSize: 11.5, marginTop: 10, lineHeight: 1.6 }}>{t('dash_sanad_note')}</div>
+        <Pager page={page} total={rows.length} size={25} onPage={setPage} />
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+          {L(`Illustrative portfolio statistics (not derived from the cases above): ${SANAD_ENFORCEMENT.ordersUnlinked} of ${SANAD_ENFORCEMENT.ordersIssued} issued orders reported without a linked invoice.`, `إحصاءات توضيحية للمحفظة (غير مشتقة من القضايا أعلاه): ${SANAD_ENFORCEMENT.ordersUnlinked} من ${SANAD_ENFORCEMENT.ordersIssued} أمراً صادراً بلا فاتورة مرتبطة.`)}
+        </p>
       </div>
     </div>
   );

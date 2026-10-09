@@ -6,9 +6,13 @@
   "description": "INTELLIBILL - Intelligent Invoice Management Demo (React + Vite)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
     "preview": "vite preview",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs",
+    "verify:sources": "esbuild scripts/verify-sources.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/verify-sources.mjs && node .test-build/verify-sources.mjs",
+    "check": "node scripts/check-undef.mjs",
+    "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error"
   },
   "dependencies": {
     "chart.js": "^4.4.4",

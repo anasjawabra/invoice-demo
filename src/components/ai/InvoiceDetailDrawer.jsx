@@ -5,9 +5,17 @@ import { useI18n } from '../../context/I18nContext';
 import { useAuth } from '../../context/AuthContext';
 import { L } from './util';
 import ReconciliationTable from './ReconciliationTable';
-import { fmtMoney, RECON, STATUS, PAYER_MASTER, gfsForInvoice, SANAD_ENFORCEMENT } from '../../data/mock';
+import { fmtMoney, RECON, STATUS, PAYER_MASTER, gfsForInvoice, INVOICES } from '../../data/mock';
+import { useAsync } from '../../utils/useAsync';
+import { legacyInvoiceFor } from '../../utils/legacyInvoice';
+import { RULE_IDS } from '../../data/catalog';
+import SourceRecordSection from '../revenue/SourceRecordSection';
 import { OCR_SAMPLES } from '../../data/aiProcess';
-import AgentThinking from './AgentThinking';
+import { Link } from 'react-router-dom';
+import { useRevenue } from '../../context/RevenueContext';
+import { useL } from '../../utils/bi';
+import { CATEGORY_LABELS } from '../../data/revenueMetrics';
+import InvoiceLedgerSections from '../revenue/InvoiceLedgerSections';
 
 /* Detail-drawer copy (tri-lingual, same {zh,en,ar} pattern as the AI data). */
 const TX = {
@@ -31,34 +39,13 @@ const TX = {
   anomaly: { zh: '异常类型', en: 'Anomaly type', ar: 'نوع الانحراف' },
   viewAi: { zh: '查看完整 AI 分析', en: 'View full AI analysis', ar: 'عرض تحليل الذكاء الكامل' },
   none: { zh: '无', en: 'None', ar: 'لا يوجد' },
-  sanadTitle: { zh: 'سند 执行关联', en: 'Sanad Enforcement Linkage', ar: 'ربط تنفيذ سند' },
-  sanadSub: { zh: '上传支持文件，系统将扫描其中的执行令编号', en: 'Attach a supporting document — the system scans it for an enforcement order reference', ar: 'أرفق مستندًا داعمًا — سيفحصه النظام بحثًا عن رقم أمر تنفيذ' },
-  sanadAttach: { zh: '上传文件', en: 'Attach document', ar: 'إرفاق مستند' },
-  sanadTryMatch: { zh: '示例：含编号的文件', en: 'Try sample: document with a number', ar: 'تجربة: مستند فيه رقم' },
-  sanadTryNone: { zh: '示例：无编号的文件', en: 'Try sample: document without a number', ar: 'تجربة: مستند بدون رقم' },
-  sanadScanning: { zh: '正在扫描文件（OCR）…', en: 'Scanning document (OCR)…', ar: 'جارٍ فحص المستند (OCR)…' },
-  sanadMatchedPrefix: { zh: '已关联至执行令', en: 'Linked to enforcement order', ar: 'تم الربط بأمر التنفيذ' },
-  sanadNotFound: { zh: '在该文件中未找到执行令编号。', en: 'No enforcement order reference found in this document.', ar: 'لم يُعثر على رقم أمر تنفيذ في هذا المستند.' },
-  sanadTryAgain: { zh: '重新上传文件', en: 'Try another document', ar: 'تجربة مستند آخر' }
 };
-
-// No real OCR engine in this demo — the "scan" reads the attached file's NAME
-// for a 4+ digit run as a transparent, viewer-controllable stand-in: name a
-// test file with digits to simulate a found reference, or without to
-// simulate a miss. A deterministic hash of the invoice id picks which sample
-// Sanad order a "found" reference resolves to, so the same invoice always
-// demos the same result.
-function hashCode(str) {
-  let h = 0;
-  for (let i = 0; i < str.length; i += 1) h = (h * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
 
 /* Per-scenario anomaly tag surfaced in the AI strip. */
 const ANOMALY_TAG = {
   fraud: { zh: '费用偏离基准 +38% · 首次缴款方', en: 'Fee +38% over tariff · first-time payer', ar: 'الرسم +38٪ فوق المعيار · جهة دافعة جديدة' },
   dup: { zh: '重复账单（四元组一致）', en: 'Duplicate invoice (tuple match)', ar: 'فاتورة مكررة (تطابق رباعي)' },
-  taxfail: { zh: 'ZATCA 税号校验失败 · 催收单单价差异', en: 'ZATCA tax-ID failed · Collection Order rate variance', ar: 'فشل الرقم الضريبي · فرق سعر أمر التحصيل' }
+  taxfail: { zh: '金额与明细合计差异（税额仅作来源属性）', en: 'Total vs line-item variance (VAT shown as a source attribute only)', ar: 'فرق بين الإجمالي وبنود الفاتورة (الضريبة سمة من المصدر فقط)' }
 };
 
 const SOURCE_BADGE = { Tahseel: 'badge--teal', Makin: 'badge--indigo', Efa: 'badge--green', Sanad: 'badge--gold' };
@@ -98,31 +85,18 @@ function Cell({ label, children, ltr }) {
  *  - onOpenAI(): opens the AIProcessDrawer for this invoice's scenario
  *  - suppressClose: when true (AI drawer stacked on top) ESC/overlay won't close
  */
-export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, suppressClose }) {
+export default function InvoiceDetailDrawer({ inv: invIn, invoiceId, open, onClose, onOpenAI, suppressClose }) {
   const { t, lang } = useI18n();
   const { user } = useAuth();
+  const rev = useRevenue();
+  const { L: LB, B, sar, ar } = useL();
+  const id = invoiceId || invIn?.id || null;
+  // ONE invoice's full record is loaded when the drawer opens (the list only ever holds a page of rows)
+  const { data: det, error: detErr } = useAsync(() => (open && id ? rev.data.invoice(id) : Promise.resolve(null)), [open, id, rev.data]);
+  const contractNo = det?.rec?.co || null;
+  const { data: card } = useAsync(() => (open && contractNo ? rev.data.contract(contractNo) : Promise.resolve(null)), [open, contractNo, rev.data]);
   const nav = useNavigate();
   const closeRef = useRef(null);
-  const scanTimer = useRef(null);
-
-  const [sanadLink, setSanadLink] = useState(null);
-  useEffect(() => {
-    setSanadLink(null);
-    return () => window.clearTimeout(scanTimer.current);
-  }, [inv?.id]);
-
-  function handleSanadFile(fileName) {
-    setSanadLink({ status: 'scanning' });
-    scanTimer.current = window.setTimeout(() => {
-      const digitGroups = fileName.match(/\d{4,}/g) || [];
-      if (!digitGroups.length) {
-        setSanadLink({ status: 'notfound' });
-        return;
-      }
-      const order = SANAD_ENFORCEMENT.sample[hashCode(inv.id) % SANAD_ENFORCEMENT.sample.length];
-      setSanadLink({ status: 'matched', order });
-    }, 1100);
-  }
 
   const onEsc = useCallback((e) => {
     if (e.key === 'Escape' && !suppressClose) onClose?.();
@@ -140,22 +114,26 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
     if (!open) return undefined;
     const id = window.setTimeout(() => closeRef.current?.focus(), 0);
     return () => window.clearTimeout(id);
-  }, [open, inv]);
+  }, [open, id]);
 
-  if (!open || !inv) return null;
+  if (!open || !id) return null;
+  const rec = det && det.rec && det.rec.id === id ? det.rec : null;
+  const inv = rec ? legacyInvoiceFor(rec) : (invIn || { id, entity: '', entityEn: '', entityAr: '', amanah: '', amanahEn: '', amanahAr: '', amount: 0, currency: 'SAR', source: '', co: '—', date: '', status: 'pending', risk: 0, tag: 'normal' });
 
-  const scale = user?.org?.scale ?? 1;
+  const dv = det?.derived;
+  const der = rec && dv ? dv : null;
+  const cls = rec && det ? { primary: det.cls } : null;
+  const reasons = dv ? RULE_IDS.filter((_, b) => dv.reasonMask & (1 << b)).sort((a, b) => (a === dv.primaryRuleId ? -1 : b === dv.primaryRuleId ? 1 : 0)) : [];
   const scenario = inv.tag || 'normal';
-  const recon = RECON[scenario];
-  const ocr = OCR_SAMPLES[scenario];
+  // The sample OCR / 3-way reconciliation belong to the original fixture invoices only; generated or uploaded records have none.
+  const isFixture = INVOICES.some((i) => i.id === inv.id);
+  const recon = isFixture ? RECON[scenario] : undefined;
+  const ocr = isFixture ? OCR_SAMPLES[scenario] : undefined;
   const st = STATUS[inv.status] || {};
   const stLabel = L({ zh: st.label, en: st.labelEn, ar: st.labelAr }, lang);
   const nextAction = NEXT_ACTION[inv.status];
   const cur = inv.currency || 'SAR';
 
-  const subtotal = Math.round(inv.amount * scale);
-  const vatVal = Math.round((recon?.vat?.declared ?? Math.round(inv.amount * 0.15)) * scale);
-  const total = subtotal + vatVal;
 
   const payerName = lang === 'zh' ? inv.entity : lang === 'ar' ? inv.entityAr : inv.entityEn;
   const amanahName = lang === 'zh' ? inv.amanah : lang === 'ar' ? inv.amanahAr : inv.amanahEn;
@@ -183,25 +161,48 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
         </div>
 
         <div className="ai-drawer__body">
-          {/* Header / overview */}
+          {/* Header / overview — amounts come from the revenue ledger; nothing is derived by adding VAT */}
           <div className="idd-section">
             <div className="idd-hero">
-              <div className="idd-hero__amt" dir="ltr">{fmtMoney(total)} <small>{cur}</small></div>
-              <span className={`badge ${statusBadge(st.color)}`}>{stLabel}</span>
+              <div>
+                <div className="idd-hero__amt" dir="ltr">{fmtMoney(inv.amount)} <small>{cur}</small></div>
+                <div className="muted" style={{ fontSize: 11 }}>{LB('Billed amount as recorded in the source (VAT basis not stated)', 'المبلغ المفوتر كما في المصدر (أساس الضريبة غير مذكور)')}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {cls && <span className={`rv-cat rv-cat--${cls.primary}`}>{B(CATEGORY_LABELS[cls.primary] || { en: 'Collected', ar: 'محصّلة' })}</span>}
+                {rec?.amountCheck?.status === 'conflict' && <span className="rv-tag rv-tag--bad">{LB('Amount conflict', 'تعارض مبلغ')}</span>}
+              </div>
             </div>
             <div className="idd-grid">
               <Cell label={L(TX.payer, lang)}>{payerName}</Cell>
               <Cell label={L(TX.amanah, lang)}>{amanahName}</Cell>
               <Cell label={t('th_po')} ltr>{inv.co}</Cell>
               {gfsName ? <Cell label={L(TX.gfs, lang)}>{gfsName}</Cell> : null}
-              <Cell label={L(TX.amount, lang)} ltr>{fmtMoney(subtotal)} {cur}</Cell>
-              <Cell label={L(TX.vat, lang)} ltr>{fmtMoney(vatVal)} {cur}</Cell>
-              <Cell label={L(TX.total, lang)} ltr>{fmtMoney(total)} {cur}</Cell>
-              <Cell label={t('th_date')} ltr>{inv.date}</Cell>
-              {pm ? <Cell label="CR" ltr>{pm.cr}</Cell> : null}
+              <Cell label={LB('Source status (collection)', 'حالة المصدر (التحصيل)')}>{rec ? B({ uncollected: { en: 'Uncollected', ar: 'غير محصّلة' }, collected: { en: 'Collected', ar: 'محصّلة' }, cancelled: { en: 'Cancelled', ar: 'ملغاة' } }[rec.sourceStatus]) : '—'}</Cell>
+              <Cell label={LB('AI workflow status (separate)', 'حالة سير عمل الذكاء الاصطناعي (منفصلة)')}><span className={`badge ${statusBadge(st.color)}`}>{stLabel}</span></Cell>
               <Cell label={L(TX.org, lang)}>{orgName}</Cell>
             </div>
           </div>
+
+          {!rec && !detErr && <div className="idd-section"><div className="muted" role="status">{LB('Loading the invoice…', 'جارٍ تحميل الفاتورة…')}</div></div>}
+          {detErr && <div className="idd-section"><div className="rv-callout rv-callout--bad" role="alert">{LB('This invoice is not available in your access scope.', 'هذه الفاتورة غير متاحة ضمن نطاق صلاحيتك.')}</div></div>}
+
+          {rec && der && (
+            <>
+              {rec.amountCheck?.status === 'conflict' && (
+                <div className="idd-section">
+                  <div className="rv-callout rv-callout--bad" role="alert">
+                    <b>{LB('Amount conflict — not corrected', 'تعارض في المبلغ — لم يُصحَّح')}</b>
+                    <div>{LB(`Header amount ${sar(rec.amountCheck.headerAmount)} vs line-item total ${sar(rec.amountCheck.lineTotal)} (+ declared VAT ${sar(rec.amountCheck.vatDeclared || 0)} = ${sar(rec.amountCheck.impliedTotalWithVat)}).`, `مبلغ الرأس ${sar(rec.amountCheck.headerAmount)} مقابل مجموع البنود ${sar(rec.amountCheck.lineTotal)} (+ ضريبة معلنة ${sar(rec.amountCheck.vatDeclared || 0)} = ${sar(rec.amountCheck.impliedTotalWithVat)}).`)}</div>
+                    <div>{LB(`Difference: ${sar(rec.amountCheck.differenceVsLineTotal)} vs line items, ${sar(rec.amountCheck.differenceVsWithVat)} vs line items + VAT. Which figure is correct cannot be determined from the data; metrics use the source header amount until the issuing Amanah confirms.`, `الفرق: ${sar(rec.amountCheck.differenceVsLineTotal)} مقابل البنود، و${sar(rec.amountCheck.differenceVsWithVat)} مقابل البنود + الضريبة. لا يمكن تحديد الرقم الصحيح من البيانات؛ وتعتمد المؤشرات مبلغ رأس المصدر حتى تؤكد الأمانة المُصدِرة.`)}</div>
+                  </div>
+                </div>
+              )}
+
+              <InvoiceLedgerSections rec={rec} der={der} cls={cls} reasons={reasons} card={card} onClose={onClose} />
+              <SourceRecordSection sr={det?.sourceRecord} />
+            </>
+          )}
 
           {/* OCR extracted fields */}
           {ocr ? (
@@ -226,67 +227,24 @@ export default function InvoiceDetailDrawer({ inv, open, onClose, onOpenAI, supp
             </div>
           ) : null}
 
-          {/* Sanad enforcement-order linkage (attach a document, simulated OCR) */}
+          {/* Amount consistency: header amount vs line items. VAT is shown only as a source attribute. */}
           <div className="idd-section">
             <div className="idd-section__head">
-              <div className="idd-section__title">{L(TX.sanadTitle, lang)}</div>
-              <div className="idd-section__sub">{L(TX.sanadSub, lang)}</div>
-            </div>
-
-            {(!sanadLink || sanadLink.status === 'notfound') && (
-              <div className="grid" style={{ gap: 8 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input
-                    type="file"
-                    id={`idd-sanad-file-${inv.id}`}
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const f = e.target.files[0];
-                      if (f) handleSanadFile(f.name);
-                      e.target.value = '';
-                    }}
-                  />
-                  <label htmlFor={`idd-sanad-file-${inv.id}`} className="btn btn-sm btn-primary" style={{ cursor: 'pointer' }}>
-                    📎 {L(TX.sanadAttach, lang)}
-                  </label>
-                  {sanadLink?.status === 'notfound' && (
-                    <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 800 }}>✗ {L(TX.sanadNotFound, lang)}</span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 10.5 }} onClick={() => handleSanadFile('enforcement-notice-2607714.pdf')}>
-                    {L(TX.sanadTryMatch, lang)}
-                  </button>
-                  <button type="button" className="btn btn-sm btn-ghost" style={{ fontSize: 10.5 }} onClick={() => handleSanadFile('scanned-notice.pdf')}>
-                    {L(TX.sanadTryNone, lang)}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {sanadLink?.status === 'scanning' && <AgentThinking label={L(TX.sanadScanning, lang)} variant="spinner" />}
-
-            {sanadLink?.status === 'matched' && (
-              <div style={{ fontSize: 12.5 }}>
-                <span style={{ color: 'var(--green)', fontWeight: 900 }}>✓ {L(TX.sanadMatchedPrefix, lang)}</span>{' '}
-                <span dir="ltr" style={{ fontWeight: 800 }}>{sanadLink.order.enforceNum}</span>
-                <button type="button" className="btn btn-sm btn-ghost" style={{ marginInlineStart: 8 }} onClick={() => setSanadLink(null)}>
-                  {L(TX.sanadTryAgain, lang)}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* 3-way match / reconciliation */}
-          <div className="idd-section">
-            <div className="idd-section__head">
-              <div className="idd-section__title">{L(TX.reconTitle, lang)}</div>
-              <div className="idd-section__sub">{L(TX.reconSub, lang)}</div>
+              <div className="idd-section__title">{LB('Line items & amount consistency', 'بنود الفاتورة واتساق المبلغ')}</div>
+              <div className="idd-section__sub">{LB('Header amount compared with the sum of line items. VAT is a source attribute only — no tax-compliance verdict is made here.', 'مقارنة مبلغ الرأس بمجموع البنود. الضريبة سمة من المصدر فقط — ولا يصدر هنا حكم امتثال ضريبي.')}</div>
             </div>
             {recon ? (
-              <ReconciliationTable recon={recon} tolerance={0.02} />
+              <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+                <thead><tr><th>{LB('Item', 'البند')}</th><th className="num">{LB('Qty', 'الكمية')}</th><th className="num">{LB('Unit price', 'سعر الوحدة')}</th><th className="num">{LB('Line total', 'إجمالي البند')}</th></tr></thead>
+                <tbody>
+                  {recon.lines.map((ln) => <tr key={ln.no}><td>{L(ln.item, lang)}</td><td className="num">{fmtMoney(ln.qty)}</td><td className="num">{fmtMoney(ln.invUnit)}</td><td className="num">{fmtMoney(ln.qty * ln.invUnit)}</td></tr>)}
+                  <tr><td colSpan={3}><b>{LB('Sum of line items', 'مجموع البنود')}</b></td><td className="num"><b>{fmtMoney(recon.lines.reduce((a, l) => a + l.qty * l.invUnit, 0))}</b></td></tr>
+                  <tr><td colSpan={3}>{LB('VAT declared (source attribute)', 'الضريبة المعلنة (سمة من المصدر)')}</td><td className="num">{fmtMoney(recon.vat?.declared || 0)}</td></tr>
+                  <tr><td colSpan={3}><b>{LB('Header amount (source)', 'مبلغ الرأس (المصدر)')}</b></td><td className="num"><b>{fmtMoney(inv.amount)}</b></td></tr>
+                </tbody>
+              </table></div>
             ) : (
-              <div className="muted" style={{ fontSize: 12 }}>{L(TX.noRecon, lang)}</div>
+              <div className="muted" style={{ fontSize: 12 }}>{LB('No line-item evidence for this invoice, so the amount could not be cross-checked. This is a limitation, not a pass.', 'لا توجد بنود تفصيلية لهذه الفاتورة لذا تعذّر التحقق من المبلغ. وهذا قيد وليس نجاحاً.')}</div>
             )}
           </div>
 

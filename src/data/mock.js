@@ -12,7 +12,8 @@ export const CREDENTIALS = [
     role: '财务共享中心 · 主管',
     roleEn: 'Shared Service Center · Manager',
     roleAr: 'مركز الخدمات المشتركة · مدير',
-    avatar: 'LF'
+    avatar: 'LF',
+    canReview: true
   },
   {
     user: 'auditor',
@@ -23,7 +24,8 @@ export const CREDENTIALS = [
     role: '审计师 · Auditor',
     roleEn: 'Auditor',
     roleAr: 'مدقق',
-    avatar: 'AS'
+    avatar: 'AS',
+    canReview: false
   },
   {
     user: 'admin',
@@ -34,11 +36,15 @@ export const CREDENTIALS = [
     role: '平台管理员',
     roleEn: 'Platform Admin',
     roleAr: 'مدير المنصة',
-    avatar: 'AD'
+    avatar: 'AD',
+    canReview: true
   }
 ];
 
-/* ---------- Organization context (scoped data) ---------- */
+/* ---------- Organization context (scoped data) ----------
+   `amanahKeys` is the real access scope: null = all Amanahs (central tier);
+   otherwise the org may only see records whose `amanahEn` is in the list.
+   Applied centrally by revenueMetrics.scopeLedger — never by scaling amounts. */
 export const ORGS = [
   {
     id: 'mof-hq',
@@ -46,7 +52,7 @@ export const ORGS = [
     name: '住房与城乡事务部 · 本部（合并视图）',
     nameEn: 'MoMAH · HQ (Consolidated)',
     nameAr: 'وزارة البلديات والإسكان · المقر (موحّد)',
-    scale: 1.0,
+    amanahKeys: null,
     code: 'MOMAH-HQ'
   },
   {
@@ -55,7 +61,7 @@ export const ORGS = [
     name: '部长办公厅',
     nameEn: "Minister's General Office",
     nameAr: 'المكتب العام للوزير',
-    scale: 0.16,
+    amanahKeys: null,
     code: 'GEN-OFF'
   },
   {
@@ -64,7 +70,7 @@ export const ORGS = [
     name: '利雅得市政厅',
     nameEn: 'Riyadh Municipality',
     nameAr: 'أمانة منطقة الرياض',
-    scale: 0.42,
+    amanahKeys: ['Riyadh Amanah'],
     code: 'RUH-MUN'
   },
   {
@@ -73,7 +79,7 @@ export const ORGS = [
     name: '麦加市政厅',
     nameEn: 'Makkah Municipality',
     nameAr: 'أمانة منطقة مكة المكرمة',
-    scale: 0.28,
+    amanahKeys: ['Makkah Amanah'],
     code: 'MAK-MUN'
   },
   {
@@ -82,95 +88,10 @@ export const ORGS = [
     name: '东部省共享服务中心',
     nameEn: 'Eastern Province Shared Service Center',
     nameAr: 'مركز الخدمات المشتركة بالمنطقة الشرقية',
-    scale: 0.19,
+    amanahKeys: ['Eastern Province Amanah'],
     code: 'EP-SSC'
   }
 ];
-
-/* ---------- 6 core KPIs ---------- */
-export const KPIS = [
-  {
-    id: 'processed',
-    label: '本月已处理账单',
-    labelEn: 'Invoices Processed',
-    labelAr: 'الفواتير المعالجة',
-    value: 12480,
-    unit: '张',
-    unitEn: '',
-    unitAr: '',
-    delta: 18.2,
-    icon: 'file',
-    color: 'teal'
-  },
-  {
-    id: 'automation',
-    label: '字段自动录入率',
-    labelEn: 'Auto Entry Rate',
-    labelAr: 'معدل الأتمتة',
-    value: 96.4,
-    unit: '%',
-    unitEn: '%',
-    unitAr: '%',
-    delta: 1.7,
-    icon: 'bolt',
-    color: 'indigo',
-    target: 95
-  },
-  {
-    id: 'amount',
-    label: '本月处理金额',
-    labelEn: 'Amount Processed',
-    labelAr: 'المبلغ المعالج',
-    value: 3.82,
-    unit: '亿 SAR',
-    unitEn: 'B SAR',
-    unitAr: 'مليار ر.س',
-    delta: 12.5,
-    icon: 'coins',
-    color: 'gold'
-  },
-  {
-    id: 'recovery',
-    label: '账款回收率',
-    labelEn: 'Collection Rate',
-    labelAr: 'معدل التحصيل',
-    value: 87.3,
-    unit: '%',
-    unitEn: '%',
-    unitAr: '%',
-    delta: 3.1,
-    icon: 'trend',
-    color: 'green',
-    target: 85
-  },
-  {
-    id: 'anomaly',
-    label: '异常/欺诈拦截',
-    labelEn: 'Anomalies Blocked',
-    labelAr: 'الانحرافات',
-    value: 214,
-    unit: '起',
-    unitEn: '',
-    unitAr: '',
-    delta: 9.0,
-    icon: 'shield',
-    color: 'red'
-  },
-  {
-    id: 'cycle',
-    label: '平均处理周期',
-    labelEn: 'Avg Cycle Time',
-    labelAr: 'دورة المعالجة',
-    value: 0.8,
-    unit: '天',
-    unitEn: 'd',
-    unitAr: 'يوم',
-    delta: -62.4,
-    icon: 'clock',
-    color: 'purple'
-  }
-];
-
 /* ---------- 12 agents: 1 orchestrator + 11 specialists ---------- */
 export const AGENTS = [
   {
@@ -467,55 +388,6 @@ export const AGENTS = [
     acc: 94.2
   }
 ];
-
-/* ---------- Sources ---------- */
-// Every invoice below is, without exception, also reflected in Tahseel (the
-// universal ledger) — that's not a 5th competing bucket, it's true of 100%
-// of these. This breakdown is by ORIGINATING PRODUCT: which billing platform
-// actually issued the invoice before it was mirrored into Tahseel. Foras,
-// Mumathil and Baladi are "central" (ministry-level) systems; internal
-// Amanah systems are the 4th, currently-being-phased-out category. Names
-// match the real MoMAH source platforms (فرص/ممثل/بلدي) rather than
-// invented ones — see momah_data_sources.md for the full real source list.
-export const SOURCES = [
-  {
-    id: 'forsah',
-    name: 'Foras',
-    desc: '投资类收费（中央系统）',
-    descEn: 'Investment fees (central system)',
-    descAr: 'رسوم الاستثمار (نظام مركزي)',
-    count: 4820,
-    color: 'teal'
-  },
-  {
-    id: 'momtathil',
-    name: 'Mumathil',
-    desc: '违规与罚款（中央系统）',
-    descEn: 'Violations & fines (central system)',
-    descAr: 'المخالفات والغرامات (نظام مركزي)',
-    count: 3610,
-    color: 'indigo'
-  },
-  {
-    id: 'baladi',
-    name: 'Baladi',
-    desc: '市政/电子发票（中央系统）',
-    descEn: 'Municipal / e-invoice (central system)',
-    descAr: 'بلدي / الفاتورة الإلكترونية (نظام مركزي)',
-    count: 2240,
-    color: 'green'
-  },
-  {
-    id: 'internal',
-    name: 'Amanah Internal Reports',
-    desc: '安曼纳内部系统（正逐步淘汰）',
-    descEn: "Amanah-internal systems (being phased out)",
-    descAr: 'أنظمة داخلية لدى الأمانات (قيد الإيقاف التدريجي)',
-    count: 1810,
-    color: 'gold'
-  }
-];
-
 /* ---------- Invoices ---------- */
 // Every invoice also carries the Amanah/beneficiary-ID fields a real Makeen
 // extract joins in (see gfsForInvoice/collectionStatusFor below) — this is
@@ -933,26 +805,6 @@ export function gfsForInvoice(inv) {
   return null;
 }
 
-/* ---------- Makeen-style collection status ----------
-   Derived from the EXISTING workflow `.status`/`.payType` fields rather
-   than stored per-record, so it can never drift out of sync with the AI
-   workflow status the rest of the app is built around: approved -> collected,
-   duplicate (auto-blocked) -> cancelled, anything still in-flight ->
-   uncollected. Mirrors the real Makeen "حالة الفاتورة" 4-value vocabulary. */
-export const COLLECTION_STATUS = {
-  uncollected: { label: '未收缴', labelEn: 'Uncollected', labelAr: 'غير محصلة', color: 'red' },
-  cancelled: { label: '已作废', labelEn: 'Cancelled', labelAr: 'ملغاة', color: 'gold' },
-  collected: { label: '已收缴', labelEn: 'Collected', labelAr: 'محصلة', color: 'green' },
-  paid: { label: '已支付', labelEn: 'Paid', labelAr: 'مدفوعة', color: 'teal' }
-};
-
-export function collectionStatusFor(inv) {
-  if (!inv) return COLLECTION_STATUS.uncollected;
-  if (inv.status === 'approved') return COLLECTION_STATUS.collected;
-  if (inv.status === 'duplicate') return COLLECTION_STATUS.cancelled;
-  return COLLECTION_STATUS.uncollected;
-}
-
 /* ---------- Status dictionary ---------- */
 export const STATUS = {
   pending: { label: '待处理', labelEn: 'Pending', labelAr: 'قيد الانتظار', color: 'blue' },
@@ -967,292 +819,6 @@ export const STATUS = {
   review: { label: '待人工复核', labelEn: 'Review Needed', labelAr: 'مراجعة بشرية', color: 'orange' },
   rejected: { label: '已驳回', labelEn: 'Rejected', labelAr: 'مرفوض', color: 'grey' }
 };
-
-/* ---------- HITL approvals ---------- */
-export const APPROVALS = [
-  {
-    id: 'INV-2026-0727',
-    entity: 'Aramco 后勤供应',
-    entityEn: 'Aramco Logistics Supply',
-    entityAr: 'أرامكو للإمداد اللوجستي',
-    amount: 3180000,
-    currency: 'SAR',
-    chain: '账单专员 → 财务经理 → 预算与财务 → 收入保障复核 → 中心主任 → CFO',
-    chainEn:
-      'Invoice Clerk → Finance Manager → Budget & Finance → Revenue Assurance Review → Center Director → CFO',
-    chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مراجعة ضمان الإيرادات ← مدير المركز ← الرئيس المالي',
-    assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
-    assigneeAr: 'طارق',
-    priority: '高',
-    priorityEn: 'High',
-    priorityAr: 'عالية',
-    priorityKey: 'high',
-    sla: '4 小时',
-    slaEn: '4 hours',
-    slaAr: '4 ساعات',
-    reason:
-      '部分匹配（置信度 71% < 75%）触发人工复核；评估已超时 8h，自动升级至中心主任',
-    reasonEn:
-      'Partial match (confidence 71% < 75%) flagged for human review; evaluation also overran SLA by 8h, auto-escalated to Center Director',
-    reasonAr:
-      'مطابقة جزئية (ثقة 71٪ < 75٪) أحيلت للمراجعة البشرية؛ كما تجاوز التقييم SLA بـ 8 ساعات، وتم التصعيد تلقائياً لمدير المركز',
-    match: '部分匹配',
-    matchEn: 'Partial Match',
-    matchAr: 'تطابق جزئي',
-    risk: 46
-  },
-  {
-    id: 'INV-2026-0724',
-    entity: 'Bahri 海运物流',
-    entityEn: 'Bahri Maritime Logistics',
-    entityAr: 'البحري للخدمات اللوجستية البحرية',
-    amount: 2260000,
-    currency: 'SAR',
-    chain: '账单专员 → 财务经理 → 预算与财务 → 中心主任',
-    chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance → Center Director',
-    chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية ← مدير المركز',
-    assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
-    assigneeAr: 'طارق',
-    priority: '中',
-    priorityEn: 'Medium',
-    priorityAr: 'متوسطة',
-    priorityKey: 'mid',
-    sla: '8 小时',
-    slaEn: '8 hours',
-    slaAr: '8 ساعات',
-    reason: '匹配置信度 90%，仍按金额规模转人工复核（100~300 万 SAR）',
-    reasonEn: 'Match confidence 90% — still routed for human oversight given the amount scale (1-3M SAR)',
-    reasonAr: 'ثقة المطابقة 90٪ — أُحيلت للمراجعة البشرية نظراً لحجم المبلغ (1-3 مليون ر.س)',
-    match: '完全匹配',
-    matchEn: 'Full Match',
-    matchAr: 'تطابق كامل',
-    risk: 33
-  },
-  {
-    id: 'INV-2026-0731',
-    entity: 'Al-Rajhi 建设集团',
-    entityEn: 'Al-Rajhi Construction Group',
-    entityAr: 'مجموعة الراجحي للإنشاءات',
-    amount: 1250000,
-    currency: 'SAR',
-    chain: '账单专员 → 财务经理 → 预算与财务',
-    chainEn: 'Invoice Clerk → Finance Manager → Budget & Finance',
-    chainAr: 'موظف الفواتير ← المدير المالي ← الميزانية والمالية',
-    assignee: '李芳军',
-    assigneeEn: 'Li Fangjun',
-    assigneeAr: 'طارق',
-    priority: '中',
-    priorityEn: 'Medium',
-    priorityAr: 'متوسطة',
-    priorityKey: 'mid',
-    sla: '8 小时',
-    slaEn: '8 hours',
-    slaAr: '8 ساعات',
-    reason: '匹配置信度 97%，按金额规模例行转人工复核（100~300 万 SAR）',
-    reasonEn: 'Match confidence 97% — routine human oversight given the amount scale (1-3M SAR)',
-    reasonAr: 'ثقة المطابقة 97٪ — مراجعة بشرية اعتيادية نظراً لحجم المبلغ (1-3 مليون ر.س)',
-    match: '完全匹配',
-    matchEn: 'Full Match',
-    matchAr: 'تطابق كامل',
-    risk: 12
-  }
-];
-
-/* ---------- Collection forecast ---------- */
-export const COLLECTIONS = [
-  {
-    id: 'INV-2026-0512',
-    entity: 'Sky Bridge 建筑',
-    entityEn: 'Sky Bridge Construction',
-    entityAr: 'سكاي بريدج للإنشاءات',
-    overdue: 45,
-    amount: 890000,
-    prob: 34,
-    delay: '高',
-    delayEn: 'High',
-    delayAr: 'عالٍ',
-    delayKey: 'high',
-    strategy: '建议启动法务催告，同步 Mumtathil 罚款状态',
-    strategyEn: 'Recommend legal notice; sync Mumtathil penalty status',
-    strategyAr: 'يوصى بإشعار قانوني؛ مزامنة حالة عقوبة Mumtathil',
-    penalty: '已上诉',
-    penaltyEn: 'Appealed',
-    penaltyAr: 'تم الاستئناف',
-    penaltyKey: 'appealed',
-    lifecycle: 'uncollected',
-    color: 'red'
-  },
-  {
-    id: 'INV-2026-0498',
-    entity: 'Green Valley 农业',
-    entityEn: 'Green Valley Agriculture',
-    entityAr: 'الوادي الأخضر للزراعة',
-    overdue: 28,
-    amount: 320000,
-    prob: 62,
-    delay: '中',
-    delayEn: 'Medium',
-    delayAr: 'متوسط',
-    delayKey: 'mid',
-    strategy: '电话+邮件双渠道提醒，7 日内跟进',
-    strategyEn: 'Phone + email reminders; follow up within 7 days',
-    strategyAr: 'تذكير عبر الهاتف والبريد؛ المتابعة خلال 7 أيام',
-    penalty: '无',
-    penaltyEn: 'None',
-    penaltyAr: 'لا يوجد',
-    penaltyKey: 'none',
-    lifecycle: 'uncollected',
-    color: 'orange'
-  },
-  {
-    id: 'INV-2026-0476',
-    entity: 'Metro 运输',
-    entityEn: 'Metro Transport',
-    entityAr: 'مترو للنقل',
-    overdue: 12,
-    amount: 1560000,
-    prob: 88,
-    delay: '低',
-    delayEn: 'Low',
-    delayAr: 'منخفض',
-    delayKey: 'low',
-    strategy: '标准催收邮件，回收概率高',
-    strategyEn: 'Standard collection email; high recovery probability',
-    strategyAr: 'بريد تحصيل قياسي؛ احتمال تحصيل مرتفع',
-    penalty: '无',
-    penaltyEn: 'None',
-    penaltyAr: 'لا يوجد',
-    penaltyKey: 'none',
-    lifecycle: 'uncollected',
-    color: 'green'
-  },
-  {
-    id: 'INV-2026-0455',
-    entity: 'Coastal 物流',
-    entityEn: 'Coastal Logistics',
-    entityAr: 'الساحلية للخدمات اللوجستية',
-    overdue: 61,
-    amount: 2100000,
-    prob: 21,
-    delay: '高',
-    delayEn: 'High',
-    delayAr: 'عالٍ',
-    delayKey: 'high',
-    strategy: '优先级最高，建议催收经理介入并评估计提坏账',
-    strategyEn:
-      'Highest priority; recommend collection manager intervention and bad-debt provisioning',
-    strategyAr: 'أعلى أولوية؛ يوصى بتدخل مدير التحصيل وتقييم مخصص الديون المعدومة',
-    penalty: '执行中',
-    penaltyEn: 'Enforcing',
-    penaltyAr: 'قيد التنفيذ',
-    penaltyKey: 'enforcing',
-    lifecycle: 'enforced',
-    color: 'red'
-  }
-];
-
-/* ---------- Penalty status dictionary ---------- */
-export const PENALTY_STATUS = {
-  none: { label: '无', labelEn: 'None', labelAr: 'لا يوجد' },
-  appealed: { label: '已上诉', labelEn: 'Appealed', labelAr: 'تم الاستئناف' },
-  enforcing: { label: '执行中', labelEn: 'Enforcing', labelAr: 'قيد التنفيذ' }
-};
-
-/* ---------- 8-month trend ---------- */
-export const TREND = {
-  labels: ['12月', '1月', '2月', '3月', '4月', '5月', '6月', '7月'],
-  labelsEn: ['Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-  labelsAr: ['ديسمبر', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو'],
-  processed: [6200, 6800, 7400, 8100, 9200, 10300, 11500, 12480],
-  automation: [88.2, 89.5, 91.0, 92.4, 93.8, 95.1, 95.9, 96.4],
-  recovery: [78, 79.5, 81, 82.4, 83.9, 85.2, 86.4, 87.3],
-  // Average days from invoice issue to collection (penalty/fine invoices) —
-  // shorter lifetime means less revenue deferred into next fiscal year.
-  invoiceLifetimeDays: [45, 41, 37, 32, 28, 24, 20, 18]
-};
-
-/* ---------- Q&A scripts ---------- */
-// Templates use {{placeholders}} filled from real, live-computed data (see
-// Assistant.jsx's `stats`) so an answer can never drift out of sync with what
-// the corresponding page actually shows — the same discipline applied to the
-// Dashboard's proactive alerts.
-export const QA = [
-  {
-    // Ordered first: keywords like 'الإيرادات'/'revenue' also appear in the
-    // generic amount/revenue entry below, and QA lookup takes the first
-    // match — this one must win for revenue-benchmark questions.
-    match: ['收入基准', '收入报告', '部级', 'revenue benchmark', 'benchmark report', 'ministry-wide', 'executive report', 'معيار الإيرادات', 'التقرير التنفيذي', 'تقرير الإيرادات', 'تقرير الوزارة'],
-    zh: '这是一个示例性的部级收入基准（单位：百万里亚尔，仅用于演示，与本演示的虚构发票数据无关）：总开票额 **{{realGross}}M**，净开票额 **{{realNet}}M**（占总额{{realNetPct}}%），实际收缴 **{{realCollected}}M**（占净额{{realCollectedPct}}%）。按来源看，市政房地产投资占比最高（{{realTopWeight}}%，收缴率{{realTopRate}}%），其次是住房板块（{{realHousingWeight}}%，收缴率{{realHousingRate}}%）。同比上一年，收缴从{{realCollected2025}}M增长至{{realCollected}}M（+{{realCollectedYoy}}%）。',
-    en: "This is an illustrative, sample ministry-wide revenue benchmark (SAR millions — for demo purposes only, unrelated to this demo's fictional invoice data): gross invoiced **SAR {{realGross}}M**, net invoiced **SAR {{realNet}}M** ({{realNetPct}}% of gross), actually collected **SAR {{realCollected}}M** ({{realCollectedPct}}% of net). By source, Municipal Real-Estate Investment leads at {{realTopWeight}}% of net-invoiced value ({{realTopRate}}% collected), followed by Housing at {{realHousingWeight}}% ({{realHousingRate}}% collected). Year-over-year, collected revenue rose from SAR {{realCollected2025}}M to SAR {{realCollected}}M (+{{realCollectedYoy}}%).",
-    ar: 'هذا معيار إيرادات توضيحي (نموذجي) على مستوى الوزارة (بالمليون ريال — لأغراض العرض التوضيحي فقط، وغير مرتبط ببيانات الفواتير الافتراضية في هذا العرض): إجمالي المفوتر **{{realGross}} مليون**، صافي الفوترة **{{realNet}} مليون** ({{realNetPct}}% من الإجمالي)، المحصل فعليًا **{{realCollected}} مليون** ({{realCollectedPct}}% من الصافي). حسب المصدر، تتصدر إيرادات استثمار العقارات البلدية بنسبة {{realTopWeight}}% من صافي الفوترة (نسبة تحصيل {{realTopRate}}%)، يليها قطاع الإسكان بنسبة {{realHousingWeight}}% (تحصيل {{realHousingRate}}%). مقارنة بالعام السابق، ارتفع المحصل من {{realCollected2025}} مليون إلى {{realCollected}} مليون (+{{realCollectedYoy}}%).',
-    chart: 'realRevenueSource'
-  },
-  {
-    match: ['回收率', '收缴', 'recovery', 'collection rate', 'التحصيل', 'تحصيل'],
-    zh: '本月账款回收率为 **{{recovery}}%**，环比上升 {{recoveryDelta}} 个百分点，已超过 {{recoveryTarget}}% 的目标。当前有 {{lowCount}} 笔逾期账单回收概率低于 40%（详见催收预测页面），建议优先介入。',
-    en: "This month's collection rate is **{{recovery}}%**, up {{recoveryDelta}} pts month-over-month, exceeding the {{recoveryTarget}}% target. There are {{lowCount}} overdue invoices with recovery probability below 40% (see Collection Forecast) — priority intervention recommended.",
-    ar: 'بلغ معدل التحصيل هذا الشهر **{{recovery}}%**، بزيادة {{recoveryDelta}} نقطة مئوية عن الشهر السابق، متجاوزًا الهدف البالغ {{recoveryTarget}}%. هناك {{lowCount}} فواتير متعثرة باحتمال تحصيل أقل من 40% (راجع توقعات التحصيل).',
-    chart: 'recovery'
-  },
-  {
-    match: ['本月收入', '处理金额', '金额', 'revenue', 'amount', 'processed', 'المبلغ', 'الإيرادات'],
-    zh: '本月已处理账单金额合计 **{{amountB}} 亿 SAR**（{{processedCount}} 张），环比增长 {{amountDelta}}%。其中 Mumathil 平台占比 {{makinPct}}%，Foras 平台 {{tahseelPct}}%（全部均已反映在 Tahseel 主账本中）。',
-    en: 'Total amount processed this month is **{{amountB}} B SAR** ({{processedCount}} invoices), up {{amountDelta}}% MoM. Mumathil accounts for {{makinPct}}%, Foras {{tahseelPct}}% of originating platforms (all of it is also reflected in the Tahseel master ledger).',
-    ar: 'إجمالي المبالغ المعالجة هذا الشهر **{{amountB}} مليار ر.س** ({{processedCount}} فاتورة)، بنمو {{amountDelta}}%. تشكل منصة Mumathil {{makinPct}}٪ ومنصة Foras {{tahseelPct}}٪ من المصادر (وجميعها معكوسة في السجل الرئيسي تحصيل).',
-    chart: 'source'
-  },
-  {
-    match: ['异常', '欺诈', '风险', 'anomaly', 'fraud', 'risk', 'المنحرفة', 'احتيال'],
-    zh: '本月共拦截异常/欺诈账单 **{{anomalyTotal}} 起**，风险雷达当前列出 {{riskListCount}} 条重点案例（{{highRisk}} 项高危、{{midRisk}} 项中危）。最典型的是 {{topRiskEntity}}（{{topRiskId}}），{{topRiskTag}}，风险评分 {{topRiskScore}}，已转人工复核。',
-    en: '**{{anomalyTotal}} anomalous/fraudulent invoices** were intercepted this month. Risk Radar currently lists {{riskListCount}} priority cases ({{highRisk}} high-risk, {{midRisk}} mid-risk). The top case is {{topRiskEntity}} ({{topRiskId}}) — {{topRiskTag}}, risk score {{topRiskScore}}, referred for manual review.',
-    ar: 'تم اعتراض **{{anomalyTotal}} حالة** منحرفة/احتيالية هذا الشهر. يعرض رادار المخاطر حالياً {{riskListCount}} حالة ذات أولوية ({{highRisk}} عالية الخطورة، {{midRisk}} متوسطة). أبرزها {{topRiskEntity}} ({{topRiskId}}) — {{topRiskTag}}، بدرجة خطورة {{topRiskScore}}.',
-    chart: 'riskBuckets'
-  },
-  {
-    match: ['自动', '录入', 'automation', 'auto entry', 'الأتمتة'],
-    zh: '字段自动录入率为 **{{automation}}%**，已超过 {{automationTarget}}% 的目标（FR-002）。近 8 个月自动化率从 {{automationStart}}% 稳步提升至 {{automation}}%。',
-    en: 'The field auto-entry rate is **{{automation}}%**, exceeding the {{automationTarget}}% target (FR-002). Over the last 8 months, automation rose steadily from {{automationStart}}% to {{automation}}%.',
-    ar: 'بلغ معدل الأتمتة في إدخال الحقول **{{automation}}%**، متجاوزًا الهدف {{automationTarget}}%. ارتفع من {{automationStart}}% إلى {{automation}}% خلال 8 أشهر.',
-    chart: 'automation'
-  },
-  {
-    match: ['逾期', '催收清单', 'overdue', 'distressed', 'receivable', 'متعثر', 'متأخر'],
-    zh: '催收预测页面当前列出 **{{debtCount}} 笔逾期账款**，合计 {{debtTotalK}} 千 SAR。最久逾期的是 {{oldestEntity}}（{{oldestId}}），已逾期 {{oldestDays}} 天，AI 预测回收概率仅 {{oldestProb}}%，建议催收经理立即介入。',
-    en: 'Collection Forecast currently lists **{{debtCount}} overdue receivables** totaling {{debtTotalK}}K SAR. The longest-overdue is {{oldestEntity}} ({{oldestId}}), {{oldestDays}} days overdue with only {{oldestProb}}% predicted recovery — collection manager should intervene now.',
-    ar: 'تعرض صفحة توقعات التحصيل حالياً **{{debtCount}} مديونية متعثرة** بإجمالي {{debtTotalK}} ألف ر.س. أطولها تأخراً {{oldestEntity}} ({{oldestId}})، متأخرة {{oldestDays}} يوماً باحتمال تحصيل {{oldestProb}}% فقط — يوصى بتدخل مدير التحصيل فوراً.',
-    chart: 'collectionProb'
-  },
-  {
-    match: ['待审批', '审批中心', 'pending approval', 'approval center', 'approvals', 'معلقة', 'موافقات'],
-    zh: '审批中心当前有 **{{apvCount}} 笔待审批账单**，合计 {{apvTotalM}} 百万 SAR，最高优先级为 {{apvTopEntity}}（{{apvTopId}}，{{apvTopAmount}} SAR）。',
-    en: 'Approval Center currently has **{{apvCount}} invoices pending approval**, totaling {{apvTotalM}}M SAR. Top priority is {{apvTopEntity}} ({{apvTopId}}, {{apvTopAmount}} SAR).',
-    ar: 'يوجد حالياً في مركز الموافقات **{{apvCount}} فواتير معلقة**، بإجمالي {{apvTotalM}} مليون ر.س. الأعلى أولوية {{apvTopEntity}} ({{apvTopId}}، {{apvTopAmount}} ر.س).',
-    chart: 'approvalsBar'
-  },
-  {
-    match: ['账单状态', '状态分布', 'invoice status', 'status distribution', 'حالة الفواتير'],
-    zh: '账单库当前共 **{{invTotal}} 张账单**：{{stApproved}} 张已通过、{{stPending}} 张待处理、{{stReview}} 张待人工复核、{{stDuplicate}} 张重复拦截、{{stAnomaly}} 张欺诈警告。',
-    en: 'The Invoice Library currently has **{{invTotal}} invoices**: {{stApproved}} approved, {{stPending}} pending, {{stReview}} under review, {{stDuplicate}} duplicate-blocked, {{stAnomaly}} fraud-flagged.',
-    ar: 'يضم سجل الفواتير حالياً **{{invTotal}} فاتورة**: {{stApproved}} معتمدة، {{stPending}} قيد الانتظار، {{stReview}} بمراجعة بشرية، {{stDuplicate}} محظورة للتكرار، {{stAnomaly}} بتحذير احتيال.',
-    chart: 'invoiceStatus'
-  },
-  {
-    match: ['处理周期', '处理时间', 'processing time', 'cycle time', 'وقت المعالجة', 'دورة المعالجة'],
-    zh: '当前平均处理周期为 **{{avgHours}} 小时**，相比人工处理的 3-5 天大幅缩短。',
-    en: 'The current average processing cycle is **{{avgHours}} hours**, a major reduction from the 3-5 days required for manual processing.',
-    ar: 'يبلغ متوسط دورة المعالجة الحالية **{{avgHours}} ساعة**، بانخفاض كبير مقارنة بـ3-5 أيام في المعالجة اليدوية.',
-    chart: null
-  }
-];
-
-export const DEFAULT_ANSWER = {
-  zh: '我是「智能账单管理」总控助手，可回答本月 KPI、回收率、处理金额、异常拦截、自动化率等问题，支持中文与阿拉伯语。你可以试着问我：“本月回收率多少？”或用阿拉伯语提问 “ما هو معدل التحصيل؟”。',
-  en: "I am the INTELLIBILL orchestrator assistant. I can answer questions about monthly KPIs, collection rate, processed amount, anomaly interception, and automation rate — in English, Chinese, and Arabic. Try asking: \"What is this month's collection rate?\"",
-  ar: 'أنا المساعد الرئيسي لإدارة الفواتير الذكية، يمكنني الإجابة عن مؤشرات الأداء الرئيسية بالعربية والصينية والإنجليزية. جرّب أن تسأل: "ما هو معدل التحصيل؟".'
-};
-
 /* ---------- Payer master (Sanad / ERP registry) ----------
    Referenced by the validation & anomaly agents so intermediate tool results
    quote real-looking, internally-consistent payer records. */
@@ -1370,44 +936,6 @@ export const SANAD_ENFORCEMENT = {
     { enforceNum: 'EN-2760541', amanahEn: 'Al Madinah Amanah', amanah: '麦地那', amanahAr: 'أمانة المدينة المنورة', amount: 1245000, defendant: { en: 'Registered company', zh: '注册公司', ar: 'شركة مسجلة في المملكة' } }
   ]
 };
-
-/* ---------- Illustrative ministry-wide revenue benchmark ----------
-   Fictional, illustrative-only figures for demo purposes — NOT sourced from
-   any real ministry executive report or confidential financial data. Shaped
-   to demonstrate the same kind of gross→net→collected revenue ladder, by
-   revenue-source breakdown, and year-over-year comparison a real executive
-   report might show. Internally consistent (source rows sum to the
-   cumulative totals; YoY % derived from the two year figures shown), but
-   every number here is invented. All amounts are in SAR MILLIONS, a
-   completely different scale from the fictional per-invoice INVOICES array
-   above. Treat as a fixed reference snapshot, not something the demo's
-   period filter should touch. */
-export const REVENUE_BENCHMARK_SAMPLE = {
-  month: 'sample-month',
-  bySource: [
-    { key: 'investment', nameEn: 'Municipal Real-Estate Investment', nameAr: 'إيرادات استثمار العقارات البلدية', name: '市政房地产投资收入', rate: 64, collected: 2180, netInvoiced: 3410, weight: 30 },
-    { key: 'housing', nameEn: 'Housing Sector', nameAr: 'قطاع الإسكان', name: '住房板块', rate: 71, collected: 2100, netInvoiced: 2950, weight: 26 },
-    { key: 'penalties', nameEn: 'Penalties & Fines', nameAr: 'إيرادات الجزاءات والغرامات', name: '罚款与处罚收入', rate: 58, collected: 1320, netInvoiced: 2270, weight: 20 },
-    { key: 'misc', nameEn: 'Misc. Revenues & Fees', nameAr: 'الإيرادات المختلفة وإيرادات الرسوم والمقابلات المالية', name: '其他收入及费用', rate: 100, collected: 1820, netInvoiced: 1820, weight: 16 },
-    { key: 'sales', nameEn: 'Sales Fees', nameAr: 'رسوم المبيعات', name: '销售费用', rate: 88, collected: 800, netInvoiced: 910, weight: 8 }
-  ],
-  cumulative: { collected: 8220, netInvoiced: 11360, grossInvoiced: 12480, collectedPctOfNet: 72, netPctOfGross: 91 },
-  // Year-over-year, illustrative (sample year vs. prior sample year).
-  yoy: {
-    collected: { y2026: 8220, y2025: 7020, pct: 17 },
-    netInvoiced: { y2026: 11360, y2025: 10430, pct: 9 },
-    grossInvoiced: { y2026: 12480, y2025: 10970, pct: 14 },
-    budgetTarget: { y2026: 6250, y2025: 5840, pct: 7 }
-  }
-};
-
-/* ---------- Illustrative operational-expenditure baseline (What-If Modeling) ----------
-   Fictional target figure, same SAR scale as the per-invoice INVOICES array (NOT the
-   SAR-millions REVENUE_BENCHMARK_SAMPLE above). Per the 10-Sep Smart Invoicing MOM, the
-   exact operational-expenditure calculation methodology was explicitly flagged as
-   "not finalized — requires further validation" before the real Prototype. This number
-   exists only so the demo can show the shape of an opex-coverage scenario. */
-export const OPEX_BASELINE = 17000000;
 
 /* ---------- Utility ---------- */
 export function fmtMoney(n) {

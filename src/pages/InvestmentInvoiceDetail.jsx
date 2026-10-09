@@ -1,24 +1,30 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
-import { fmtMoney, INVOICES } from '../data/mock';
+import { useRevenue } from '../context/RevenueContext';
+import { useAsync } from '../utils/useAsync';
+import { legacyInvoiceFor } from '../utils/legacyInvoice';
+import { fmtSar } from '../utils/money';
+const fmtMoney = (n) => fmtSar(n).replace(/ SAR$/, '');
 import AgentThinking from '../components/ai/AgentThinking';
 
 const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
 
-const anchorToday = INVOICES.reduce((max, i) => (i.date > max ? i.date : max), INVOICES[0].date);
-const ageInDays = (dateStr) => Math.max(0, Math.round((new Date(`${anchorToday}T00:00:00Z`) - new Date(`${dateStr}T00:00:00Z`)) / 86400000));
+const ageInDays = (anchorToday, dateStr) => Math.max(0, Math.round((new Date(`${anchorToday}T00:00:00Z`) - new Date(`${dateStr}T00:00:00Z`)) / 86400000));
 
 export default function InvestmentInvoiceDetail() {
   const { t, lang, isRtl } = useI18n();
   const nav = useNavigate();
   const { id } = useParams();
-  const inv = INVOICES.find((i) => i.id === id);
+  const rev = useRevenue();
+  // one record, loaded on demand
+  const { data: det, loading: detLoading } = useAsync(() => rev.data.invoice(id).catch(() => null), [rev.data, id]);
+  const inv = det?.rec ? legacyInvoiceFor(det.rec) : null;
 
   const [phase, setPhase] = useState('analyzing'); // analyzing | done — runs automatically, no file to attach
   const [tick, setTick] = useState(0);
 
-  const age = inv ? ageInDays(inv.date) : 0;
+  const age = inv ? ageInDays(rev.cfg.cutoff, inv.date) : 0;
   const beneficiary = inv ? (lang === 'zh' ? inv.entity : lang === 'ar' ? inv.entityAr : inv.entityEn) : '';
   const amanah = inv ? (lang === 'zh' ? inv.amanah : lang === 'ar' ? inv.amanahAr : inv.amanahEn) : '';
 
@@ -89,7 +95,7 @@ export default function InvestmentInvoiceDetail() {
     return (
       <div className="grid" style={{ gap: 14 }}>
         <div className="page-head">
-          <div className="page-title">{pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</div>
+          <div className="page-title">{detLoading ? pick(lang, 'Loading…', 'جارٍ التحميل…', '加载中…') : pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
           {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}

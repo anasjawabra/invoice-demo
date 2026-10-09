@@ -7,8 +7,6 @@ export function buildCFOBoardPackReport(model, t, money) {
     title: t('cfo_boardpack_title'),
     generatedOn: new Date().toISOString().slice(0, 10),
     period: `${model.periodStart} → ${model.periodEnd}`,
-    healthScore: model.health.score,
-    healthBand: t(`cfo_health_${model.health.band}`),
     keyMetrics: [
       { label: t('cfo_kpi_expected_collections'), value: money(model.expectedCollections) },
       { label: t('cfo_kpi_expected_expenses'), value: money(model.expectedExpenses) },

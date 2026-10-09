@@ -7,10 +7,10 @@ export default function FloatingAssistantButton() {
   const nav = useNavigate();
   const loc = useLocation();
 
-  if (loc.pathname.startsWith('/assistant')) return null;
+  if (loc.pathname.startsWith('/insights') || loc.pathname.startsWith('/planning')) return null; // both management areas have their own conversational entry
 
   return (
-    <button type="button" className="floating-assistant" onClick={() => nav('/assistant')}>
+    <button type="button" className="floating-assistant" onClick={() => nav('/insights?view=smart')}>
       {t('dash_float_assistant')}
     </button>
   );

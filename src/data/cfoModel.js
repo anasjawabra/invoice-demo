@@ -11,7 +11,7 @@
 // no partial updates, no API calls.
 //
 // Layering (mirrors the "never touch actual data" requirement):
-//   Actual      -> INVOICES/COLLECTIONS/etc. from mock.js, read-only.
+//   Actual      -> the revenue ledger (via reportAnalytics adapters), read-only.
 //   Planning    -> the `assumptions` object the caller passes in (React
 //                  state living in DecisionRoom.jsx, never persisted).
 //   Calculation -> everything in this file.
@@ -23,9 +23,12 @@
 // out in a comment right above it — Source -> Formula -> Assumption ->
 // Result, so the page can show "how is this calculated?" without this file
 // needing a second, parallel description of itself.
-import { INVOICES, COLLECTIONS, SANAD_ENFORCEMENT, fmtMoney } from './mock';
-import { computeKpi, computeByProvince, computeExclusionBreakdown } from './reportAnalytics';
-import { computeAllRiskFlags } from './riskAnalysis';
+import { SANAD_ENFORCEMENT, fmtMoney } from './mock';
+import { DEFAULT_TARGETS } from './revenueMetrics';
+import { DEMO_TODAY } from './clock';
+
+// Single demo benchmark shared with every other screen; not an approved target.
+const COLLECTION_BENCHMARK_PCT = DEFAULT_TARGETS.collectionRate.value * 100;
 import { DEMO_EXPENSE_CHAPTERS, DEMO_INVESTMENT_CONTRACTS, DEMO_PAYMENT_SCHEDULE, ILLUSTRATIVE_BASELINE_2026 } from './decisionRoomDemoData';
 
 // ---------------------------------------------------------------------------
@@ -52,18 +55,15 @@ function durationEnd(today, n) {
   return d.toISOString().slice(0, 10);
 }
 
-function isExcluded(inv) {
-  return inv.status === 'duplicate' || inv.hasOpenObjection || inv.debtorInvalid || inv.collectedVia === 'enforcement';
-}
-
-export function anchorToday(invoices = INVOICES) {
-  return invoices.reduce((max, i) => (i.date > max ? i.date : max), invoices[0].date);
+// "Today" is the real Asia/Riyadh date (clock.js) — never the newest invoice date.
+export function anchorToday() {
+  return DEMO_TODAY;
 }
 
 export const PERIOD_MODES = ['toYearEnd', 'annual', 'quarterly', 'monthly', 'months', 'custom'];
 
-export function computePeriod(mode, { months, from, to } = {}, invoices = INVOICES) {
-  const today = anchorToday(invoices);
+export function computePeriod(mode, { months, from, to } = {}) {
+  const today = anchorToday();
   if (mode === 'custom') {
     return { periodStart: from || today, periodEnd: to || durationEnd(today, 12) };
   }
@@ -93,31 +93,13 @@ export function periodTotalMonths(periodStart, periodEnd) {
   return Math.max(1, monthSpan(periodStart, periodEnd));
 }
 
-export function computeMonthlyActuals(periodStart, periodEnd, invoices = INVOICES) {
-  const today = anchorToday(invoices);
-  const elapsedEnd = periodEnd < today ? periodEnd : today;
-  if (elapsedEnd < periodStart) return [];
-  const elapsedMonths = monthSpan(periodStart, elapsedEnd);
-  const sums = Array(elapsedMonths).fill(0);
-  for (const inv of invoices) {
-    if (inv.date < periodStart || inv.date > elapsedEnd) continue;
-    if (isExcluded(inv) || inv.status !== 'approved') continue;
-    const idx = monthSpan(periodStart, inv.date) - 1;
-    if (idx >= 0 && idx < elapsedMonths) sums[idx] += inv.amount;
-  }
-  return sums.map((value, i) => ({ month: i, value }));
-}
+// The monthly receipts, the trailing look-back, the history, the scope share, the province shares and the risk-flag totals are
+// aggregated by the data service (see planningData.buildPlanningData); the model below is a pure function of that bundle.
 
-export function computeAmanahShares(invoices) {
-  // Keep every province with a defined Amanah (hasData), even ones with zero
-  // invoices in the current period/filter — the map needs all 13 shapes to
-  // draw (zero-data ones render greyed via mapFillForMetric's own count===0
-  // check), not just the subset that happens to have data right now.
-  const byProvince = computeByProvince(invoices).filter((p) => p.hasData);
-  const totalGross = byProvince.reduce((s, p) => s + p.gross, 0);
-  return byProvince
-    .map((p) => ({ ...p, share: totalGross ? p.gross / totalGross : 0 }))
-    .sort((a, b) => b.gross - a.gross);
+function addDays1(dateStr, n) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
 }
 
 function shiftDate(dateStr, months) {
@@ -164,7 +146,7 @@ export const SCENARIO_PRESETS = {
 // arbitrary" requirement. Each dimension scores 0-100 before weighting.
 export const DEFAULT_HEALTH_WEIGHTS = {
   revenue: 20, // achieved/expected vs. baseline trend
-  collection: 20, // collection rate vs. the 70% benchmark already used app-wide
+  collection: 20, // collection rate vs. the demo collection-rate target input (revenueMetrics.DEFAULT_TARGETS)
   expense: 15, // expense growth held near 0% is "healthy"
   liquidity: 20, // net position vs. inflows
   outstanding: 10, // uncollected share of net invoiced
@@ -210,42 +192,24 @@ function linearFit(monthlyActuals) {
 // ---------------------------------------------------------------------------
 
 export function computeCFOModel({
-  invoices = INVOICES,
+  data,
   assumptions = DEFAULT_ASSUMPTIONS,
   periodStart,
   periodEnd,
   healthWeights = DEFAULT_HEALTH_WEIGHTS
 }) {
-  const periodInvoices = invoices.filter((i) => i.date >= periodStart && i.date <= periodEnd);
-  const kpi = computeKpi(periodInvoices); // "actual, this period" — can be small/zero for a forward-looking period that just started; that's honest, not a bug
-  const exclusions = computeExclusionBreakdown(periodInvoices);
+  const kpi = data.kpi; // "actual, this period" — can be small/zero for a forward-looking period that just started; that's honest, not a bug
+  const exclusions = data.exclusions;
   const totalMonths = periodTotalMonths(periodStart, periodEnd);
-  const monthlyActuals = computeMonthlyActuals(periodStart, periodEnd, invoices);
+  const monthlyActuals = data.monthlyActuals;
   const monthsElapsed = monthlyActuals.length;
   const monthsRemaining = Math.max(0, totalMonths - monthsElapsed);
 
-  // The period is forward-looking (starts "today"), so it rarely has more
-  // than a few real elapsed weeks of its own — nowhere near enough to fit a
-  // trend or a stable collection rate. Both are instead derived from a
-  // trailing lookback of REAL history immediately before the period starts
-  // (up to 12 months), continuing the same timeline into the projected
-  // months. This is still 100% real data — just a wider, more stable real
-  // window than "whatever happened to fall inside the forward period so far".
-  const lookbackStart = addMonthsUTC(periodStart, -LOOKBACK_MONTHS);
-  const lookbackSeries = (() => {
-    const sums = Array(LOOKBACK_MONTHS).fill(0);
-    for (const inv of invoices) {
-      if (inv.date < lookbackStart || inv.date >= periodStart) continue;
-      if (isExcluded(inv) || inv.status !== 'approved') continue;
-      const idx = monthSpan(lookbackStart, inv.date) - 1;
-      if (idx >= 0 && idx < LOOKBACK_MONTHS) sums[idx] += inv.amount;
-    }
-    return sums.map((value, i) => ({ month: i, value }));
-  })();
-  const trend = linearFit(lookbackSeries);
-  const historicalInvoices = invoices.filter((i) => i.date < periodStart);
-  const historicalKpi = computeKpi(historicalInvoices.length ? historicalInvoices : invoices);
-  const actualRate = historicalKpi.collectionRate; // %, real, stable (whole real history before the period, not the sparse in-period slice)
+  // The period is forward-looking (starts "today"), so it rarely has more than a few real elapsed weeks of its own — nowhere
+  // near enough to fit a trend or a stable collection rate. Both are instead derived from a trailing look-back of REAL history
+  // immediately before the period starts (up to 12 months), continuing the same timeline into the projected months.
+  const trend = linearFit(data.lookbackSeries);
+  const actualRate = data.historicalRate ?? 0; // %, real, stable (whole real history before the period)
   const expectedRate = clamp(actualRate + assumptions.collectionRateDelta, 0, 100);
 
   // Expense chapters: DEMO_EXPENSE_CHAPTERS.forecast is a national ANNUAL
@@ -254,12 +218,7 @@ export function computeCFOModel({
   // Amanahs", a real fraction for a single one) — so a single-Amanah scope
   // doesn't get compared against the whole ministry's expense base. Floored
   // at 2% so a very small Amanah doesn't zero expenses out entirely.
-  const scopeShare = clamp(
-    INVOICES.reduce((s, i) => s + i.amount, 0)
-      ? invoices.reduce((s, i) => s + i.amount, 0) / INVOICES.reduce((s, i) => s + i.amount, 0)
-      : 1,
-    0.02, 1
-  );
+  const scopeShare = data.scopeShare; // this scope's share of total gross billing (1.0 for "all Amanahs"), computed by the data service
   const chapters = DEMO_EXPENSE_CHAPTERS.map((c) => {
     const pct = assumptions.expenseGrowthPct + (assumptions.chapterAdjustments[c.id] || 0);
     const annualAdjusted = Math.round(c.forecast * (1 + pct / 100) * scopeShare);
@@ -315,7 +274,9 @@ export function computeCFOModel({
   // as the existing Decision Room already computed it, not spread monthly.
   // overdueRecoveryPct scales this real recovery estimate up/down — a
   // real lever on real data, not a separate invented figure.
-  const forecastedCollections = Math.round(COLLECTIONS.reduce((s, c) => s + c.amount * (c.prob / 100), 0) * (1 + assumptions.overdueRecoveryPct / 100));
+  // User lever only: the share of the CURRENT overdue/partial outstanding (shared classification) assumed recovered. No per-invoice
+  // payment probability is used — none is supported by the data. At the default 0% this adds nothing to the trend forecast.
+  const forecastedCollections = Math.round(data.overdueOutstanding * (assumptions.overdueRecoveryPct / 100));
 
   const inflows = expectedCollections + forecastedCollections;
   const outflows = expectedExpenses + totalCommitmentsInPeriod;
@@ -328,7 +289,7 @@ export function computeCFOModel({
   // real historical share of gross invoicing (the same `share` already used
   // to distribute the revenue target). Nothing new is invented; this is
   // just the existing totals sliced by a real weight.
-  const amanahShares = computeAmanahShares(periodInvoices.length ? periodInvoices : invoices);
+  const amanahShares = data.amanahShares;
   const perAmanah = amanahShares.map((p) => {
     const expectedTarget = Math.round((expectedCollections || 0) * p.share);
     const spent = Math.round(expectedExpenses * p.share);
@@ -356,7 +317,7 @@ export function computeCFOModel({
     perAmanah
   };
 
-  model.risks = computeFinancialRisks(model, periodInvoices);
+  model.risks = computeFinancialRisks(model, data.riskFlags);
   model.health = computeHealthScore(model);
   model.recommendations = buildCFORecommendations(model);
   model.investmentCapacity = computeInvestmentCapacity(model);
@@ -370,7 +331,8 @@ export function computeCFOModel({
 // SAR impact, affected period, its source, and a recommended action.
 // ---------------------------------------------------------------------------
 
-export function computeFinancialRisks(model, periodInvoices) {
+// `flags` = { count, amount }: rule-based risk flags (duplicate / struck-off registry / deceased debtor / value anomaly) counted by the data service
+export function computeFinancialRisks(model, flags = { count: 0, amount: 0 }) {
   const risks = [];
 
   // Revenue risk: expected collections trailing the real trend baseline
@@ -385,20 +347,19 @@ export function computeFinancialRisks(model, periodInvoices) {
 
   // Collection risk: real collection rate below the 70% benchmark already
   // used everywhere else in this app (map legend, ring gauges).
-  if (model.actualRate < 70) {
+  if (model.actualRate < COLLECTION_BENCHMARK_PCT) {
     risks.push({
       id: 'collection-rate', category: 'collection', severity: model.actualRate < 40 ? 'high' : 'medium',
-      impactSAR: Math.round(model.kpi.netInvoiced * (70 - model.actualRate) / 100),
+      impactSAR: Math.round(model.kpi.netInvoiced * (DEFAULT_TARGETS.collectionRate.value * 100 - model.actualRate) / 100),
       period: `${model.periodStart} → ${model.periodEnd}`, source: 'reportAnalytics.computeKpi', action: 'prioritize_overdue'
     });
   }
   // Real, MoMAH-confirmed risk categories (duplicates/struck-off/deceased/value anomaly).
-  const flags = computeAllRiskFlags(periodInvoices);
-  if (flags.length) {
+  if (flags.count) {
     risks.push({
-      id: 'invoice-quality', category: 'collection', severity: flags.length > 5 ? 'high' : 'medium',
-      impactSAR: flags.reduce((s, f) => s + (f.invoice?.amount || 0), 0),
-      period: `${model.periodStart} → ${model.periodEnd}`, source: 'riskAnalysis.computeAllRiskFlags', action: 'review_flagged_invoices', count: flags.length
+      id: 'invoice-quality', category: 'collection', severity: flags.count > 5 ? 'high' : 'medium',
+      impactSAR: flags.amount,
+      period: `${model.periodStart} → ${model.periodEnd}`, source: 'risk radar (data service)', action: 'review_flagged_invoices', count: flags.count
     });
   }
 
@@ -444,8 +405,11 @@ export function computeFinancialRisks(model, periodInvoices) {
     }
   }
 
+  // Liquidity / commitment / investment / expense-growth risks belong to treasury and
+  // expenditure planning, which is outside the invoice / revenue scope (HLSD V0.4): not surfaced.
+  const DEFERRED = new Set(['liquidity', 'commitment', 'investment', 'expense']);
   const severityRank = { high: 0, medium: 1, low: 2 };
-  return risks.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+  return risks.filter((r) => !DEFERRED.has(r.category)).sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
 }
 
 // ---------------------------------------------------------------------------
@@ -456,7 +420,7 @@ export function computeFinancialRisks(model, periodInvoices) {
 export function computeHealthScore(model) {
   const w = model.healthWeights;
   const scoreRevenue = clamp(100 + model.assumptions.revenueGrowthPct * 4, 0, 100); // +/-25% growth spans the full range
-  const scoreCollection = clamp((model.expectedRate / 70) * 100, 0, 100); // 70% benchmark = 100
+  const scoreCollection = clamp((model.expectedRate / COLLECTION_BENCHMARK_PCT) * 100, 0, 100); // demo target input = 100
   const scoreExpense = clamp(100 - Math.abs(model.assumptions.expenseGrowthPct) * 5, 0, 100); // any move away from 0% costs points
   const scoreLiquidity = model.inflows ? clamp(50 + (model.netPosition / model.inflows) * 100, 0, 100) : 50;
   const outstandingShare = model.kpi.netInvoiced ? model.kpi.uncollectedValue / model.kpi.netInvoiced : 0;
@@ -510,7 +474,6 @@ export function computePaymentPriority(model) {
   const today = anchorToday();
   const daysUntil = (dateStr) => Math.round((new Date(`${dateStr}T00:00:00Z`) - new Date(`${today}T00:00:00Z`)) / 86400000);
   const rows = [
-    ...COLLECTIONS.map((c) => ({ id: c.id, amount: c.amount, days: -c.overdue, real: true })),
     ...model.contractRows.map((r) => ({ id: r.id, amount: r.amount, days: daysUntil(r.dueDate), real: false })),
     ...model.investmentRow.map((r) => ({ id: r.id, amount: r.amount, days: daysUntil(r.dueDate), real: false }))
   ];
@@ -522,7 +485,7 @@ export function computePaymentPriority(model) {
 // Amanah Financial Position Ranking (Section 9.10) — configurable criteria.
 // ---------------------------------------------------------------------------
 
-export const AMANAH_RANK_CRITERIA = ['revenue', 'collection', 'liquidityPressure', 'outstanding'];
+export const AMANAH_RANK_CRITERIA = ['revenue', 'collection', 'outstanding'];
 
 export function rankAmanahs(perAmanah, criterion) {
   const withScore = perAmanah.map((p) => {
@@ -548,7 +511,7 @@ export function rankAmanahs(perAmanah, criterion) {
 // and are deliberately not included — only real, present metrics are
 // offered, per this app's own "never invent a variable with nothing behind
 // it" rule.
-export const MAP_METRICS = ['summary', 'collection', 'expenseCoverage', 'commitment'];
+export const MAP_METRICS = ['summary', 'collection'];
 
 // Returns a 0-100 "how healthy" score for a metric, used both for the map
 // fill color and for finding the worst Amanah (the "needs attention" banner).
@@ -667,29 +630,19 @@ export function computePlanVsActual(model) {
 }
 
 // ---------------------------------------------------------------------------
-// Invoice & Collection tab — real aging buckets. This dataset has no
-// separate due-date field, so age is measured from the invoice's own issue
-// date (labeled as such by the caller) — a real, honest proxy, not a
-// fabricated due-date schedule. Only outstanding (non-excluded, not yet
-// approved/collected) invoices are bucketed.
+// Invoice & Collection tab — aging of OUTSTANDING balances by days past the
+// invoice's due date (shared ledger: due dates, payments, exclusions). Collected
+// and excluded invoices never appear. "current" = due date not yet reached.
 // ---------------------------------------------------------------------------
 
 export const AGING_BUCKETS = ['current', 'd1_30', 'd31_60', 'd61_90', 'd90plus'];
 
-export function computeAgingBuckets(invoices, anchorDate) {
-  const today = anchorDate || anchorToday(invoices);
-  const buckets = { current: [], d1_30: [], d31_60: [], d61_90: [], d90plus: [] };
-  for (const inv of invoices) {
-    if (isExcluded(inv) || inv.status === 'approved') continue;
-    const ageDays = Math.round((new Date(`${today}T00:00:00Z`) - new Date(`${inv.date}T00:00:00Z`)) / 86400000);
-    const key = ageDays <= 0 ? 'current' : ageDays <= 30 ? 'd1_30' : ageDays <= 60 ? 'd31_60' : ageDays <= 90 ? 'd61_90' : 'd90plus';
-    buckets[key].push({ ...inv, ageDays });
-  }
-  return AGING_BUCKETS.map((key) => {
-    const rows = buckets[key];
-    return { key, rows, count: rows.length, value: rows.reduce((s, r) => s + r.amount, 0) };
-  });
+// Aging of OUTSTANDING balances comes from the data service (snapshot.stock.agingPlanning): { key, amount, count }[].
+// The invoices of a bucket are listed on demand (paged) — never carried by the page.
+export function agingBucketsFrom(aging = []) {
+  return AGING_BUCKETS.map((key) => { const b = aging.find((x) => x.key === key) || { amount: 0, count: 0 }; return { key, count: b.count, value: b.amount }; });
 }
+export const AGING_RANGE_DAYS = { current: [-1, 0], d1_30: [1, 30], d31_60: [31, 60], d61_90: [61, 90], d90plus: [91, 100000] };
 
 // ---------------------------------------------------------------------------
 // Illustrative 2026 Baseline model — a SEPARATE, clearly-labeled data mode
@@ -737,7 +690,7 @@ export function buildIllustrativeModel({ assumptions = DEFAULT_ASSUMPTIONS, heal
     },
     exclusions: {
       duplicate: { count: 0, value: 0 }, appeal: { count: 0, value: 0 },
-      invalid_debtor: { count: 0, value: 0 }, enforcement: { count: 0, value: 0 }
+      invalid_debtor: { count: 0, value: 0 }, enforcement: { count: 0, value: 0 }, cancelled: { count: 0, value: 0 }
     },
     actualRate: base.coveragePct, expectedRate: base.coveragePct, trend: null,
     chapters: [], expectedExpenses,

@@ -6,6 +6,7 @@ import { useTheme } from '../context/ThemeContext';
 import { ORGS } from '../data/mock';
 import { ToastProvider, useToast } from './Toast';
 import FloatingAssistantButton from './FloatingAssistantButton';
+import AnalysisHost from './analysis/AnalysisHost';
 
 function Icon({ name }) {
   // Minimal inline icons (no external deps)
@@ -116,28 +117,30 @@ function LayoutInner() {
 
   const tabs = useMemo(
     () => [
-      { to: '/dashboard', icon: 'dashboard', label: t('dashboard'), end: true },
+      { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
+      { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
-      { to: '/risk', icon: 'risk', label: t('risk') },
-      { to: '/collection', icon: 'collection', label: t('collection') },
-      { to: '/decision-room', icon: 'decision-room', label: t('decision_room_nav') },
-      { to: '/assistant', icon: 'assistant', label: t('assistant') },
-      { to: '/smart-reports', icon: 'smart-reports', label: t('smart_reports_nav') },
-      { to: '/what-if', icon: 'what-if', label: t('what_if_nav') }
+      { to: '/noncollection', icon: 'what-if', label: t('nav_noncollection') },
+      { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
+      { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
+      { to: '/risk', icon: 'risk', label: t('nav_risk_quality') },
+      { to: '/data-sources', icon: 'smart-reports', label: t('nav_data_sources') },
+      { to: '/metrics', icon: 'dashboard', label: t('nav_metrics') }
     ],
     [t]
   );
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
-    if (p === '' || p === '/' || p === '/dashboard') return t('dashboard');
+    if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
+    if (p.startsWith('/noncollection')) return t('nav_noncollection');
+    if (p.startsWith('/data-sources')) return t('nav_data_sources');
+    if (p.startsWith('/contracts')) return t('nav_contracts');
+    if (p.startsWith('/metrics')) return t('nav_metrics');
     if (p.startsWith('/invoices')) return t('invoices');
-    if (p.startsWith('/risk')) return t('risk');
-    if (p.startsWith('/collection')) return t('collection');
-    if (p.startsWith('/decision-room')) return t('decision_room_nav');
-    if (p.startsWith('/assistant')) return t('assistant');
-    if (p.startsWith('/smart-reports')) return t('smart_reports_nav');
-    if (p.startsWith('/what-if')) return t('what_if_nav');
+    if (p.startsWith('/risk')) return t('nav_risk_quality');
+    if (p.startsWith('/collection')) return t('nav_collection_worklist');
+    if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
     return 'INTELLIBILL';
   }, [loc.pathname, t]);
@@ -150,7 +153,7 @@ function LayoutInner() {
       <main className="main">
         <header className="topbar">
           <div className="topbar-left">
-            <NavLink to="/dashboard" className="side-brand">
+            <NavLink to="/insights" className="side-brand">
               <div className="side-brand__logo">IB</div>
               <div className="side-brand__text">
                 <b>{t('side_brand')}</b>
@@ -316,6 +319,7 @@ function LayoutInner() {
         </section>
 
         <FloatingAssistantButton />
+        <AnalysisHost />
       </main>
     </div>
   );

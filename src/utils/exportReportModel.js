@@ -1,0 +1,123 @@
+// Exports a report MODEL to Word / Excel / PowerPoint. The files carry exactly what the conversation shows: the same context (filters,
+// period, basis, data label), KPIs, tables (same unit per table, stated in the header), chart data, insights and assumptions;
+// Excel also gets exact SAR amounts. Nothing is recomputed here.
+import { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType } from 'docx';
+import * as XLSX from 'xlsx';
+import pptxgen from 'pptxgenjs';
+import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../data/reportFormat';
+import { fmtSar } from './money';
+
+function download(blob, filename) {
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
+export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${model.generatedAt.slice(0, 10)}.${ext}`;
+
+// the flat, text form of a model (shared by Word and PowerPoint)
+export function modelToLines(model) {
+  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const items = [];
+  const pushBlock = (b) => {
+    if (b.type === 'text') items.push({ k: 'p', text: b.text });
+    else if (b.type === 'kpis') items.push({ k: 'table', title: L('المؤشرات', 'Indicators'), headers: [L('المؤشر', 'Measure'), L('القيمة', 'Value'), L('ملاحظة', 'Note')], rows: b.items.map((m) => [m.label, m.value, m.sub]) });
+    else if (b.type === 'relations') items.push({ k: 'table', title: L('العلاقات المالية', 'Financial relationships'), headers: [L('العلاقة', 'Relationship'), L('الصيغة', 'Formula')], rows: [[L('إجمالي المفوتر', 'Gross billed'), `${fmtSar(b.totals.gross)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(b.totals.exclusions)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(b.totals.net)}`], [L('صافي المفوتر', 'Net billed'), `${fmtSar(b.totals.net)} = ${L('المحصّل', 'collected')} ${fmtSar(b.totals.collected)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(b.totals.outstanding)}`]] });
+    else if (b.type === 'table') { const t = tableToText(b, lang); items.push({ k: 'table', title: `${b.title}${t.unitText ? ` — ${L('المبالغ بوحدة', 'amounts in')}: ${t.unitText}` : ''}`, headers: t.headers, rows: t.total ? [...t.rows, t.total] : t.rows, note: b.note, source: b }); }
+    else if (b.type === 'chart') { const { unitText, cu } = chartInfo(b, lang); items.push({ k: 'table', title: `${b.title} — ${L('المبالغ بوحدة', 'amounts in')}: ${unitText}`, headers: [L('البند', 'Item'), ...b.series.map((s) => s.label)], rows: b.labels.map((lab, i) => [lab, ...b.series.map((s) => (s.values[i] == null ? '—' : String(cu.tick(s.values[i]))))]) }); }
+    else if (b.type === 'insights') { if (b.title) items.push({ k: 'h3', text: b.title }); b.items.forEach((it) => { items.push({ k: 'p', bold: true, text: pick(it.title, lang) }); items.push({ k: 'p', text: fillTokens(pick(it.body, lang), it.tokens, lang) }); if (it.evidence.length) items.push({ k: 'p', text: it.evidence.map((e) => `${pick(e.k, lang)}: ${fmtEvidence(e, lang)}`).join(' · ') }); items.push({ k: 'p', text: `${L('الأساس', 'Basis')}: ${pick(it.basis, lang)}${it.caveat ? ` — ${L('تحفظ', 'Caveat')}: ${pick(it.caveat, lang)}` : ''}` }); }); }
+    else if (b.type === 'callout') items.push({ k: 'p', text: b.text });
+    else if (b.type === 'list') b.items.forEach((x) => items.push({ k: 'li', text: x }));
+  };
+  const ctx = model.context.map((c) => [c.label, c.value]);
+  items.push({ k: 'table', title: L('سياق التقرير والمرشحات', 'Report context and filters'), headers: [L('البند', 'Item'), L('القيمة', 'Value')], rows: ctx });
+  model.headline.forEach(pushBlock);
+  model.sections.forEach((s) => { items.push({ k: 'h2', text: s.title }); if (s.purpose) items.push({ k: 'p', text: s.purpose }); s.blocks.forEach(pushBlock); });
+  return items;
+}
+
+/* ---------------------------- Word ---------------------------- */
+export async function exportModelToDocx(model, filename = reportFileName(model, 'docx')) {
+  const rtl = model.lang === 'ar';
+  const run = (text, o = {}) => new TextRun({ text: String(text), rightToLeft: rtl, ...o });
+  const para = (text, o = {}) => new Paragraph({ bidirectional: rtl, alignment: rtl ? AlignmentType.RIGHT : AlignmentType.LEFT, children: [run(text, o.run)], ...o.para });
+  const cell = (text, bold) => new TableCell({ children: [new Paragraph({ bidirectional: rtl, children: [run(text, { bold })] })] });
+  const children = [new Paragraph({ bidirectional: rtl, heading: HeadingLevel.TITLE, children: [run(model.title)] }), para(model.subtitle), para(model.lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة.' : 'Synthetic demo data — not the Ministry’s actual data.', { para: { spacing: { after: 200 } } })];
+  for (const it of modelToLines(model)) {
+    if (it.k === 'h2') children.push(new Paragraph({ bidirectional: rtl, heading: HeadingLevel.HEADING_1, spacing: { before: 280 }, children: [run(it.text)] }));
+    else if (it.k === 'h3') children.push(new Paragraph({ bidirectional: rtl, heading: HeadingLevel.HEADING_2, children: [run(it.text)] }));
+    else if (it.k === 'p') children.push(para(it.text, { run: { bold: it.bold }, para: { spacing: { after: 100 } } }));
+    else if (it.k === 'li') children.push(para(`• ${it.text}`, { para: { spacing: { after: 60 } } }));
+    else if (it.k === 'table') {
+      if (it.title) children.push(new Paragraph({ bidirectional: rtl, spacing: { before: 160 }, children: [run(it.title, { bold: true })] }));
+      children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, visuallyRightToLeft: rtl, rows: [new TableRow({ children: it.headers.map((h) => cell(h, true)) }), ...it.rows.map((r) => new TableRow({ children: r.map((c) => cell(c)) }))] }));
+      if (it.note) children.push(para(it.note, { para: { spacing: { before: 60, after: 120 } } }));
+      else children.push(para('', { para: { spacing: { after: 100 } } }));
+    }
+  }
+  const blob = await Packer.toBlob(new Document({ sections: [{ children }] }));
+  download(blob, filename);
+}
+
+/* ---------------------------- Excel ---------------------------- */
+export function buildWorkbook(model) {
+  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const wb = XLSX.utils.book_new();
+  if (ar) wb.Workbook = { Views: [{ RTL: true }] };
+  const summary = [[model.title], [model.subtitle], [L('بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة', 'Synthetic demo data — not the Ministry’s actual data')], [], [L('سياق التقرير والمرشحات', 'Report context and filters')], ...model.context.map((c) => [c.label, c.value]), []];
+  for (const b of model.headline) if (b.type === 'kpis') { summary.push([L('المؤشر', 'Measure'), L('القيمة', 'Value'), L('الريال بالدقة', 'Exact SAR'), L('ملاحظة', 'Note')]); b.items.forEach((m) => summary.push([m.label, m.value, typeof m.raw === 'number' && !String(m.value).includes('%') && !String(m.value).includes('فاتورة') && !String(m.value).includes('invoices') ? m.raw : '', m.sub])); }
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), L('الملخص', 'Summary'));
+  const exact = [[L('الجدول', 'Table'), L('الصف', 'Row'), L('العمود', 'Column'), 'amount_sar']];
+  const used = new Set([L('الملخص', 'Summary')]);
+  const sheetName = (t) => { let n = String(t).replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || 'Sheet'; let k = 2; const base = n; while (used.has(n)) { n = `${base.slice(0, 25)} ${k}`; k += 1; } used.add(n); return n; };
+  const tables = [];
+  model.sections.forEach((s) => s.blocks.forEach((b) => { if (b.type === 'table' || b.type === 'chart') tables.push(b); else if (b.type === 'insights') tables.push({ type: 'insights', title: b.title || s.title, items: b.items }); else if (b.type === 'list') tables.push({ type: 'list', title: s.title, items: b.items }); }));
+  tables.forEach((b) => {
+    if (b.type === 'table') {
+      const t = tableToText(b, lang); const aoa = [t.headers];
+      const num = (v, j) => (b.headers[j].kind === 'money' && typeof v === 'number' ? Number((v / t.unit.div).toFixed(6)) : b.headers[j].kind === 'pct' && typeof v === 'number' ? Number((v * 100).toFixed(2)) : v ?? '');
+      b.rows.forEach((r) => { aoa.push(r.map(num)); b.headers.forEach((h, j) => { if (h.kind === 'money' && typeof r[j] === 'number') exact.push([b.title, String(r[0]), h.label, r[j]]); }); });
+      if (b.total) aoa.push(b.total.map(num));
+      if (b.note) aoa.push([], [b.note]);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sheetName(b.title));
+    } else if (b.type === 'chart') {
+      const { cu } = chartInfo(b, lang);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[L('البند', 'Item'), ...b.series.map((s) => `${s.label} (${cu.title.split('—')[1]?.trim()})`)], ...b.labels.map((lab, i) => [lab, ...b.series.map((s) => (s.values[i] == null ? '' : Number((s.values[i] / cu.unit.div).toFixed(6))))])]), sheetName(b.title));
+      b.labels.forEach((lab, i) => b.series.forEach((s) => { if (s.values[i] != null) exact.push([b.title, lab, s.label, s.values[i]]); }));
+    } else if (b.type === 'insights') {
+      const rows = [[L('الرؤية', 'Insight'), L('الشرح', 'Detail'), L('الأرقام الداعمة', 'Supporting figures'), L('الأساس', 'Basis'), L('تحفظ', 'Caveat')], ...b.items.map((it) => [pick(it.title, lang), fillTokens(pick(it.body, lang), it.tokens, lang), it.evidence.map((e) => `${pick(e.k, lang)}: ${fmtEvidence(e, lang)}`).join(' | '), pick(it.basis, lang), pick(it.caveat, lang)])];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName(L('الرؤى', 'Insights')));
+    } else if (b.type === 'list') XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[b.title], ...b.items.map((x) => [x])]), sheetName(b.title));
+  });
+  if (exact.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exact), 'amounts_sar');
+  return wb;
+}
+export function exportModelToXlsx(model, filename = reportFileName(model, 'xlsx')) { XLSX.writeFile(buildWorkbook(model), filename); }
+
+/* ---------------------------- PowerPoint ---------------------------- */
+export async function exportModelToPptx(model, filename = reportFileName(model, 'pptx')) {
+  const rtl = model.lang === 'ar'; const PRIMARY = '1B8354';
+  const pptx = new pptxgen(); pptx.rtlMode = rtl;
+  const title = pptx.addSlide(); title.background = { color: PRIMARY };
+  title.addText(model.title, { x: 0.5, y: 2, w: 9, h: 1.2, fontSize: 30, bold: true, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
+  title.addText(`${model.subtitle}\n${rtl ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة' : 'Synthetic demo data — not the Ministry’s actual data'}`, { x: 0.5, y: 3.3, w: 9, h: 1, fontSize: 14, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
+  const lines = modelToLines(model);
+  let slide = null; let y = 0; let heading = '';
+  const open = (h) => { slide = pptx.addSlide(); heading = h; slide.addText(h, { x: 0.4, y: 0.25, w: 9.2, h: 0.55, fontSize: 20, bold: true, color: PRIMARY, align: rtl ? 'right' : 'left', rtlMode: rtl }); y = 0.95; };
+  for (const it of lines) {
+    if (it.k === 'h2') { open(it.text); continue; }
+    if (!slide) open(rtl ? 'سياق التقرير' : 'Report context');
+    if (it.k === 'h3') continue;
+    if (it.k === 'table') {
+      const rows = it.rows.slice(0, 11);
+      if (y > 3.6) open(heading);
+      if (it.title) { slide.addText(it.title, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4; }
+      slide.addTable([it.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: 'EFEFEF' } } })), ...rows], { x: 0.4, y, w: 9.2, fontSize: 9, rtlMode: rtl, autoPage: false });
+      y += 0.28 * (rows.length + 1) + 0.2;
+    } else {
+      const text = it.k === 'li' ? `• ${it.text}` : it.text;
+      if (y > 5) open(heading);
+      slide.addText(text, { x: 0.4, y, w: 9.2, h: Math.min(1.2, 0.3 + text.length / 140 * 0.3), fontSize: 11, bold: !!it.bold, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl });
+      y += Math.min(1.2, 0.3 + text.length / 140 * 0.3) + 0.05;
+    }
+  }
+  await pptx.writeFile({ fileName: filename });
+}

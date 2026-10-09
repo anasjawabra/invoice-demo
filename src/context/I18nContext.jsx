@@ -4,7 +4,7 @@ import { translations } from '../data/i18n';
 const I18nContext = createContext();
 
 export function I18nProvider({ children }) {
-  const [lang, setLangState] = useState(() => sessionStorage.getItem('ib_lang') || 'en');
+  const [lang, setLangState] = useState(() => sessionStorage.getItem('ib_lang') || 'ar');
 
   const setLang = useCallback((l) => {
     setLangState(l);
