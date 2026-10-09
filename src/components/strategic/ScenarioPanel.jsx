@@ -9,7 +9,7 @@ import { runScenario, scenarioBase, SCENARIO_LIMITS, DEFAULT_SCENARIO } from '..
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const LEVERS = [
+export const LEVERS = [
   { k: 'billing', ar: 'تغيّر الفوترة المتوقع', en: 'Expected billing change', unit: '%', step: 1, hint: { ar: 'يغيّر صافي المفوتر؛ ويُحصَّل الجديد بمعدل التحصيل الحالي فقط (الفوترة ليست تحصيلاً).', en: 'Changes net billed; the added billing is collected only at the current rate (billing is not collection).' }, cash: true },
   { k: 'resolve', ar: 'مراجعة الاستبعادات المعلّقة', en: 'Pending cases resolved', unit: '%', step: 5, hint: { ar: 'نسبة استبعادات المرشحين التي تُحسم. الحسم لا يعني نقداً محصّلاً.', en: 'Share of pending exclusion candidates that get decided. Deciding is not cash.' }, cash: false },
   { k: 'approve', ar: 'نسبة ما يُقبل استبعاده', en: '…of which approved as exclusions', unit: '%', step: 5, hint: { ar: 'المحسوم كاستبعاد يخفض صافي المفوتر فتتحرك النسبة حسابياً بلا نقد؛ وما عداه يبقى ضمن الصافي بلا تغيير في المبلغ.', en: 'Approved cases reduce net billed so the rate moves arithmetically with no cash; the rest stays in net unchanged.' }, cash: false },
@@ -73,9 +73,9 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
           <div className="rv-tile"><div className="rv-tile__label">{L('نسبة التحصيل', 'Collection rate')}</div><div className="rv-tile__value" dir="ltr">{pct(res.scenario.rate)}</div><div className="rv-tile__sub">{L('الأساس', 'baseline')} {pct(res.baseline.rate)} · <b dir="ltr">{res.scenario.rate != null && res.baseline.rate != null ? `${((res.scenario.rate - res.baseline.rate) * 100) >= 0 ? '+' : ''}${((res.scenario.rate - res.baseline.rate) * 100).toFixed(1)} ${L('نقطة', 'pp')}` : '—'}</b></div></div>
           <div className="rv-tile"><div className="rv-tile__label">{L('المتبقي للوصول إلى المستهدف التجريبي', 'Remaining to reach the demo target')}</div><div className="rv-tile__value" dir="ltr">{gap ? m(gap.scenarioGap) : L('غير متاحة', 'n/a')}</div><div className="rv-tile__sub">{gap ? `${L('الأساس', 'baseline')} ${m(gap.baselineGap)} · ${L('مستهدف', 'target')} ${(gap.rate * 100).toFixed(0)}%` : ''}</div></div>
         </div>
-        <div className="rv-chart" style={{ height: 240 }} role="img" aria-label={L('مقارنة الأساس بالسيناريو', 'Baseline versus scenario')}><Bar data={data} options={options} /></div>
+        <div className="rv-chart" style={{ height: 240 }} role="img" aria-label={L('مقارنة الأساس بالسيناريو', 'Baseline versus scenario')}><Bar role="presentation" data={data} options={options} /></div>
         <div className="muted" style={{ fontSize: 12 }}>{L('كل المبالغ بوحدة واحدة في الرسم', 'One unit in the chart')}: {cu.title.split('—')[1]?.trim()}. {L('فترة التحليل', 'Analysis period')}: {snapshot.scope.from} → {snapshot.scope.to}.</div>
-        <div className="st-table-wrap"><table className="table" aria-label={L('مساهمة كل رافعة', 'Contribution of each lever')}>
+        <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('مساهمة كل رافعة', 'Contribution of each lever')}>
           <thead><tr><th>{L('الرافعة', 'Lever')}</th><th>{L('النوع', 'Type')}</th><th>{L('أثر على صافي المفوتر', 'Effect on net billed')}</th><th>{L('أثر نقدي على المحصّل', 'Cash effect on collected')}</th></tr></thead>
           <tbody>
             <tr><td>{L('تغيّر الفوترة', 'Billing change')}</td><td>{L('فوترة', 'Billing')}</td><td dir="ltr">{scaled(res.steps[0].dNet, unit)}</td><td dir="ltr">{scaled(res.steps[0].dCollected, unit)}</td></tr>

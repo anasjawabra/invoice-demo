@@ -148,7 +148,7 @@ button {
   align-items: center;
   gap: 6px;
   padding: 10px 22px;
-  overflow-x: auto;
+  overflow: visible; /* three entries now (the operational pages sit in one menu), so the strip no longer scrolls sideways */
   background: transparent;
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
@@ -1526,3 +1526,22 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
 .rv-more > summary { cursor: pointer; font-weight: 700; font-size: 13px; padding: 4px 0; }
 .rv-more[open] > summary { margin-bottom: 4px; }
 .day-banner { position: sticky; top: 0; z-index: 900; display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px 14px; background: #FEF0C7; color: #7A2E0E; font-weight: 700; font-size: 13px; }
+
+.tab-menu { position: relative; }
+.tab-menu > .tab { cursor: pointer; font-family: inherit; background: transparent; }
+.tab__chev { font-size: 12px; margin-inline-start: 2px; }
+.tab-menu__list { position: absolute; z-index: 70; inset-inline-start: 0; top: calc(100% + 6px); min-width: 220px; margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); display: grid; gap: 2px; }
+.tab-menu__item { display: flex; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--txt); }
+.tab-menu__item:hover { background: var(--bg-0); }
+.tab-menu__item.active { background: var(--bg-0); color: var(--heading); font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* phones: the header scrolls away (only the three-entry tab strip stays), and its controls wrap compactly */
+@media (max-width: 720px) {
+  .topbar { position: static; min-height: 0; padding: 8px 12px; gap: 8px; }
+  .topbar-right { flex-wrap: wrap; gap: 6px; width: 100%; }
+  .topbar-right .org-consolidated { flex: 1 1 100%; max-width: 100%; }
+  .tabbar { top: 0; padding: 6px 12px; }
+}
+.rv-diff td { background: #FFFAEB; }
+.rv-status-list { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; color: var(--txt-dim); }

@@ -79,9 +79,9 @@ export default function Risk() {
           <button type="button" className={`btn btn-sm ${code === 'all' ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={code === 'all'} onClick={() => setCode('all')}>{L('All', 'الكل')} · {count(all?.total ?? 0)}</button>
           {codes.map((c) => <button key={c} type="button" className={`btn btn-sm ${code === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={code === c} onClick={() => setCode(c)}>{B(CODE_LABEL[c] || (c.startsWith('risk_') ? RISK_LABELS[c.replace('risk_', '')] : null) || { en: c, ar: c })} · {count(counts[c] ?? radarCounts[c])}</button>)}
         </div>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table" style={{ minWidth: 820 }}>
-            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th className="num">{L('Billed (SAR)', 'المفوتر (ريال)')}</th><th>{L('Collection', 'التحصيل')}</th><th>{L('Issues', 'المشكلات')}</th><th /></tr></thead>
+            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th className="num">{L('Billed (SAR)', 'المفوتر (ريال)')}</th><th>{L('Collection', 'التحصيل')}</th><th>{L('Issues', 'المشكلات')}</th><th><span className="sr-only">{L('Action', 'إجراء')}</span></th></tr></thead>
             <tbody>
               {filtered.length ? filtered.map((it) => (
                 <tr key={it.id}>

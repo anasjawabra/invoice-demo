@@ -71,12 +71,12 @@ export default function InsightsDashboard() {
         <div className="card st-card">
           <b>{L('الفواتير وحالة الدفع', 'Invoices and payment status')} <small className="muted">({fmtInt(T.count)} {L('فاتورة', 'invoices')})</small></b>
           <div role="img" aria-label={L('توزيع أعداد الفواتير حسب الحالة', 'Invoice counts by status')} style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden' }}>{st.map((g) => <i key={g.key} title={`${B(STATUS_LABEL[g.key])}: ${fmtInt(g.count)}`} style={{ width: `${(g.count / T.count) * 100}%`, background: STATUS_COLOR[g.key] || 'var(--line-strong)' }} />)}</div>
-          <div className="st-table-wrap"><table className="table" aria-label={L('حالة الدفع', 'Payment status')}><tbody>{st.slice(0, 7).map((g) => <tr key={g.key}><td><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: STATUS_COLOR[g.key], marginInlineEnd: 6 }} />{B(STATUS_LABEL[g.key]) || g.key}</td><td dir="ltr">{count(g.count)}</td><td dir="ltr">{pct(g.count / T.count, '—')}</td></tr>)}</tbody></table></div>
+          <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('حالة الدفع', 'Payment status')}><tbody>{st.slice(0, 7).map((g) => <tr key={g.key}><td><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: STATUS_COLOR[g.key], marginInlineEnd: 6 }} />{B(STATUS_LABEL[g.key]) || g.key}</td><td dir="ltr">{count(g.count)}</td><td dir="ltr">{pct(g.count / T.count, '—')}</td></tr>)}</tbody></table></div>
           <Link to="/insights?view=reports&report=status" className="btn btn-sm btn-ghost">{L('تقرير حالة الدفع', 'Payment-status report')}</Link>
         </div>
         <div className="card st-card">
           <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
-          <div className="st-table-wrap"><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
+          <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
             <tbody>{aging.map((a) => <tr key={a.key}><td>{B(a.label)}</td><td dir="ltr">{count(a.count)}</td><td dir="ltr" title={fmtMoney(a.amount, { lang, mode: 'detail' })}>{scaled(a.amount, uA)}</td></tr>)}
               <tr style={{ fontWeight: 700 }}><td>{L('إجمالي الرصيد القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
           <div className="muted" style={{ fontSize: 12 }}>{L('يشمل كل الفواتير غير المسددة مهما كان تاريخ إصدارها.', 'Includes every unpaid invoice, whatever its issue date.')}</div>
@@ -98,14 +98,14 @@ export default function InsightsDashboard() {
         <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
           <div className="card st-card">
             <b>{L('مصادر الإيراد', 'Revenue sources')}</b>
-            <div className="st-table-wrap"><table className="table" aria-label={L('مصادر الإيراد', 'Revenue sources')}><thead><tr><th>{L('المصدر', 'Source')}</th><th>{L('معدل التحصيل', 'Rate')}</th>{comparable && <th>{L('السابق', 'Prior')}</th>}<th>{L('الفواتير', 'Invoices')}</th></tr></thead>
+            <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('مصادر الإيراد', 'Revenue sources')}><thead><tr><th>{L('المصدر', 'Source')}</th><th>{L('معدل التحصيل', 'Rate')}</th>{comparable && <th>{L('السابق', 'Prior')}</th>}<th>{L('الفواتير', 'Invoices')}</th></tr></thead>
               <tbody>{src.map((g) => <tr key={g.key}><td><Link to={`/invoices?src=${g.key}`}>{ar ? sourceAr(g.key) : sourceEn(g.key)}</Link></td><td dir="ltr">{pct(g.net > 0 ? g.collected / g.net : null, '—')}</td>{comparable && <td dir="ltr">{pct(prevSrc.get(g.key) && prevSrc.get(g.key).net > 0 ? prevSrc.get(g.key).collected / prevSrc.get(g.key).net : null, '—')}</td>}<td dir="ltr">{count(g.count)}</td></tr>)}</tbody></table></div>
             <Link to="/insights?view=reports&report=sources" className="btn btn-sm btn-ghost">{L('تقرير المصادر', 'Sources report')}</Link>
           </div>
           {mun.length > 0 && (
             <div className="card st-card">
               <b>{L('البلديات (الأعلى غير محصّل)', 'Municipalities (largest uncollected)')}</b>
-              <div className="st-table-wrap"><table className="table" aria-label={L('البلديات', 'Municipalities')}><thead><tr><th>{L('البلدية', 'Municipality')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uM, lang)})</th><th>{L('معدل التحصيل', 'Rate')}</th></tr></thead>
+              <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('البلديات', 'Municipalities')}><thead><tr><th>{L('البلدية', 'Municipality')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uM, lang)})</th><th>{L('معدل التحصيل', 'Rate')}</th></tr></thead>
                 <tbody>{mun.map((g) => <tr key={g.key}><td>{ar ? g.municipality.ar : g.municipality.en}</td><td dir="ltr">{scaled(g.outstanding, uM)}</td><td dir="ltr">{pct(g.net > 0 ? g.collected / g.net : null, '—')}</td></tr>)}</tbody></table></div>
             </div>)}
         </div>

@@ -57,7 +57,7 @@ export function AmanahSourceReport({ snapshot, prev, comparable }) {
           <button key={k} type="button" className={`btn btn-sm ${src === k ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={src === k} onClick={() => setSrc(k)}>{k === 'all' ? L('All sources', 'كل المصادر') : srcName(k)}</button>
         ))}
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="table" aria-label={L('Amanah performance by revenue source', 'أداء الأمانات حسب مصدر الإيراد')}>
           <thead>
             <tr>
@@ -111,7 +111,7 @@ export function ExclusionMatrix({ snapshot }) {
           <div className="page-sub">{L('Each invoice appears once, under its primary reason (cancelled takes precedence), so the grand total equals the exclusions card and several reasons never deduct twice. Reasons from unapproved rules are labelled in the rules register.', 'تظهر كل فاتورة مرة واحدة تحت سببها الرئيسي (الملغاة لها الأسبقية)، فيساوي الإجمالي بطاقة الاستبعادات ولا يتكرر الخصم عند تعدد الأسباب. أسباب القواعد غير المعتمدة موسومة في سجل القواعد.')}</div>
         </div>
       </div>
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="table" aria-label={L('Excluded invoices by Amanah and reason', 'الفواتير المستثناة حسب الأمانة وسبب الاستثناء')}>
           <thead><tr><th>{L('Amanah', 'الأمانة')}</th>{cols.map((k) => <th key={k}>{name(k)}</th>)}<th>{L('Total exclusions', 'إجمالي الاستبعادات')}</th></tr></thead>
           <tbody>

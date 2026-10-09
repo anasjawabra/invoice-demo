@@ -62,7 +62,7 @@ export default function FixedReports({ reportKey, setReport }) {
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setReport(null)}>{ar ? '→' : '←'} {L('كل التقارير الثابتة', 'All fixed reports')}</button>
-          <h3 style={{ margin: 0, fontSize: 18 }}>{B({ ar: def.ar, en: def.en })}</h3>
+          <h2 style={{ margin: 0, fontSize: 18 }}>{B({ ar: def.ar, en: def.en })}</h2>
           <select aria-label={L('تقرير آخر', 'Another report')} className="select" value={def.key} onChange={(e) => setReport(e.target.value)}>{FIXED_REPORTS.map((r) => <option key={r.key} value={r.key}>{B({ ar: r.ar, en: r.en })}</option>)}</select>
         </div>
         <ReportBody def={def} key={def.key} />

@@ -71,7 +71,7 @@ export default function InvoiceLedgerSections({ rec, der, cls, reasons, card, on
 
       <div className="idd-section">
         <div className="idd-section__head"><div className="idd-section__title">{L('Items and amount', 'البنود والمبلغ')}</div></div>
-        <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+        <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
           <thead><tr><th className="num">#</th><th>{L('Item', 'البند')}</th><th className="num">{L('Amount', 'المبلغ')}</th></tr></thead>
           <tbody>
             {(rec.lineItems || []).map((li) => <tr key={li.no}><td className="num">{li.no}</td><td dir="auto">{li.name}</td><td className="num" dir="ltr">{sar(li.amount)}</td></tr>)}

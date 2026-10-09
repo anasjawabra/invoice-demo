@@ -136,6 +136,19 @@ function LayoutInner() {
     [t]
   );
 
+  const primaryTabs = tabs.slice(0, 2); const opsTabs = tabs.slice(2);
+  const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`)) || loc.pathname.startsWith('/sanad-orders') || loc.pathname.startsWith('/investment-invoices');
+  const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
+  useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
+  useEffect(() => {
+    if (!opsOpen) return undefined;
+    const onDoc = (e) => { if (opsRef.current && !opsRef.current.contains(e.target)) setOpsOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') { setOpsOpen(false); opsBtn.current?.focus(); } };
+    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
+  }, [opsOpen]);
+  const opsLabel = lang === 'ar' ? 'وحدات تشغيلية' : lang === 'zh' ? '运营模块' : 'Operations';
+
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
@@ -311,20 +324,27 @@ function LayoutInner() {
           </div>
         </header>
 
-        <nav className="tabbar" aria-label="Main navigation">
-          {tabs.map((tab) => (
-            <NavLink
-              key={tab.to}
-              to={tab.to}
-              end={tab.end}
-              className={({ isActive }) => `tab${isActive ? ' active' : ''}`}
-            >
-              <span className="tab__icon">
-                <Icon name={tab.icon} />
-              </span>
+        <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
+          {primaryTabs.map((tab) => (
+            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+              <span className="tab__icon"><Icon name={tab.icon} /></span>
               <span className="tab__text">{tab.label}</span>
             </NavLink>
           ))}
+          <div className="tab-menu" ref={opsRef}>
+            <button type="button" ref={opsBtn} className={`tab${opsActive ? ' active' : ''}`} aria-expanded={opsOpen} aria-controls="ops-menu" onClick={() => setOpsOpen((v) => !v)}>
+              <span className="tab__icon"><Icon name="invoices" /></span>
+              <span className="tab__text">{opsLabel}</span>
+              <span aria-hidden="true" className="tab__chev">▾</span>
+            </button>
+            {opsOpen && (
+              <ul id="ops-menu" className="tab-menu__list">
+                {opsTabs.map((tab) => (
+                  <li key={tab.to}><NavLink to={tab.to} className={({ isActive }) => `tab-menu__item${isActive ? ' active' : ''}`}>{tab.label}</NavLink></li>
+                ))}
+              </ul>
+            )}
+          </div>
         </nav>
 
         <section className="content" id="main-content" tabIndex={-1}>

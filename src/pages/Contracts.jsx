@@ -67,7 +67,7 @@ export default function Contracts() {
             </select>
           </label>
         </div>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th className="num">{L('Future', 'مستقبلية')}</th><th>{L('Execution', 'التنفيذ')}</th><th>{L('CR (raw)', 'السجل (خام)')}</th></tr></thead>
             <tbody>
@@ -103,7 +103,7 @@ function ContractCard({ c, amanah, item, onClose }) {
     <section className="card card-pad rv-contract" aria-label={`${L('Contract', 'العقد')} ${c.contractNo}`}>
       <div className="rv-card__head">
         <div>
-          <h3 className="rv-sec-title" dir="ltr">{c.contractNo}</h3>
+          <h2 className="rv-sec-title" dir="ltr">{c.contractNo}</h2>
           <p className="rv-sec-sub" dir="auto">{ar ? c.tenantAr : c.tenantEn} · {amanah} · {item} · {L('status', 'الحالة')}: {c.status} · {L('starts', 'يبدأ')} <span dir="ltr">{c.start}</span></p>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>{L('Close', 'إغلاق')}</button>
@@ -119,7 +119,7 @@ function ContractCard({ c, amanah, item, onClose }) {
       </div>
 
       <h4 className="rv-sec-title" style={{ fontSize: 13 }}>{L('Payment schedule', 'جدول الدفعات')}</h4>
-      <div className="rv-table-wrap">
+      <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table">
           <thead><tr><th className="num">#</th><th>{L('Due date', 'الاستحقاق')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('SADAD no. (text)', 'رقم سداد (نص)')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Outstanding', 'المتبقي')}</th><th className="num">{L('Contract balance after payment', 'رصيد العقد بعد الدفعة')}</th></tr></thead>
           <tbody>
@@ -144,7 +144,7 @@ function ContractCard({ c, amanah, item, onClose }) {
       <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Execution requests (Sanad)', 'طلبات التنفيذ (سند)')}</h4>
       {c.requests.length ? (
         <>
-          <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+          <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
             <thead><tr><th>{L('Request', 'الطلب')}</th><th>{L('Status', 'الحالة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Invoices covered', 'الفواتير المشمولة')}</th></tr></thead>
             <tbody>{c.requests.map((q) => <tr key={q.enforceNum}><td dir="ltr"><Link to={`/sanad-orders/${q.enforceNum}`}>{q.enforceNum}</Link></td><td>{q.status}</td><td className="num" dir="ltr">{sar(q.amount)}</td><td>{q.identified ? q.identifiedInvoices.map((id) => <Link key={id} to={`/invoices?id=${id}`} dir="ltr" style={{ marginInlineEnd: 6 }}>{id}</Link>) : <span className="rv-tag">{L('not identified', 'غير محددة')}</span>}</td></tr>)}</tbody>
           </table></div>
@@ -159,7 +159,7 @@ function ContractCard({ c, amanah, item, onClose }) {
 
       <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Commercial registration chain', 'سلسلة السجل التجاري')}</h4>
       {c.crChain.length ? (
-        <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+        <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
           <thead><tr><th>{L('Sanad request · document / item', 'طلب سند · المستند/البند')}</th><th>{L('CR number (text)', 'رقم السجل (نص)')}</th><th>{L('Extraction', 'الاستخراج')}</th><th>{L('CR View status (raw)', 'حالة CR View (خام)')}</th></tr></thead>
           <tbody>{c.crChain.map((x, i) => (
             <tr key={i}><td dir="auto">{x.sanadRequest} · {x.document}</td><td dir="ltr">{x.crNo}</td>

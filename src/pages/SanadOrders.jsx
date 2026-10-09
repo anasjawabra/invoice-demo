@@ -48,9 +48,9 @@ export default function SanadOrders() {
       </div>
 
       <div className="card card-pad">
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Case', 'القضية')}</th><th>{L('Platform', 'المنصة')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Case amount', 'مبلغ القضية')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Linked invoices', 'فواتير مربوطة')}</th><th className="num">{L('Unallocated', 'غير موزع')}</th><th /></tr></thead>
+            <thead><tr><th>{L('Case', 'القضية')}</th><th>{L('Platform', 'المنصة')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Case amount', 'مبلغ القضية')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Linked invoices', 'فواتير مربوطة')}</th><th className="num">{L('Unallocated', 'غير موزع')}</th><th><span className="sr-only">{L('Action', 'إجراء')}</span></th></tr></thead>
             <tbody>
               {rows.slice(page * 25, (page + 1) * 25).map(({ c, s }) => (
                 <tr key={c.enforceNum}>

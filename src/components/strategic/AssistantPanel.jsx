@@ -1,5 +1,5 @@
 // Embedded assistant: ChatGPT-style composer, answers computed from the active filters with supporting figures and a drill-down.
-// Rule-based simulation — labelled as such on every answer; no language model is connected.
+// Rule-based assistant (no language model is connected); the panel header says so once.
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAr } from '../../utils/useAr';
@@ -10,7 +10,14 @@ export default function AssistantPanel({ open, onClose, ctxFactory, onAction, pr
   const [msgs, setMsgs] = useState([]); const [input, setInput] = useState(''); const [busy, setBusy] = useState(false);
   const last = useRef(null); const endRef = useRef(null); const ta = useRef(null);
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'end' }); }, [msgs, busy]);
-  useEffect(() => { if (open) ta.current?.focus(); }, [open]);
+  // overlay behaviour: focus moves into the panel, Escape closes it, and focus returns to the control that opened it
+  useEffect(() => {
+    if (!open) return undefined;
+    const opener = document.activeElement; ta.current?.focus();
+    const onEsc = (e) => { if (e.key === 'Escape') onClose?.(); };
+    document.addEventListener('keydown', onEsc);
+    return () => { document.removeEventListener('keydown', onEsc); if (opener && document.contains(opener)) opener.focus(); };
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { const el = ta.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 120)}px`; } }, [input]);
   if (!open) return null;
 
@@ -46,7 +53,7 @@ export default function AssistantPanel({ open, onClose, ctxFactory, onAction, pr
               {m.a.applied?.length > 0 && <div className="sr-changes">{m.a.applied.map((c, k) => <span key={k} className="sr-chip sr-chip--changed">{c}</span>)}<small className="muted">{L('طُبّق على مرشحات اللوحة.', 'Applied to the dashboard filters.')}</small></div>}
               <div style={{ whiteSpace: 'pre-wrap' }}>{m.a.text}</div>
               {m.a.facts?.length > 0 && <div className="rv-insight__ev">{m.a.facts.map((f, k) => <span key={k}>{f.k}: <b dir="ltr">{f.v}</b></span>)}</div>}
-              {m.a.table && <div className="st-table-wrap"><table className="table"><thead><tr>{m.a.table.headers.map((h, k) => <th key={k}>{h}</th>)}</tr></thead><tbody>{m.a.table.rows.map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>)}</tbody></table></div>}
+              {m.a.table && <div className="st-table-wrap" tabIndex={0}><table className="table"><thead><tr>{m.a.table.headers.map((h, k) => <th key={k}>{h}</th>)}</tr></thead><tbody>{m.a.table.rows.map((r, k) => <tr key={k}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>)}</tbody></table></div>}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {m.a.drill && (m.a.drill.to.startsWith('#') ? <a className="btn btn-sm btn-ghost" href={m.a.drill.to} onClick={onClose}>{m.a.drill.label}</a> : <Link className="btn btn-sm btn-ghost" to={m.a.drill.to}>{m.a.drill.label} {ar ? '←' : '→'}</Link>)}
                 {m.a.actions?.map((ac, k) => <button key={k} type="button" className="btn btn-sm" onClick={() => onAction(ac)}>{ac.label}</button>)}

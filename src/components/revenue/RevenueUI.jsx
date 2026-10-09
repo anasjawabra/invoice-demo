@@ -11,6 +11,7 @@ import { fmtMoney } from '../../utils/money';
 import { measure, basisLabel, hasToDateVariant, BASIS } from '../../data/measure';
 import { checkRange, rangeMessage, coverageLine } from '../../data/dateRange';
 import { PRESETS } from '../../data/periodPresets';
+import { fmtDateText } from '../../data/clock';
 
 /* ---------- Provenance / status badges ---------- */
 export function ProvenanceBadge({ kind = 'demo', size = 'md' }) {
@@ -218,14 +219,20 @@ export function ScopeBar({ compact = false }) {
       </div>
       {!compact && (
         <div className="rv-scope__meta">
-          <span className="rv-badge rv-badge--sm rv-badge--demo" title={B(meta?.labelDetail)}>{B(meta?.label) || L('Demo data', 'بيانات تجريبية')}</span>
-          {snapshot.quality.kinds.uploaded ? <ProvenanceBadge kind="uploaded" size="sm" /> : null}
-          <span className="rv-chip">{L('Today (Riyadh)', 'اليوم (الرياض)')}: <b dir="ltr">{snapshot.cutoff}</b></span>
-          <span className="rv-chip">{L(`${count(snapshot.population.issuedInPeriod)} invoices issued in period`, `${count(snapshot.population.issuedInPeriod)} فاتورة صادرة في الفترة`)}</span>
-          {snapshot.basis && <span className="rv-chip" title={L('Invoices are selected by issue date; collections count only payments dated up to the reference date and are measured within net billed. Receipts by payment date are a separate indicator.', 'تُختار الفواتير بتاريخ الإصدار؛ ويُحتسب التحصيل بالمدفوعات المؤرخة حتى التاريخ المرجعي ضمن صافي المفوتر. المقبوض حسب تاريخ الدفع مؤشر مستقل.')}>{L('Date basis', 'أساس التاريخ')}: {L('invoice issue date', 'تاريخ إصدار الفاتورة')} · {L('collections up to', 'التحصيل حتى')} <b dir="ltr">{snapshot.basis.collectionsAsOf}</b></span>}
-          {snapshot.equation && <span className={`rv-chip ${snapshot.equation.ok ? '' : 'rv-chip--bad'}`} title={L('gross = exclusions + net; net = collected + uncollected; gross ≥ net ≥ collected ≥ 0', 'الإجمالي = الاستبعادات + الصافي؛ الصافي = المحصّل + غير المحصّل؛ الإجمالي ≥ الصافي ≥ المحصّل ≥ 0')}>{snapshot.equation.ok ? '✓' : '✗'} {L('identities verified', 'المعادلات متحققة')}</span>}
-          <span className="rv-chip">{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">v2</span> · <Link to="/noncollection">{L('review', 'مراجعة')}</Link></span>
-          <span className="rv-chip">{L('Grace days', 'أيام السماح')}: {cfg.graceDays} <em>({L('unresolved', 'غير محسوم')})</em></span>
+          <span className="rv-line">{L(`${count(snapshot.population.issuedInPeriod)} invoices issued in the period. `, `${count(snapshot.population.issuedInPeriod)} فاتورة صدرت في الفترة. `)}<b>{basisLabel(scope, BASIS.PERIOD_END, cfg.cutoff, lang)}</b></span>
+          {snapshot.equation && !snapshot.equation.ok && <span className="rv-chip rv-chip--bad" role="alert">{L('The reconciliation checks failed for this selection', 'تعذّر التحقق من علاقات المطابقة لهذا الاختيار')}</span>}
+          {snapshot.exclusionsApproval?.unapprovedAmount > 0 && <span className="rv-chip">{L('Exclusions under unapproved rules affect', 'استبعادات بقواعد غير معتمدة تؤثر على')} <b dir="ltr">{fmtMoney(snapshot.exclusionsApproval.unapprovedAmount, { lang })}</b></span>}
+          <details className="rv-more">
+            <summary>{L('Data status', 'حالة البيانات')}</summary>
+            <ul className="rv-status-list">
+              <li>{B(meta?.label) || L('Demo data', 'بيانات تجريبية')} {snapshot.quality.kinds.uploaded ? <ProvenanceBadge kind="uploaded" size="sm" /> : null}</li>
+              <li>{L('Today (Riyadh)', 'اليوم (الرياض)')}: <b>{fmtDateText(snapshot.cutoff, lang)}</b></li>
+              {snapshot.basis && <li title={L('Invoices are selected by issue date; collections count payments up to the stated date.', 'تُختار الفواتير بتاريخ الإصدار؛ ويُحتسب المحصّل بالمدفوعات حتى التاريخ المذكور.')}>{L('Invoices are selected by issue date', 'تُختار الفواتير بتاريخ الإصدار')}</li>}
+              {snapshot.equation && snapshot.equation.ok && <li>{L('Reconciliation checks passed', 'فحوص المطابقة سليمة')}</li>}
+              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{snapshot.ruleSetVersion}</span> · <Link to="/noncollection">{L('review', 'مراجعة')}</Link></li>
+              <li>{L('Grace period: none applied (the policy is not yet decided)', 'فترة السماح: لا تُطبَّق حالياً (السياسة غير محسومة)')}</li>
+            </ul>
+          </details>
         </div>
       )}
     </div>

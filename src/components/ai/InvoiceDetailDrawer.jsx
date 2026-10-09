@@ -234,7 +234,7 @@ export default function InvoiceDetailDrawer({ inv: invIn, invoiceId, open, onClo
               <div className="idd-section__sub">{LB('Header amount compared with the sum of line items. VAT is a source attribute only — no tax-compliance verdict is made here.', 'مقارنة مبلغ الرأس بمجموع البنود. الضريبة سمة من المصدر فقط — ولا يصدر هنا حكم امتثال ضريبي.')}</div>
             </div>
             {recon ? (
-              <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+              <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
                 <thead><tr><th>{LB('Item', 'البند')}</th><th className="num">{LB('Qty', 'الكمية')}</th><th className="num">{LB('Unit price', 'سعر الوحدة')}</th><th className="num">{LB('Line total', 'إجمالي البند')}</th></tr></thead>
                 <tbody>
                   {recon.lines.map((ln) => <tr key={ln.no}><td>{L(ln.item, lang)}</td><td className="num">{fmtMoney(ln.qty)}</td><td className="num">{fmtMoney(ln.invUnit)}</td><td className="num">{fmtMoney(ln.qty * ln.invUnit)}</td></tr>)}

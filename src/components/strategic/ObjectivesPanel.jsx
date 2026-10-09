@@ -5,6 +5,7 @@ import { useAr } from '../../utils/useAr';
 import { fmtMoney } from '../../utils/money';
 import { OBJECTIVE_METRICS, addObjective, updateObjective, removeObjective, objectiveProgress } from '../../data/planStore';
 import { actorName } from '../../utils/actor';
+import { fmtDateText } from '../../data/clock';
 
 const STATE = { met: ['تحقق', 'Met', 'var(--green)'], on_track: ['على المسار', 'On track', 'var(--secondary)'], off_track: ['متأخر عن المستهدف', 'Off track', 'var(--danger)'], unavailable: ['غير متاح', 'Not available', 'var(--txt-mute)'] };
 
@@ -23,15 +24,15 @@ export default function ObjectivesPanel({ store, setStore, actuals, systemRows, 
         <td><span style={{ color: st[2], fontWeight: 700 }}>{ar ? st[0] : st[1]}</span>{pr.ratio != null && <div className="muted" dir="ltr" style={{ fontSize: 12 }}>{(pr.ratio * 100).toFixed(0)}%</div>}</td>
         <td>{o.status === 'approved' ? <span className="st-tag st-tag--actual">{L('معتمد', 'approved')}{o.approvedBy ? ` — ${o.approvedBy}` : ''}</span> : <span className="st-tag st-tag--warn">{system ? L('مُدخل تجريبي — غير معتمد', 'demo input — unapproved') : L('مقترح — غير معتمد', 'proposed — unapproved')}</span>}</td>
         <td>{o.owner || <span className="muted">{L('غير مسند', 'unassigned')}</span>}</td>
-        <td dir="ltr">{o.due || '—'}</td>
+        <td>{o.due ? fmtDateText(o.due, ar ? 'ar' : 'en') : '—'}</td>
         <td>{!system && canEdit && <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}><button type="button" className="btn btn-sm btn-ghost" onClick={() => setStore((s) => updateObjective(s, o.id, o.status === 'approved' ? { status: 'proposed', approvedBy: null } : { status: 'approved', approvedBy: by }, by))}>{o.status === 'approved' ? L('إلغاء الاعتماد', 'Unapprove') : L('اعتماد', 'Approve')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => setStore((s) => removeObjective(s, o.id))} aria-label={L('حذف', 'Delete')}>×</button></div>}</td>
       </tr>
     );
   };
   return (
     <div className="card st-card">
-      <div className="st-table-wrap"><table className="table" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
-        <thead><tr><th>{L('الهدف', 'Objective')}</th><th>{L('الفعلي', 'Actual')}</th><th>{L('المستهدف', 'Target')}</th><th>{L('الحالة', 'Progress')}</th><th>{L('الاعتماد', 'Approval')}</th><th>{L('المسؤول', 'Owner')}</th><th>{L('الاستحقاق', 'Due')}</th><th /></tr></thead>
+      <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
+        <thead><tr><th>{L('الهدف', 'Objective')}</th><th>{L('الفعلي', 'Actual')}</th><th>{L('المستهدف', 'Target')}</th><th>{L('الحالة', 'Progress')}</th><th>{L('الاعتماد', 'Approval')}</th><th>{L('المسؤول', 'Owner')}</th><th>{L('الاستحقاق', 'Due')}</th><th><span className="sr-only">{L('إجراء', 'Action')}</span></th></tr></thead>
         <tbody>
           {systemRows.map((o) => <Row key={o.id} o={o} system />)}
           {store.objectives.map((o) => <Row key={o.id} o={o} system={false} />)}

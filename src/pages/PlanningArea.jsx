@@ -132,6 +132,12 @@ export default function PlanningArea() {
       if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model);
     } catch (e) { setToast(L(`تعذّر التصدير: ${e.message}`, `Export failed: ${e.message}`)); } finally { setExporting(''); }
   }
+  // the SAME scenario of a saved version, run on today's data under the version's own period and scope (saved figures are never overwritten)
+  const recomputeVersion = async (v) => {
+    const sc = planScopeOf({ period: v.period || plan.period, scope: v.scope || plan.scope }, today);
+    const snap = await measure(data, sc, cfg); const res = runScenario(scenarioBase(snap), v.scenario, targets.collectionRate.value);
+    return { rate: res.scenario.rate ?? null, collected: res.scenario.collected ?? null, cutoff: snap.cutoff };
+  };
   const proposeFromScenario = () => {
     const parts = [['dRate', L('معدل التحصيل', 'collection rate'), true], ['recovery', L('استرداد المتأخر', 'overdue recovery')], ['resolve', L('حسم الحالات', 'pending cases')], ['billing', L('الفوترة', 'billing')], ['expense', L('الإنفاق', 'expenditure')]].filter(([k]) => Number(scenario[k]));
     const p = { id: `scenario:${plan?.id}:${Object.entries(scenario).map(([k, v]) => `${k}=${v}`).join(',')}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
@@ -172,7 +178,7 @@ export default function PlanningArea() {
         </div>
       </header>
 
-      <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} today={today} />
+      <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} onRecompute={recomputeVersion} today={today} />
       <p className="rv-line">{L('الأرقام أدناه لفترة الخطة ونطاقها، ولا تتأثر بمرشحات لوحة المعلومات.', 'The figures below follow the plan period and scope, not the dashboard filters.')}</p>
       {fresh === null || PS.loading ? <div className="rv-callout" role="status">{L('جارٍ احتساب أرقام الخطة…', 'Computing the plan figures…')}</div> : null}
       <nav className="st-nav" aria-label={L('أقسام التخطيط', 'Planning sections')}>{NAV.map(([id, a, e]) => <a key={id} href={`#${id}`}>{L(a, e)}</a>)}</nav>
@@ -180,7 +186,7 @@ export default function PlanningArea() {
 
       {T.count === 0 ? <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة؛ وسّع الفترة أو أزل مرشحاً.', 'No data — widen the period or remove a filter.')}</div></div> : (<>
       <div className="card st-card" aria-label={L('ملخص خط الأساس', 'Baseline summary')}>
-        <div className="st-fresh"><b>{L('خط الأساس لفترة الخطة ونطاقها', 'Baseline for the plan period and scope')}</b> <bdi dir="ltr">{s.from} → {s.to}</bdi> <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span>
+        <div className="st-fresh"><b>{L('خط الأساس لفترة الخطة ونطاقها', 'Baseline for the plan period and scope')}</b> <bdi>{fmtRangeText(s.from, s.to, ar ? 'ar' : 'en')}</bdi> <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span>
           <span>{L('صافي المفوتر', 'Net billed')} <b dir="ltr">{kp(T.net)}</b></span><span>{L('المحصّل', 'Collected')} <b dir="ltr">{kp(T.collected)}</b></span><span>{L('غير المحصّل', 'Uncollected')} <b dir="ltr">{kp(T.outstanding)}</b></span><span>{L('نسبة التحصيل', 'Rate')} <b dir="ltr">{pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'n/a'))}</b></span>
           <Link to="/insights">{L('لوحة المعلومات', 'Dashboard')}</Link></div>
       </div>

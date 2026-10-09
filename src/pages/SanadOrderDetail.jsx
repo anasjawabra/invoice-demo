@@ -105,7 +105,7 @@ export default function SanadOrderDetail() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('1 · Find candidate invoices', '1 · إيجاد الفواتير المرشحة')}</h3>
+        <h2 className="rv-sec-title">{L('1 · Find candidate invoices', '1 · إيجاد الفواتير المرشحة')}</h2>
         <p className="rv-sec-sub">{L('Structured data (amount, Amanah, status) is always used. Add document text to extract invoice ids, contract references and SADAD/violation numbers. This demo has no OCR engine: paste text, or attach a file whose NAME contains references (simulated).', 'تُستخدم البيانات المهيكلة (المبلغ والأمانة والحالة) دائماً. أضف نص مستند لاستخراج معرّفات الفواتير ومراجع العقود وأرقام سداد/المخالفات. لا يوجد محرك OCR في هذا العرض: الصق نصاً أو أرفق ملفاً يحتوي اسمه مراجع (محاكاة).')}</p>
         <div className="rv-form">
           <label>{L('Attach file (name is read only)', 'إرفاق ملف (يُقرأ اسمه فقط)')}
@@ -126,7 +126,7 @@ export default function SanadOrderDetail() {
           <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
             <div className={`rv-callout ${match.verdict === 'strong' ? '' : 'rv-callout--warn'}`}><b>{B(VERDICT[match.verdict])}</b> — {L('every candidate still needs human review before it counts.', 'كل مرشح ما زال يحتاج مراجعة بشرية قبل أن يُحتسب.')}{match.oneToMany ? ` ${L('The document references several invoices (one-to-many).', 'يشير المستند إلى عدة فواتير (واحد إلى متعدد).')}` : ''}</div>
             {match.candidates.length > 0 && (
-              <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 700 }}>
+              <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 700 }}>
                 <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th className="num">{L('Score', 'الدرجة')}</th><th className="num">{L('Outstanding', 'المتبقي')}</th><th className="num">{L('Amount diff', 'فرق المبلغ')}</th><th>{L('Evidence', 'الأدلة')}</th><th>{L('Conflicts', 'التعارضات')}</th></tr></thead>
                 <tbody>{match.candidates.map((m) => (
                   <tr key={m.invoiceId}>
@@ -146,11 +146,11 @@ export default function SanadOrderDetail() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('2 · Review queue and confirmed links', '2 · قائمة المراجعة والروابط المؤكدة')}</h3>
+        <h2 className="rv-sec-title">{L('2 · Review queue and confirmed links', '2 · قائمة المراجعة والروابط المؤكدة')}</h2>
         {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" style={{ marginBottom: 8 }}>{msg.text}</div>}
         {open.length > 1 && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}>{L('Several candidates are open — this case is ambiguous. Confirming one needs a written reason; leave it unresolved if the evidence is insufficient.', 'عدة مرشحين مفتوحين — هذه القضية ملتبسة. تأكيد أحدهم يحتاج سبباً مكتوباً؛ اتركها غير محسومة إن كان الدليل غير كافٍ.')}</div>}
         {c.links.length ? (
-          <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 760 }}>
+          <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 760 }}>
             <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Status', 'الحالة')}</th><th className="num">{L('Allocated', 'الموزع')}</th><th>{L('Evidence / conflicts', 'الأدلة / التعارضات')}</th><th>{L('Reviewer', 'المراجع')}</th><th>{L('Action', 'إجراء')}</th></tr></thead>
             <tbody>{c.links.map((l) => {
               const grossOf = linked?.get(l.invoiceId);

@@ -462,7 +462,7 @@
 .rv-rel { display: grid; gap: 6px; }
 .rv-rel__row { display: flex; width: 100%; min-height: 46px; }
 .rv-rel__seg { display: flex; flex-direction: column; justify-content: center; min-width: 0; padding: 4px 8px; color: #fff; font-size: 12px; font-weight: 700; line-height: 1.25; overflow: hidden; }
-.rv-rel__seg small { font-weight: 500; opacity: .92; font-size: 12px; }
+.rv-rel__seg small { font-weight: 500; opacity: 1; font-size: 12px; }
 .rv-rel__seg--excl { background: var(--gold); color: #0D121C; }
 .rv-rel__seg--cancel { background: color-mix(in srgb, var(--gold) 70%, #fff); color: #0D121C; }
 .rv-rel__seg--net { background: var(--secondary, #194185); }

@@ -1,6 +1,7 @@
 // One validation rule for every period control (Dashboard scope bar, Smart-report filter panel, typed requests).
 // A range is applied only when it is valid; a range that is partly outside the data is clamped AND the user is told.
 import { DATA_START } from './revenueLedger';
+import { fmtDateText } from './clock';
 
 const isIso = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || '') && new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
 
@@ -16,8 +17,9 @@ export function checkRange({ from, to }, { today, start = DATA_START }) {
   return { ok: true, from: f, to: t, adjusted };
 }
 
-export function rangeMessage(code, lang, { today, start = DATA_START, planMax = null }) {
-  const ar = lang === 'ar';
+export function rangeMessage(code, lang, opts) {
+  const ar = lang === 'ar'; const W = (d) => (d ? fmtDateText(d, lang) : d);
+  const today = W(opts.today); const start = W(opts.start || DATA_START); const planMax = W(opts.planMax);
   const M = {
     incomplete: ['أدخل تاريخ بداية ونهاية صحيحين.', 'Enter a valid start and end date.'],
     inverted: ['تاريخ البداية بعد تاريخ النهاية — صحّح الفترة.', 'The start date is after the end date — correct the period.'],
@@ -28,4 +30,4 @@ export function rangeMessage(code, lang, { today, start = DATA_START, planMax = 
   }[code];
   return M ? M[ar ? 0 : 1] : '';
 }
-export const coverageLine = (lang, { today, start = DATA_START }) => (lang === 'ar' ? `البيانات متاحة من ${start} حتى ${today}` : `Data is available from ${start} to ${today}`);
+export const coverageLine = (lang, { today, start = DATA_START }) => (lang === 'ar' ? `البيانات متاحة من ${fmtDateText(start, 'ar')} حتى ${fmtDateText(today, 'ar')}` : `Data is available from ${fmtDateText(start, 'en')} to ${fmtDateText(today, 'en')}`);

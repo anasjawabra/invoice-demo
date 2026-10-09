@@ -30,7 +30,7 @@ export default function SourceRecordSection({ sr }) {
       </div>
       <p className="rv-sec-sub" style={{ marginTop: 6 }}>{B(sr.linkSummary)}</p>
 
-      <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+      <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
         <thead><tr><th>{L('System', 'النظام')}</th><th>{L('Dataset', 'المجموعة')}</th><th>{L('Role', 'الدور')}</th><th>{L('Key field', 'حقل الربط')}</th><th>{L('Key', 'المفتاح')}</th><th>{L('Version', 'النسخة')}</th></tr></thead>
         <tbody>{sr.links.map((l, k) => (
           <tr key={k} className={l.present === false ? 'muted' : ''}>
@@ -59,7 +59,7 @@ export default function SourceRecordSection({ sr }) {
             {open[v.id] ? '▾' : '▸'} <span dir="ltr">{v.id}</span> — {B(v.title)} <span className="muted" dir="ltr">({v.table} · {v.fields.length})</span>
           </button>
           {open[v.id] && (
-            <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+            <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th dir="ltr">{L('Original column', 'العمود الأصلي')}</th><th>{L('Meaning', 'المعنى')}</th><th>{L('Value', 'القيمة')}</th></tr></thead>
               <tbody>{v.fields.map((f) => <tr key={f.n}><td dir="ltr"><code>{f.n}</code></td><td dir="auto">{B(f.l)}</td><td dir="auto">{cell(f.v)}</td></tr>)}</tbody>
             </table></div>
@@ -71,7 +71,7 @@ export default function SourceRecordSection({ sr }) {
         <div style={{ marginTop: 10 }}>
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!open.__lines} onClick={() => setOpen((o) => ({ ...o, __lines: !o.__lines }))}>{open.__lines ? '▾' : '▸'} ENT_REVENUES — {L('Incorta revenue lines', 'بنود الإيراد في إنكورتا')} ({sr.revenueLines.length})</button>
           {open.__lines && (
-            <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+            <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th dir="ltr">DETAIL_ID</th><th dir="ltr">ACCOUNT_NO</th><th>GFS</th><th className="num" dir="ltr">DETAIL_AMOUNT</th><th className="num" dir="ltr">TOTAL_AMOUNT</th><th>{L('Status', 'الحالة')}</th></tr></thead>
               <tbody>{sr.revenueLines.map((l) => <tr key={l.DETAIL_ID}><td dir="ltr">{l.DETAIL_ID}</td><td dir="ltr">{l.ACCOUNT_NO}</td><td dir="auto">{l.GFS_MAIN_CODE} · {l.GFS_NAME}</td><td className="num" dir="ltr">{sar(l.DETAIL_AMOUNT)}</td><td className="num muted" dir="ltr">{sar(l.TOTAL_AMOUNT)}</td><td>{l.PAYMENT_STATUS}</td></tr>)}</tbody>
             </table></div>

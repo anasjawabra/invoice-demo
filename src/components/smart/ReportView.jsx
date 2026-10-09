@@ -36,7 +36,7 @@ function Table({ b }) {
   return (
     <div>
       {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}{t.unitText ? <small className="muted"> — {L('المبالغ بوحدة', 'amounts in')}: {t.unitText}</small> : null}</h4>}
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0}>
         <table className="table" aria-label={b.title}>
           <thead><tr>{t.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
           <tbody>
@@ -59,7 +59,7 @@ function Chart({ b }) {
   return (
     <div>
       {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}</h4>}
-      <div className="rv-chart" style={{ height: 260 }} role="img" aria-label={b.title}><Bar data={data} options={options} /></div>
+      <div className="rv-chart" style={{ height: 260 }} role="img" aria-label={b.title}><Bar role="presentation" data={data} options={options} /></div>
     </div>
   );
 }
@@ -88,7 +88,7 @@ export default function ReportView({ model }) {
   return (
     <div className="sr-report" data-report-id={model.id}>
       <div className="sr-report__head">
-        <h3 className="sr-report__title">{model.title}</h3>
+        <h2 className="sr-report__title">{model.title}</h2>
         <p className="rv-line">{summaryLine}</p>
         <details className="rv-more">
           <summary>{L('تفاصيل التقرير', 'Report details')}</summary>
@@ -104,7 +104,7 @@ export default function ReportView({ model }) {
         </details>
       ) : (
         <section key={sec.key} className="sr-section" aria-label={sec.title}>
-          <h4 className="sr-section__title">{sec.title}</h4>
+          <h3 className="sr-section__title">{sec.title}</h3>
           {sec.purpose && <div className="muted" style={{ fontSize: 13 }}>{sec.purpose}</div>}
           <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} />)}</div>
         </section>

@@ -13,5 +13,5 @@ export default function UnitBar({ labels, series, height = 250, label }) {
   const cu = useMemo(() => chartUnit(series.flatMap((s) => s.values).filter((v) => v != null), lang), [series, lang]);
   const data = useMemo(() => ({ labels, datasets: series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: s.color || COLORS[i % COLORS.length], borderRadius: 4 })) }), [labels, series]);
   const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : cu.fmt(c.parsed.y)}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y)) } } }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
-  return <div className="rv-chart" style={{ height, position: 'relative', width: '100%' }} role="img" aria-label={label}><Bar data={data} options={options} /></div>;
+  return <div className="rv-chart" style={{ height, position: 'relative', width: '100%' }} role="img" aria-label={label}><Bar role="presentation" data={data} options={options} /></div>;
 }

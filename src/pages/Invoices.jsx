@@ -225,7 +225,7 @@ export default function Invoices() {
           </div>
         )}
         {error && <div className="rv-callout rv-callout--bad" role="alert">{bi.L('The data service could not load this page.', 'تعذّر على خدمة البيانات تحميل هذه الصفحة.')} {String(error.message || '')}</div>}
-        <div className="table-wrap" aria-busy={loading}>
+        <div className="table-wrap" tabIndex={0} aria-busy={loading}>
           <table className="table" aria-label="Invoice library">
             <thead>
               <tr>
@@ -240,7 +240,7 @@ export default function Invoices() {
                 {th(bi.L('Issue date', 'تاريخ الإصدار'), 'issue')}
                 <th>{bi.L('Due date', 'تاريخ الاستحقاق')}</th>
                 {th(bi.L('Days past due', 'أيام التأخر بعد الاستحقاق'), 'age')}
-                <th aria-label={viewLabel} />
+                <th><span className="sr-only">{viewLabel}</span></th>
               </tr>
             </thead>
             <tbody>

@@ -50,7 +50,7 @@ export default function Metrics() {
         {dict.map((m) => (
           <article key={m.key} className="card card-pad" aria-label={B(m.label)}>
             <div className="rv-card__head">
-              <h3 className="rv-sec-title">{B(m.label)} <span className="rv-tag">{B(KIND[m.kind])}</span></h3>
+              <h2 className="rv-sec-title">{B(m.label)} <span className="rv-tag">{B(KIND[m.kind])}</span></h2>
               <div className="rv-metric-value" dir="ltr">{value[m.key]}</div>
             </div>
             <dl className="rv-dl">

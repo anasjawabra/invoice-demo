@@ -148,8 +148,8 @@ export default function DataSources() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Sources: last update, period covered, reference date, version', 'المصادر: آخر تحديث والفترة والتاريخ المرجعي والإصدار')}</h3>
-        <div className="rv-table-wrap">
+        <h2 className="rv-sec-title">{L('Sources: last update, period covered, reference date, version', 'المصادر: آخر تحديث والفترة والتاريخ المرجعي والإصدار')}</h2>
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr>
               <th>{L('Source', 'المصدر')}</th><th>{L('Role (field authority)', 'الدور (سلطة الحقول)')}</th><th>{L('Refresh', 'الدورية')}</th>
@@ -182,9 +182,9 @@ export default function DataSources() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Matching and quality results', 'نتائج المطابقة وجودة البيانات')}</h3>
+        <h2 className="rv-sec-title">{L('Matching and quality results', 'نتائج المطابقة وجودة البيانات')}</h2>
         <p className="rv-sec-sub">{L('One documented rule per join: the key used, the relationship, the status, the evidence and why a record did not match. Manual review is required where marked.', 'قاعدة موثقة لكل ربط: المفتاح والعلاقة والحالة ومصدر الدليل وسبب عدم المطابقة. المراجعة اليدوية مطلوبة حيث يُشار.')}</p>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr><th>#</th><th>{L('From → To', 'من ← إلى')}</th><th>{L('Join key', 'مفتاح الربط')}</th><th>{L('Relationship', 'العلاقة')}</th><th className="num">{L('Matched', 'مطابق')}</th><th className="num">{L('Unmatched', 'غير مطابق')}</th><th className="num">{L('Pending / future', 'معلّق / مستقبلي')}</th><th>{L('Evidence', 'مصدر الدليل')}</th><th>{L('Reason when unmatched', 'سبب عدم المطابقة')}</th><th>{L('Review', 'مراجعة')}</th></tr></thead>
             <tbody>
@@ -205,7 +205,7 @@ export default function DataSources() {
             </tbody>
           </table>
         </div>
-        <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Records that need treatment', 'سجلات تحتاج معالجة')}</h4>
+        <h3 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Records that need treatment', 'سجلات تحتاج معالجة')}</h3>
         <ul className="rv-list">
           {treat.map((t) => (
             <li key={t.k}>
@@ -217,9 +217,9 @@ export default function DataSources() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Import and version log', 'سجل الاستيراد والإصدارات')}</h3>
+        <h2 className="rv-sec-title">{L('Import and version log', 'سجل الاستيراد والإصدارات')}</h2>
         <p className="rv-sec-sub">{L('Each load keeps its metadata. A periodic refresh adds a version; the same record is never counted twice.', 'يحتفظ كل تحميل ببياناته الوصفية. والتحديث الدوري يضيف إصداراً؛ ولا يُحتسب السجل نفسه مرتين.')}</p>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr>
               <th>{L('Source', 'المصدر')}</th><th>{L('Report type', 'نوع التقرير')}</th><th>{L('Central / internal', 'مركزي / داخلي')}</th><th>{L('Entity', 'الجهة')}</th>
@@ -248,7 +248,7 @@ export default function DataSources() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Upload a report', 'رفع تقرير')}</h3>
+        <h2 className="rv-sec-title">{L('Upload a report', 'رفع تقرير')}</h2>
         <p className="rv-sec-sub">{L(`CSV or Excel. Required columns: ${REQUIRED.join(', ')} (a line-level unpaid report only needs invoice id, issue date and amount; the Amanah comes from Makeen). Identifiers are read as text. Records are validated, de-duplicated against the ledger and kept with their provenance and version.`, `CSV أو Excel. الأعمدة المطلوبة: ${REQUIRED.join(', ')} (تقرير غير المسدد على مستوى البنود يحتاج رقم الفاتورة وتاريخ الإصدار والمبلغ فقط؛ والأمانة من مكين). تُقرأ المعرفات كنص. تُتحقق السجلات وتُزال تكراراتها مقارنة بالسجل وتُحفظ بمصدرها وإصدارها.`)}</p>
         <div className="rv-form">
           <label>{L('Report type', 'نوع التقرير')}
@@ -289,7 +289,7 @@ export default function DataSources() {
                   ))}
                 </ul>
                 {result.rejected.length > 0 && (
-                  <div className="rv-table-wrap"><table className="rv-table" style={{ minWidth: 0 }}>
+                  <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
                     <thead><tr><th>{L('Row', 'الصف')}</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Why rejected', 'سبب الرفض')}</th></tr></thead>
                     <tbody>{result.rejected.map((r) => <tr key={r.row}><td className="num">{r.row}</td><td dir="ltr">{r.id || '—'}</td><td>{r.reasons.map((x) => reasonText(x, ar)).join('؛ ')}</td></tr>)}</tbody>
                   </table></div>
@@ -309,8 +309,8 @@ export default function DataSources() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Open business decisions and the safe default in use', 'قرارات الأعمال المفتوحة والافتراض الآمن المستخدم')}</h3>
-        <div className="rv-table-wrap">
+        <h2 className="rv-sec-title">{L('Open business decisions and the safe default in use', 'قرارات الأعمال المفتوحة والافتراض الآمن المستخدم')}</h2>
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr><th>{L('Decision', 'القرار')}</th><th>{L('Safe default in this demo', 'الافتراض الآمن في هذا العرض')}</th></tr></thead>
             <tbody>{OPEN_DECISIONS.map((x, i) => <tr key={i}><td dir="auto">{x.d[ar ? 1 : 0]}</td><td dir="auto" style={{ fontSize: 12 }}>{x.s[ar ? 1 : 0]}</td></tr>)}</tbody>

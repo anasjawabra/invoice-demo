@@ -50,7 +50,7 @@ export default function OutlookChart({ labels, actual, target, forecast, low, hi
   return (
     <div>
       <div className="rv-chart" style={{ height }} role="img" aria-label={L('Monthly receipts: actual versus approved target versus independent forecast', 'المقبوضات الشهرية: الفعلي مقابل المستهدف المعتمد مقابل التنبؤ المستقل')}>
-        <Chart ref={ref} type="bar" data={data} options={options} />
+        <Chart role="presentation" ref={ref} type="bar" data={data} options={options} />
       </div>
       <div className="rv-legend" aria-hidden="true">
         <span style={{ color: '#1B8354' }}><i style={{ background: 'rgba(27,131,84,.65)', height: 8 }} />{L('Actual receipts', 'المقبوضات الفعلية')}</span>
@@ -61,7 +61,7 @@ export default function OutlookChart({ labels, actual, target, forecast, low, hi
       </div>
       <details className="rv-table-alt">
         <summary>{L('Show data table', 'عرض جدول البيانات')} — {cu.title}</summary>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr><th>{L('Month', 'الشهر')}</th><th className="num">{L('Actual', 'الفعلي')}</th><th className="num">{L('Target', 'المستهدف')}</th><th className="num">{L('Forecast', 'التنبؤ')}</th><th className="num">{L('Range', 'النطاق')}</th>{scenario && <th className="num">{L('Scenario', 'السيناريو')}</th>}</tr></thead>
             <tbody>

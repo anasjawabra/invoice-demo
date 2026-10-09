@@ -25,7 +25,8 @@ export default function InsightsHub() {
   const legacy = sp.get('r'); // old /reports?r=<section> links
   if (!view && legacy) { view = 'reports'; report = LEGACY_SECTION_TO_REPORT[legacy] || null; }
   if (!VIEWS.some(([k]) => k === view)) view = 'dashboard';
-  if (report && !FIXED_REPORTS.some((r) => r.key === report)) report = null;
+  const badReport = !!report && !FIXED_REPORTS.some((r) => r.key === report);
+  if (badReport) report = null;
   const go = (v, extra = {}) => { const n = new URLSearchParams(); n.set('view', v); Object.entries(extra).forEach(([k, x]) => x && n.set(k, x)); setSp(n); };
   const initialQuery = sp.get('q');
   const sEff = rev.scopeEff; const amName = (k) => { const x = amanahOptionsOf().find((o) => o.key === k); return x ? (ar ? x.ar : x.en) : k; };
@@ -44,6 +45,7 @@ export default function InsightsHub() {
       </div>
       {view !== 'smart' && (rev.ready ? <FilterChips /> : <Skeleton height={44} />)}
       {view !== 'smart' && <DataStatus />}
+      {badReport && view === 'reports' && <div className="rv-callout rv-callout--warn" role="alert">{L('لا يوجد تقرير بهذا الاسم؛ اختر أحد التقارير أدناه.', 'There is no report with that name; choose one below.')}</div>}
       <div role="tabpanel" id={`panel-${view}`} aria-labelledby={`tab-${view}`} aria-busy={view !== 'smart' && rev.loading ? 'true' : undefined} style={view !== 'smart' && rev.loading ? { opacity: 0.55, transition: 'opacity .15s' } : undefined}>
         {!rev.ready ? <div role="status"><Skeleton height={220} /></div>
           : view === 'dashboard' ? <InsightsDashboard />

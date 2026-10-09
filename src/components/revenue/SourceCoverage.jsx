@@ -20,12 +20,12 @@ export default function SourceCoverage() {
     <section className="card card-pad" aria-label={L('Revenue-source coverage', 'تغطية مصادر الإيراد')}>
       <div className="rv-card__head">
         <div>
-          <h3 className="rv-sec-title">{L('Revenue sources: files, record level, keys and live counts', 'مصادر الإيراد: الملفات ومستوى السجل والمفاتيح والأعداد الحية')}</h3>
+          <h2 className="rv-sec-title">{L('Revenue sources: files, record level, keys and live counts', 'مصادر الإيراد: الملفات ومستوى السجل والمفاتيح والأعداد الحية')}</h2>
           <p className="rv-sec-sub">{L(`Period ${data.period.from} → ${data.period.to} (Asia/Riyadh) versus ${data.period.priorFrom} → ${data.period.priorTo}. Invoices, item rows and payment rows are three different counts; each amount carries one appropriate unit (SAR · thousand · million · billion).`, `الفترة ${data.period.from} ← ${data.period.to} (الرياض) مقابل ${data.period.priorFrom} ← ${data.period.priorTo}. الفواتير وصفوف البنود وصفوف السداد ثلاثة أعداد مختلفة؛ وكل مبلغ بوحدة واحدة مناسبة (SAR · ألف · مليون · مليار).`)}</p>
         </div>
         <span className={`rv-badge rv-badge--sm ${ok ? 'rv-badge--good' : 'rv-badge--bad'}`}>{ok ? L('Integrity checks pass', 'فحوص السلامة سليمة') : L('Integrity check failed', 'فشل فحص سلامة')}</span>
       </div>
-      <div className="rv-table-wrap">
+      <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table" style={{ minWidth: 980 }}>
           <thead><tr>
             <th>{L('Source', 'المصدر')}</th><th>{L('Files · sheets', 'الملفات · الأوراق')}</th><th>{L('Record level', 'مستوى السجل')}</th><th>{L('Link keys', 'مفاتيح الربط')}</th><th>{L('Supplying system', 'النظام المورّد')}</th>

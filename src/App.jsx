@@ -16,6 +16,7 @@ import SanadOrders from './pages/SanadOrders';
 import SanadOrderDetail from './pages/SanadOrderDetail';
 import InvestmentInvoices from './pages/InvestmentInvoices';
 import InvestmentInvoiceDetail from './pages/InvestmentInvoiceDetail';
+import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="sanad-orders/:enforceNum" element={<SanadOrderDetail />} />
         <Route path="investment-invoices" element={<InvestmentInvoices />} />
         <Route path="investment-invoices/:id" element={<InvestmentInvoiceDetail />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

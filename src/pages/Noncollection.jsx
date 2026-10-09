@@ -93,7 +93,7 @@ export default function Noncollection() {
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Invoice states', 'حالات الفواتير')}</h3>
+        <h2 className="rv-sec-title">{L('Invoice states', 'حالات الفواتير')}</h2>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }} role="group" aria-label={L('Filter by state', 'تصفية حسب الحالة')}>
           <button type="button" className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setFilter('all')} aria-pressed={filter === 'all'}>{L('All', 'الكل')}</button>
           {NONCOLLECTION_CATEGORIES.map((c) => (
@@ -102,7 +102,7 @@ export default function Noncollection() {
             </button>
           ))}
         </div>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
             <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th>{L('Signals', 'الإشارات')}</th></tr></thead>
             <tbody>
@@ -119,15 +119,15 @@ export default function Noncollection() {
             </tbody>
           </table>
         </div>
-        <Pager page={page} total={states?.total ?? 0} size={PS} onPage={setPage} />
+        <Pager page={page} total={states?.total ?? 0} size={PS} onPage={setPage} label={L('Invoice states', 'حالات الفواتير')} />
       </div>
 
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Exclusion register', 'سجل الاستبعادات')}</h3>
+        <h2 className="rv-sec-title">{L('Exclusion register', 'سجل الاستبعادات')}</h2>
         <p className="rv-sec-sub">{L('Each exclusion keeps its rule, evidence, review state, reviewer, effective period and reassessment status. Only APPROVED exclusions under ENABLED rules reduce net billed. Review decisions update this solution\'s analytical layer only.', 'يحتفظ كل استبعاد بقاعدته ودليله وحالة مراجعته والمراجع وفترة السريان وحالة إعادة التقييم. فقط الاستبعادات المعتمدة وفق قواعد مفعّلة تخفض صافي المفوتر. وتحدّث قرارات المراجعة الطبقة التحليلية لهذه المنصة فقط.')}</p>
         {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" style={{ marginBottom: 8 }}>{msg.text}</div>}
         {!canReview && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}>{L('Your role is read-only: you can inspect exclusions but not approve or reject them.', 'دورك للقراءة فقط: يمكنك الاطلاع على الاستبعادات دون اعتمادها أو رفضها.')}</div>}
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table" style={{ minWidth: 880 }}>
             <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Category · rule', 'الفئة · القاعدة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Evidence', 'الدليل')}</th><th>{L('Review', 'المراجعة')}</th><th>{L('Effective · reassessment', 'السريان · إعادة التقييم')}</th><th>{L('Action', 'إجراء')}</th></tr></thead>
             <tbody>
@@ -171,19 +171,19 @@ export default function Noncollection() {
             </tbody>
           </table>
         </div>
-        <Pager page={regPage} total={reg?.total ?? 0} size={15} onPage={setRegPage} />
+        <Pager page={regPage} total={reg?.total ?? 0} size={15} onPage={setRegPage} label={L('Exclusion register', 'سجل الاستبعادات')} />
       </div>
 
       <div className="card card-pad">
         <div className="rv-card__head">
           <div>
-            <h3 className="rv-sec-title">{L('Exclusion rule registry', 'سجل قواعد الاستبعاد')}</h3>
+            <h2 className="rv-sec-title">{L('Exclusion rule registry', 'سجل قواعد الاستبعاد')}</h2>
             <p className="rv-sec-sub"><span dir="ltr">{EXCLUSION_RULE_SET_VERSION}</span> · {L('Each rule is versioned and configurable. A report name alone never becomes an automatic rule. Rules marked “غير معتمدة” still run when enabled, but every figure they move is labelled unapproved.', 'كل قاعدة مُرقَّمة وقابلة للضبط. واسم التقرير وحده لا يتحول إلى قاعدة آلية. القواعد الموسومة «غير معتمدة» تعمل عند تفعيلها لكن كل رقم تؤثر فيه يُوسم غير معتمد.')}</p>
           </div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRegOpen((v) => !v)} aria-expanded={regOpen}>{regOpen ? L('Hide details', 'إخفاء التفاصيل') : L('Show full definitions', 'عرض التعريفات الكاملة')}</button>
         </div>
         {snapshot.unapprovedRulesApplied.length > 0 && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}><b>{B(RULE_APPROVAL_LABEL.unapproved)}</b> — {L(`${short(T.exclusionsUnapproved)} of the ${short(T.exclusions)} excluded rests on unapproved rules (${snapshot.unapprovedRulesApplied.join(', ')}). Approved-rule exclusions: ${short(T.exclusionsApproved)}.`, `${short(T.exclusionsUnapproved)} من ${short(T.exclusions)} مستبعد يستند إلى قواعد غير معتمدة (${snapshot.unapprovedRulesApplied.join('، ')}). استبعاد القواعد المعتمدة: ${short(T.exclusionsApproved)}.`)}</div>}
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table" style={{ minWidth: regOpen ? 1180 : 760 }}>
             <thead><tr>
               <th>{L('On', 'تفعيل')}</th><th>{L('Code · reason', 'الرمز · السبب')}</th><th>{L('Approval', 'الاعتماد')}</th><th className="num">{L('Priority', 'الأولوية')}</th>
@@ -232,9 +232,9 @@ export default function Noncollection() {
 
       <div className="rv-two">
         <div className="card card-pad">
-          <h3 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h3>
+          <h2 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h2>
           <p className="rv-sec-sub">{L('A confirmed link turns an invoice into "Referred to enforcement" (still counted as uncollected). Case amounts are not spread across invoices; unallocated amounts stay separate.', 'الرابط المؤكد يجعل الفاتورة "محالة إلى التنفيذ" (وتُحتسب غير محصّلة). لا تُوزّع مبالغ القضايا على الفواتير؛ وتبقى المبالغ غير الموزعة منفصلة.')}</p>
-          <div className="rv-table-wrap">
+          <div className="rv-table-wrap" tabIndex={0}>
             <table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th>{L('Case', 'القضية')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('State', 'الحالة')}</th></tr></thead>
               <tbody>

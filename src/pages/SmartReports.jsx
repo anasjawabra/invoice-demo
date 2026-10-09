@@ -15,7 +15,7 @@ import { buildReportModel, SECTION_META, SECTION_ORDER } from '../data/reportMod
 import { sourceAr, sourceEn } from '../data/insightsEngine';
 import ReportView from '../components/smart/ReportView';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
-import { fmtRiyadh } from '../data/clock';
+import { fmtRiyadh, fmtRangeText, fmtDateText } from '../data/clock';
 import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
@@ -217,10 +217,10 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'];
     const cmp = { none: null, prev_month: L('مقارنة بالشهر الماضي', 'vs last month'), prev_year: L('مقارنة بالعام الماضي', 'vs last year') }[sp.compare];
     return [
-      { k: 'period', label: L('الفترة', 'Period'), value: `${sc.from} → ${sc.to}` }, { k: 'amanah', label: L('الأمانة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
+      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en') }, { k: 'amanah', label: L('الأمانة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
       { k: 'source', label: L('المصدر', 'Source'), value: sourceName(sc.source) }, { k: 'status', label: L('الحالة', 'Status'), value: st },
       ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'st', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
-      { k: 'basis', label: L('الأساس', 'Basis'), value: L(`فواتير الفترة · التحصيل حتى ${sc.to < today ? sc.to : today}`, `Period invoices · collections to ${sc.to < today ? sc.to : today}`) }, ...(cmp ? [{ k: 'cmp', label: L('المقارنة', 'Comparison'), value: cmp }] : [])
+      { k: 'basis', label: L('الأساس', 'Basis'), value: L(`فواتير الفترة · التحصيل حتى ${fmtDateText(sc.to < today ? sc.to : today, 'ar')}`, `Period invoices · collections to ${fmtDateText(sc.to < today ? sc.to : today, 'en')}`) }, ...(cmp ? [{ k: 'cmp', label: L('المقارنة', 'Comparison'), value: cmp }] : [])
     ];
   }, [spec, sharedSpec, today, ar, L, labelOfAmanah]); // eslint-disable-line react-hooks/exhaustive-deps
 

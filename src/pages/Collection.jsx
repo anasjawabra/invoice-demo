@@ -61,7 +61,7 @@ export default function Collection() {
             <button key={c} type="button" className={`btn btn-sm ${cat === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === c} onClick={() => setCat(c)}>{B(CATEGORY_LABELS[c])} · {count(nc[c].count)}</button>
           ))}
         </div>
-        <div className="rv-table-wrap">
+        <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table" style={{ minWidth: 820 }}>
             <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Outstanding (SAR)', 'المتبقي (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Suggested next step', 'الخطوة المقترحة')}</th></tr></thead>
             <tbody>

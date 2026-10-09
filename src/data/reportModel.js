@@ -83,11 +83,11 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
       { type: 'kpis', unit: u, items: [
         { label: L('إجمالي المفوتر', 'Gross billed'), value: m(T.gross), raw: T.gross, sub: L('قبل الاستبعادات', 'before exclusions') },
         { label: L('الاستبعادات', 'Exclusions'), value: m(T.exclusions), raw: T.exclusions, sub: L(`نسبة الاستبعاد ${T.exclusionRate.calculable ? (T.exclusionRate.value * 100).toFixed(1) + '%' : 'غير متاحة'}`, `Exclusion rate ${T.exclusionRate.calculable ? (T.exclusionRate.value * 100).toFixed(1) + '%' : 'not available'}`) },
-        { label: L('صافي المفوتر', 'Net billed'), value: m(T.net), raw: T.net, sub: L('الإجمالي − الاستبعادات', 'Gross − exclusions') },
-        { label: L('المحصّل', 'Collected'), value: m(T.collected), raw: T.collected, sub: L('ضمن صافي المفوتر', 'within net billed') },
-        { label: L('غير المحصّل', 'Uncollected'), value: m(T.outstanding), raw: T.outstanding, sub: L('الصافي − المحصّل', 'Net − collected') },
-        { label: L('نسبة التحصيل', 'Collection rate'), value: rate.calculable ? `${(rate.value * 100).toFixed(1)}%` : L('غير متاحة', 'Not available'), raw: rate.calculable ? rate.value : null, sub: comparable && comparison.collectedOverNetPp.calculable ? L(`${comparison.collectedOverNetPp.value >= 0 ? '+' : ''}${comparison.collectedOverNetPp.value.toFixed(1)} نقطة عن المقارنة`, `${comparison.collectedOverNetPp.value >= 0 ? '+' : ''}${comparison.collectedOverNetPp.value.toFixed(1)} pp vs comparison`) : L('المحصّل ÷ صافي المفوتر × 100', 'Collected ÷ net billed × 100') },
-        { label: L('الفواتير', 'Invoices'), value: `${fmtInt(T.count)} ${L('فاتورة', 'invoices')}`, raw: T.count, sub: L('الصادرة في الفترة', 'issued in the period') }
+        { label: L('صافي المفوتر', 'Net billed'), value: m(T.net), raw: T.net, sub: L('بعد الاستبعادات', 'after exclusions') },
+        { label: L('المحصّل', 'Collected'), value: m(T.collected), raw: T.collected, sub: L('من الصافي', 'of net billed') },
+        { label: L('غير المحصّل', 'Uncollected'), value: m(T.outstanding), raw: T.outstanding, sub: L('من فواتير الفترة', 'on the period’s invoices') },
+        { label: L('نسبة التحصيل', 'Collection rate'), value: rate.calculable ? `${(rate.value * 100).toFixed(1)}%` : L('غير متاحة', 'Not available'), raw: rate.calculable ? rate.value : null, sub: comparable && comparison.collectedOverNetPp.calculable ? L(`${comparison.collectedOverNetPp.value >= 0 ? '+' : ''}${comparison.collectedOverNetPp.value.toFixed(1)} نقطة مئوية عن المقارنة`, `${comparison.collectedOverNetPp.value >= 0 ? '+' : ''}${comparison.collectedOverNetPp.value.toFixed(1)} pp vs comparison`) : L('من الصافي', 'of net billed') },
+        { label: L('الفواتير', 'Invoices'), value: `${fmtInt(T.count)} ${L('فاتورة', 'invoices')}`, raw: T.count, sub: L('صدرت في الفترة', 'issued in the period') }
       ] },
     ];
   };

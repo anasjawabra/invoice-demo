@@ -27,7 +27,7 @@ export function UncollectedBridge({ bridge, stock }) {
     <div className="card card-pad rv-bridge" aria-label={L('Net uncollected bridge', 'جسر الرصيد القائم')}>
       <div className="rv-card__head">
         <div>
-          <h3 className="rv-sec-title">{L('Net-uncollected bridge', 'جسر الرصيد القائم')}</h3>
+          <h2 className="rv-sec-title">{L('Net-uncollected bridge', 'جسر الرصيد القائم')}</h2>
           <p className="rv-sec-sub">{L(`From the unpaid report (${bridge.reportDate}) to the details report (${bridge.detailsDate}). The report repeats the invoice value on every line, so lines are collapsed to one row per invoice first.`, `من تقرير غير المسدد (${bridge.reportDate}) إلى بيان التفاصيل (${bridge.detailsDate}). يكرر التقرير قيمة الفاتورة في كل بند لذا تُجمع البنود أولاً في صف واحد لكل فاتورة.`)}</p>
         </div>
         <span className={`rv-badge rv-badge--sm ${ok ? 'rv-badge--good' : 'rv-badge--bad'}`}>{ok ? L('Reconciled', 'مطابق حسابياً') : L('Does not reconcile', 'غير مطابق')}</span>
@@ -85,10 +85,10 @@ export function ChangeExplanation() {
   const { L, B, ar } = useL();
   const rev = useRevenue();
   const { data: ex } = useAsync(() => explainChange(rev.data, rev.scopeEff, rev.cfg, { curr: rev.snapshot, prev: rev.prevSnapshot }), [rev.data, rev.snapshot, rev.prevSnapshot]);
-  if (!ex) return <div className="card card-pad"><h3 className="rv-sec-title">{L('What explains the change?', 'ما الذي يفسّر التغير؟')}</h3><div className="rv-empty">{L('Calculating…', 'جارٍ الاحتساب…')}</div></div>;
+  if (!ex) return <div className="card card-pad"><h2 className="rv-sec-title">{L('What explains the change?', 'ما الذي يفسّر التغير؟')}</h2><div className="rv-empty">{L('Calculating…', 'جارٍ الاحتساب…')}</div></div>;
   return (
     <div className="card card-pad">
-      <h3 className="rv-sec-title">{L('What explains the change?', 'ما الذي يفسّر التغير؟')}</h3>
+      <h2 className="rv-sec-title">{L('What explains the change?', 'ما الذي يفسّر التغير؟')}</h2>
       {!ex.comparable ? (
         <div className="rv-empty">{B(ex.needsVerification[0])}</div>
       ) : (
@@ -98,7 +98,7 @@ export function ChangeExplanation() {
             {ex.factors.map((f) => <li key={f.key} dir="auto"><span className="rv-tag">{L('measured', 'مقاس')}</span> {B(f.text)}</li>)}
           </ul>
           {ex.byAmanah && (
-            <div className="rv-table-wrap">
+            <div className="rv-table-wrap" tabIndex={0}>
               <table className="rv-table" style={{ minWidth: 0 }}>
                 <thead><tr><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
                 <tbody>{ex.byAmanah.rows.slice(0, 5).map((r) => <tr key={r.key}><td>{r.label ? pickBi(r.label, ar ? 'ar' : 'en') : r.key}</td><td className="num" dir="ltr">{r.mixPp.toFixed(2)}</td><td className="num" dir="ltr">{r.ratePp.toFixed(2)}</td><td className="num" dir="ltr"><b>{r.totalPp.toFixed(2)}</b></td></tr>)}</tbody>
@@ -141,7 +141,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
     <div className="card card-pad">
       <div className="rv-card__head">
         <div>
-          <h3 className="rv-sec-title">{L('Amanah map', 'خريطة الأمانات')}</h3>
+          <h2 className="rv-sec-title">{L('Amanah map', 'خريطة الأمانات')}</h2>
 
         </div>
         <label className="rv-inline">{L('Sort', 'الترتيب')}
@@ -153,7 +153,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
           </select>
         </label>
       </div>
-      <div className="rv-table-wrap">
+      <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table">
           <thead><tr>
             <th>{L('Amanah', 'الأمانة')}</th>
@@ -168,7 +168,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
             {sorted.map(({ g, rate, trend, ownShare, share, small }) => (
               <tr key={g.key}>
                 <td><button type="button" className="rv-link" onClick={() => onPick?.(g.key)}>{pickBi(g.label, ar ? 'ar' : 'en')}</button>{small && <span className="rv-tag" style={{ marginInlineStart: 6 }} title={L('Fewer than 8 invoices: the rate is volatile', 'أقل من 8 فواتير: النسبة متقلبة')}>{L('under 8 invoices', 'أقل من 8 فواتير')}</span>}</td>
-                <td><span className="rv-sizebar" aria-label={short(g.net)}><i style={{ width: `${Math.max(3, (g.net / maxNet) * 100)}%` }} /></span> <small className="muted" dir="ltr">{short(g.net)} · {count(g.count)}</small></td>
+                <td><span className="rv-sizebar" role="img" aria-label={short(g.net)}><i style={{ width: `${Math.max(3, (g.net / maxNet) * 100)}%` }} /></span> <small className="muted" dir="ltr">{short(g.net)} · {count(g.count)}</small></td>
                 <td className="num">{ratioText(rate, ar, 0)}</td>
                 <td className="num" dir="ltr">{trend == null ? '—' : <span className={trend < 0 ? 'rv-neg' : 'rv-pos'}>{trend > 0 ? '+' : ''}{trend}</span>}</td>
                 <td className="num">{short(g.outstanding)}</td>
@@ -199,17 +199,17 @@ export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
   return (
     <div className="rv-three">
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Large overdue invoices', 'فواتير متأخرة كبيرة')}</h3>
+        <h2 className="rv-sec-title">{L('Large overdue invoices', 'فواتير متأخرة كبيرة')}</h2>
         {overdueRows.length ? <ul className="rv-list">{overdueRows.map((d) => <li key={d.id}><Link to={`/invoices?id=${d.id}`} dir="ltr">{d.id}</Link> <span className="muted">{ar ? d.amanahAr : d.amanahEn}</span> <b dir="ltr">{sar(d.outstanding)}</b> <small className="muted">{d.daysOverdue} {L('days', 'يوماً')}</small></li>)}</ul> : <div className="rv-empty">{L('None in this scope.', 'لا شيء في هذا النطاق.')}</div>}
       </div>
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Contracts with overdue installments', 'عقود بدفعات متأخرة')}</h3>
+        <h2 className="rv-sec-title">{L('Contracts with overdue installments', 'عقود بدفعات متأخرة')}</h2>
         {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : c.tenantEn}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
         <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 12 }}>{L('Enforcement to follow up', 'تنفيذ يحتاج متابعة')}</h4>
         {execRows.length ? <ul className="rv-list">{execRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.requests[0].enforceNum}</Link> <b>{short(c.execution.amount)}</b> <small className="muted">{c.execution.invoicesIdentified ? L('invoices identified', 'فواتير محددة') : L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
       </div>
       <div className="card card-pad">
-        <h3 className="rv-sec-title">{L('Data gaps that move the numbers', 'فجوات بيانات تؤثر في الأرقام')}</h3>
+        <h2 className="rv-sec-title">{L('Data gaps that move the numbers', 'فجوات بيانات تؤثر في الأرقام')}</h2>
         {gaps.length ? <ul className="rv-list">{gaps.map((g) => <li key={g.k}><Link to={g.to}>{g.text}</Link></li>)}</ul> : <div className="rv-empty">{L('No material gaps.', 'لا فجوات مؤثرة.')}</div>}
       </div>
     </div>
