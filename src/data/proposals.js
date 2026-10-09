@@ -1,8 +1,11 @@
 // Recommendations awaiting human review. They are computed from the active snapshot (cards of the shared layer + collection-gap insights);
 // they are proposals, never decisions, and carry NO owner: a suggested unit is only a hint for the reviewer.
-import { buildDecisionCards, bi } from './revenueInsights';
+import { buildDecisionCards } from './revenueInsights';
 import { buildInsights } from './insightsEngine';
 import { fillTokens } from './reportFormat';
+
+// Arabic-first (ar, en) — revenueInsights.bi is English-first, which swapped every language field here (F-09)
+const bi = (ar, en) => ({ ar, en });
 
 const prio = (score) => (score >= 0.6 ? 'high' : score >= 0.35 ? 'medium' : 'low');
 

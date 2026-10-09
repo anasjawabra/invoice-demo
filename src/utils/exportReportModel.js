@@ -10,6 +10,12 @@ import { fmtSar } from './money';
 function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+// Excel caps sheet names at 31 characters; cut at a word boundary instead of mid-word
+const cutAtWord = (t, max) => { const x = t.trim(); if (x.length <= max) return x; const cut = x.slice(0, max); const i = cut.lastIndexOf(' '); return (i >= Math.floor(max * 0.5) ? cut.slice(0, i) : cut).trim(); };
+const relationsLine = (T, lang) => { const L = (a, e) => (lang === 'ar' ? a : e); return `${L('إجمالي المفوتر', 'Gross billed')} ${fmtSar(T.gross)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(T.exclusions)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(T.net)}; ${L('صافي المفوتر', 'net billed')} = ${L('المحصّل', 'collected')} ${fmtSar(T.collected)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(T.outstanding)}; ${L('نسبة التحصيل', 'collection rate')} ${rateText(T.collectedOverNet, lang)}; ${L('نسبة الاستبعاد', 'exclusion rate')} ${rateText(T.exclusionRate, lang)}`; };
+const NA = { ar: 'غير متاحة', en: 'Not available' };
+// a rate object {calculable, value} → «57.8%» or the explicit unavailable label (never a silent zero)
+const rateText = (r, lang = 'ar') => (r && r.calculable ? `${(r.value * 100).toFixed(1)}%` : NA[lang]);
 const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
 export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${model.generatedAt.slice(0, 10)}.${ext}`;
 
@@ -20,7 +26,7 @@ export function modelToLines(model) {
   const pushBlock = (b) => {
     if (b.type === 'text') items.push({ k: 'p', text: b.text });
     else if (b.type === 'kpis') items.push({ k: 'table', title: L('المؤشرات', 'Indicators'), headers: [L('المؤشر', 'Measure'), L('القيمة', 'Value'), L('ملاحظة', 'Note')], rows: b.items.map((m) => [m.label, m.value, m.sub]) });
-    else if (b.type === 'relations') items.push({ k: 'table', title: L('العلاقات المالية', 'Financial relationships'), headers: [L('العلاقة', 'Relationship'), L('الصيغة', 'Formula')], rows: [[L('إجمالي المفوتر', 'Gross billed'), `${fmtSar(b.totals.gross)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(b.totals.exclusions)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(b.totals.net)}`], [L('صافي المفوتر', 'Net billed'), `${fmtSar(b.totals.net)} = ${L('المحصّل', 'collected')} ${fmtSar(b.totals.collected)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(b.totals.outstanding)}`]] });
+    else if (b.type === 'relations') items.push({ k: 'table', title: L('العلاقات المالية', 'Financial relationships'), headers: [L('العلاقة', 'Relationship'), L('الصيغة', 'Formula')], rows: [[L('إجمالي المفوتر', 'Gross billed'), `${fmtSar(b.totals.gross)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(b.totals.exclusions)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(b.totals.net)}`], [L('صافي المفوتر', 'Net billed'), `${fmtSar(b.totals.net)} = ${L('المحصّل', 'collected')} ${fmtSar(b.totals.collected)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(b.totals.outstanding)}`], [L('نسبة التحصيل', 'Collection rate'), `${rateText(b.totals.collectedOverNet, lang)} (${L('المحصّل ÷ صافي المفوتر', 'collected ÷ net billed')})`], [L('نسبة الاستبعاد', 'Exclusion rate'), `${rateText(b.totals.exclusionRate, lang)} (${L('الاستبعادات ÷ إجمالي المفوتر', 'exclusions ÷ gross billed')})`]] });
     else if (b.type === 'table') { const t = tableToText(b, lang); items.push({ k: 'table', title: `${b.title}${t.unitText ? ` — ${L('المبالغ بوحدة', 'amounts in')}: ${t.unitText}` : ''}`, headers: t.headers, rows: t.total ? [...t.rows, t.total] : t.rows, note: b.note, source: b }); }
     else if (b.type === 'chart') { const { unitText, cu } = chartInfo(b, lang); items.push({ k: 'table', title: `${b.title} — ${L('المبالغ بوحدة', 'amounts in')}: ${unitText}`, headers: [L('البند', 'Item'), ...b.series.map((s) => s.label)], rows: b.labels.map((lab, i) => [lab, ...b.series.map((s) => (s.values[i] == null ? '—' : String(cu.tick(s.values[i]))))]) }); }
     else if (b.type === 'insights') { if (b.title) items.push({ k: 'h3', text: b.title }); b.items.forEach((it) => { items.push({ k: 'p', bold: true, text: pick(it.title, lang) }); items.push({ k: 'p', text: fillTokens(pick(it.body, lang), it.tokens, lang) }); if (it.evidence.length) items.push({ k: 'p', text: it.evidence.map((e) => `${pick(e.k, lang)}: ${fmtEvidence(e, lang)}`).join(' · ') }); items.push({ k: 'p', text: `${L('الأساس', 'Basis')}: ${pick(it.basis, lang)}${it.caveat ? ` — ${L('تحفظ', 'Caveat')}: ${pick(it.caveat, lang)}` : ''}` }); }); }
@@ -67,12 +73,13 @@ export function buildWorkbook(model) {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), L('الملخص', 'Summary'));
   const exact = [[L('الجدول', 'Table'), L('الصف', 'Row'), L('العمود', 'Column'), 'amount_sar']];
   const used = new Set([L('الملخص', 'Summary')]);
-  const sheetName = (t) => { let n = String(t).replace(/[\\/?*[\]:]/g, ' ').slice(0, 28) || 'Sheet'; let k = 2; const base = n; while (used.has(n)) { n = `${base.slice(0, 25)} ${k}`; k += 1; } used.add(n); return n; };
-  const tables = [];
-  model.sections.forEach((s) => s.blocks.forEach((b) => { if (b.type === 'table' || b.type === 'chart') tables.push(b); else if (b.type === 'insights') tables.push({ type: 'insights', title: b.title || s.title, items: b.items }); else if (b.type === 'list') tables.push({ type: 'list', title: s.title, items: b.items }); }));
+  const sheetName = (t) => { let n = cutAtWord(String(t).replace(/[\\/?*[\]:]/g, ' '), 28) || 'Sheet'; let k = 2; const base = n; while (used.has(n)) { n = `${base.slice(0, 25)} ${k}`; k += 1; } used.add(n); return n; };
+  const tables = []; const notes = [];
+  model.headline.forEach((b) => { if (b.type === 'text' || b.type === 'callout') notes.push([b.text]); });
+  model.sections.forEach((s) => s.blocks.forEach((b) => { if (b.type === 'text' || b.type === 'callout') notes.push([s.title, b.text]); else if (b.type === 'relations') notes.push([s.title, relationsLine(b.totals, lang)]); if (b.type === 'table' || b.type === 'chart') tables.push(b); else if (b.type === 'insights') tables.push({ type: 'insights', title: b.title || s.title, items: b.items }); else if (b.type === 'list') tables.push({ type: 'list', title: s.title, items: b.items }); }));
   tables.forEach((b) => {
     if (b.type === 'table') {
-      const t = tableToText(b, lang); const aoa = [t.headers];
+      const t = tableToText(b, lang); const aoa = [t.headers.map((h, j) => (b.headers[j].kind === 'pct' ? `${h} (%)` : h))];
       const num = (v, j) => (b.headers[j].kind === 'money' && typeof v === 'number' ? Number((v / t.unit.div).toFixed(6)) : b.headers[j].kind === 'pct' && typeof v === 'number' ? Number((v * 100).toFixed(2)) : v ?? '');
       b.rows.forEach((r) => { aoa.push(r.map(num)); b.headers.forEach((h, j) => { if (h.kind === 'money' && typeof r[j] === 'number') exact.push([b.title, String(r[0]), h.label, r[j]]); }); });
       if (b.total) aoa.push(b.total.map(num));
@@ -87,12 +94,15 @@ export function buildWorkbook(model) {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName(L('الرؤى', 'Insights')));
     } else if (b.type === 'list') XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[b.title], ...b.items.map((x) => [x])]), sheetName(b.title));
   });
+  if (notes.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[L('القسم', 'Section'), L('الملاحظة', 'Note')], ...notes.map((n) => (n.length === 1 ? ['', n[0]] : n))]), sheetName(L('ملاحظات التقرير', 'Report notes')));
   if (exact.length > 1) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(exact), 'amounts_sar');
   return wb;
 }
 export function exportModelToXlsx(model, filename = reportFileName(model, 'xlsx')) { XLSX.writeFile(buildWorkbook(model), filename); }
 
 /* ---------------------------- PowerPoint ---------------------------- */
+// rows per slide: a long table continues on the next slide, so no row (and never the total row, which is last) is dropped
+export const paginateRows = (rows, per = 11) => { const out = []; for (let i = 0; i < rows.length; i += per) out.push(rows.slice(i, i + per)); return out.length ? out : [[]]; };
 export async function exportModelToPptx(model, filename = reportFileName(model, 'pptx')) {
   const rtl = model.lang === 'ar'; const PRIMARY = '1B8354';
   const pptx = new pptxgen(); pptx.rtlMode = rtl;
@@ -107,11 +117,16 @@ export async function exportModelToPptx(model, filename = reportFileName(model, 
     if (!slide) open(rtl ? 'سياق التقرير' : 'Report context');
     if (it.k === 'h3') continue;
     if (it.k === 'table') {
-      const rows = it.rows.slice(0, 11);
-      if (y > 3.6) open(heading);
-      if (it.title) { slide.addText(it.title, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4; }
-      slide.addTable([it.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: 'EFEFEF' } } })), ...rows], { x: 0.4, y, w: 9.2, fontSize: 9, rtlMode: rtl, autoPage: false });
-      y += 0.28 * (rows.length + 1) + 0.2;
+      // a table that does not fit is continued on the next slide (header repeated, "part n of m" in the title); the total row is the last row and is never dropped
+      const chunks = paginateRows(it.rows); const parts = chunks.length;
+      for (let k = 0; k < parts; k += 1) {
+        const rows = chunks[k];
+        if (k > 0 || y > 3.6) open(heading);
+        const ttl = it.title ? (parts > 1 ? `${it.title} — ${rtl ? `الجزء ${k + 1} من ${parts}` : `part ${k + 1} of ${parts}`}` : it.title) : '';
+        if (ttl) { slide.addText(ttl, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4; }
+        slide.addTable([it.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: 'EFEFEF' } } })), ...rows], { x: 0.4, y, w: 9.2, fontSize: 9, rtlMode: rtl, autoPage: false });
+        y += 0.28 * (rows.length + 1) + 0.2;
+      }
     } else {
       const text = it.k === 'li' ? `• ${it.text}` : it.text;
       if (y > 5) open(heading);

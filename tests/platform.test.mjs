@@ -22,7 +22,9 @@ import { generateFinance, budgetExecution, operatingCoverage, financeCompatible,
 import { financeProjection } from '../src/data/strategicCalc.js';
 import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress } from '../src/data/planStore.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
-import { buildWorkbook, modelToLines } from '../src/utils/exportReportModel.js';
+import { buildWorkbook, modelToLines, paginateRows } from '../src/utils/exportReportModel.js';
+import { buildDecisionCards } from '../src/data/revenueInsights.js';
+import { describeChange } from '../src/data/reportIntents.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
 import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
 import { detail } from '../server/materialize.js';
@@ -523,6 +525,52 @@ await test('the planning assistant stays inside planning and hands descriptive q
   const ctx = { mode: 'planning', lang: 'ar', today: TODAY, scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' }, targets: DEFAULT_TARGETS, register: { actions: [], rejected: [] }, proposals: [], labelOfAmanah: (k) => k, compare: compareSnapshots, fetchSnap: async (sc) => snapshot(cst, { scope: { amanah: 'all', source: 'all', ...sc }, cfg }), fetchPrev: async () => null, getAchievement: async () => null, applyFilters: () => {} };
   const r = await strategicAnswer('قارن أداء الأمانات', ctx); assert.equal(r.intent, 'redirect'); assert.ok(r.drill.to.startsWith('/insights?view=smart&q='));
   assert.equal((await strategicAnswer('ماذا يحدث إذا ارتفع معدل التحصيل خمس نقاط مئوية؟', ctx)).intent, 'scenario');
+});
+
+/* ------------------------------------------------------------ Phase 0 · batch 1 (F-02, F-03, F-09, F-10, F-11) */
+await test('F-02: report totals carry the rates and the cancelled share, so the relations block and every export show them (never «غير متاحة» for a calculable rate)', () => {
+  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS });
+  const rel = m.sections.flatMap((s) => s.blocks).find((b) => b.type === 'relations');
+  assert.ok(rel.totals.collectedOverNet.calculable && rel.totals.exclusionRate.calculable && typeof rel.totals.cancelled === 'number');
+  assert.equal(rel.totals.cancelled, cYtd.totals.cancelled);
+  const rows = modelToLines(m).find((x) => x.k === 'table' && x.title === 'العلاقات المالية').rows.map((r) => r.join(' '));
+  assert.ok(rows.some((r) => r.includes('نسبة التحصيل') && r.includes('%')) && rows.some((r) => r.includes('نسبة الاستبعاد') && r.includes('%')));
+  assert.ok(!rows.join(' ').includes('غير متاحة'));
+});
+await test('F-03: the executive report never claims «no interventions» as a result; recommendations come from the same decision cards as Planning', () => {
+  const cards = buildDecisionCards(cYtd, { enforcementCases: [] });
+  const withCards = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: { ...mkOut(cYtd), cards }, targets: DEFAULT_TARGETS });
+  const rec = withCards.sections.find((s) => s.key === 'recommendations');
+  if (cards.length) assert.ok(rec.blocks[0].items.length >= 1 && !rec.blocks[0].items.join(' ').includes('لم يولّد النظام'));
+  const none = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS });
+  const txt = none.sections.find((s) => s.key === 'recommendations').blocks[0].items.join(' ');
+  assert.ok(!txt.includes('لا توجد تدخلات موصى بها'), 'the false "nothing recommended" sentence is gone'); assert.ok(txt.includes('لا يعني عدم الحاجة'));
+});
+await test('F-09: every bilingual proposal field has Arabic in .ar and Latin text in .en (no swapped language)', () => {
+  const props = buildProposals({ snapshot: cYtd, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'x' });
+  assert.ok(props.length > 0); const isAr = (t) => /[؀-ۿ]/.test(t); const isLat = (t) => !isAr(t);
+  for (const p of props) {
+    for (const f of [p.title, p.issue, p.action, p.expectedImpact.note, p.suggestedUnit, p.timeframe, ...(p.evidence.figures || []).map((x) => x.k)].filter(Boolean)) {
+      assert.ok(isAr(f.ar), `${p.id}: Arabic text expected in .ar → ${f.ar}`); assert.ok(isLat(f.en), `${p.id}: Latin text expected in .en → ${f.en}`);
+    }
+  }
+});
+await test('F-10: long tables are paginated (the total row is kept); Excel gets a notes sheet and «%» on percentage headers; sheet names are cut at a word boundary', () => {
+  const rows = Array.from({ length: 25 }, (_, i) => [`r${i}`]); const pages = paginateRows(rows);
+  assert.equal(pages.flat().length, 25); assert.equal(pages.at(-1).at(-1)[0], 'r24'); assert.ok(pages.every((p) => p.length <= 11));
+  const fin = generateFinance(TODAY); const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
+  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive', 'amanah'], compare: 'prev_year' }, lang: 'ar', out: mkOut(cYtd), prev, compare: 'prev_year', prevScope: { from: '2025-01-01', to: '2025-10-08' }, targets: DEFAULT_TARGETS, finance: fin });
+  const wb = buildWorkbook(m);
+  assert.ok(wb.SheetNames.includes('ملاحظات التقرير'), 'notes sheet'); assert.ok(wb.SheetNames.every((n) => n.length <= 31));
+  const notes = XLSX_utils_to_rows(wb, 'ملاحظات التقرير').flat().join(' '); assert.ok(notes.includes('نسبة التحصيل'), 'the relations block (incl. rates) is exported');
+  const pctHeaders = wb.SheetNames.flatMap((n) => (XLSX_utils_to_rows(wb, n)[0] || []).map(String)).filter((h) => h.endsWith('(%)')); assert.ok(pctHeaders.length > 0);
+});
+await test('F-11: a report with no invoices is flagged empty (no zeros presented as results); change chips show human labels, not raw keys', () => {
+  const none = snapshot(cst, { scope: { from: '2030-01-01', to: '2030-01-31', amanah: 'all', source: 'all' }, cfg });
+  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: mkOut(none), targets: DEFAULT_TARGETS });
+  assert.equal(m.empty, true); assert.equal(buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS }).empty, false);
+  const d = describeChange({ key: 'source', value: 'housing_sales' }, 'ar'); assert.ok(!d.includes('housing_sales'), d);
+  assert.ok(!describeChange({ key: 'status', value: 'overdue' }, 'ar').includes('overdue'));
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -117,7 +117,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   ];
 
   const recommendations = cards.map((c) => ({ priority: c.score >= 0.6 ? L('High', 'عالية') : L('Medium', 'متوسطة'), text: `${B(c.title)} — ${B(c.action)} ${L('Responsible', 'المسؤول')}: ${B(c.responsible)}. ${L('Timeframe', 'الإطار الزمني')}: ${B(c.timeframe)}. ${c.impact?.kind === 'upper_bound' ? `${L('Upper-bound impact', 'الأثر الأقصى')}: +${c.impact.pp} pp (${L('arithmetic, not a forecast', 'حسابي وليس تنبؤاً')}).` : ''} ${L('Proposal for human decision.', 'مقترح لقرار بشري.')}` }));
-  if (!recommendations.length) recommendations.push({ priority: L('Low', 'منخفضة'), text: L('No recommended interventions for this scope.', 'لا توجد تدخلات موصى بها لهذا النطاق.') });
+  if (!recommendations.length) recommendations.push({ priority: L('Low', 'منخفضة'), text: L('No proposal was generated for this scope from the current rules; this is not a statement that no action is needed.', 'لم يولّد النظام مقترحاً لهذا النطاق وفق القواعد الحالية؛ وهذا لا يعني عدم الحاجة إلى إجراء.') });
 
   const assumptions = [
     L(`Data cutoff ${snapshot.cutoff}; demo data labelled "تجريبية" standing in for periodic report uploads.`, `قطع البيانات ${snapshot.cutoff}؛ بيانات تجريبية موسومة "تجريبية" تحل محل الرفع الدوري للتقارير.`),

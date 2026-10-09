@@ -282,11 +282,11 @@ export default function SmartReports({ embedded = false, initialQuery = null }) 
                     <div className="sr-card__bar">
                       <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${model.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
                       {isLast && <div className="sr-card__actions">
-                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
+                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!!exporting || model.empty} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
                         <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>
                       </div>}
                     </div>
-                    {!(collapsed[m.id] ?? !isLast) && <ReportView model={model} />}
+                    {!(collapsed[m.id] ?? !isLast) && (model.empty ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو المرشحات.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={model} />)}
                   </div>
                 )}
                 {m.status === 'done' && m.spec && !model && !isBusy && <button type="button" className="btn btn-sm" onClick={() => run(conv.id, m.id, m.spec)} disabled={!!busy}>{L('عرض هذا التقرير', 'Show this report')}</button>}

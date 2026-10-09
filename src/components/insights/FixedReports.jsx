@@ -9,6 +9,7 @@ import { FIXED_REPORTS } from '../../data/fixedReports';
 import { buildReportModel } from '../../data/reportModel';
 import { generateFinance, financeCompatible } from '../../data/syntheticFinance';
 import { forecastReceipts } from '../../data/revenueOutlook';
+import { buildDecisionCards } from '../../data/revenueInsights';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../../utils/exportReportModel';
 
 function ReportBody({ def }) {
@@ -34,7 +35,7 @@ function ReportBody({ def }) {
     if (!X.data) return null;
     const spec = { title: B({ ar: def.ar, en: def.en }), preset: rev.scope.preset, scope: { from: s.from, to: s.to, ...scopeBase }, compare, depth: 'summary', sections: def.sections };
     const forecast = X.data.forecast || { ready: false, reasonNotReady: { ar: 'غير مطلوب في هذا التقرير', en: 'not needed in this report' } };
-    return buildReportModel({ spec, lang, out: { snapshot, forecast, targetPos: null, achievement: null, coverage: null, cards: [], anomalies: [] }, prev: compare === 'prev_year' ? prevSnapshot : null, compare, prevScope: prevSnapshot?.scope, cash: X.data.cash, bridge: X.data.bridge, targets, cases: rev.cases, meta: rev.meta, finance: fin, financeOk, fyReceiptsYtd: X.data.fyRec });
+    return buildReportModel({ spec, lang, out: { snapshot, forecast, targetPos: null, achievement: null, coverage: null, cards: needs.includes('executive') ? buildDecisionCards(snapshot, { enforcementCases: rev.cases }) : [], anomalies: [] }, prev: compare === 'prev_year' ? prevSnapshot : null, compare, prevScope: prevSnapshot?.scope, cash: X.data.cash, bridge: X.data.bridge, targets, cases: rev.cases, meta: rev.meta, finance: fin, financeOk, fyReceiptsYtd: X.data.fyRec });
   }, [X.data, snapshot, prevSnapshot, compare, lang, def.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const doExport = async (kind) => { if (!model || exporting) return; setExporting(kind); setExportErr(''); try { if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model); } catch (e) { setExportErr(String(e.message || e)); } finally { setExporting(''); } };
   return (

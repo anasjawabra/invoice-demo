@@ -65,7 +65,8 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   const chips = contextChips(spec, { lang, snapshot, snapshotMeta: meta, labelOfAmanah, labelOfMuni, prevScope, compare });
   const insightsRes = buildInsights({ snapshot, prev: comparable ? prev : null, comparison, forecast: out.forecast, targets });
   const legacy = buildSmartReport({ snapshot, bridge: out.bridge || bridge, forecast: out.forecast, targetPos: out.targetPos, achievement: out.achievement, coverage: out.coverage, cards: out.cards || [], anomalies: out.anomalies || [], cases, focus: spec.sections.includes('exclusions') ? 'noncollection' : spec.sections.includes('amanah') ? 'amanah' : 'revenue', lang, request: '' });
-  const ctxTotals = { count: T.count, gross: T.gross, exclusions: T.exclusions, net: T.net, collected: T.collected, outstanding: T.outstanding };
+  // the relations block and the exports read the same typed contract as the Dashboard: amounts + the two rates + the cancelled share of exclusions
+  const ctxTotals = { count: T.count, gross: T.gross, exclusions: T.exclusions, cancelled: T.cancelled, net: T.net, collected: T.collected, outstanding: T.outstanding, collectedOverNet: T.collectedOverNet, exclusionRate: T.exclusionRate };
 
   const tbl = (id, title, headers, rows, { total = null, note = null } = {}) => ({ type: 'table', id, title, headers, rows, total, note });
   const H = (label, kind = 'text') => ({ label, kind });
@@ -247,7 +248,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   return {
     id: `rpt-${generatedAt.getTime()}`, title, subtitle: chips.find((c) => c.k === 'period').value,
     generatedAt: generatedAt.toISOString(), lang, depth: spec.depth, compare, synthetic: true, context: chips,
-    totals: ctxTotals, equationOk: !!snapshot.equation.ok, headline: headline(), sections: [...out2, ...tail],
+    totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: headline(), sections: [...out2, ...tail],
     summaryText: insightsRes.summary.text[ar ? 'ar' : 'en']
   };
 }

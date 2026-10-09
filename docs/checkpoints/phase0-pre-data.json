@@ -1,0 +1,104 @@
+{
+  "note": "Data checkpoint taken before Phase 0 (2026-10-09, Asia/Riyadh). Source: localStorage of the preview tab at http://localhost:3000. Test data only. Values are the stored JSON, pretty-printed (semantically identical to the stored strings).",
+  "ib_plans_v1": {
+    "plans": [
+      {
+        "id": "PLAN-MV0YG5BNEW",
+        "name": "خطة السنة المالية 2026 (مسودة)",
+        "owner": "لجنة التخطيط (إدخال تجريبي)",
+        "period": { "from": "2026-01-01", "to": "2026-12-31" },
+        "scope": { "amanah": "all", "source": "all", "scopeType": "all", "muni": "all", "status": "all", "label": "كل الأمانات · كل المصادر" },
+        "assumptions": "افتراض: التحصيل يتحسن بنقاط محددة؛ بيانات تجريبية.",
+        "scenario": { "dRate": 8, "recovery": 0, "resolve": 0, "approve": 0, "billing": 0, "expense": 10, "slip": 20 },
+        "planDate": "2026-12-31",
+        "status": "approved",
+        "version": 1,
+        "versions": [
+          {
+            "version": 1,
+            "at": "2026-10-09T12:44:18.706Z",
+            "by": "李芳军",
+            "scenario": { "dRate": 3, "recovery": 0, "resolve": 0, "approve": 0, "billing": 0, "expense": 10, "slip": 20 },
+            "planDate": "2026-12-31",
+            "assumptions": "افتراض: التحصيل يتحسن بنقاط محددة؛ بيانات تجريبية.",
+            "owner": "لجنة التخطيط (إدخال تجريبي)",
+            "scope": { "amanah": "all", "source": "all", "scopeType": "all", "muni": "all", "status": "all", "label": "كل الأمانات · كل المصادر" },
+            "period": { "from": "2026-01-01", "to": "2026-12-31" },
+            "summary": { "rate": 0.6078917526133206, "collected": 8240770333.6, "balance": -12614963784.361689 }
+          }
+        ],
+        "createdAt": "2026-10-09T12:42:02.867Z",
+        "createdBy": "李芳军",
+        "approvedBy": "李芳军",
+        "history": [
+          { "at": "2026-10-09T12:44:19.212Z", "by": "李芳军", "change": "approved", "note": "" },
+          { "at": "2026-10-09T12:44:18.706Z", "by": "李芳军", "change": "version 1 saved", "note": "" },
+          { "at": "2026-10-09T12:42:02.867Z", "by": "李芳军", "change": "created", "note": "" }
+        ]
+      }
+    ],
+    "objectives": [
+      {
+        "id": "OBJ-MV0YJ3BQ7M",
+        "title": "تحسين التحصيل",
+        "metric": "collection_rate",
+        "target": 65,
+        "due": null,
+        "owner": null,
+        "status": "proposed",
+        "note": "",
+        "createdAt": "2026-10-09T12:44:20.246Z",
+        "createdBy": "李芳军",
+        "history": [{ "at": "2026-10-09T12:44:20.246Z", "by": "李芳军", "change": "created", "note": "" }]
+      }
+    ],
+    "activeId": "PLAN-MV0YG5BNEW"
+  },
+  "ib_actions_v1": {
+    "actions": [
+      {
+        "id": "ACT-MV0XEEXSR21",
+        "createdAt": "2026-10-09T12:12:42.400Z",
+        "createdBy": "李芳军",
+        "source": "proposal",
+        "proposalId": "card:overdue_followup",
+        "title": { "en": "Overdue and partially collected invoices", "ar": "فواتير متأخرة أو محصّلة جزئياً" },
+        "issue": { "en": "4.56 bn SAR outstanding on 90 invoice(s) past due; largest share in Housing Sector (2.03 bn SAR).", "ar": "4.56 مليار SAR متبقٍ على 90 فاتورة متأخرة؛ أكبر حصة في قطاع الإسكان (2.03 مليار SAR)." },
+        "action": { "en": "Run a time-boxed follow-up on the listed invoices and record the payer response against each invoice.", "ar": "تنفيذ متابعة محددة المدة للفواتير المدرجة وتسجيل استجابة الدافع على كل فاتورة." },
+        "evidence": {
+          "text": { "en": "Source facts: due date passed at the data cutoff and payments received are below the billed amount.", "ar": "حقائق المصدر: انقضى تاريخ الاستحقاق عند قطع البيانات والمدفوعات أقل من المبلغ المفوتر." },
+          "scope": "2026-01-01 → 2026-10-09",
+          "figures": [
+            { "k": { "en": "المبلغ المعني", "ar": "Amount concerned" }, "v": 4561051270, "fmt": "money" },
+            { "k": { "en": "عدد الفواتير", "ar": "Invoices" }, "v": 90, "fmt": "count" },
+            { "k": { "en": "أقصى تأخر (يوم)", "ar": "Max days overdue" }, "v": 263, "fmt": "count" }
+          ]
+        },
+        "priority": "high",
+        "expectedImpact": { "amount": 4561051270, "kind": "upper_bound", "note": { "en": "سقف أعلى: ليس كل المبلغ قابلاً للتحصيل ولا يُحتسب كإيراد محقق.", "ar": "An upper bound: not all of it is collectible and it is not counted as realised revenue." } },
+        "drill": { "to": "/collection", "label": { "en": "الفواتير ذات الصلة", "ar": "Related invoices" } },
+        "owner": "وحدة الإيرادات (إدخال تجريبي من المراجع)",
+        "dueDate": "2026-10-25",
+        "status": "in_progress",
+        "outcome": null,
+        "history": [
+          { "at": "2026-10-09T12:12:42.400Z", "by": "李芳军", "field": "created", "from": null, "to": "approved from proposal", "note": "card:overdue_followup" },
+          { "at": "2026-10-09T12:12:51.995Z", "by": "李芳军", "field": "status", "from": "approved", "to": "in_progress", "note": "" }
+        ]
+      }
+    ],
+    "rejected": []
+  },
+  "ib_smart_convs_v1_inventory": {
+    "keep": [
+      { "id": "mv0yf555i7rh", "title": "قارن", "messages": 12, "updatedAt": 1791549711308 }
+    ],
+    "delete_authorised_in_26_3": [
+      { "id": "mv12tj8lvjzi", "title": "أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم قارن ب", "messages": 2, "updatedAt": 1791557065895 },
+      { "id": "mv12rol4pq0u", "title": "أنشئ تقرير الإيرادات لهذا الشهر لمصدر مبيعات الإ", "messages": 2, "updatedAt": 1791556979515 },
+      { "id": "mv12jjvcrk00", "title": "تقرير الشهر الماضي", "messages": 8, "updatedAt": 1791556651170 },
+      { "id": "mv12amvb5m2c", "title": "أنشئ تقرير الإيرادات للشهر الماضي", "messages": 8, "updatedAt": 1791556241851 },
+      { "id": "mv12a30lccy4", "title": "جهّز تقريراً شهرياً مشابهاً للتقارير المرفقة", "messages": 2, "updatedAt": 1791556158407 }
+    ]
+  }
+}
