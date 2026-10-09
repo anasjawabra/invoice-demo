@@ -39,7 +39,6 @@ export default function Metrics() {
           <h1 className="page-title">{L('Metric dictionary', 'قاموس المقاييس')}</h1>
           <div className="page-sub">{L('One definition per metric, used by the dashboard, reports, the assistant, charts and alerts. Values below are computed live for the scope selected above.', 'تعريف واحد لكل مقياس تستخدمه اللوحة والتقارير والمساعد والرسوم والتنبيهات. القيم أدناه محسوبة مباشرة للنطاق المحدد أعلاه.')}</div>
         </div>
-        <ProvenanceBadge kind="demo" />
       </div>
       <ScopeBar />
       <div className="rv-callout">

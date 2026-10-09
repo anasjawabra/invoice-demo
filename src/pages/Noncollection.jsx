@@ -76,7 +76,6 @@ export default function Noncollection() {
           <div className="page-sub">{L('Separates why money is outstanding (state of each invoice) from what is excluded from the KPI denominator. Exclusion is not uncollectibility.', 'يفصل بين سبب بقاء المبلغ متبقياً (حالة كل فاتورة) وما يُستبعد من مقام المؤشر. الاستبعاد ليس عدم قابلية للتحصيل.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <ProvenanceBadge kind="demo" />
           <button type="button" className="btn btn-primary btn-sm" onClick={() => rev.startAnalysis('noncollection', {}, { origin: 'noncollection' })}>{L('Analyze reasons for noncollection', 'تحليل أسباب عدم التحصيل')}</button>
           <button type="button" className="btn btn-sm" onClick={() => rev.startAnalysis('exclusions', {}, { origin: 'noncollection' })}>{L('Review exclusions', 'مراجعة الاستبعادات')}</button>
         </div>

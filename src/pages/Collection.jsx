@@ -39,7 +39,6 @@ export default function Collection() {
           <div className="page-sub">{L('Invoices with a balance still to collect, ranked by amount, aging, actionable opportunity and evidence quality — not by the lowest collection percentage.', 'فواتير لها رصيد متبقٍ للتحصيل، مرتبة بحسب المبلغ والتقادم والفرصة القابلة للتنفيذ وجودة الدليل — وليس بأقل نسبة تحصيل.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <ProvenanceBadge kind="demo" />
           <button type="button" className="btn btn-primary btn-sm" onClick={() => rev.startAnalysis('noncollection', {}, { origin: 'collection' })}>{L('Analyze reasons for noncollection', 'تحليل أسباب عدم التحصيل')}</button>
           <Link className="btn btn-sm" to="/planning#outlook">{L('Forecast & target', 'التنبؤ والمستهدف')}</Link>
         </div>

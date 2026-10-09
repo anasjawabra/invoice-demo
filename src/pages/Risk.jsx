@@ -60,7 +60,6 @@ export default function Risk() {
           <div className="page-sub">{L('Invoices whose data needs review before figures or actions rely on them — amount conflicts, missing fields, unlinked contracts, pending links and rule-based risk flags. Not a collection list: collected invoices may appear here but are labelled.', 'فواتير تحتاج بياناتها إلى مراجعة قبل الاعتماد عليها في الأرقام أو الإجراءات — تعارض المبالغ والحقول الناقصة والعقود غير المرتبطة والروابط المعلقة وتنبيهات المخاطر القائمة على قواعد. ليست قائمة تحصيل: قد تظهر فواتير محصّلة لكنها موسومة.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <ProvenanceBadge kind="demo" />
           <Link className="btn btn-sm" to="/collection">{L('Collection worklist', 'قائمة التحصيل')}</Link>
         </div>
       </div>

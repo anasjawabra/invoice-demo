@@ -92,7 +92,6 @@ export default function SanadOrderDetail() {
           <div className="page-sub">{c.system === 'sanad' ? 'Sanad' : c.system === 'white_lands' ? L('White-lands file', 'ملف الأراضي البيضاء') : 'Efaa'} · {c.amanahEn} · {L('case amount', 'مبلغ القضية')} {sar(c.amount)}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <ProvenanceBadge kind="demo" />
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>{L('All cases', 'كل القضايا')}</button>
         </div>
       </div>

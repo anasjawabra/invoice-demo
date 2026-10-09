@@ -32,7 +32,6 @@ export default function SanadOrders() {
           <div className="page-sub">{L('Structured identifiers first; document-extracted references when needed. One case can link to several invoices. Ambiguous matches stay unresolved until a person decides, and every decision keeps its history inside this solution — no source system is changed.', 'المعرّفات المهيكلة أولاً؛ ثم المراجع المستخرجة من المستندات عند الحاجة. يمكن لقضية واحدة أن ترتبط بعدة فواتير. تبقى المطابقات الملتبسة غير محسومة حتى يقرر شخص، ويحتفظ كل قرار بسجله داخل هذه المنصة — ولا يتغير أي نظام مصدر.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <ProvenanceBadge kind="demo" />
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/noncollection')}>{L('Noncollection & exclusions', 'عدم التحصيل والاستبعادات')}</button>
         </div>
       </div>

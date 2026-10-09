@@ -133,7 +133,6 @@ export default function Invoices() {
           <h1 className="page-title">{t('invoices')}</h1>
           <div className="page-sub">{t('recent_sub')}</div>
         </div>
-        <ProvenanceBadge kind="demo" />
       </div>
 
       <ScopeBar />
@@ -248,14 +247,10 @@ export default function Invoices() {
                 <tr
                   key={r.id}
                   className="row-clickable"
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`${viewLabel} · ${r.id}`}
                   onClick={(e) => openDetail(r, e)}
-                  onKeyDown={(e) => onRowKey(r, e)}
                   style={idParam === r.id ? { background: 'rgba(21, 112, 239, 0.08)' } : undefined}
                 >
-                  <td style={{ fontWeight: 700 }} dir="ltr">{r.id}{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
+                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r, e); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
                   <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
                   <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
                   <td>{bi.ar ? r.itemAr : r.itemEn}</td>
