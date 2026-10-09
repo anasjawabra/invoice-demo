@@ -4,12 +4,13 @@ import React, { useState } from 'react';
 import { useAr } from '../../utils/useAr';
 import { fmtMoney } from '../../utils/money';
 import { OBJECTIVE_METRICS, addObjective, updateObjective, removeObjective, objectiveProgress } from '../../data/planStore';
+import { actorName } from '../../utils/actor';
 
 const STATE = { met: ['تحقق', 'Met', 'var(--green)'], on_track: ['على المسار', 'On track', 'var(--secondary)'], off_track: ['متأخر عن المستهدف', 'Off track', 'var(--danger)'], unavailable: ['غير متاح', 'Not available', 'var(--txt-mute)'] };
 
 export default function ObjectivesPanel({ store, setStore, actuals, systemRows, canEdit, user, today }) {
   const { L, ar, lang } = useAr();
-  const by = user?.name || user?.email || L('مستخدم', 'user');
+  const by = actorName(user, lang) || L('مستخدم', 'user');
   const [form, setForm] = useState(null);
   const fmtVal = (metric, v) => (v == null ? L('غير متاح', 'n/a') : OBJECTIVE_METRICS[metric].unit === 'sar' ? fmtMoney(v, { lang }) : `${v.toFixed(1)}%`);
   const Row = ({ o, system }) => {

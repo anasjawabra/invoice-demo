@@ -30,10 +30,33 @@ export function saveVersion(plan, { by, summary }) {
   const v = plan.version + 1;
   return { ...plan, version: v, versions: [{ version: v, at: new Date().toISOString(), by, scenario: { ...plan.scenario }, planDate: plan.planDate, assumptions: plan.assumptions, owner: plan.owner, scope: plan.scope, period: plan.period, summary }, ...plan.versions], status: plan.status === 'approved' ? 'draft' : plan.status, approvedBy: plan.status === 'approved' ? null : plan.approvedBy, history: [log(by, `version ${v} saved`, plan.status === 'approved' ? 'a new version returns the plan to draft; it must be approved again' : ''), ...plan.history] };
 }
+// consecutive edits of the same field by the same person within two minutes are ONE history entry (typing a name must not write 20 lines)
+const COALESCE_MS = 120000;
 export function patchPlan(plan, patch, by) {
   const next = { ...plan }; const h = [...plan.history];
-  for (const [k, v] of Object.entries(patch)) { if (JSON.stringify(plan[k]) !== JSON.stringify(v)) { h.unshift(log(by, `${k} changed`)); next[k] = v; } }
+  for (const [k, v] of Object.entries(patch)) {
+    if (JSON.stringify(plan[k]) !== JSON.stringify(v)) {
+      const top = h[0]; const same = top && top.change === `${k} changed` && top.by === by && Date.now() - Date.parse(top.at) < COALESCE_MS;
+      if (!same) h.unshift(log(by, `${k} changed`));
+      next[k] = v;
+    }
+  }
   next.history = h; return next;
+}
+// every edit of a plan's content goes through here: it is logged, and an APPROVED plan that changes returns to draft (the saved version is untouched
+// and the plan must be approved again) — the same rule that already applies when a new version is saved.
+export const PLAN_CONTENT_KEYS = ['name', 'owner', 'assumptions', 'scenario', 'planDate', 'scope', 'period'];
+export function editPlan(plan, patch, by) {
+  const changed = PLAN_CONTENT_KEYS.some((k) => k in patch && JSON.stringify(plan[k] ?? null) !== JSON.stringify(patch[k] ?? null));
+  let next = patchPlan(plan, patch, by);
+  if (changed && plan.status === 'approved') next = { ...next, status: 'draft', approvedBy: null, history: [log(by, 'returned to draft', 'edited after approval; the saved version is unchanged and the plan must be approved again'), ...next.history] };
+  return next;
+}
+// does the working copy differ from the latest saved version? (null = nothing saved yet)
+export function unsavedChanges(plan) {
+  const v = plan.versions?.[0]; if (!v) return null;
+  const same = (a, b) => JSON.stringify(a ?? '') === JSON.stringify(b ?? '');
+  return !(same(plan.scenario, v.scenario) && same(plan.planDate, v.planDate) && same(plan.assumptions, v.assumptions) && same(plan.owner || '', v.owner || ''));
 }
 export function approvePlan(plan, by) { return { ...plan, status: 'approved', approvedBy: by, history: [log(by, 'approved'), ...plan.history] }; }
 

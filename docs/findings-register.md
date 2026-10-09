@@ -40,3 +40,14 @@ Test count after batch 1: 61 passing (56 + 5 new).
 
 Not changed on purpose: D-03 «آخر 3 أشهر» (two incompatible meanings — needs a definition), D-06 basis label (depends on EQ1).
 Test count after batch 2: 65 passing.
+
+## Batch 3 — governance guards (no new approval policy)
+
+| Id | Change | Evidence | Status |
+|---|---|---|---|
+| F-06 | «اقتراح إجراء من هذا السيناريو» now adds a **proposal** to «مقترحات بانتظار المراجعة» (`addProposal`); it no longer creates an *approved* action. The id is stable per plan+scenario, so repeating the click does not duplicate. Approving a proposal records `approvedBy` / `approvedAt` | Test «F-06» | Guarded (tests only). **Who may approve (a second person / role) is not decided here** — see EQ table |
+| F-07 | Every edit of plan content goes through `editPlan`: field edits are logged (consecutive edits of one field coalesce), and an **approved plan that changes returns to draft** with a history line («edited after approval; the saved version is unchanged…») — the rule the store already applied to «save new version», now applied to every edit. A «changes not saved as a version» tag appears when the working copy differs from the latest version. «Restore as draft» uses the same path. New plans are no longer named «(مسودة)». Audit entries use the person's name in the interface language (`actorName`) instead of the Chinese display name | Test «F-07»; app: stored plan unchanged by loading Planning (dRate 3, approved, v1, history 3), no unsaved tag | Guarded (tests only) — the edit path itself was **not** exercised in the browser, to avoid altering the stored plan again |
+| F-15 | Proposal ids carry `@period..|scope`; the same finding under another period/scope is a new proposal and shows «قرار سابق على مقترح مماثل…» instead of being hidden | Test «F-15»; app: the earlier-approved overdue follow-up is listed again with the note «اعتُمد 2026-10-09 (2026-01-01 → 2026-10-09)» | Fixed + verified |
+
+Side effect to note: loading the register adds an empty `proposed: []` list to `ib_actions_v1` (schema addition, no existing field changed). The stored action `ACT-MV0XEEXSR21` and the stored plan are otherwise unchanged.
+Test count after batch 3: 68 passing.

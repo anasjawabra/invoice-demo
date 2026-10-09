@@ -20,7 +20,9 @@ import { answer as strategicAnswer, parseNumber } from '../src/data/strategicAss
 import { buildCommandModel } from '../src/data/commandModel.js';
 import { generateFinance, budgetExecution, operatingCoverage, financeCompatible, plannedByMonth, CHAPTERS } from '../src/data/syntheticFinance.js';
 import { financeProjection } from '../src/data/strategicCalc.js';
-import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress } from '../src/data/planStore.js';
+import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress, editPlan, unsavedChanges } from '../src/data/planStore.js';
+import { addProposal, earlierDecisions } from '../src/data/actionRegister.js';
+import { actorName } from '../src/utils/actor.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
 import { buildWorkbook, modelToLines, paginateRows } from '../src/utils/exportReportModel.js';
 import { buildDecisionCards } from '../src/data/revenueInsights.js';
@@ -604,6 +606,35 @@ await test('D-05: «previous month» compares equal elapsed days for a single mo
 await test('D-07: every timestamp shown to people is Asia/Riyadh (UTC+3), including the date of a report prepared between 21:00 and 24:00 UTC', () => {
   assert.equal(fmtRiyadh('2026-10-09T22:30:00.000Z'), '2026-10-10 01:30'); assert.equal(riyadhDateOf('2026-10-09T22:30:00.000Z'), '2026-10-10');
   assert.equal(fmtRiyadh('2026-10-09T12:44:18.706Z'), '2026-10-09 15:44'); assert.equal(fmtRiyadh('nonsense'), '—');
+});
+
+/* ------------------------------------------------------------ Phase 0 · batch 3 (governance guards: F-06, F-07, F-15) */
+await test('F-06: a scenario proposal waits for review — it is never an approved action, and repeating it does not duplicate it', () => {
+  const reg0 = { actions: [], rejected: [], proposed: [] }; const p = { id: 'scenario:PLAN-1:dRate=3', title: { ar: 'س', en: 's' }, priority: 'medium' };
+  const reg1 = addProposal(reg0, p, 'Reviewer'); assert.equal(reg1.actions.length, 0, 'nothing enters the register as approved'); assert.equal(pendingProposals(reg1, []).length, 1);
+  assert.equal(addProposal(reg1, p, 'Reviewer').proposed.length, 1, 'same scenario → same proposal');
+  const reg2 = createAction(reg1, { by: 'Approver', proposal: p }); assert.equal(pendingProposals(reg2, []).length, 0, 'once approved it leaves the queue'); assert.equal(reg2.actions[0].approvedBy, 'Approver'); assert.ok(reg2.actions[0].approvedAt);
+});
+await test('F-07: editing an approved plan returns it to draft (logged, saved version untouched); typing does not flood the history; unsaved changes are detectable', () => {
+  let pl = newPlan({ by: 'A', name: 'خطة', scope: {}, period: { from: '2026-01-01', to: '2026-12-31' } });
+  pl = saveVersion({ ...pl, scenario: { ...pl.scenario, dRate: 3 } }, { by: 'A', summary: {} }); pl = approvePlan(pl, 'A'); assert.equal(pl.status, 'approved'); assert.equal(unsavedChanges(pl), false);
+  const edited = editPlan(pl, { scenario: { ...pl.scenario, dRate: 8 } }, 'B');
+  assert.equal(edited.status, 'draft'); assert.equal(edited.approvedBy, null); assert.equal(edited.version, 1); assert.equal(edited.versions[0].scenario.dRate, 3, 'the saved version still holds what was approved'); assert.equal(unsavedChanges(edited), true);
+  assert.ok(edited.history.some((h) => h.change === 'returned to draft') && edited.history.some((h) => h.change === 'scenario changed'));
+  let typed = edited; for (const nm of ['خ', 'خط', 'خطة', 'خطة أ']) typed = editPlan(typed, { name: nm }, 'B'); assert.equal(typed.history.filter((h) => h.change === 'name changed').length, 1, 'consecutive edits of one field are one entry');
+  const noop = editPlan(pl, { scenario: { ...pl.scenario } }, 'B'); assert.equal(noop.status, 'approved', 'an edit that changes nothing does not revoke approval');
+  assert.equal(actorName({ name: '李芳军', nameEn: 'Li Fangjun', nameAr: 'طارق' }, 'ar'), 'طارق'); assert.equal(actorName({ name: '李芳军', nameEn: 'Li Fangjun', nameAr: 'طارق' }, 'en'), 'Li Fangjun');
+});
+await test('F-15: a proposal id carries its period and scope — the same finding under another period is a new proposal, and earlier decisions on it stay visible', () => {
+  const a = buildProposals({ snapshot: cYtd, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'x' });
+  const monthSnap = snapshot(cst, { scope: { from: '2026-10-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
+  const b = buildProposals({ snapshot: monthSnap, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'y' });
+  assert.ok(a.every((p) => p.id.includes('@2026-01-01..')) && b.every((p) => p.id.includes('@2026-10-01..')));
+  const common = a.find((p) => b.some((q) => q.id.split('@')[0] === p.id.split('@')[0])); assert.ok(common, 'a finding recurs across periods');
+  const reg = createAction({ actions: [], rejected: [], proposed: [] }, { by: 'A', proposal: common });
+  const pendingB = pendingProposals(reg, b); const same = pendingB.find((q) => q.id.split('@')[0] === common.id.split('@')[0]);
+  assert.ok(same, 'approved for the year-to-date scope, but still proposed for this month'); assert.equal(earlierDecisions(reg, same)[0].kind, 'approved');
+  assert.equal(pendingProposals(reg, a).some((q) => q.id === common.id), false, 'under the SAME scope it is no longer pending');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

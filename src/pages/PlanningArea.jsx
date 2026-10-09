@@ -20,14 +20,15 @@ import { targetAchievementFrom, monthlyTargetSeries, monthsBetween, compareSnaps
 import { forecastReceipts, targetVsForecast } from '../data/revenueOutlook';
 import { requiredPace, runScenario, scenarioBase, financeProjection, monthsBetweenDates, DEFAULT_SCENARIO } from '../data/strategicCalc';
 import { buildProposals } from '../data/proposals';
-import { loadRegister, saveRegister, createAction } from '../data/actionRegister';
-import { loadPlans, savePlans, newPlan } from '../data/planStore';
+import { loadRegister, saveRegister, addProposal } from '../data/actionRegister';
+import { loadPlans, savePlans, newPlan, editPlan } from '../data/planStore';
 import { generateFinance, budgetExecution, operatingCoverage, financeCompatible } from '../data/syntheticFinance';
 import { buildCommandModel } from '../data/commandModel';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
 import { buildDecisionCards } from '../data/revenueInsights';
 import { PLANNING_PROMPTS } from '../data/strategicAssistant';
 import { amanahOptionsOf } from '../data/revenueLedger';
+import { actorName } from '../utils/actor';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
@@ -40,7 +41,7 @@ export default function PlanningArea() {
   const [register, setRegister] = useState(loadRegister);
   const [store, setStore] = useState(loadPlans);
   const [exporting, setExporting] = useState(''); const [retry, setRetry] = useState(0); const [toast, setToast] = useState('');
-  const canEdit = rev.canReview; const by = user?.name || user?.email || 'user';
+  const canEdit = rev.canReview; const by = actorName(user, lang) || 'user';
   useEffect(() => { saveRegister(register); }, [register]);
   useEffect(() => { savePlans(store); }, [store]);
   const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
@@ -49,12 +50,12 @@ export default function PlanningArea() {
   const scopeSnapshot = useMemo(() => ({ ...scopeBase, label: scopeLabel }), [scopeBase, scopeLabel]);
 
   // there is always an active plan; a first draft is created from the current scope (no owner assigned)
-  useEffect(() => { if (!store.plans.length) { const p = newPlan({ by, name: L(`خطة السنة المالية ${today.slice(0, 4)} (مسودة)`, `Fiscal year ${today.slice(0, 4)} plan (draft)`), scope: scopeSnapshot, period: { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` } }); setStore((st) => ({ ...st, plans: [p], activeId: p.id })); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!store.plans.length) { const p = newPlan({ by, name: L(`خطة السنة المالية ${today.slice(0, 4)}`, `Fiscal year ${today.slice(0, 4)} plan`), scope: scopeSnapshot, period: { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` } }); setStore((st) => ({ ...st, plans: [p], activeId: p.id })); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const plan = store.plans.find((p) => p.id === store.activeId) || store.plans[0] || null;
   const setPlan = useCallback((fn) => setStore((st) => ({ ...st, plans: st.plans.map((p) => (p.id === (st.activeId || st.plans[0]?.id) ? fn(p) : p)) })), []);
   const scenario = plan?.scenario || DEFAULT_SCENARIO; const planDate = plan?.planDate || `${today.slice(0, 4)}-12-31`;
-  const setScenario = (sc) => setPlan((p) => ({ ...p, scenario: sc }));
-  const setPlanDate = (d) => setPlan((p) => ({ ...p, planDate: d < today ? today : d }));
+  const setScenario = (sc) => setPlan((p) => editPlan(p, { scenario: sc }, by));
+  const setPlanDate = (d) => setPlan((p) => editPlan(p, { planDate: d < today ? today : d }, by));
 
   const fy = targets.fiscalYear; const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
   const narrowed = s.amanah !== 'all' || s.source !== 'all' || s.scopeType !== 'all' || s.muni !== 'all' || !!rev.org?.amanahKeys;
@@ -117,8 +118,8 @@ export default function PlanningArea() {
   }
   const proposeFromScenario = () => {
     const parts = [['dRate', L('معدل التحصيل', 'collection rate'), true], ['recovery', L('استرداد المتأخر', 'overdue recovery')], ['resolve', L('حسم الحالات', 'pending cases')], ['billing', L('الفوترة', 'billing')], ['expense', L('الإنفاق', 'expenditure')]].filter(([k]) => Number(scenario[k]));
-    const p = { id: `scenario:${plan?.id}:${Date.now()}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
-    setRegister((r) => createAction(r, { by, proposal: p })); setToast(L('أُضيفت المبادرة إلى السجل بحالة «معتمد — بانتظار البدء» بلا مسؤول؛ حدّده وتاريخ الاستحقاق.', 'Added to the register as “Approved — not started” with no owner; set the owner and due date.')); document.getElementById('decisions')?.scrollIntoView({ behavior: 'smooth' });
+    const p = { id: `scenario:${plan?.id}:${Object.entries(scenario).map(([k, v]) => `${k}=${v}`).join(',')}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
+    setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); document.getElementById('decisions')?.scrollIntoView({ behavior: 'smooth' });
   };
   const applyPlanScope = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); };
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);

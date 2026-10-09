@@ -5,8 +5,9 @@ import { Link } from 'react-router-dom';
 import { useAr } from '../../utils/useAr';
 import { fmtMoney } from '../../utils/money';
 import { fmtEvidence } from '../../data/reportFormat';
-import { STATUSES, STATUS_LABEL, PRIORITY_LABEL, createAction, updateAction, rejectProposal, pendingProposals, isOverdue } from '../../data/actionRegister';
+import { STATUSES, STATUS_LABEL, PRIORITY_LABEL, createAction, updateAction, rejectProposal, pendingProposals, earlierDecisions, isOverdue } from '../../data/actionRegister';
 import { fmtRiyadh, riyadhDateOf } from '../../data/clock';
+import { actorName } from '../../utils/actor';
 
 const tx = (v, ar) => (v == null ? '' : typeof v === 'string' ? v : ar ? v.ar : v.en);
 
@@ -31,7 +32,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
   const [outcome, setOutcome] = useState(null); // action id
   const [of, setOf] = useState({ amount: '', note: '' });
   const pend = useMemo(() => pendingProposals(register, proposals), [register, proposals]);
-  const by = user?.name || user?.email || L('مستخدم', 'user');
+  const by = actorName(user, lang) || L('مستخدم', 'user');
   const shown = register.actions.filter((a) => (filter === 'all' ? true : filter === 'open' ? a.status === 'approved' || a.status === 'in_progress' : a.status === filter));
   const lock = !canEdit; const lockTitle = lock ? L('يتطلب صلاحية المراجعة', 'Requires review permission') : '';
 
@@ -53,6 +54,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
         {pend.map((p) => (
           <article key={p.id} className={`rv-insight rv-insight--${p.priority === 'high' ? 'action' : p.priority === 'medium' ? 'watch' : ''}`}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}><b>{tx(p.title, ar)}</b><span className="st-tag">{tx(PRIORITY_LABEL[p.priority], ar)}</span><span className="st-tag st-tag--warn">{L('مقترح — لم يُعتمد', 'proposed — not approved')}</span></div>
+            {earlierDecisions(register, p).length > 0 && <div className="rv-callout" role="note">{L('قرار سابق على مقترح مماثل بنطاق/فترة أخرى: ', 'Earlier decision on the same finding under another period/scope: ')}{earlierDecisions(register, p).map((d) => `${d.kind === 'approved' ? L('اعتُمد', 'approved') : L('رُفض', 'rejected')} ${riyadhDateOf(d.at)}${d.scope ? ` (${d.scope})` : ''}`).join('؛ ')}</div>}
             <div>{tx(p.issue, ar)}</div>
             <div><b>{L('الإجراء المقترح', 'Recommended action')}:</b> {tx(p.action, ar)}</div>
             <Evidence ev={p.evidence} ar={ar} lang={lang} />
