@@ -15,14 +15,14 @@ export default function CashFlowChart({ monthlySeries, monthLabels, isRtl, money
       {
         label: 'Inflow',
         data: monthlySeries.map((r) => r.collected || 0),
-        backgroundColor: monthlySeries.map((r) => alpha(r, 'rgba(62,133,64,0.85)')),
-        borderRadius: 3, barPercentage: 0.7
+        backgroundColor: monthlySeries.map((r) => alpha(r, 'rgba(27, 131, 84,0.85)')),
+        borderRadius: 4, barPercentage: 0.7
       },
       {
         label: 'Outflow',
         data: monthlySeries.map((r) => -r.outflow),
-        backgroundColor: monthlySeries.map((r) => alpha(r, 'rgba(196,81,76,0.85)')),
-        borderRadius: 3, barPercentage: 0.7
+        backgroundColor: monthlySeries.map((r) => alpha(r, 'rgba(240, 68, 56,0.85)')),
+        borderRadius: 4, barPercentage: 0.7
       }
     ]
   };

@@ -21,7 +21,7 @@ export default function LocalDataPanel() {
   const confirm = () => { applyBackup(pending.obj, window.localStorage); window.location.reload(); };
   return (
     <details className="card st-card" id="local-data">
-      <summary style={{ cursor: 'pointer', fontWeight: 800 }}>{L('أين تُحفظ بياناتي؟ النسخ الاحتياطي والاستعادة', 'Where is my data kept? Backup and restore')}</summary>
+      <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{L('أين تُحفظ بياناتي؟ النسخ الاحتياطي والاستعادة', 'Where is my data kept? Backup and restore')}</summary>
       <div className="rv-callout" role="note">{L('الخطط والأهداف وسجل الإجراءات والمحادثات تُحفظ في هذا المتصفح فقط (على هذا الجهاز). لا تُرسل إلى خادم ولا تظهر لمستخدم آخر، وقد تضيع إذا مُسحت بيانات المتصفح. نزّل نسخة احتياطية قبل ذلك.', 'Plans, objectives, the action register and conversations are kept in this browser only (on this device). They are not sent to a server, other users cannot see them, and clearing the browser data removes them. Download a backup first.')}</div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <button type="button" className="btn btn-sm btn-primary" onClick={exportNow}>{L('تنزيل نسخة احتياطية', 'Download a backup')}</button>

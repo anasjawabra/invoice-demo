@@ -10,7 +10,7 @@ export default function CoverageChart({ scenarioModels, labels, isRtl }) {
     labels: keys.map((k) => labels[k] || k),
     datasets: [{
       data: keys.map((k) => scenarioModels[k]?.expenseCoverage ?? 0),
-      backgroundColor: keys.map((k) => (k === 'current' ? 'rgba(10,111,166,0.85)' : 'rgba(139,160,152,0.55)')),
+      backgroundColor: keys.map((k) => (k === 'current' ? 'rgba(24, 73, 169,0.85)' : 'rgba(157, 164, 174,0.55)')),
       borderRadius: 4, barPercentage: 0.6
     }]
   };

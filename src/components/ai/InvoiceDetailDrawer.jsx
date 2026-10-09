@@ -166,7 +166,7 @@ export default function InvoiceDetailDrawer({ inv: invIn, invoiceId, open, onClo
             <div className="idd-hero">
               <div>
                 <div className="idd-hero__amt" dir="ltr">{fmtMoney(inv.amount)} <small>{cur}</small></div>
-                <div className="muted" style={{ fontSize: 11 }}>{LB('Billed amount as recorded in the source (VAT basis not stated)', 'المبلغ المفوتر كما في المصدر (أساس الضريبة غير مذكور)')}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{LB('Billed amount as recorded in the source (VAT basis not stated)', 'المبلغ المفوتر كما في المصدر (أساس الضريبة غير مذكور)')}</div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {cls && <span className={`rv-cat rv-cat--${cls.primary}`}>{B(CATEGORY_LABELS[cls.primary] || { en: 'Collected', ar: 'محصّلة' })}</span>}

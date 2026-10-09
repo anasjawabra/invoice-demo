@@ -12,7 +12,7 @@ import { fmtRiyadh, fmtRangeText } from '../../data/clock';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
-const COLORS = ['rgba(45, 95, 139, 0.8)', 'rgba(27, 131, 84, 0.8)', 'rgba(255, 193, 7, 0.85)', 'rgba(175, 8, 24, 0.7)'];
+const COLORS = ['rgba(25, 65, 133, 0.8)', 'rgba(27, 131, 84, 0.8)', 'rgba(253, 176, 34, 0.85)', 'rgba(180, 35, 24, 0.7)'];
 
 function Insight({ it }) {
   const { B, lang, ar } = useL(); const L = (a, e) => (ar ? a : e);
@@ -42,7 +42,7 @@ function Table({ b }) {
           <tbody>
             {t.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'} title={b.headers[j].kind === 'money' && typeof b.rows[i][j] === 'number' ? fmtSar(b.rows[i][j], lang) : undefined}>{c}</td>)}</tr>)}
             {!t.rows.length && <tr><td colSpan={t.headers.length}><div className="rv-empty">{L('لا بيانات في هذا الاختيار.', 'No data in this selection.')}</div></td></tr>}
-            {t.total && t.rows.length > 0 && <tr style={{ fontWeight: 900 }}>{t.total.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>}
+            {t.total && t.rows.length > 0 && <tr style={{ fontWeight: 700 }}>{t.total.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>}
           </tbody>
         </table>
       </div>
@@ -54,7 +54,7 @@ function Table({ b }) {
 function Chart({ b }) {
   const { lang, isRtl } = useL();
   const { cu } = useMemo(() => chartInfo(b, lang), [b, lang]);
-  const data = useMemo(() => ({ labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderRadius: 3 })) }), [b]);
+  const data = useMemo(() => ({ labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderRadius: 4 })) }), [b]);
   const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : cu.fmt(c.parsed.y)}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y, lang)) } } }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
   return (
     <div>
@@ -105,7 +105,7 @@ export default function ReportView({ model }) {
       ) : (
         <section key={sec.key} className="sr-section" aria-label={sec.title}>
           <h4 className="sr-section__title">{sec.title}</h4>
-          {sec.purpose && <div className="muted" style={{ fontSize: 12.5 }}>{sec.purpose}</div>}
+          {sec.purpose && <div className="muted" style={{ fontSize: 13 }}>{sec.purpose}</div>}
           <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} />)}</div>
         </section>
       ))}

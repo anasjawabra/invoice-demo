@@ -10,8 +10,8 @@ export function AsyncBlock({ state, onRetry, empty = false, emptyText, height = 
   const errBox = state?.error ? (
     <div className="rv-callout rv-callout--bad" role="alert">
       <b>{L('تعذّر تحميل هذا القسم', 'This section could not be loaded')}</b>
-      <div style={{ fontSize: 12.5, marginTop: 4 }}>{String(state.error.message || state.error)}</div>
-      {state.data && <div style={{ fontSize: 12.5, marginTop: 4 }}>{L('ما يظهر أدناه من الاختيار السابق وليس من المرشحات الحالية.', 'What is shown below is from the previous selection, not the current filters.')}</div>}
+      <div style={{ fontSize: 13, marginTop: 4 }}>{String(state.error.message || state.error)}</div>
+      {state.data && <div style={{ fontSize: 13, marginTop: 4 }}>{L('ما يظهر أدناه من الاختيار السابق وليس من المرشحات الحالية.', 'What is shown below is from the previous selection, not the current filters.')}</div>}
       {onRetry && <button type="button" className="btn btn-sm" style={{ marginTop: 8 }} onClick={onRetry}>{L('إعادة المحاولة', 'Retry')}</button>}
     </div>
   ) : null;

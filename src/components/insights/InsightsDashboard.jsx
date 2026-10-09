@@ -18,7 +18,7 @@ import { fillTokens } from '../../data/reportFormat';
 import { fmtDateText, fmtRangeText, fmtMonthText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
 
-const STATUS_COLOR = { collected: 'var(--green)', partial: '#c9a227', overdue: 'var(--danger)', not_due: 'var(--secondary)', cancelled: '#8a978f', excluded: '#6f7d76', objection: '#6B57A6', enforcement: '#9A5C00', linkage_unresolved: '#b07a9a', ineligible_referral: '#4f8d94' };
+const STATUS_COLOR = { collected: 'var(--green)', partial: '#FDB022', overdue: 'var(--danger)', not_due: 'var(--secondary)', cancelled: '#9DA4AE', excluded: '#6C737F', objection: '#6C737F', enforcement: '#B54708', linkage_unresolved: '#9DA4AE', ineligible_referral: '#6C737F' };
 const STATUS_LABEL = { collected: { ar: 'محصّلة بالكامل', en: 'Collected in full' }, ...CATEGORY_LABELS };
 const firstSentence = (t) => { const x = String(t || '').trim(); const i = x.search(/[.؛]\s/); return i > 20 ? x.slice(0, i + 1) : x; };
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
@@ -78,7 +78,7 @@ export default function InsightsDashboard() {
           <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
           <div className="st-table-wrap"><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
             <tbody>{aging.map((a) => <tr key={a.key}><td>{B(a.label)}</td><td dir="ltr">{count(a.count)}</td><td dir="ltr" title={fmtMoney(a.amount, { lang, mode: 'detail' })}>{scaled(a.amount, uA)}</td></tr>)}
-              <tr style={{ fontWeight: 800 }}><td>{L('إجمالي الرصيد القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
+              <tr style={{ fontWeight: 700 }}><td>{L('إجمالي الرصيد القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
           <div className="muted" style={{ fontSize: 12 }}>{L('يشمل كل الفواتير غير المسددة مهما كان تاريخ إصدارها.', 'Includes every unpaid invoice, whatever its issue date.')}</div>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function InsightsDashboard() {
             </div>
             <div className="muted" style={{ fontSize: 12 }}><Link to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
           </AsyncBlock>
-        ) : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b><div style={{ fontSize: 12.5 }}>{L('الميزانية والإنفاق على مستوى وطني لكل المصادر فقط؛ أزل مرشحات الأمانة والبلدية والمصدر والحالة لعرضها.', 'Budget and expenditure exist at national level for all sources only; clear the Amanah, municipality, source and status filters to see them.')}</div></div>}
+        ) : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b><div style={{ fontSize: 13 }}>{L('الميزانية والإنفاق على مستوى وطني لكل المصادر فقط؛ أزل مرشحات الأمانة والبلدية والمصدر والحالة لعرضها.', 'Budget and expenditure exist at national level for all sources only; clear the Amanah, municipality, source and status filters to see them.')}</div></div>}
       </div>
 
 

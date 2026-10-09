@@ -12,12 +12,12 @@ export default function LiquidityGapChart({ monthlySeries, monthLabels, isRtl, m
     labels,
     datasets: [{
       data: values,
-      borderColor: 'rgba(10,111,166,0.9)',
-      backgroundColor: 'rgba(10,111,166,0.15)',
+      borderColor: 'rgba(24, 73, 169,0.9)',
+      backgroundColor: 'rgba(24, 73, 169,0.15)',
       fill: true,
       tension: 0.25,
       pointRadius: monthlySeries.map((r) => (r.isActual ? 3 : 2)),
-      pointBackgroundColor: monthlySeries.map((r) => (r.isActual ? 'rgba(10,111,166,1)' : 'rgba(10,111,166,0.4)'))
+      pointBackgroundColor: monthlySeries.map((r) => (r.isActual ? 'rgba(24, 73, 169,1)' : 'rgba(24, 73, 169,0.4)'))
     }]
   };
   const options = {

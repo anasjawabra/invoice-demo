@@ -160,13 +160,13 @@ export default function DataSources() {
               {sources.map((s) => (
                 <tr key={s.id}>
                   <td><b>{B(s.name)}</b></td>
-                  <td style={{ fontSize: 11.5, minWidth: 280 }} dir="auto">{B(s.role)}
+                  <td style={{ fontSize: 12, minWidth: 280 }} dir="auto">{B(s.role)}
                     <div style={{ marginTop: 3 }}>{s.authority.map((a, i) => <span key={i} className="rv-tag rv-tag--ok">{B(a)}</span>)}</div>
                     {s.rule && <div className="muted" style={{ marginTop: 3 }}>{B(s.rule)}</div>}
                   </td>
                   <td>{B(s.cadence)}</td>
                   <td dir="ltr">{fmtDt(s.latest?.uploadedAt)}</td>
-                  <td dir="ltr" style={{ fontSize: 11.5 }}>{s.entries.map((e) => `${e.from} → ${e.to}`).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || '—'}</td>
+                  <td dir="ltr" style={{ fontSize: 12 }}>{s.entries.map((e) => `${e.from} → ${e.to}`).filter((v, i, a) => a.indexOf(v) === i).join(' · ') || '—'}</td>
                   <td dir="ltr">{s.latest ? (s.latest.to > cfg.cutoff ? cfg.cutoff : s.latest.to) : '—'}</td>
                   <td className="num" dir="ltr">{s.latest ? `v${s.latest.version}` : '—'}</td>
                   <td>{s.fresh ? <span className={`rv-badge rv-badge--sm rv-badge--${FRESHNESS_LEVELS[s.fresh.level].tone}`}>{B(FRESHNESS_LEVELS[s.fresh.level])} · {s.fresh.ageDays} {L('d', 'يوم')}</span> : <span className="rv-badge rv-badge--sm rv-badge--na">{L('No report', 'لا تقرير')}</span>}</td>
@@ -191,14 +191,14 @@ export default function DataSources() {
               {rules.map((r) => (
                 <tr key={r.id}>
                   <td><b>{r.id}</b></td>
-                  <td style={{ fontSize: 11.5 }}>{B(r.from)} <span aria-hidden="true">→</span> {B(r.to)}</td>
-                  <td style={{ fontSize: 11.5 }}>{B(r.key)}</td>
-                  <td style={{ fontSize: 11.5 }}>{B(r.relation)}</td>
+                  <td style={{ fontSize: 12 }}>{B(r.from)} <span aria-hidden="true">→</span> {B(r.to)}</td>
+                  <td style={{ fontSize: 12 }}>{B(r.key)}</td>
+                  <td style={{ fontSize: 12 }}>{B(r.relation)}</td>
                   <td className="num">{r.matched}</td>
-                  <td className="num">{r.unmatched > 0 ? <b style={{ color: 'var(--danger, #b3261e)' }}>{r.unmatched}</b> : 0}</td>
+                  <td className="num">{r.unmatched > 0 ? <b style={{ color: 'var(--danger, #B42318)' }}>{r.unmatched}</b> : 0}</td>
                   <td className="num">{r.pending ?? '—'}</td>
-                  <td style={{ fontSize: 11.5 }}>{B(r.evidence)}</td>
-                  <td style={{ fontSize: 11.5 }} dir="auto">{B(r.reason)}{r.note && <div className="muted">{B(r.note)}</div>}</td>
+                  <td style={{ fontSize: 12 }}>{B(r.evidence)}</td>
+                  <td style={{ fontSize: 12 }} dir="auto">{B(r.reason)}{r.note && <div className="muted">{B(r.note)}</div>}</td>
                   <td>{r.review ? L('Manual', 'يدوية') : L('Automatic', 'آلية')}</td>
                 </tr>
               ))}
@@ -230,16 +230,16 @@ export default function DataSources() {
               {logRows.map((e, i) => (
                 <tr key={`${e.source}-${e.uploadedAt}-${i}`}>
                   <td>{B(SOURCE_ROLES.find((s) => s.id === e.source)?.name)}{e.user && <span className="rv-badge rv-badge--sm rv-badge--up">{L('Uploaded by you', 'رفعتَه')}</span>}</td>
-                  <td dir="ltr" style={{ fontSize: 11.5 }}>{e.report}</td>
+                  <td dir="ltr" style={{ fontSize: 12 }}>{e.report}</td>
                   <td>{e.scopeType === 'internal' ? L('Internal', 'داخلي') : L('Central', 'مركزي')}</td>
                   <td>{e.entity ? B(e.entity) : '—'}</td>
-                  <td dir="ltr" style={{ fontSize: 11.5 }}>{e.from} → {e.to} ({e.basis})</td>
+                  <td dir="ltr" style={{ fontSize: 12 }}>{e.from} → {e.to} ({e.basis})</td>
                   <td dir="ltr">{fmtDt(e.extractedAt)}</td>
                   <td dir="ltr">{fmtDt(e.uploadedAt)}</td>
                   <td className="num" dir="ltr">v{e.version}</td>
                   <td className="num">{e.rows}</td>
                   <td className="num">{e.accepted} / {e.rejected}</td>
-                  <td style={{ fontSize: 11.5 }} dir="auto">{B(e.note)}{e.checksum && <div className="muted" dir="ltr">#{e.checksum}</div>}</td>
+                  <td style={{ fontSize: 12 }} dir="auto">{B(e.note)}{e.checksum && <div className="muted" dir="ltr">#{e.checksum}</div>}</td>
                 </tr>
               ))}
             </tbody>

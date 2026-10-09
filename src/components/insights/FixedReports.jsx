@@ -42,7 +42,7 @@ function ReportBody({ def }) {
   return (
     <div className="card st-card">
       <div className="sr-card__bar">
-        <div className="muted" style={{ fontSize: 12.5 }}>{B(def.purpose)}</div>
+        <div className="muted" style={{ fontSize: 13 }}>{B(def.purpose)}</div>
         <div className="sr-card__actions">{[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={!model || !!exporting || snapshot.totals.count === 0} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}</div>
       </div>
       <ToDateFigure snapshot={snapshot} />
@@ -78,7 +78,7 @@ export default function FixedReports({ reportKey, setReport }) {
             {g.keys.map((k) => FIXED_REPORTS.find((r) => r.key === k)).map((r) => (
               <button key={r.key} type="button" className="card st-card sr-fixed" onClick={() => setReport(r.key)}>
                 <b>{B({ ar: r.ar, en: r.en })}</b>
-                <span className="muted" style={{ fontSize: 12.5, lineHeight: 1.7 }}>{B(r.purpose)}</span>
+                <span className="muted" style={{ fontSize: 13, lineHeight: 1.7 }}>{B(r.purpose)}</span>
               </button>
             ))}
           </div>

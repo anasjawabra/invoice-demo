@@ -69,7 +69,7 @@ export function UncollectedBridge({ bridge, stock }) {
         <div className="rv-callout rv-callout--warn" style={{ marginTop: 10 }}>
           <b>{L('Not matched — shown apart', 'غير مطابق — يُعرض منفصلاً')}</b>
           <div>{L(`${count(bridge.unmatched.count)} report invoice(s) worth ${money(bridge.unmatched.amount)} could not be matched to the details report. They are neither deducted nor added to the net; resolve them in Data → matching.`, `${count(bridge.unmatched.count)} فاتورة في التقرير بقيمة ${money(bridge.unmatched.amount)} تعذّرت مطابقتها مع بيان التفاصيل. لا تُخصم ولا تُضاف إلى الصافي؛ تُعالج من البيانات ← المطابقة.`)}</div>
-          <div className="muted" dir="ltr" style={{ fontSize: 11 }}>{bridge.unmatched.rows.map((r) => r.invoiceNo).join(' · ')}</div>
+          <div className="muted" dir="ltr" style={{ fontSize: 12 }}>{bridge.unmatched.rows.map((r) => r.invoiceNo).join(' · ')}</div>
         </div>
       ) : bridge.unmatched.scopedOut ? (
         <div className="rv-callout" style={{ marginTop: 10 }}>{L(`Report-only invoices carry no Amanah, so the ${bridge.unmatched.nationalCount} unmatched rows (${money(bridge.unmatched.nationalAmount)}) appear in the national view only.`, `فواتير التقرير غير المطابقة لا تحمل أمانة لذا تظهر ${bridge.unmatched.nationalCount} صفوف (${money(bridge.unmatched.nationalAmount)}) في العرض الوطني فقط.`)}</div>
@@ -205,7 +205,7 @@ export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
       <div className="card card-pad">
         <h3 className="rv-sec-title">{L('Contracts with overdue installments', 'عقود بدفعات متأخرة')}</h3>
         {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : c.tenantEn}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
-        <h4 className="rv-sec-title" style={{ fontSize: 12.5, marginTop: 12 }}>{L('Enforcement to follow up', 'تنفيذ يحتاج متابعة')}</h4>
+        <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 12 }}>{L('Enforcement to follow up', 'تنفيذ يحتاج متابعة')}</h4>
         {execRows.length ? <ul className="rv-list">{execRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.requests[0].enforceNum}</Link> <b>{short(c.execution.amount)}</b> <small className="muted">{c.execution.invoicesIdentified ? L('invoices identified', 'فواتير محددة') : L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
       </div>
       <div className="card card-pad">

@@ -28,7 +28,7 @@ export default function AssistantPanel({ open, onClose, ctxFactory, onAction, pr
   return (
     <aside className="st-assist" role="dialog" aria-label={L('مساعد لوحة القيادة', 'Dashboard assistant')}>
       <div className="st-assist__head">
-        <div><b>{title || L('اسأل لوحة القيادة', 'Ask the dashboard')}</b><div className="muted" style={{ fontSize: 11.5 }}>{L('يعمل بقواعد محددة', 'Works with defined rules')}</div></div>
+        <div><b>{title || L('اسأل لوحة القيادة', 'Ask the dashboard')}</b><div className="muted" style={{ fontSize: 12 }}>{L('يعمل بقواعد محددة', 'Works with defined rules')}</div></div>
         <div style={{ display: 'flex', gap: 4 }}><button type="button" className="btn btn-sm btn-ghost" onClick={() => { setMsgs([]); last.current = null; }} disabled={!msgs.length}>{L('جديد', 'New')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={onClose} aria-label={L('إغلاق', 'Close')}>×</button></div>
       </div>
       <div className="st-assist__body" aria-live="polite">

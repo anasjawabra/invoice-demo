@@ -32,7 +32,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
     labels: [L('المحصّل', 'Collected'), L('غير المحصّل', 'Uncollected'), L('المطلوب لبلوغ المستهدف التجريبي', 'Needed for the demo target')],
     datasets: [
       { label: L('الأساس (فعلي)', 'Baseline (actual)'), data: [res.baseline.collected, res.baseline.uncollected, res.target?.baselineCollectedNeeded ?? null], backgroundColor: 'rgba(27,131,84,.75)', borderRadius: 4 },
-      { label: L('سيناريو المستخدم', 'User scenario'), data: [res.scenario.collected, res.scenario.uncollected, res.target?.scenarioCollectedNeeded ?? null], backgroundColor: 'rgba(196,81,76,.8)', borderRadius: 4 }
+      { label: L('سيناريو المستخدم', 'User scenario'), data: [res.scenario.collected, res.scenario.uncollected, res.target?.scenarioCollectedNeeded ?? null], backgroundColor: 'rgba(240, 68, 56,.8)', borderRadius: 4 }
     ]
   }), [res, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${cu.fmt(c.parsed.y)}`, afterLabel: (c) => fmtSar(c.parsed.y, lang) } } }, scales: { x: { reverse: isRtl, grid: { display: false } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
@@ -54,12 +54,12 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
                 <input id={`sc-${lv.k}-r`} type="range" min={lo} max={hi} step={lv.step} value={Number.isFinite(Number(val)) ? Number(val) : 0} onChange={(e) => set(lv.k, e.target.value)} aria-label={B(lv)} />
                 <input id={`sc-${lv.k}`} type="number" className="input" style={{ width: 84 }} min={lo} max={hi} step={lv.step} value={val} onChange={(e) => set(lv.k, e.target.value)} />
               </div>
-              <details className="rv-more"><summary>{L('ما معنى هذا؟', 'What does this mean?')}</summary><div className="muted" style={{ fontSize: 11.5 }}>{B(lv.hint)}</div></details>
+              <details className="rv-more"><summary>{L('ما معنى هذا؟', 'What does this mean?')}</summary><div className="muted" style={{ fontSize: 12 }}>{B(lv.hint)}</div></details>
             </div>
           );
         })}
         <div className="st-field"><label htmlFor="sc-plan">{L('تاريخ التخطيط (مسموح بتاريخ مستقبلي؛ لا معاملات فعلية بعد اليوم)', 'Planning date (future allowed; no actual transactions after today)')}</label><input id="sc-plan" type="date" className="input" min={today} value={planDate} onChange={(e) => setPlanDate(e.target.value || today)} /></div>
-        {res.warnings.map((w, i) => <div key={i} className="rv-callout rv-callout--warn" role="alert" style={{ fontSize: 12.5 }}>{ar ? w.ar : w.en}</div>)}
+        {res.warnings.map((w, i) => <div key={i} className="rv-callout rv-callout--warn" role="alert" style={{ fontSize: 13 }}>{ar ? w.ar : w.en}</div>)}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-sm btn-ghost" disabled={!changed} onClick={() => setScenario({ ...DEFAULT_SCENARIO })}>{L('إعادة الضبط', 'Reset')}</button>
           <button type="button" className="btn btn-sm" disabled={!changed || !canEdit} title={canEdit ? '' : L('يتطلب صلاحية المراجعة', 'Requires review permission')} onClick={onSaveToRegister}>{L('إنشاء مقترح من السيناريو', 'Create a proposal from this scenario')}</button>
@@ -82,7 +82,7 @@ export default function ScenarioPanel({ snapshot, targets, scenario, setScenario
             <tr><td>{L('حسم الحالات المعلقة', 'Pending cases')}</td><td>{L('غير نقدي', 'Non-cash')}</td><td dir="ltr">{scaled(res.steps[1].dNet, unit)}</td><td dir="ltr">0</td></tr>
             <tr><td>{L('معدل التحصيل', 'Collection rate')}</td><td>{L('نقدي', 'Cash')}</td><td dir="ltr">0</td><td dir="ltr">{scaled(res.steps[2].dCollected, unit)}</td></tr>
             <tr><td>{L('استرداد المتأخر', 'Overdue recovery')}</td><td>{L('نقدي', 'Cash')}</td><td dir="ltr">0</td><td dir="ltr">{scaled(res.steps[3].dCollected, unit)}</td></tr>
-            <tr style={{ fontWeight: 800 }}><td>{L('الإجمالي', 'Total')}</td><td /><td dir="ltr">{scaled(res.scenario.net - res.baseline.net, unit)}</td><td dir="ltr">{scaled(res.deltaCollected, unit)}</td></tr>
+            <tr style={{ fontWeight: 700 }}><td>{L('الإجمالي', 'Total')}</td><td /><td dir="ltr">{scaled(res.scenario.net - res.baseline.net, unit)}</td><td dir="ltr">{scaled(res.deltaCollected, unit)}</td></tr>
           </tbody>
         </table></div>
         <div className="muted" style={{ fontSize: 12 }}>{L(`المبالغ بوحدة: ${fmtMoney(0, { lang, unit }).replace('0 ', '')}.`, `Amounts in: ${fmtMoney(0, { lang, unit }).replace('0 ', '')}.`)} {res.nonCash.netReduction > 0 && L(`الحسم كاستبعاد يخفض الصافي بـ ${mAuto(res.nonCash.netReduction)} فيرفع النسبة ${res.nonCash.rateEffectPp?.toFixed(1)} نقطة حسابياً دون أي نقد.`, `Exclusions reduce net by ${mAuto(res.nonCash.netReduction)} and lift the rate by ${res.nonCash.rateEffectPp?.toFixed(1)} pp arithmetically with no cash.`)}</div>

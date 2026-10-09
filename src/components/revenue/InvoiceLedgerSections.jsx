@@ -113,17 +113,17 @@ export default function InvoiceLedgerSections({ rec, der, cls, reasons, card, on
           const isPrimary = !der.cancelled && reasons[0] === ex.ruleId;
           const effective = reasons.includes(ex.ruleId);
           return (
-            <div key={ex.ruleId} style={{ fontSize: 12.5, display: 'grid', gap: 4, padding: '8px 0', borderTop: '1px dashed var(--line)' }}>
+            <div key={ex.ruleId} style={{ fontSize: 13, display: 'grid', gap: 4, padding: '8px 0', borderTop: '1px dashed var(--line)' }}>
               <div><b>{ex.category.replace(/_/g, ' ')}</b> · <span dir="ltr">{ex.ruleId} v{ex.ruleVersion}</span> {rule && <span className={`rv-badge rv-badge--sm ${rule.approval === 'approved' ? 'rv-badge--good' : 'rv-badge--warn'}`}>{B(RULE_APPROVAL_LABEL[rule.approval])}</span>}
                 {isPrimary && <span className="rv-tag rv-tag--ok">{L('primary reason', 'السبب الرئيسي')}</span>}
                 {effective && !isPrimary && !der.cancelled && <span className="rv-tag">{L('secondary — not deducted again', 'ثانوي — لا يُخصم ثانية')}</span>}
                 — {ex.reviewStatus === 'approved' ? L('approved', 'معتمد') : ex.reviewStatus === 'rejected' ? L('rejected', 'مرفوض') : L('pending: stays in net billed', 'معلّق: يبقى في صافي المفوتر')}</div>
               <div dir="auto"><b>{L('Evidence', 'الدليل')}:</b> {B(ex.evidence)}</div>
-              {ex.sources?.length > 0 && <div className="muted" style={{ fontSize: 11.5 }}>{ex.sources.map((x) => `${x.system} › ${x.field} = ${x.value}`).join(' · ')}</div>}
+              {ex.sources?.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{ex.sources.map((x) => `${x.system} › ${x.field} = ${x.value}`).join(' · ')}</div>}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 <button type="button" className="btn btn-sm btn-primary" disabled={!canReview || ex.reviewStatus === 'approved'} onClick={() => decide(ex.ruleId, 'approved')}>{L('Approve', 'اعتماد')}</button>
                 <button type="button" className="btn btn-sm" disabled={!canReview || ex.reviewStatus === 'rejected'} onClick={() => decide(ex.ruleId, 'rejected')}>{L('Reject', 'رفض')}</button>
-                {!canReview && <span className="muted" style={{ fontSize: 11 }}>{L('Read-only role', 'دور للقراءة فقط')}</span>}
+                {!canReview && <span className="muted" style={{ fontSize: 12 }}>{L('Read-only role', 'دور للقراءة فقط')}</span>}
               </div>
             </div>
           );

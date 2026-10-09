@@ -117,7 +117,7 @@ export default function SanadOrderDetail() {
           <button type="button" className="btn btn-primary btn-sm" onClick={run}>{L('Find matches', 'إيجاد المطابقات')}</button>
         </div>
         {(refs.invoiceIds.length + refs.coRefs.length + refs.longNumbers.length + refs.shortNumbers.length) > 0 && (
-          <div className="muted" style={{ fontSize: 11.5, marginTop: 8 }} dir="ltr">
+          <div className="muted" style={{ fontSize: 12, marginTop: 8 }} dir="ltr">
             {L('References extracted', 'المراجع المستخرجة')}: {[...refs.invoiceIds, ...refs.coRefs, ...refs.longNumbers, ...refs.shortNumbers].join(', ')}
           </div>
         )}
@@ -156,11 +156,11 @@ export default function SanadOrderDetail() {
               const grossOf = linked?.get(l.invoiceId);
               return (
                 <tr key={l.invoiceId}>
-                  <td><Link to={`/invoices?id=${l.invoiceId}`} dir="ltr">{l.invoiceId}</Link><div className="muted" style={{ fontSize: 11 }}>{grossOf != null ? sar(grossOf) : ''}</div></td>
+                  <td><Link to={`/invoices?id=${l.invoiceId}`} dir="ltr">{l.invoiceId}</Link><div className="muted" style={{ fontSize: 12 }}>{grossOf != null ? sar(grossOf) : ''}</div></td>
                   <td><span className={`rv-cat ${l.status === 'confirmed' ? 'rv-cat--enforcement' : l.status === 'rejected' ? 'rv-cat--excluded' : 'rv-cat--partial'}`}>{{ confirmed: L('Confirmed', 'مؤكد'), candidate: L('Candidate', 'مرشح'), rejected: L('Rejected', 'مرفوض') }[l.status]}</span></td>
                   <td className="num" dir="ltr">{l.allocated ? sar(l.allocated) : L('unallocated', 'غير موزع')}</td>
                   <td>{(l.evidence || []).map((e) => <span key={e} className="rv-tag">{B(EVIDENCE[e] || { en: e, ar: e })}</span>)}{(l.conflicts || []).map((e) => <span key={e} className="rv-tag rv-tag--bad">{B(CONFLICT[e] || { en: e, ar: e })}</span>)}</td>
-                  <td style={{ fontSize: 11.5 }}>{l.reviewedBy ? `${l.reviewedBy} · ${l.reviewedAt || ''}` : '—'}{l.reviewNote ? <div className="muted" dir="auto">{l.reviewNote}</div> : null}</td>
+                  <td style={{ fontSize: 12 }}>{l.reviewedBy ? `${l.reviewedBy} · ${l.reviewedAt || ''}` : '—'}{l.reviewNote ? <div className="muted" dir="auto">{l.reviewNote}</div> : null}</td>
                   <td style={{ minWidth: 200 }}>
                     {l.status === 'candidate' ? (
                       <>

@@ -54,7 +54,7 @@ export default function InvestmentInvoices() {
         <div className="page-title" style={{ fontSize: 16, marginBottom: 4 }}>
           {pick(lang, 'Flagged Investment Invoices', 'الفواتير الاستثمارية الموسومة', '已标记的投资类发票')}
         </div>
-        <div className="muted" style={{ fontSize: 11.5, marginBottom: 10 }}>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
           {pick(lang, 'Each record has no matching contract in the Furas registry.', 'كل سجل لا يملك عقدًا مطابقًا في سجل فرص.', '每条记录在 Furas 合同登记中均无匹配合同。')}
         </div>
         <div className="grid" style={{ gap: 8 }}>
@@ -62,13 +62,13 @@ export default function InvestmentInvoices() {
             const beneficiary = lang === 'ar' ? inv.payerAr : inv.payerEn;
             const amanah = lang === 'zh' ? inv.amanahZh : lang === 'ar' ? inv.amanahAr : inv.amanahEn;
             return (
-              <div key={inv.id} className="card" style={{ padding: 10, background: 'rgba(175, 8, 24, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div key={inv.id} className="card" style={{ padding: 10, background: 'rgba(180, 35, 24, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontWeight: 900, fontSize: 12 }} dir="ltr">{inv.id}</span>
+                    <span style={{ fontWeight: 700, fontSize: 12 }} dir="ltr">{inv.id}</span>
                     <span className="badge badge--red" dir="ltr">{sar(inv.gross)}</span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{beneficiary} · {amanah}</div>
+                  <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>{beneficiary} · {amanah}</div>
                 </div>
                 <button type="button" className="btn btn-sm btn-primary" onClick={() => nav(`/investment-invoices/${encodeURIComponent(inv.id)}`)}>
                   {pick(lang, 'Details', 'التفاصيل', '详情')}
@@ -78,7 +78,7 @@ export default function InvestmentInvoices() {
           })}
           <Pager page={page} total={flaggedTotal} size={PS} onPage={setPage} />
           {!flagged.length && (
-            <div className="muted" style={{ fontSize: 12.5 }}>
+            <div className="muted" style={{ fontSize: 13 }}>
               {pick(lang, 'No unlinked investment invoices under the current data.', 'لا توجد فواتير استثمارية غير مرتبطة ضمن البيانات الحالية.', '当前数据中没有未关联的投资类发票。')}
             </div>
           )}

@@ -17,10 +17,10 @@ export default function ObjectivesPanel({ store, setStore, actuals, systemRows, 
     const pr = objectiveProgress(o, actuals); const st = STATE[pr.state]; const m = OBJECTIVE_METRICS[o.metric];
     return (
       <tr>
-        <td><b>{o.title}</b>{o.note && <div className="muted" style={{ fontSize: 11.5 }}>{o.note}</div>}<div className="muted" style={{ fontSize: 11.5 }}>{ar ? m.ar : m.en}</div></td>
+        <td><b>{o.title}</b>{o.note && <div className="muted" style={{ fontSize: 12 }}>{o.note}</div>}<div className="muted" style={{ fontSize: 12 }}>{ar ? m.ar : m.en}</div></td>
         <td dir="ltr">{fmtVal(o.metric, pr.actual)}</td>
         <td dir="ltr">{fmtVal(o.metric, o.target)}</td>
-        <td><span style={{ color: st[2], fontWeight: 700 }}>{ar ? st[0] : st[1]}</span>{pr.ratio != null && <div className="muted" dir="ltr" style={{ fontSize: 11.5 }}>{(pr.ratio * 100).toFixed(0)}%</div>}</td>
+        <td><span style={{ color: st[2], fontWeight: 700 }}>{ar ? st[0] : st[1]}</span>{pr.ratio != null && <div className="muted" dir="ltr" style={{ fontSize: 12 }}>{(pr.ratio * 100).toFixed(0)}%</div>}</td>
         <td>{o.status === 'approved' ? <span className="st-tag st-tag--actual">{L('معتمد', 'approved')}{o.approvedBy ? ` — ${o.approvedBy}` : ''}</span> : <span className="st-tag st-tag--warn">{system ? L('مُدخل تجريبي — غير معتمد', 'demo input — unapproved') : L('مقترح — غير معتمد', 'proposed — unapproved')}</span>}</td>
         <td>{o.owner || <span className="muted">{L('غير مسند', 'unassigned')}</span>}</td>
         <td dir="ltr">{o.due || '—'}</td>
@@ -37,7 +37,7 @@ export default function ObjectivesPanel({ store, setStore, actuals, systemRows, 
           {store.objectives.map((o) => <Row key={o.id} o={o} system={false} />)}
         </tbody>
       </table></div>
-      {!store.objectives.length && <div className="muted" style={{ fontSize: 12.5 }}>{L('لا أهداف استراتيجية مسجلة بعد. الصفان أعلاه مستهدفات تجريبية غير معتمدة؛ أضف هدفاً (يبقى «مقترحاً» حتى يعتمده مراجع). لا توجد أهداف رسمية مدمجة.', 'No strategic objectives recorded yet. The rows above are unapproved demo targets; add an objective (it stays “proposed” until a reviewer approves it). No official objectives are built in.')}</div>}
+      {!store.objectives.length && <div className="muted" style={{ fontSize: 13 }}>{L('لا أهداف استراتيجية مسجلة بعد. الصفان أعلاه مستهدفات تجريبية غير معتمدة؛ أضف هدفاً (يبقى «مقترحاً» حتى يعتمده مراجع). لا توجد أهداف رسمية مدمجة.', 'No strategic objectives recorded yet. The rows above are unapproved demo targets; add an objective (it stays “proposed” until a reviewer approves it). No official objectives are built in.')}</div>}
       <div style={{ display: 'flex', gap: 6 }}><button type="button" className="btn btn-sm" disabled={!canEdit} title={canEdit ? '' : L('يتطلب صلاحية المراجعة', 'Requires review permission')} onClick={() => setForm(form ? null : { title: '', metric: 'collection_rate', target: '', due: '', owner: '', note: '' })}>＋ {L('هدف جديد', 'New objective')}</button></div>
       {form && (
         <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>

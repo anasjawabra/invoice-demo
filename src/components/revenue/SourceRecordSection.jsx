@@ -35,7 +35,7 @@ export default function SourceRecordSection({ sr }) {
         <tbody>{sr.links.map((l, k) => (
           <tr key={k} className={l.present === false ? 'muted' : ''}>
             <td>{l.system}</td><td dir="ltr">{l.dataset}</td><td>{ROLE[l.role] ? B(ROLE[l.role]) : l.role}</td><td dir="ltr">{l.keyField}</td>
-            <td dir="ltr">{cell(l.key)}{l.present === false ? ` · ${L('not found', 'غير موجود')}` : ''}{l.note ? <div className="muted" style={{ fontSize: 11 }} dir="auto">{B(l.note)}</div> : null}</td>
+            <td dir="ltr">{cell(l.key)}{l.present === false ? ` · ${L('not found', 'غير موجود')}` : ''}{l.note ? <div className="muted" style={{ fontSize: 12 }} dir="auto">{B(l.note)}</div> : null}</td>
             <td dir="ltr">v{l.importVersion}</td>
           </tr>))}</tbody>
       </table></div>
@@ -83,7 +83,7 @@ export default function SourceRecordSection({ sr }) {
       {ids.length > 0 && (
         <details style={{ marginTop: 10 }}>
           <summary style={{ cursor: 'pointer', fontSize: 12 }}>{L(`Demo assumptions applied (${ids.length})`, `الافتراضات التجريبية المطبقة (${ids.length})`)}</summary>
-          <ul className="rv-list" style={{ fontSize: 11.5 }}>{ASSUMPTIONS.filter((a) => ids.includes(a.id)).map((a) => <li key={a.id}><b dir="ltr">{a.id}</b> — <span dir="auto">{B(a.text)}</span></li>)}</ul>
+          <ul className="rv-list" style={{ fontSize: 12 }}>{ASSUMPTIONS.filter((a) => ids.includes(a.id)).map((a) => <li key={a.id}><b dir="ltr">{a.id}</b> — <span dir="auto">{B(a.text)}</span></li>)}</ul>
           <small className="muted">{L('Not ministry-approved rules; editable in src/data/sourceAssumptions.js.', 'ليست قواعد معتمدة من الوزارة؛ وقابلة للتعديل في src/data/sourceAssumptions.js.')}</small>
         </details>
       )}

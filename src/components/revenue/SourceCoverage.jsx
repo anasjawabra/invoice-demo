@@ -36,18 +36,18 @@ export default function SourceCoverage() {
               const f = s.ytd.financial || { gross: 0, collected: 0, rate: { calculable: false } };
               return (
                 <tr key={s.key}>
-                  <td><Link to={`/invoices?src=${s.key}`}><b>{s.profile ? B(s.profile.label) : s.key}</b></Link><div className="muted" style={{ fontSize: 11 }} dir="ltr">{s.key}</div></td>
-                  <td style={{ fontSize: 11.5 }} dir="ltr">{(s.profile?.files || []).join(' · ')}<div className="muted">{(s.profile?.sheets || []).join(', ')}</div></td>
-                  <td style={{ fontSize: 11.5, maxWidth: 220 }} dir="auto">{s.profile ? B(s.profile.level) : '—'}</td>
-                  <td style={{ fontSize: 11.5 }} dir="ltr">{(s.profile?.keys || []).join(' · ')}</td>
-                  <td style={{ fontSize: 11.5, maxWidth: 200 }} dir="auto">{s.profile ? B(s.profile.supplier) : '—'}</td>
+                  <td><Link to={`/invoices?src=${s.key}`}><b>{s.profile ? B(s.profile.label) : s.key}</b></Link><div className="muted" style={{ fontSize: 12 }} dir="ltr">{s.key}</div></td>
+                  <td style={{ fontSize: 12 }} dir="ltr">{(s.profile?.files || []).join(' · ')}<div className="muted">{(s.profile?.sheets || []).join(', ')}</div></td>
+                  <td style={{ fontSize: 12, maxWidth: 220 }} dir="auto">{s.profile ? B(s.profile.level) : '—'}</td>
+                  <td style={{ fontSize: 12 }} dir="ltr">{(s.profile?.keys || []).join(' · ')}</td>
+                  <td style={{ fontSize: 12, maxWidth: 200 }} dir="auto">{s.profile ? B(s.profile.supplier) : '—'}</td>
                   <td className="num" dir="ltr">{count(s.ytd.invoices)}</td><td className="num" dir="ltr">{count(s.ytd.lines)}</td><td className="num" dir="ltr">{count(s.ytd.payments)}</td>
                   <td className="num" dir="ltr" title={sar(f.gross)}>{short(f.gross)}</td><td className="num" dir="ltr" title={sar(f.collected)}>{short(f.collected)}</td><td className="num">{ratioText(f.rate, ar, 0)}</td>
                   <td className="num" dir="ltr">{count(s.prior.invoices)}</td>
                 </tr>
               );
             })}
-            <tr style={{ fontWeight: 800 }}>
+            <tr style={{ fontWeight: 700 }}>
               <td>{L('Total', 'الإجمالي')}</td><td /><td /><td /><td />
               <td className="num" dir="ltr">{count(tot.count)}</td><td className="num" dir="ltr">{count(data.sources.reduce((t, s) => t + s.ytd.lines, 0))}</td><td className="num" dir="ltr">{count(data.sources.reduce((t, s) => t + s.ytd.payments, 0))}</td>
               <td className="num" dir="ltr" title={sar(tot.gross)}>{short(tot.gross)}</td><td className="num" dir="ltr" title={sar(tot.collected)}>{short(tot.collected)}</td><td className="num">{ratioText(tot.collectedOverNet, ar, 0)}</td><td className="num" dir="ltr">{count(data.totals.prior.count)}</td>

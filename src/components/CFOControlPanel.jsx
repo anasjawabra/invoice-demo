@@ -62,7 +62,7 @@ export function TargetSliders({
       {savedScenarios.length > 0 && (
         <div style={{ display: 'grid', gap: 6, marginTop: 10 }}>
           {savedScenarios.map((s) => (
-            <div key={s.id} className="pill" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
+            <div key={s.id} className="pill" style={{ justifyContent: 'space-between', fontSize: 13 }}>
               <span>{s.name}</span>
               <span style={{ display: 'flex', gap: 6 }}>
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => onLoadScenario(s)}>↺</button>
@@ -72,7 +72,7 @@ export function TargetSliders({
           ))}
         </div>
       )}
-      <p className="muted" style={{ fontSize: 11, marginTop: 8 }}>{t('cfo_session_note')}</p>
+      <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>{t('cfo_session_note')}</p>
     </div>
   );
 }

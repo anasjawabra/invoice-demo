@@ -10,15 +10,15 @@ export default function LiquidityHeatmap({ monthlySeries, monthLabels, money }) 
   const colorFor = (v) => {
     const intensity = Math.min(1, Math.abs(v) / maxAbs);
     return v >= 0
-      ? `rgba(62,133,64,${0.15 + intensity * 0.65})`
-      : `rgba(196,81,76,${0.15 + intensity * 0.65})`;
+      ? `rgba(27, 131, 84,${0.15 + intensity * 0.65})`
+      : `rgba(240, 68, 56,${0.15 + intensity * 0.65})`;
   };
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(monthlySeries.length, 6)}, 1fr)`, gap: 6 }}>
       {monthlySeries.map((r, i) => (
         <div key={r.month} style={{ background: colorFor(r.net ?? 0), borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
-          <div className="muted" style={{ fontSize: 10.5 }}>{monthLabels[i] || `M${r.month + 1}`}</div>
-          <div dir="ltr" style={{ fontSize: 12.5, fontWeight: 800, color: 'var(--heading)' }}>{r.net == null ? '—' : money(r.net)}</div>
+          <div className="muted" style={{ fontSize: 12 }}>{monthLabels[i] || `M${r.month + 1}`}</div>
+          <div dir="ltr" style={{ fontSize: 13, fontWeight: 700, color: 'var(--heading)' }}>{r.net == null ? '—' : money(r.net)}</div>
         </div>
       ))}
     </div>

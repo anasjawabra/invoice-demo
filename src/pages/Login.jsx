@@ -118,7 +118,7 @@ export default function Login() {
             </div>
           </div>
 
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>{t('welcome')}</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{t('welcome')}</h2>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>
@@ -213,7 +213,7 @@ export default function Login() {
               </div>
               <div className="sso-reserved" aria-disabled="true">
                 <span>{t('sso_reserved')}</span>
-                <span className="pill" style={{ fontSize: 11 }}>{t('sso_coming')}</span>
+                <span className="pill" style={{ fontSize: 12 }}>{t('sso_coming')}</span>
               </div>
             </div>
 

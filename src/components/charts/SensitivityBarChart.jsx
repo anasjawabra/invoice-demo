@@ -10,7 +10,7 @@ export default function SensitivityBarChart({ data, isRtl, money }) {
     labels: data.map((d) => d.key),
     datasets: [{
       data: data.map((d) => d.netPosition),
-      backgroundColor: data.map((d) => (d.netPosition >= 0 ? 'rgba(62,133,64,0.75)' : 'rgba(196,81,76,0.75)')),
+      backgroundColor: data.map((d) => (d.netPosition >= 0 ? 'rgba(27, 131, 84,0.75)' : 'rgba(240, 68, 56,0.75)')),
       borderRadius: 4,
       barPercentage: 0.6
     }]

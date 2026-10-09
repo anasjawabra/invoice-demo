@@ -253,7 +253,7 @@ function LayoutInner() {
                 <span
                   style={{
                     fontSize: 12,
-                    fontWeight: 800,
+                    fontWeight: 700,
                     whiteSpace: 'nowrap',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -282,16 +282,16 @@ function LayoutInner() {
             <div className="pill" style={{ gap: 10 }}>
               <div
                 className="badge badge--teal"
-                style={{ width: 34, height: 34, borderRadius: 14, paddingInline: 0, display: 'grid', placeItems: 'center' }}
+                style={{ width: 34, height: 34, borderRadius: 12, paddingInline: 0, display: 'grid', placeItems: 'center' }}
                 title={T(user, 'name')}
               >
                 {user?.avatar || 'U'}
               </div>
               <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 850, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                <span style={{ fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                   {T(user, 'name')}
                 </span>
-                <span style={{ fontSize: 11, color: 'var(--txt-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
+                <span style={{ fontSize: 12, color: 'var(--txt-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
                   {T(user, 'role')}
                 </span>
               </div>

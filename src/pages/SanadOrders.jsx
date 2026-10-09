@@ -68,7 +68,7 @@ export default function SanadOrders() {
           </table>
         </div>
         <Pager page={page} total={rows.length} size={25} onPage={setPage} />
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
           {L(`Illustrative portfolio statistics (not derived from the cases above): ${SANAD_ENFORCEMENT.ordersUnlinked} of ${SANAD_ENFORCEMENT.ordersIssued} issued orders reported without a linked invoice.`, `إحصاءات توضيحية للمحفظة (غير مشتقة من القضايا أعلاه): ${SANAD_ENFORCEMENT.ordersUnlinked} من ${SANAD_ENFORCEMENT.ordersIssued} أمراً صادراً بلا فاتورة مرتبطة.`)}
         </p>
       </div>

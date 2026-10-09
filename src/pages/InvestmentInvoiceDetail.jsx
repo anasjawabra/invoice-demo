@@ -163,7 +163,7 @@ export default function InvestmentInvoiceDetail() {
         {phase === 'done' && (
           <div className="ai-conclusion">
             <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
-            <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 12.5, lineHeight: 1.7 }}>
+            <div className="ai-conclusion__text" style={{ fontWeight: 700, fontSize: 13, lineHeight: 1.7 }}>
               {steps.map((s) => s.detail).join(' ')}
             </div>
             <div className="ai-conclusion__action" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>

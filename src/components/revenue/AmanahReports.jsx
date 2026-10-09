@@ -75,7 +75,7 @@ export function AmanahSourceReport({ snapshot, prev, comparable }) {
             ))}
             {!rows.length && <tr><td colSpan={comparable ? 8 : 5}><div className="rv-empty">{L('No invoices for this source in the selected period.', 'لا فواتير لهذا المصدر في الفترة المحددة.')}</div></td></tr>}
             {rows.length > 0 && (
-              <tr style={{ fontWeight: 900 }}>
+              <tr style={{ fontWeight: 700 }}>
                 <td>{L('Total', 'الإجمالي')}</td><td dir="ltr">{count(tot.count)}</td><td dir="ltr"><Amt v={tot.net} /></td><td dir="ltr"><Amt v={tot.collected} /></td>
                 <td dir="ltr">{totRate == null ? L('Not available', 'غير متاحة') : `${totRate.toFixed(1)}%`}</td>
                 {comparable && <><td dir="ltr">{totPrev == null ? '—' : `${totPrev.toFixed(1)}%`}</td><td dir="ltr">{ppText(totRate != null && totPrev != null ? totRate - totPrev : null)}</td><td /></>}
@@ -118,16 +118,16 @@ export function ExclusionMatrix({ snapshot }) {
             {rows.map((r) => (
               <tr key={r.key}>
                 <td>{B(labels.get(r.key)) || r.key}</td>
-                {cols.map((k) => <td key={k} dir="ltr">{r.cells[k] ? <><Amt v={r.cells[k].amount} /><div className="muted" style={{ fontSize: 11 }}>{count(r.cells[k].count)} {ar ? 'فاتورة' : 'inv.'}</div></> : '—'}</td>)}
-                <td dir="ltr"><Amt v={r.total} /><div className="muted" style={{ fontSize: 11 }}>{count(r.totalCount)} {ar ? 'فاتورة' : 'inv.'}</div></td>
+                {cols.map((k) => <td key={k} dir="ltr">{r.cells[k] ? <><Amt v={r.cells[k].amount} /><div className="muted" style={{ fontSize: 12 }}>{count(r.cells[k].count)} {ar ? 'فاتورة' : 'inv.'}</div></> : '—'}</td>)}
+                <td dir="ltr"><Amt v={r.total} /><div className="muted" style={{ fontSize: 12 }}>{count(r.totalCount)} {ar ? 'فاتورة' : 'inv.'}</div></td>
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={cols.length + 2}><div className="rv-empty">{L('No exclusions in the selected period.', 'لا استبعادات في الفترة المحددة.')}</div></td></tr>}
             {rows.length > 0 && (
-              <tr style={{ fontWeight: 900 }}>
+              <tr style={{ fontWeight: 700 }}>
                 <td>{L('Total', 'الإجمالي')}</td>
-                {cols.map((k) => <td key={k} dir="ltr"><Amt v={colTot[k].amount} /><div className="muted" style={{ fontSize: 11 }}>{count(colTot[k].count)} {ar ? 'فاتورة' : 'inv.'}</div></td>)}
-                <td dir="ltr" title={Math.abs(grand.amount - total) < 1 ? '' : 'mismatch'}><Amt v={grand.amount} /><div className="muted" style={{ fontSize: 11 }}>{count(grand.count)} {ar ? 'فاتورة' : 'inv.'}</div></td>
+                {cols.map((k) => <td key={k} dir="ltr"><Amt v={colTot[k].amount} /><div className="muted" style={{ fontSize: 12 }}>{count(colTot[k].count)} {ar ? 'فاتورة' : 'inv.'}</div></td>)}
+                <td dir="ltr" title={Math.abs(grand.amount - total) < 1 ? '' : 'mismatch'}><Amt v={grand.amount} /><div className="muted" style={{ fontSize: 12 }}>{count(grand.count)} {ar ? 'فاتورة' : 'inv.'}</div></td>
               </tr>
             )}
           </tbody>

@@ -27,7 +27,7 @@ export default function FilterChips() {
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
       </div>
       {open && <ScopeBar compact />}
-      {open && <div className="muted" style={{ fontSize: 11.5 }}>{L('تُحفظ المرشحات لهذه الجلسة وتُشارك بين لوحة المعلومات والتقارير الثابتة والصفحات التشغيلية. للتخطيط نطاقه الخاص، ولكل محادثة في التقارير الذكية نطاقها.', 'Filters are kept for this session and shared by the dashboard, fixed reports and operational pages. Planning has its own scope, and each Smart-report conversation has its own.')}</div>}
+      {open && <div className="muted" style={{ fontSize: 12 }}>{L('تُحفظ المرشحات لهذه الجلسة وتُشارك بين لوحة المعلومات والتقارير الثابتة والصفحات التشغيلية. للتخطيط نطاقه الخاص، ولكل محادثة في التقارير الذكية نطاقها.', 'Filters are kept for this session and shared by the dashboard, fixed reports and operational pages. Planning has its own scope, and each Smart-report conversation has its own.')}</div>}
     </>
   );
 }

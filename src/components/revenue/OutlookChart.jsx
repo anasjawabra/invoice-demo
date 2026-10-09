@@ -17,13 +17,13 @@ export default function OutlookChart({ labels, actual, target, forecast, low, hi
   const data = useMemo(() => {
     const ds = [
       { type: 'bar', label: L('Actual receipts', 'المقبوضات الفعلية'), data: actual, backgroundColor: 'rgba(27, 131, 84, 0.65)', borderRadius: 4, order: 3 },
-      { type: 'line', label: L('Approved target (demo input)', 'المستهدف المعتمد (مُدخل توضيحي)'), data: target, borderColor: '#6B57A6', backgroundColor: '#6B57A6', borderWidth: 2, pointRadius: 2, tension: 0.2, order: 2 },
-      { type: 'line', label: L('Indicative range (high)', 'النطاق الإرشادي (أعلى)'), data: high, borderColor: 'rgba(10, 111, 166, 0)', backgroundColor: 'rgba(10, 111, 166, 0.14)', pointRadius: 0, fill: '+1', order: 5 },
-      { type: 'line', label: L('Indicative range (low)', 'النطاق الإرشادي (أدنى)'), data: low, borderColor: 'rgba(10, 111, 166, 0)', backgroundColor: 'rgba(10, 111, 166, 0.14)', pointRadius: 0, fill: false, order: 5 },
-      { type: 'line', label: L('Independent forecast', 'التنبؤ المستقل'), data: forecast, borderColor: '#0A6FA6', backgroundColor: '#0A6FA6', borderWidth: 2.5, borderDash: [7, 5], pointRadius: 3, tension: 0.2, order: 1 }
+      { type: 'line', label: L('Approved target (demo input)', 'المستهدف المعتمد (مُدخل توضيحي)'), data: target, borderColor: '#6C737F', backgroundColor: '#6C737F', borderWidth: 2, pointRadius: 2, tension: 0.2, order: 2 },
+      { type: 'line', label: L('Indicative range (high)', 'النطاق الإرشادي (أعلى)'), data: high, borderColor: 'rgba(24, 73, 169, 0)', backgroundColor: 'rgba(24, 73, 169, 0.14)', pointRadius: 0, fill: '+1', order: 5 },
+      { type: 'line', label: L('Indicative range (low)', 'النطاق الإرشادي (أدنى)'), data: low, borderColor: 'rgba(24, 73, 169, 0)', backgroundColor: 'rgba(24, 73, 169, 0.14)', pointRadius: 0, fill: false, order: 5 },
+      { type: 'line', label: L('Independent forecast', 'التنبؤ المستقل'), data: forecast, borderColor: '#1849A9', backgroundColor: '#1849A9', borderWidth: 2.5, borderDash: [7, 5], pointRadius: 3, tension: 0.2, order: 1 }
     ];
     if (scenario && scenario.some((v) => v != null)) {
-      ds.push({ type: 'line', label: L('User scenario (separate)', 'سيناريو المستخدم (منفصل)'), data: scenario, borderColor: '#C4514C', backgroundColor: '#C4514C', borderWidth: 2, borderDash: [2, 4], pointRadius: 3, tension: 0.2, order: 0 });
+      ds.push({ type: 'line', label: L('User scenario (separate)', 'سيناريو المستخدم (منفصل)'), data: scenario, borderColor: '#F04438', backgroundColor: '#F04438', borderWidth: 2, borderDash: [2, 4], pointRadius: 3, tension: 0.2, order: 0 });
     }
     return { labels, datasets: ds };
   }, [labels, actual, target, forecast, low, high, scenario, lang]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -54,10 +54,10 @@ export default function OutlookChart({ labels, actual, target, forecast, low, hi
       </div>
       <div className="rv-legend" aria-hidden="true">
         <span style={{ color: '#1B8354' }}><i style={{ background: 'rgba(27,131,84,.65)', height: 8 }} />{L('Actual receipts', 'المقبوضات الفعلية')}</span>
-        <span style={{ color: '#6B57A6' }}><i style={{ background: '#6B57A6' }} />{L('Approved target (input)', 'المستهدف المعتمد (مُدخل)')}</span>
-        <span style={{ color: '#0A6FA6' }}><i className="dash" />{L('Independent forecast', 'التنبؤ المستقل')}</span>
-        <span style={{ color: '#0A6FA6' }}><i style={{ background: 'rgba(10,111,166,.2)', height: 8 }} />{L('Indicative range', 'النطاق الإرشادي')}</span>
-        {scenario && scenario.some((v) => v != null) && <span style={{ color: '#C4514C' }}><i className="dash" />{L('User scenario', 'سيناريو المستخدم')}</span>}
+        <span style={{ color: '#6C737F' }}><i style={{ background: '#6C737F' }} />{L('Approved target (input)', 'المستهدف المعتمد (مُدخل)')}</span>
+        <span style={{ color: '#1849A9' }}><i className="dash" />{L('Independent forecast', 'التنبؤ المستقل')}</span>
+        <span style={{ color: '#1849A9' }}><i style={{ background: 'rgba(24, 73, 169,.2)', height: 8 }} />{L('Indicative range', 'النطاق الإرشادي')}</span>
+        {scenario && scenario.some((v) => v != null) && <span style={{ color: '#F04438' }}><i className="dash" />{L('User scenario', 'سيناريو المستخدم')}</span>}
       </div>
       <details className="rv-table-alt">
         <summary>{L('Show data table', 'عرض جدول البيانات')} — {cu.title}</summary>

@@ -317,7 +317,7 @@ function DataServiceLoading() {
   return (
     <div role="status" aria-live="polite" style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }} dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>{ar ? 'جارٍ تجهيز البيانات التجريبية…' : 'Preparing the demo data…'}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{ar ? 'جارٍ تجهيز البيانات التجريبية…' : 'Preparing the demo data…'}</div>
         <div style={{ opacity: 0.7, fontSize: 13 }}>{ar ? 'تُحسب المؤشرات في خدمة البيانات؛ لا تُحمَّل الفواتير في المتصفح.' : 'Indicators are computed in the data service; invoices are never loaded into the browser.'}</div>
       </div>
     </div>
@@ -328,7 +328,7 @@ function DataServiceError({ error }) {
   return (
     <div role="alert" style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }} dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 6 }}>{ar ? 'تعذّر الوصول إلى خدمة البيانات' : 'The data service is not reachable'}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{ar ? 'تعذّر الوصول إلى خدمة البيانات' : 'The data service is not reachable'}</div>
         <div style={{ opacity: 0.7, fontSize: 13 }}>{String(error.message || error)}</div>
         <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>{ar ? 'إعادة المحاولة' : 'Retry'}</button>
       </div>

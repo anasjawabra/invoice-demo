@@ -52,7 +52,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
     <div className="st-grid" style={{ gridTemplateColumns: '1fr' }}>
       <div className="card st-card">
         <div className="st-section__title" style={{ fontSize: 16 }}>{L('مقترحات بانتظار المراجعة', 'Proposals awaiting review')} <small>{pend.length}</small></div>
-        <div className="muted" style={{ fontSize: 12.5 }}>{L('مقترحات محسوبة من بيانات المرشحات الحالية. ليست قرارات ولا مسندة لأحد حتى يعتمدها مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Proposals computed from the current filters. They are not decisions and not assigned to anyone until a reviewer approves them and sets the owner and due date.')}</div>
+        <div className="muted" style={{ fontSize: 13 }}>{L('مقترحات محسوبة من بيانات المرشحات الحالية. ليست قرارات ولا مسندة لأحد حتى يعتمدها مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Proposals computed from the current filters. They are not decisions and not assigned to anyone until a reviewer approves them and sets the owner and due date.')}</div>
         {lock && <div className="rv-callout rv-callout--warn">{L('صلاحيتك للعرض فقط: الاعتماد والإسناد والتعديل يتطلب صلاحية المراجعة.', 'You have read-only access: approving, assigning and editing need review permission.')}</div>}
         {!pend.length && <div className="rv-empty">{L('لا مقترحات معلّقة لهذا الاختيار.', 'No pending proposals for this selection.')}</div>}
         {pend.map((p) => (

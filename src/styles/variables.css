@@ -5,43 +5,43 @@
      ========================================================== */
 
   /* Brand */
-  --primary: #1B8354;    /* brand green */
-  --primary-2: #156a44;  /* green hover (darker) */
-  --primary-light: #2f9d67; /* lighter green, used for glow/hover accents */
-  --accent: #0d9668;     /* mint accent, page-title color */
-  --secondary: #0A6FA6;  /* blue, desaturated to sit beside the green-dominant palette */
-  --success: #3E8540;
-  --warning: #7a5200;
-  --danger: #C4514C;
+  --primary: #1B8354; /* DGA Saudi Green 600 */    /* brand green */
+  --primary-2: #166A45;  /* green hover (darker) */
+  --primary-light: #25935F; /* lighter green, used for glow/hover accents */
+  --accent: #166A45;     /* mint accent, page-title color */
+  --secondary: #175CD3;  /* blue, desaturated to sit beside the green-dominant palette */
+  --success: #067647;
+  --warning: #B54708;
+  --danger: #D92D20;
   --danger-text: #B42318; /* DGA Error 700 — AA on light grounds for small text */
   --focus-ring: #166A45; /* DGA SA 700: 7:1 on white */
   --ink-ok: #166A45; /* green TEXT on pale tints (the brand green fails AA there: 4.2:1) */
-  --low: #8a978f;        /* 4th neutral "no/low data" status */
+  --low: #6C737F;        /* 4th neutral "no/low data" status */
 
   /* Text */
-  --heading: #062a1e;
-  --txt: #0f2a20;
-  --txt-dim: #17402f;
-  --txt-mute: #436254;
-  --txt-mute-2: #557563;
+  --heading: #111927;
+  --txt: #1F2A37;
+  --txt-dim: #384250;
+  --txt-mute: #4D5761;
+  --txt-mute-2: #6C737F;
 
   /* Surfaces / backgrounds */
-  --bg-0: #eef3f0;    /* page background base */
-  --bg-0-rgb: 238, 243, 240;
+  --bg-0: #F3F4F6;    /* page background base */
+  --bg-0-rgb: 243, 244, 246;
   --bg-1: #FFFFFF;
   --bg-2: #FFFFFF;
-  --panel: rgba(255, 255, 255, 0.72);   /* glassy card fill */
+  --panel: #FFFFFF;   /* glassy card fill */
   --panel-solid: #FFFFFF;
-  --appbg: radial-gradient(1200px 720px at 80% -10%, #dcece4 0%, #eef3f0 46%, #e7efea 100%);
+  --appbg: #F3F4F6; /* flat page ground (DGA Gray 100) */
 
   /* Aliases consumed by global.css (previously dark var names) */
-  --bg: #eef3f0;
+  --bg: #F3F4F6;
   --surface: #FFFFFF;
-  --card: rgba(255, 255, 255, 0.72);
+  --card: #FFFFFF;
 
   /* Lines / borders — brand-tinted hairlines */
-  --line: rgba(27, 131, 84, 0.16);
-  --line-strong: rgba(27, 131, 84, 0.3);
+  --line: #E5E7EB;
+  --line-strong: #D2D6DB;
 
   /* Elevation — reference cards are flat/glassy, not elevated */
   --shadow: none;
@@ -55,14 +55,14 @@
   --gold: var(--warning);
   --green: var(--success);
   --red: var(--danger);
-  --orange: #9A5C00;
-  --purple: #6B57A6;
+  --orange: #B54708;
+  --purple: #384250;
   --blue: var(--secondary);
   --grey: var(--low);
 
   /* Geometry */
-  --radius: 14px;       /* cards / panels */
-  --radius-sm: 10px;    /* inputs */
+  --radius: 12px;       /* cards / panels */
+  --radius-sm: 8px;    /* inputs */
   --radius-pill: 999px; /* buttons / badges / tabs */
 
   /* Font stacks — IBM Plex Sans Arabic/Mono for the new look, falling back to the
@@ -73,7 +73,7 @@
           'Helvetica Neue', 'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
           'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
           sans-serif;
-  --num: 'IBM Plex Mono', var(--font), ui-monospace, monospace;
+  --num: var(--font); /* one family; tabular figures come from font-variant-numeric */
 }
 
 @media (prefers-color-scheme: dark) {

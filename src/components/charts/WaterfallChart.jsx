@@ -22,7 +22,7 @@ export default function WaterfallChart({ stages, labels, isRtl, money }) {
     labels: stages.map((s) => labels[s.key] || s.key),
     datasets: [{
       data: bars.map((b) => [b.start, b.end]),
-      backgroundColor: stages.map((s, i) => (i === 0 || i === stages.length - 1) ? 'rgba(10,111,166,0.75)' : (s.value >= 0 ? 'rgba(62,133,64,0.75)' : 'rgba(196,81,76,0.75)')),
+      backgroundColor: stages.map((s, i) => (i === 0 || i === stages.length - 1) ? 'rgba(24, 73, 169,0.75)' : (s.value >= 0 ? 'rgba(27, 131, 84,0.75)' : 'rgba(240, 68, 56,0.75)')),
       borderRadius: 4,
       barPercentage: 0.6
     }]

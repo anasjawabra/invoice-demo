@@ -16,12 +16,12 @@ import { L } from './util';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend, Filler);
 
-const GREEN = 'rgba(38, 99, 75, 0.85)';
-const GREEN_SOFT = 'rgba(38, 99, 75, 0.30)';
-const BLUE = 'rgba(0, 90, 150, 0.85)';
-const BLUE_SOFT = 'rgba(0, 90, 150, 0.28)';
-const RED = 'rgba(175, 8, 24, 0.80)';
-const GOLD = 'rgba(200, 135, 0, 0.80)';
+const GREEN = 'rgba(22, 106, 69, 0.85)';
+const GREEN_SOFT = 'rgba(22, 106, 69, 0.30)';
+const BLUE = 'rgba(24, 73, 169, 0.85)';
+const BLUE_SOFT = 'rgba(24, 73, 169, 0.28)';
+const RED = 'rgba(180, 35, 24, 0.80)';
+const GOLD = 'rgba(220, 104, 3, 0.80)';
 
 /**
  * TraceChart — compact, on-theme (green/blue) chart embedded inside an AI
@@ -43,7 +43,7 @@ export default function TraceChart({ chartType, payload }) {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false, rtl: isRtl },
-      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }
+      tooltip: { rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000', bodyColor: '#1F2A37', borderColor: '#E5E7EB', borderWidth: 1 }
     }
   }), [isRtl]);
 
@@ -57,7 +57,7 @@ export default function TraceChart({ chartType, payload }) {
           backgroundColor: payload.values.map((_, i) => (i === 0 ? RED : i === 1 ? GOLD : GREEN_SOFT)),
           borderColor: payload.values.map((_, i) => (i === 0 ? RED : i === 1 ? GOLD : GREEN)),
           borderWidth: 1,
-          borderRadius: 6,
+          borderRadius: 4,
           barThickness: 14
         }]
       };
@@ -65,8 +65,8 @@ export default function TraceChart({ chartType, payload }) {
         ...baseOptions,
         indexAxis: 'y',
         scales: {
-          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { position: isRtl ? 'right' : 'left', ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } }
+          x: { min: 0, max: payload.max || 100, reverse: isRtl, ticks: { color: '#6C737F' }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { position: isRtl ? 'right' : 'left', ticks: { color: '#6C737F', font: { size: 10 } }, grid: { display: false } }
         }
       };
       return { title: t('chart_factor'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -87,8 +87,8 @@ export default function TraceChart({ chartType, payload }) {
       const options = {
         ...baseOptions,
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
-          y: { min: 0, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: '#6C737F', font: { size: 10 } }, grid: { color: 'rgba(0,0,0,0.06)' } },
+          y: { min: 0, max: 100, ticks: { color: '#6C737F', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
       };
       return { title: t('chart_collection'), node: <Line ref={ref} data={data} options={options} /> };
@@ -98,16 +98,16 @@ export default function TraceChart({ chartType, payload }) {
       const data = {
         labels: resolveLabels(payload.labels),
         datasets: [
-          { label: t('recon_invoice'), data: payload.invoice, backgroundColor: BLUE_SOFT, borderColor: BLUE, borderWidth: 1, borderRadius: 5 },
-          { label: t('recon_bench'), data: payload.benchmark, backgroundColor: GREEN_SOFT, borderColor: GREEN, borderWidth: 1, borderRadius: 5 }
+          { label: t('recon_invoice'), data: payload.invoice, backgroundColor: BLUE_SOFT, borderColor: BLUE, borderWidth: 1, borderRadius: 4 },
+          { label: t('recon_bench'), data: payload.benchmark, backgroundColor: GREEN_SOFT, borderColor: GREEN, borderWidth: 1, borderRadius: 4 }
         ]
       };
       const options = {
         ...baseOptions,
-        plugins: { ...baseOptions.plugins, legend: { display: true, position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 8, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
+        plugins: { ...baseOptions.plugins, legend: { display: true, position: 'bottom', rtl: isRtl, labels: { color: '#6C737F', boxWidth: 8, font: { size: 10 }, usePointStyle: true, pointStyle: 'circle' } } },
         scales: {
-          x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } },
-          y: { ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+          x: { reverse: isRtl, ticks: { color: '#6C737F', font: { size: 10 } }, grid: { display: false } },
+          y: { ticks: { color: '#6C737F' }, grid: { color: 'rgba(0,0,0,0.06)' } }
         }
       };
       return { title: t('chart_bench'), node: <Bar ref={ref} data={data} options={options} /> };
@@ -121,15 +121,15 @@ export default function TraceChart({ chartType, payload }) {
         backgroundColor: [payload.declared === payload.expected ? GREEN_SOFT : RED, GREEN_SOFT, BLUE_SOFT],
         borderColor: [payload.declared === payload.expected ? GREEN : RED, GREEN, BLUE],
         borderWidth: 1,
-        borderRadius: 5,
+        borderRadius: 4,
         barThickness: 26
       }]
     };
     const options = {
       ...baseOptions,
       scales: {
-        x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 10 } }, grid: { display: false } },
-        y: { ticks: { color: '#6b8578' }, grid: { color: 'rgba(0,0,0,0.06)' } }
+        x: { reverse: isRtl, ticks: { color: '#6C737F', font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: '#6C737F' }, grid: { color: 'rgba(0,0,0,0.06)' } }
       }
     };
     return { title: t('chart_vat'), node: <Bar ref={ref} data={data} options={options} /> };

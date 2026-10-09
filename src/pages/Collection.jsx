@@ -77,7 +77,7 @@ export default function Collection() {
                   <td dir="auto" style={{ fontSize: 12 }}>
                     {B(w.nextStep)}
                     {detail === w.id && (
-                      <div className="muted" style={{ marginTop: 6, fontSize: 11 }}>
+                      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
                         {L(`Actionability ${w.actionability}; evidence quality ${w.evidenceQuality}. Priority = ${PRIORITY_WEIGHTS.amount}×amount + ${PRIORITY_WEIGHTS.aging}×aging + ${PRIORITY_WEIGHTS.actionability}×actionability + ${PRIORITY_WEIGHTS.evidence}×evidence (configurable weights, not truth). No probability of payment is shown: none is supported by the data.`, `القابلية ${w.actionability}؛ جودة الدليل ${w.evidenceQuality}. الأولوية = ${PRIORITY_WEIGHTS.amount}×المبلغ + ${PRIORITY_WEIGHTS.aging}×التقادم + ${PRIORITY_WEIGHTS.actionability}×القابلية + ${PRIORITY_WEIGHTS.evidence}×الدليل (أوزان قابلة للضبط وليست حقيقة). لا يُعرض احتمال سداد لعدم وجود ما يدعمه في البيانات.`)}
                         {w.tags.length > 0 && <div>{w.tags.join(' · ')}</div>}
                       </div>
@@ -88,7 +88,7 @@ export default function Collection() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with data problems (amount conflicts, missing fields, risk flags) are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات مشكلات البيانات (تعارض مبلغ، حقول ناقصة، تنبيهات مخاطر) فتُراجع في ')}<Link to="/risk">{L('Data Quality & Risk', 'جودة البيانات والمخاطر')}</Link>.</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with data problems (amount conflicts, missing fields, risk flags) are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات مشكلات البيانات (تعارض مبلغ، حقول ناقصة، تنبيهات مخاطر) فتُراجع في ')}<Link to="/risk">{L('Data Quality & Risk', 'جودة البيانات والمخاطر')}</Link>.</p>
       </div>
     </div>
   );

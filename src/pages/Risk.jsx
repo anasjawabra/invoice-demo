@@ -98,7 +98,7 @@ export default function Risk() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>{L('Risk-radar flags are rule-based signals (duplicate match, registry/debtor status, value versus the Amanah baseline). A flag is a reason to look, not a conclusion about the payer; an approved exclusion is a separate human decision made on the Noncollection screen.', 'تنبيهات رادار المخاطر إشارات قائمة على قواعد (تطابق تكرار، حالة السجل/المدين، القيمة مقابل معدل الأمانة). التنبيه سبب للمراجعة وليس حكماً على الدافع؛ والاستبعاد المعتمد قرار بشري منفصل يُتخذ في شاشة عدم التحصيل.')}</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Risk-radar flags are rule-based signals (duplicate match, registry/debtor status, value versus the Amanah baseline). A flag is a reason to look, not a conclusion about the payer; an approved exclusion is a separate human decision made on the Noncollection screen.', 'تنبيهات رادار المخاطر إشارات قائمة على قواعد (تطابق تكرار، حالة السجل/المدين، القيمة مقابل معدل الأمانة). التنبيه سبب للمراجعة وليس حكماً على الدافع؛ والاستبعاد المعتمد قرار بشري منفصل يُتخذ في شاشة عدم التحصيل.')}</p>
       </div>
     </div>
   );

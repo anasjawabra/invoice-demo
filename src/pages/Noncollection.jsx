@@ -146,16 +146,16 @@ export default function Noncollection() {
                       <td>{idx === 0 ? <Link to={`/invoices?id=${d.rec.id}`} dir="ltr">{d.rec.id}</Link> : <span className="muted">↳</span>}{idx === 0 && records.length > 1 && <span className="rv-tag" style={{ marginInlineStart: 6 }}>{records.length} {L('reasons', 'أسباب')}</span>}</td>
                       <td>{ex.category.replace(/_/g, ' ')} · <span dir="ltr">{ex.ruleId} v{ex.ruleVersion}</span>
                         {unapproved && <span className="rv-badge rv-badge--sm rv-badge--warn" style={{ marginInlineStart: 6 }}>{B(RULE_APPROVAL_LABEL.unapproved)}</span>}
-                        <div className="muted" style={{ fontSize: 11 }}>
+                        <div className="muted" style={{ fontSize: 12 }}>
                           {d.cancelled ? L('Invoice is CANCELLED: deducted once as cancelled — this reason is kept as evidence only', 'الفاتورة ملغاة: تُخصم مرة واحدة كملغاة — يبقى هذا السبب دليلاً فقط')
                             : isPrimary ? L('PRIMARY reason — reduces net billed (counted once)', 'السبب الرئيسي — يخفض صافي المفوتر (يُحتسب مرة)')
                               : effective ? L('Secondary reason — evidence only, not deducted again', 'سبب ثانوي — دليل فقط ولا يُخصم ثانية')
                                 : L('Does NOT reduce net billed (not approved, rule off or status not accepted)', 'لا يخفض صافي المفوتر (غير معتمد أو القاعدة معطّلة أو الحالة غير مقبولة)')}
                         </div></td>
                       <td className="num" dir="ltr">{idx === 0 ? sar(d.billedAfterAdj) : ''}</td>
-                      <td dir="auto" style={{ maxWidth: 260 }}>{B(ex.evidence)}{ex.sources?.length > 0 && <div className="muted" style={{ fontSize: 11 }}>{ex.sources.map((x) => `${x.system}: ${x.field} = ${x.value}`).join(' · ')}</div>}</td>
-                      <td><span className={`rv-cat ${ex.reviewStatus === 'approved' ? 'rv-cat--not_due' : ex.reviewStatus === 'rejected' ? 'rv-cat--overdue' : 'rv-cat--partial'}`}>{B(REVIEW_LABEL[ex.reviewStatus] || REVIEW_LABEL.pending)}</span><div style={{ fontSize: 11 }} className="muted"><ReviewerText r={ex.reviewer} /> {ex.reviewDate ? <span dir="ltr">· {ex.reviewDate}</span> : null}{hist.length > 0 ? ` · ${hist.length} ${L('decision(s)', 'قرار')}` : ''}</div></td>
-                      <td style={{ fontSize: 11.5 }}><span dir="ltr">{ex.effectiveFrom || '—'} → {ex.effectiveTo || L('open', 'مفتوح')}</span><div className="muted">{ex.reassessment === 'scheduled_annual' ? L('Reassess annually', 'إعادة تقييم سنوية') : L('Reassessment not started', 'لم تبدأ إعادة التقييم')}</div></td>
+                      <td dir="auto" style={{ maxWidth: 260 }}>{B(ex.evidence)}{ex.sources?.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{ex.sources.map((x) => `${x.system}: ${x.field} = ${x.value}`).join(' · ')}</div>}</td>
+                      <td><span className={`rv-cat ${ex.reviewStatus === 'approved' ? 'rv-cat--not_due' : ex.reviewStatus === 'rejected' ? 'rv-cat--overdue' : 'rv-cat--partial'}`}>{B(REVIEW_LABEL[ex.reviewStatus] || REVIEW_LABEL.pending)}</span><div style={{ fontSize: 12 }} className="muted"><ReviewerText r={ex.reviewer} /> {ex.reviewDate ? <span dir="ltr">· {ex.reviewDate}</span> : null}{hist.length > 0 ? ` · ${hist.length} ${L('decision(s)', 'قرار')}` : ''}</div></td>
+                      <td style={{ fontSize: 12 }}><span dir="ltr">{ex.effectiveFrom || '—'} → {ex.effectiveTo || L('open', 'مفتوح')}</span><div className="muted">{ex.reassessment === 'scheduled_annual' ? L('Reassess annually', 'إعادة تقييم سنوية') : L('Reassessment not started', 'لم تبدأ إعادة التقييم')}</div></td>
                       <td style={{ minWidth: 190 }}>
                         <input className="input" style={{ width: '100%', padding: '5px 8px', marginBottom: 5 }} placeholder={L('Review note', 'ملاحظة المراجعة')} aria-label={L('Review note', 'ملاحظة المراجعة')} value={note[`${d.rec.id}|${ex.ruleId}`] || ''} onChange={(e) => setNote({ ...note, [`${d.rec.id}|${ex.ruleId}`]: e.target.value })} disabled={!canReview} />
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -199,13 +199,13 @@ export default function Noncollection() {
                   <td className="num" dir="ltr">{r.locked ? '—' : r.priority}</td>
                   <td className="num">{r.primaryCount}</td><td className="num">{r.secondaryCount}</td><td className="num">{r.pendingCandidates}</td><td className="num">{r.primaryAmount ? short(r.primaryAmount) : '—'}</td>
                   {regOpen && (<>
-                    <td style={{ fontSize: 11.5, minWidth: 220 }} dir="auto">{B(r.definition)}<div className="muted">{B(r.note)}</div></td>
-                    <td style={{ fontSize: 11.5 }} dir="auto">{(r.sources || []).map((x) => B(x)).join(' · ')}<div className="muted">{(r.fields || []).join('، ')}</div></td>
-                    <td dir="ltr" style={{ fontSize: 11.5 }}>{r.effectiveFrom || L('not in force', 'غير سارية')}</td>
-                    <td style={{ fontSize: 11.5 }}>{B(r.scope)}</td>
-                    <td style={{ fontSize: 11.5 }} dir="auto">{B(r.evidence)}</td>
-                    <td style={{ fontSize: 11.5 }} dir="auto">{B(r.effect)}</td>
-                    <td style={{ fontSize: 11.5 }}>{B(r.owner)}</td>
+                    <td style={{ fontSize: 12, minWidth: 220 }} dir="auto">{B(r.definition)}<div className="muted">{B(r.note)}</div></td>
+                    <td style={{ fontSize: 12 }} dir="auto">{(r.sources || []).map((x) => B(x)).join(' · ')}<div className="muted">{(r.fields || []).join('، ')}</div></td>
+                    <td dir="ltr" style={{ fontSize: 12 }}>{r.effectiveFrom || L('not in force', 'غير سارية')}</td>
+                    <td style={{ fontSize: 12 }}>{B(r.scope)}</td>
+                    <td style={{ fontSize: 12 }} dir="auto">{B(r.evidence)}</td>
+                    <td style={{ fontSize: 12 }} dir="auto">{B(r.effect)}</td>
+                    <td style={{ fontSize: 12 }}>{B(r.owner)}</td>
                   </>)}
                 </tr>
               ))}
@@ -225,7 +225,7 @@ export default function Noncollection() {
           <label>{L('Grace days — collection reporting (unresolved; enforcement referral has its own, not set)', 'أيام السماح — تقارير التحصيل (غير محسومة؛ وللإحالة للتنفيذ معيار مستقل غير مُحدَّد)')}
             <input className="input" type="number" min="0" max="120" value={cfg.graceDays} onChange={(e) => rev.setGraceDays(e.target.value)} style={{ width: 110 }} disabled={!canReview} />
           </label>
-          <div className="muted" style={{ fontSize: 12.5, maxWidth: 420 }}>{L('Collected counts payments up to the END of the selected period in every view (approved rule). Collections up to today are shown separately, labelled, on request.', 'يحتسب المحصّل المدفوعات حتى نهاية الفترة المحددة في كل الواجهات (قاعدة معتمدة). أما التحصيل حتى اليوم فيُعرض منفصلاً وبوسمه عند الطلب.')}</div>
+          <div className="muted" style={{ fontSize: 13, maxWidth: 420 }}>{L('Collected counts payments up to the END of the selected period in every view (approved rule). Collections up to today are shown separately, labelled, on request.', 'يحتسب المحصّل المدفوعات حتى نهاية الفترة المحددة في كل الواجهات (قاعدة معتمدة). أما التحصيل حتى اليوم فيُعرض منفصلاً وبوسمه عند الطلب.')}</div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetConfig} disabled={!canReview}>{L('Reset to defaults', 'إعادة الضبط')}</button>
         </div>
       </div>
