@@ -3,7 +3,7 @@
 //
 // Amounts are STORED and CALCULATED in SAR. For display every amount carries ONE appropriate unit chosen from its size:
 //   SAR (< 1,000) · ألف / thousand (≥ 1,000) · مليون / million (≥ 1,000,000) · مليار / billion (≥ 1,000,000,000)
-// e.g. 14,918,396,920 → «14.92 مليار SAR»; 7,834 → «7.83 ألف SAR».
+// e.g. 14,918,396,920 → «14.92 مليار ريال» (Arabic) / «14.92 bn SAR» (English); 7,834 → «7.83 ألف ريال».
 // Inside ONE table or chart all amounts share ONE unit (pickUnit over the largest value) so columns stay comparable.
 // Exact SAR stays available in tooltips, invoice/evidence tables and exports. Never apply this to ratios, counts, days or identifiers.
 // ============================================================================
@@ -21,7 +21,8 @@ export function pickUnit(maxAbs) {
   if (a >= 0.9995e3) return UNITS.K;
   return UNITS.S;
 }
-export const unitLabel = (u, lang = 'ar') => `${u.key === 'S' ? '' : `${lang === 'ar' ? u.ar : u.en} `}SAR`;
+// one currency style per language: «ريال» in Arabic text, «SAR» in English (the ISO code stays in file columns, ids and exact-amount sheets)
+export const unitLabel = (u, lang = 'ar') => `${u.key === 'S' ? '' : `${lang === 'ar' ? u.ar : u.en} `}${lang === 'ar' ? 'ريال' : 'SAR'}`;
 export const unitOfValues = (values) => pickUnit(Math.max(0, ...(values || []).map((v) => Math.abs(Number(v) || 0))));
 
 const trim = (s) => (s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s);
@@ -59,10 +60,10 @@ export function fmtMoney(amountSar, { lang = 'ar', mode = 'card', unit = 'auto',
 export const fmtBn = fmtMoney;
 
 // exact SAR (tooltips, invoice/evidence tables, exports)
-export function fmtSar(amountSar) {
+export function fmtSar(amountSar, lang = 'en') {
   const a = Number(amountSar);
   if (!Number.isFinite(a)) return '—';
-  return `${a.toLocaleString('en-US', { maximumFractionDigits: 2 })} SAR`;
+  return `${a.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${lang === 'ar' ? 'ريال' : 'SAR'}`;
 }
 
 // Chart helper: ONE unit for the whole chart, its axis title, ticks and tooltips.

@@ -81,7 +81,7 @@ export default function Risk() {
         </div>
         <div className="rv-table-wrap">
           <table className="rv-table" style={{ minWidth: 820 }}>
-            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th className="num">{L('Billed (SAR)', 'المفوتر (SAR)')}</th><th>{L('Collection', 'التحصيل')}</th><th>{L('Issues', 'المشكلات')}</th><th /></tr></thead>
+            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th className="num">{L('Billed (SAR)', 'المفوتر (ريال)')}</th><th>{L('Collection', 'التحصيل')}</th><th>{L('Issues', 'المشكلات')}</th><th /></tr></thead>
             <tbody>
               {filtered.length ? filtered.map((it) => (
                 <tr key={it.id}>

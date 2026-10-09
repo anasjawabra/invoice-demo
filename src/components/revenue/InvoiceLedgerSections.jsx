@@ -150,7 +150,7 @@ export default function InvoiceLedgerSections({ rec, der, cls, reasons, card, on
           <Row k={L('Cancelled', 'الملغى')}><span dir="ltr">{der.cancelled ? `−${sar(der.cancelledAmount)}` : '0'}</span></Row>
           <Row k={L('Excluded (primary reason only)', 'المستبعد (السبب الرئيسي فقط)')}><span dir="ltr">{der.excluded ? `−${sar(der.exclusionAmount)}` : '0'}</span></Row>
           <Row k={L('Net billed', 'صافي المفوتر')}><span dir="ltr">{sar(der.net)}</span></Row>
-          <Row k={L('Net uncollected', 'صافي غير المحصل')}><span dir="ltr">{sar(der.outstanding)}</span>{der.outstanding > 0 && snapshot.stock.netUncollected > 0 && <small className="muted"> · {(der.outstanding / snapshot.stock.netUncollected * 100).toFixed(1)}% {L('of the net uncollected in scope', 'من صافي غير المحصل في النطاق')}</small>}</Row>
+          <Row k={L('Net uncollected', 'الرصيد القائم')}><span dir="ltr">{sar(der.outstanding)}</span>{der.outstanding > 0 && snapshot.stock.netUncollected > 0 && <small className="muted"> · {(der.outstanding / snapshot.stock.netUncollected * 100).toFixed(1)}% {L('of the net uncollected in scope', 'من الرصيد القائم في النطاق')}</small>}</Row>
           <Row k={L('Counted once', 'تُحتسب مرة واحدة')}>{L('Multiple items, reasons or registrations never repeat this invoice in a total.', 'تعدد البنود أو الأسباب أو السجلات لا يكرر هذه الفاتورة في أي إجمالي.')}</Row>
         </div>
       </div>

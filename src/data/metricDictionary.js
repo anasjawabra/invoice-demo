@@ -46,7 +46,7 @@ const ENTRIES = [
     formula: BI('Σ المدفوعات المؤرخة ضمن الفترة', 'Σ payments dated within the period'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('تاريخ الدفع', 'Payment date'),
     caveat: BI('مجتمع مختلف عن "المحصّل"؛ لا يُقسم على صافي مفوتر الفترة.', 'A different population from "Collected"; never divided by period-issued net billed.') },
-  { key: 'netUncollected', kind: 'stock', sources: ['tahseel', 'makeen', 'efaa'], label: BI('صافي غير المحصل', 'Net uncollected'),
+  { key: 'netUncollected', kind: 'stock', sources: ['tahseel', 'makeen', 'efaa'], label: BI('الرصيد القائم', 'Standing balance (net uncollected)'),
     definition: BI('رصيد الفواتير الصادرة حتى تاريخ القطع ولم تُسدَّد، بعد استبعاد الملغاة والمستبعدة (دون تداخل). يشمل ما لم يحن استحقاقه ويُفصل عن المتأخر.', 'Standing balance of invoices issued up to the cutoff and still unpaid, after removing cancelled and excluded (non-overlapping). Includes not-yet-due amounts, shown apart from arrears.'),
     formula: BI('رقم تقرير غير المسدد − فروقات المطابقة − الملغاة − المستبعدة (غير المتداخلة) + فواتير بعد التقرير + النطاق الداخلي', 'Unpaid report − reconciliation differences − cancelled − excluded (non-overlapping) + invoices after the report + internal scope'),
     period: BI('رصيد في تاريخ القطع', 'Standing balance at the cutoff'), dateBasis: BI('كل ما صدر حتى تاريخ القطع، بغض النظر عن الفترة المحددة', 'Everything issued up to the cutoff, regardless of the selected period') },

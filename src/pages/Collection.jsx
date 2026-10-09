@@ -48,7 +48,7 @@ export default function Collection() {
       <ScopeBar />
 
       <div className="rv-tiles">
-        <MetricTile metric="outstanding" label={L('Outstanding (not excluded)', 'المتبقي (غير المستبعد)')} value={short(T.outstanding)} sub={L(`${count(totalN)} invoices`, `${count(totalN)} فاتورة`)} />
+        <MetricTile metric="outstanding" label={L('Uncollected (not excluded)', 'غير المحصّل (غير المستبعد)')} value={short(T.outstanding)} sub={L(`${count(totalN)} invoices`, `${count(totalN)} فاتورة`)} />
         <MetricTile label={L('Actionable now (overdue + partial)', 'قابل للإجراء الآن (متأخر + جزئي)')} value={short(actionableAmt)} sub={L(`${count(actionableN)} invoices; oldest ${maxAge} days overdue`, `${count(actionableN)} فاتورة؛ الأقدم متأخرة ${maxAge} يوماً`)} />
         <MetricTile label={L('Not yet due', 'لم يحن استحقاقها')} value={short(snapshot.noncollection.not_due.amount)} sub={L('No action yet — monitor', 'لا إجراء بعد — مراقبة')} />
         <MetricTile label={L('Blocked (objection / link / data)', 'معطّل (اعتراض / ربط / بيانات)')} value={short(snapshot.noncollection.objection.amount + snapshot.noncollection.linkage_unresolved.amount + snapshot.noncollection.ineligible_referral.amount)} sub={L('Resolve the blocker first', 'احسم المعطّل أولاً')} />
@@ -63,7 +63,7 @@ export default function Collection() {
         </div>
         <div className="rv-table-wrap">
           <table className="rv-table" style={{ minWidth: 820 }}>
-            <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Outstanding (SAR)', 'المتبقي (SAR)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Suggested next step', 'الخطوة المقترحة')}</th></tr></thead>
+            <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Outstanding (SAR)', 'المتبقي (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Suggested next step', 'الخطوة المقترحة')}</th></tr></thead>
             <tbody>
               {rows.length ? rows.map((w, i) => (
                 <tr key={w.id} data-clickable="true" onClick={() => setDetail(detail === w.id ? null : w.id)}>

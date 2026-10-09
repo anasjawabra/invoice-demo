@@ -24,10 +24,10 @@ export function UncollectedBridge({ bridge, stock }) {
   const canc = bridge.steps.find((s) => s.key === 'cancelled');
   const ok = Math.abs(bridge.check) < 0.5;
   return (
-    <div className="card card-pad rv-bridge" aria-label={L('Net uncollected bridge', 'جسر صافي غير المحصل')}>
+    <div className="card card-pad rv-bridge" aria-label={L('Net uncollected bridge', 'جسر الرصيد القائم')}>
       <div className="rv-card__head">
         <div>
-          <h3 className="rv-sec-title">{L('Net-uncollected bridge', 'جسر صافي غير المحصل')}</h3>
+          <h3 className="rv-sec-title">{L('Net-uncollected bridge', 'جسر الرصيد القائم')}</h3>
           <p className="rv-sec-sub">{L(`From the unpaid report (${bridge.reportDate}) to the details report (${bridge.detailsDate}). The report repeats the invoice value on every line, so lines are collapsed to one row per invoice first.`, `من تقرير غير المسدد (${bridge.reportDate}) إلى بيان التفاصيل (${bridge.detailsDate}). يكرر التقرير قيمة الفاتورة في كل بند لذا تُجمع البنود أولاً في صف واحد لكل فاتورة.`)}</p>
         </div>
         <span className={`rv-badge rv-badge--sm ${ok ? 'rv-badge--good' : 'rv-badge--bad'}`}>{ok ? L('Reconciled', 'مطابق حسابياً') : L('Does not reconcile', 'غير مطابق')}</span>
@@ -59,7 +59,7 @@ export function UncollectedBridge({ bridge, stock }) {
           );
         })}
         <div className="rv-bridge__row rv-bridge__row--net" role="row">
-          <span role="cell"><b>{L('Net uncollected', 'صافي غير المحصل')}</b></span>
+          <span role="cell"><b>{L('Net uncollected', 'الرصيد القائم')}</b></span>
           <span className="rv-bridge__track" aria-hidden="true"><i style={{ insetInlineStart: 0, width: `${(bridge.net / max) * 100}%` }} /></span>
           <span role="cell" className="rv-bridge__val" dir="ltr"><b>{short(bridge.net)}</b></span>
           <small className="muted" role="cell">{L(`overdue ${short(stock.overdue)} · not yet due ${short(stock.notYetDue)}`, `متأخر ${short(stock.overdue)} · لم يحن ${short(stock.notYetDue)}`)}</small>
@@ -74,7 +74,7 @@ export function UncollectedBridge({ bridge, stock }) {
       ) : bridge.unmatched.scopedOut ? (
         <div className="rv-callout" style={{ marginTop: 10 }}>{L(`Report-only invoices carry no Amanah, so the ${bridge.unmatched.nationalCount} unmatched rows (${money(bridge.unmatched.nationalAmount)}) appear in the national view only.`, `فواتير التقرير غير المطابقة لا تحمل أمانة لذا تظهر ${bridge.unmatched.nationalCount} صفوف (${money(bridge.unmatched.nationalAmount)}) في العرض الوطني فقط.`)}</div>
       ) : null}
-      <p className="rv-sec-sub" style={{ marginTop: 8 }}>{L('Net billed (a period flow) is not net uncollected (a standing balance). Cancelled and excluded amounts are deducted once; an amount already removed as cancelled is never removed again as excluded.', 'صافي المفوتر (تدفق لفترة) ليس صافي غير المحصل (رصيد قائم). تُخصم الملغاة والمستبعدة مرة واحدة؛ والمبلغ المخصوم كملغى لا يُخصم ثانية كمستبعد.')}</p>
+      <p className="rv-sec-sub" style={{ marginTop: 8 }}>{L('Net billed (a period flow) is not net uncollected (a standing balance). Cancelled and excluded amounts are deducted once; an amount already removed as cancelled is never removed again as excluded.', 'صافي المفوتر (تدفق لفترة) ليس الرصيد القائم (رصيد قائم). تُخصم الملغاة والمستبعدة مرة واحدة؛ والمبلغ المخصوم كملغى لا يُخصم ثانية كمستبعد.')}</p>
       {(exc?.detail?.unapprovedRules > 0) && <span className="rv-badge rv-badge--sm rv-badge--warn">{L('Includes exclusions under unapproved rules', 'يتضمن استبعادات وفق قواعد غير معتمدة')}</span>}
     </div>
   );
@@ -147,7 +147,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
         <label className="rv-inline">{L('Sort', 'الترتيب')}
           <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={L('Sort Amanahs', 'ترتيب الأمانات')}>
             <option value="attention">{L('Needs attention (outstanding ÷ own net)', 'الأحوج للانتباه (المتبقي ÷ صافيها)')}</option>
-            <option value="amount">{L('Outstanding amount', 'مبلغ المتبقي')}</option>
+            <option value="amount">{L('Outstanding amount', 'مبلغ غير المحصّل')}</option>
             <option value="rate">{L('Lowest rate', 'أدنى نسبة')}</option>
             <option value="trend">{L('Worst trend', 'أسوأ اتجاه')}</option>
           </select>
@@ -160,7 +160,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
             <th>{L('Size (net billed)', 'الحجم (صافي المفوتر)')}</th>
             <th className="num">{L('Collected ÷ net', 'المحصّل ÷ الصافي')}</th>
             <th className="num">{L('Trend (pp)', 'الاتجاه (نقطة)')}</th>
-            <th className="num">{L('Outstanding', 'المتبقي')}</th>
+            <th className="num">{L('Uncollected', 'غير المحصّل')}</th>
             <th className="num">{L('% of own net', '% من صافيها')}</th>
             <th className="num">{L('% of total', '% من الإجمالي')}</th>
           </tr></thead>

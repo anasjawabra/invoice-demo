@@ -64,7 +64,7 @@ export function answerFor(intent, out, { lang = 'en' } = {}) {
       `${head}. Uncollected ${M(T.outstanding)} (= net billed ${M(T.net)} − collected ${M(T.collected)}). By invoice state — ${parts.join('; ') || 'none'}. These are states read from the records. The data does not record why a payer has not paid, so the cause of non-payment could not be established; possible reasons (cash-flow, dispute, administrative delay) are hypotheses to verify. Approved exclusions (${M(T.exclusions)}) are removed from the denominator and are not declared uncollectible. ${demo}`,
       `${head}. غير المحصّل ${M(T.outstanding)} (= صافي المفوتر ${M(T.net)} − المحصّل ${M(T.collected)}). حسب حالة الفاتورة — ${parts.join('؛ ') || 'لا شيء'}. هذه حالات مقروءة من السجلات. لا تسجل البيانات سبب عدم سداد الدافع، لذا تعذّر إثبات السبب؛ والأسباب المحتملة (سيولة، نزاع، تأخر إداري) فرضيات تحتاج تحققاً. الاستبعادات المعتمدة (${M(T.exclusions)}) خارج المقام ولا تُعدّ غير قابلة للتحصيل. ${demo}`
     );
-    facts.push({ k: L('Outstanding', 'المتبقي'), v: M(T.outstanding) }, { k: L('Overdue', 'متأخرة'), v: M(nc.overdue.amount + nc.partial.amount) }, { k: L('Under objection', 'قيد الاعتراض'), v: M(nc.objection.amount) });
+    facts.push({ k: L('Uncollected', 'غير المحصّل'), v: M(T.outstanding) }, { k: L('Overdue', 'متأخرة'), v: M(nc.overdue.amount + nc.partial.amount) }, { k: L('Under objection', 'قيد الاعتراض'), v: M(nc.objection.amount) });
   } else if (intent === 'exclusions') {
     const cats = Object.entries(snap.exclusionsByCategory).map(([k, e]) => `${k.replace(/_/g, ' ')}: ${cnt(e.count)} / ${M(e.amount)}`);
     text = L(

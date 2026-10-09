@@ -40,7 +40,7 @@ function Table({ b }) {
         <table className="table" aria-label={b.title}>
           <thead><tr>{t.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
           <tbody>
-            {t.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'} title={b.headers[j].kind === 'money' && typeof b.rows[i][j] === 'number' ? fmtSar(b.rows[i][j]) : undefined}>{c}</td>)}</tr>)}
+            {t.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'} title={b.headers[j].kind === 'money' && typeof b.rows[i][j] === 'number' ? fmtSar(b.rows[i][j], lang) : undefined}>{c}</td>)}</tr>)}
             {!t.rows.length && <tr><td colSpan={t.headers.length}><div className="rv-empty">{L('لا بيانات في هذا الاختيار.', 'No data in this selection.')}</div></td></tr>}
             {t.total && t.rows.length > 0 && <tr style={{ fontWeight: 900 }}>{t.total.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>}
           </tbody>
@@ -55,7 +55,7 @@ function Chart({ b }) {
   const { lang, isRtl } = useL();
   const { cu } = useMemo(() => chartInfo(b, lang), [b, lang]);
   const data = useMemo(() => ({ labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderRadius: 3 })) }), [b]);
-  const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : cu.fmt(c.parsed.y)}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y)) } } }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
+  const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : cu.fmt(c.parsed.y)}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y, lang)) } } }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
   return (
     <div>
       {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}</h4>}
@@ -65,10 +65,10 @@ function Chart({ b }) {
 }
 
 function Block({ b }) {
-  const { ar } = useL(); const L = (a, e) => (ar ? a : e); // eslint-disable-line no-unused-vars
+  const { ar, lang } = useL(); const L = (a, e) => (ar ? a : e); // eslint-disable-line no-unused-vars
   if (b.type === 'text') return <p style={{ lineHeight: 1.9, fontSize: 14 }} dir="auto">{b.text}</p>;
   if (b.type === 'kpis') return (
-    <div className="rv-tiles">{b.items.map((m) => <div key={m.label} className="rv-tile" title={m.raw != null && typeof m.raw === 'number' && m.raw > 1 ? fmtSar(m.raw) : undefined}><div className="rv-tile__label">{m.label}</div><div className="rv-tile__value" dir="ltr" style={{ fontSize: 18 }}>{m.value}</div><div className="rv-tile__sub">{m.sub}</div></div>)}</div>
+    <div className="rv-tiles">{b.items.map((m) => <div key={m.label} className="rv-tile" title={m.raw != null && typeof m.raw === 'number' && m.raw > 1 ? fmtSar(m.raw, lang) : undefined}><div className="rv-tile__label">{m.label}</div><div className="rv-tile__value" dir="ltr" style={{ fontSize: 18 }}>{m.value}</div><div className="rv-tile__sub">{m.sub}</div></div>)}</div>
   );
   if (b.type === 'relations') return <div className="card card-pad"><FinancialRelations totals={b.totals} /></div>;
   if (b.type === 'table') return <Table b={b} />;

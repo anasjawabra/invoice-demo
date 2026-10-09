@@ -13,7 +13,7 @@ export function useL() {
   const money = (n, unit = 'auto') => fmtMoney(n, { lang, unit });
   const short = money;
   const detail = (n) => fmtMoney(n, { lang, mode: 'detail' }); // exact conversion (tooltips / detail panes)
-  const sar = (n) => fmtSar(n); // full SAR: invoice / evidence tables and exports
+  const sar = (n) => fmtSar(n, lang); // full SAR: invoice / evidence tables and exports
   const num = (n, unit = 'auto') => fmtMoney(n, { lang, unit, withUnit: false }); // number only, for a column/axis whose title carries the unit
   const parts = (n, unit = 'auto') => fmtParts(n, { lang, unit });
   const unitFor = (values) => unitOfValues(values);

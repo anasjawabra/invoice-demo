@@ -11,7 +11,7 @@ export const OBJECTIVE_METRICS = {
   collection_rate: { ar: 'نسبة التحصيل (%)', en: 'Collection rate (%)', unit: 'pct', higherIsBetter: true },
   exclusion_rate: { ar: 'نسبة الاستبعاد (%)', en: 'Exclusion rate (%)', unit: 'pct', higherIsBetter: false },
   overdue_share: { ar: 'المتأخر من صافي المفوتر (%)', en: 'Overdue share of net billed (%)', unit: 'pct', higherIsBetter: false },
-  receipts_ytd: { ar: 'المقبوضات منذ بداية السنة (SAR)', en: 'Receipts year to date (SAR)', unit: 'sar', higherIsBetter: true },
+  receipts_ytd: { ar: 'المقبوضات منذ بداية السنة (ريال)', en: 'Receipts year to date (SAR)', unit: 'sar', higherIsBetter: true },
   budget_execution: { ar: 'نسبة الصرف من الميزانية المتناسبة (%)', en: 'Payments ÷ prorated budget (%)', unit: 'pct', higherIsBetter: null },
   coverage: { ar: 'تغطية الإنفاق التشغيلي من الإيرادات (%)', en: 'Operating-expenditure coverage (%)', unit: 'pct', higherIsBetter: true }
 };

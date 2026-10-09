@@ -104,7 +104,7 @@ export default function Noncollection() {
         </div>
         <div className="rv-table-wrap">
           <table className="rv-table">
-            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (SAR)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th>{L('Signals', 'الإشارات')}</th></tr></thead>
+            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th>{L('Signals', 'الإشارات')}</th></tr></thead>
             <tbody>
               {rows.length ? rows.map((r) => (
                 <tr key={r.id}>

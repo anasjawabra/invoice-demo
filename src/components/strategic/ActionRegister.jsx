@@ -92,7 +92,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
             <div className="st-field"><label htmlFor="m-owner">{L('المسؤول', 'Owner')}</label><input id="m-owner" className="input" value={mf.owner} onChange={(e) => setMf({ ...mf, owner: e.target.value })} /></div>
             <div className="st-field"><label htmlFor="m-due">{L('تاريخ الاستحقاق', 'Due date')}</label><input id="m-due" type="date" className="input" min={today} value={mf.dueDate} onChange={(e) => setMf({ ...mf, dueDate: e.target.value })} /></div>
             <div className="st-field"><label htmlFor="m-pr">{L('الأولوية', 'Priority')}</label><select id="m-pr" className="select" value={mf.priority} onChange={(e) => setMf({ ...mf, priority: e.target.value })}>{Object.entries(PRIORITY_LABEL).map(([k, v]) => <option key={k} value={k}>{tx(v, ar)}</option>)}</select></div>
-            <div className="st-field"><label htmlFor="m-imp">{L('الأثر المتوقع (SAR، اختياري)', 'Expected impact (SAR, optional)')}</label><input id="m-imp" type="number" className="input" min="0" value={mf.impact} onChange={(e) => setMf({ ...mf, impact: e.target.value })} /></div>
+            <div className="st-field"><label htmlFor="m-imp">{L('الأثر المتوقع (ريال، اختياري)', 'Expected impact (SAR, optional)')}</label><input id="m-imp" type="number" className="input" min="0" value={mf.impact} onChange={(e) => setMf({ ...mf, impact: e.target.value })} /></div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-primary btn-sm" disabled={!mf.title.trim()} onClick={addManual}>{L('إضافة كمقترح للمراجعة', 'Add as a proposal for review')}</button></div>
           </div>
         )}
@@ -123,7 +123,7 @@ export default function ActionRegister({ register, setRegister, proposals, canEd
               </div>
               {outcome === a.id && (
                 <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-                  <div className="st-field"><label htmlFor={`oa-${a.id}`}>{L('المبلغ المحقق فعلاً (SAR، اختياري)', 'Amount actually achieved (SAR, optional)')}</label><input id={`oa-${a.id}`} type="number" className="input" min="0" value={of.amount} onChange={(e) => setOf({ ...of, amount: e.target.value })} /></div>
+                  <div className="st-field"><label htmlFor={`oa-${a.id}`}>{L('المبلغ المحقق فعلاً (ريال، اختياري)', 'Amount actually achieved (SAR, optional)')}</label><input id={`oa-${a.id}`} type="number" className="input" min="0" value={of.amount} onChange={(e) => setOf({ ...of, amount: e.target.value })} /></div>
                   <div className="st-field"><label htmlFor={`on-${a.id}`}>{L('ملاحظة النتيجة', 'Outcome note')}</label><input id={`on-${a.id}`} className="input" value={of.note} onChange={(e) => setOf({ ...of, note: e.target.value })} /></div>
                   <div style={{ display: 'flex', gap: 6, alignItems: 'end' }}><button type="button" className="btn btn-sm btn-primary" onClick={() => { setRegister((r) => updateAction(r, a.id, { outcome: { amount: of.amount === '' ? null : Number(of.amount), note: of.note, at: new Date().toISOString() } }, by)); setOutcome(null); }}>{L('تسجيل النتيجة', 'Record outcome')}</button></div>
                 </div>

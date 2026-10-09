@@ -38,7 +38,7 @@ export default function OutlookChart({ labels, actual, target, forecast, low, hi
       tooltip: {
         rtl: isRtl,
         filter: (item) => !/range/i.test(item.dataset.label),
-        callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : fmtMoney(c.parsed.y, { lang: lang === 'ar' ? 'ar' : 'en', unit: cu.unit })}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y)) }
+        callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : fmtMoney(c.parsed.y, { lang: lang === 'ar' ? 'ar' : 'en', unit: cu.unit })}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y, lang)) }
       }
     },
     scales: {

@@ -760,7 +760,7 @@ export const METRIC_DEFINITIONS = {
     notes: { en: 'Different population from "Collected": includes receipts on earlier-period invoices. Never divided by period-issued net billed.', ar: 'مجتمع مختلف عن "المحصّل": يشمل المقبوضات على فواتير فترات سابقة. لا يُقسم أبداً على صافي مفوتر الفترة.' }
   },
   outstanding: {
-    label: { en: 'Outstanding', ar: 'المتبقي' },
+    label: { en: 'Uncollected', ar: 'غير المحصّل' },
     numerator: { en: 'Net billed − collected, per invoice, floored at zero', ar: 'صافي المفوتر − المحصّل لكل فاتورة، بحد أدنى صفر' },
     denominator: null,
     dateBasis: { en: 'As of the data cutoff', ar: 'حتى تاريخ قطع البيانات' },

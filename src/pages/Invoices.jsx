@@ -233,7 +233,7 @@ export default function Invoices() {
                 <th>{bi.L('Raw status', 'الحالة الخام')}</th>
                 <th>{t('th_collection_status')}</th>
                 {th(`${t('th_amount')} (SAR)`, 'gross')}
-                {th(`${bi.L('Outstanding', 'المتبقي')} (SAR)`, 'outstanding')}
+                {th(`${bi.L('Uncollected', 'غير المحصّل')} (${bi.L('SAR', 'ريال')})`, 'outstanding')}
                 {th(t('th_date'), 'issue')}
                 {th(bi.L('Days overdue', 'أيام التأخر'), 'age')}
                 <th aria-label={viewLabel} />

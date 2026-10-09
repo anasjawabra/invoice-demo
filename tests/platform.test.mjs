@@ -52,12 +52,12 @@ const YTD = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
 
 /* ------------------------------------------------------------ display unit */
 await test('every amount carries ONE appropriate unit: SAR · thousand · million · billion — never «ألف مليون»', () => {
-  assert.equal(fmtBn(11_000_000_000, { lang: 'ar' }), '11 مليار SAR');
+  assert.equal(fmtBn(11_000_000_000, { lang: 'ar' }), '11 مليار ريال');
   assert.equal(fmtBn(11_000_000_000, { lang: 'en' }), '11 bn SAR');
-  assert.equal(fmtBn(486_191_000, { lang: 'ar' }), '486.19 مليون SAR');
-  assert.equal(fmtBn(7_834, { lang: 'ar' }), '7.83 ألف SAR');
-  assert.equal(fmtBn(750, { lang: 'ar' }), '750 SAR');
-  assert.equal(fmtBn(999_999_000, { lang: 'ar' }), '1 مليار SAR', '999.99 M promotes to the next unit instead of «1,000 مليون»');
+  assert.equal(fmtBn(486_191_000, { lang: 'ar' }), '486.19 مليون ريال');
+  assert.equal(fmtBn(7_834, { lang: 'ar' }), '7.83 ألف ريال');
+  assert.equal(fmtBn(750, { lang: 'ar' }), '750 ريال');
+  assert.equal(fmtBn(999_999_000, { lang: 'ar' }), '1 مليار ريال', '999.99 M promotes to the next unit instead of «1,000 مليون»');
   const raw = 11_000_000_000; fmtBn(raw); assert.equal(raw, 11_000_000_000, 'display never changes the stored value');
   assert.ok(!fmtBn(14_918_396_920, { lang: 'ar' }).includes('ألف مليون'));
 });
@@ -65,9 +65,9 @@ await test('one shared unit inside a table or chart; exact conversion in detail 
   const vals = [14_918_396_920, 1_362_084_800, 55_000_000]; const u = unitOfValues(vals);
   assert.equal(u.key, 'B'); assert.deepEqual(vals.map((v) => scaled(v, u)), ['14.92', '1.36', '0.06']);
   assert.equal(scaled(486_191_000, UNITS.M, 'detail'), '486.191'); assert.equal(scaled(0), '0'); assert.equal(scaled(4_000, UNITS.B), '<0.01');
-  const cu = chartUnit([2_000_000_000, 500_000_000], 'ar'); assert.equal(cu.title, 'القيمة — مليار SAR'); assert.equal(cu.tick(2_000_000_000), '2'); assert.equal(cu.fmt(500_000_000), '0.5 مليار SAR');
-  assert.equal(chartUnit([3_000_000, 800_000], 'ar').title, 'القيمة — مليون SAR');
-  assert.equal(fmtBn(1_362_084_800, { lang: 'ar', unit: u }), '1.36 مليار SAR');
+  const cu = chartUnit([2_000_000_000, 500_000_000], 'ar'); assert.equal(cu.title, 'القيمة — مليار ريال'); assert.equal(cu.tick(2_000_000_000), '2'); assert.equal(cu.fmt(500_000_000), '0.5 مليار ريال');
+  assert.equal(chartUnit([3_000_000, 800_000], 'ar').title, 'القيمة — مليون ريال');
+  assert.equal(fmtBn(1_362_084_800, { lang: 'ar', unit: u }), '1.36 مليار ريال');
 });
 await test('invoice counts are never converted to the money unit; exact SAR stays available', () => {
   assert.equal(fmtInt(500000), '500,000');
