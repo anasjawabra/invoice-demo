@@ -22,8 +22,9 @@
 // not fit a browser, ~70 bytes does). Amounts are SAR; the display unit is applied
 // at render time only (utils/money.js).
 // ============================================================================
-import { ENTITIES, N_AMANAH, ENT_HOUSING, ENT_UNASSIGNED, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
+import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ENT_UNASSIGNED, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
 import { PARAMS } from '../src/data/sourceAssumptions.js';
+import { invoiceIdOf } from './names.js';
 
 export const SEED = 20261008;
 export const GEN_START = '2024-10-01'; // opening history so early-2025 receipts include payments on late-2024 invoices
@@ -517,7 +518,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const method = r.next() < 0.5 ? 0 : 1; // 0 structured, 1 OCR
     const confidence = method === 1 ? Math.round((0.7 + r.next() * 0.28) * 100) / 100 : 1;
     const stRoll = r.next();
-    const req = { idx: reqCount, enforceNum: `EN-${3100 + ct.idx * 11}`, system: 'sanad', ent: ct.ent, amount, openedDay: opened, contractIdx: ct.idx, contractNo: ct.contractNo, status: stRoll < 0.5 ? 'قيد التنفيذ' : stRoll < 0.75 ? 'موقوف' : 'مغلق', identified: [], crNo: ct.crNo, method, confidence };
+    const req = { idx: reqCount, enforceNum: `EN-${3100 + ct.idx * 11}`, system: 'sanad', ent: ct.ent, amount, openedDay: opened, contractIdx: ct.idx, contractNo: ct.contractNo, status: stRoll < 0.5 ? 'قيد التنفيذ' : stRoll < 0.75 ? 'موقوف' : 'مغلق', identified: [], crNo: ct.crNo, method, confidence, debtor: ct.payer };
     if (identified) req.identified = problem.slice(0, 1 + r.int(3));
     st.requests.push(req); reqCount += 1;
     st.crView.set(ct.crNo, { crNo: ct.crNo, status: ct.crSt, name: ct.payer });
@@ -527,11 +528,68 @@ export function generateWorld(today, { scale = 1 } = {}) {
     }
     for (const i of req.identified) st.exec[i] = req.idx;
   }
+  /* ===================== E. Sanad enforcement orders against ALL invoice types =====================
+     An enforcement order is not tied to contracts: it can cover ONE or SEVERAL invoices of ANY revenue source. Sanad supplies the order and
+     whatever invoice references it has (often incomplete or wrong); the order PDF lists the rest. The generator builds a fixed set of order
+     archetypes so every matching situation exists in the demo world. The order set is drawn only from invoices that were already 150+ days
+     overdue and never paid at ORDER_GEN_CUTOFF, so it does not depend on `today` (only whether an order is open yet does).
+     `covers` is the hidden truth (used only to write the sample PDFs and in tests); the client sees `refs` (what Sanad supplies) and the amount. */
+  {
+    const ORDER_GEN_CUTOFF = dayNum('2026-08-31');
+    const elig = [];
+    for (let i = 0; i < st.n; i += 1) {
+      if (st.exec[i] >= 0 || grpOf(st.flags[i]) !== 0 || st.cancelDay[i] || st.payCount[i] > 0 || st.exMask[i] !== 0 || st.adjDay[i] !== 0 || (st.flags[i] & F.OBJECTION)) continue;
+      if (st.due[i] + 150 > ORDER_GEN_CUTOFF || st.scope[i] !== 0) continue;
+      elig.push(i);
+    }
+    const used = new Set(); const serialOf = (i) => st.idKey[i] % 1e8;
+    const bySerial = new Map(); for (let i = 0; i < st.n; i += 1) { const k = serialOf(i); if (!bySerial.has(k)) bySerial.set(k, []); bySerial.get(k).push(i); }
+    const ARCH = ['single', 'multi_exact', 'multi_partial_refs', 'multi_no_refs', 'multi_typo_ref', 'serial_ambiguous', 'amount_discrepancy', 'duplicate_across_orders'];
+    const target = scale < 1 ? 16 : Math.min(4000, Math.round(elig.length * 0.01));
+    const pickMore = (lead, n, differentSrc = true) => {
+      const out = [lead]; const seenSrc = new Set([st.src[lead]]);
+      for (const j of elig) { if (out.length >= n) break; if (used.has(j) || out.includes(j) || st.ent[j] !== st.ent[lead]) continue; if (differentSrc && seenSrc.has(st.src[j]) && elig.length > 60) continue; out.push(j); seenSrc.add(st.src[j]); }
+      return out;
+    };
+    let firstSingle = null;
+    for (let k = 0; k < target; k += 1) {
+      const arch = ARCH[k % ARCH.length]; const r = rC.reset(mix(15, k));
+      let lead = -1;
+      for (let t = 0; t < elig.length && lead < 0; t += 1) { const j = elig[(k * 37 + t * 11 + 3) % elig.length]; if (used.has(j)) continue; if (arch === 'serial_ambiguous' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j])) continue; lead = j; }
+      if (lead < 0) continue;
+      let covers; let hidden = [];
+      if (arch === 'single' || arch === 'serial_ambiguous') covers = [lead];
+      else if (arch === 'duplicate_across_orders') { covers = firstSingle != null ? pickMore(lead, 2).filter((x) => x !== firstSingle) : pickMore(lead, 2); if (firstSingle != null) covers = [firstSingle, ...covers.slice(0, 1)]; }
+      else if (arch === 'amount_discrepancy') { const m = pickMore(lead, 3); covers = m.slice(0, 2); hidden = m.slice(2); }
+      else if (arch === 'multi_exact' || arch === 'multi_partial_refs') covers = pickMore(lead, 3);
+      else covers = pickMore(lead, 2);
+      covers = [...new Set(covers)]; if (covers.length < (arch === 'single' || arch === 'serial_ambiguous' ? 1 : 2)) continue;
+      const all = [...covers, ...hidden]; const owner = arch === 'duplicate_across_orders' && firstSingle != null ? st.payer[firstSingle] : st.payer[lead]; // a duplicate reference is the SAME debtor's invoice named by two orders
+      const lastDue = Math.max(...all.map((i) => st.due[i])); const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
+      if (opened > todayN) { all.forEach((i) => used.add(i)); continue; }
+      all.forEach((i) => { used.add(i); if (arch !== 'duplicate_across_orders' || i !== firstSingle) st.payer[i] = owner; });
+      const amount = all.reduce((sum, i) => sum + st.gross[i], 0);
+      const idOfi = (i) => invoiceIdOf(st.idKey[i]);
+      const typo = (id) => `${id.slice(0, 9)}${String(Number(id.slice(9)) + 4000000).padStart(7, '0')}`; // a wrong number that matches no invoice (a digit slip that lands on another real invoice is covered by the debtor check)
+      let refs = []; let identified = [];
+      if (arch === 'single' || arch === 'multi_exact' || arch === 'duplicate_across_orders') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.filter((i) => st.exec[i] < 0); }
+      else if (arch === 'multi_partial_refs') { refs = [{ kind: 'invoice_no', value: idOfi(covers[0]) }]; identified = [covers[0]]; }
+      else if (arch === 'multi_no_refs') refs = [];
+      else if (arch === 'multi_typo_ref') { refs = [{ kind: 'invoice_no', value: idOfi(covers[0]) }, { kind: 'invoice_no', value: typo(idOfi(covers[1])) }]; identified = [covers[0]]; }
+      else if (arch === 'serial_ambiguous') refs = [{ kind: 'invoice_serial', value: String(serialOf(lead)).padStart(7, '0') }];
+      else if (arch === 'amount_discrepancy') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.slice(); }
+      const status = r.next() < 0.5 ? 'قيد التنفيذ' : r.next() < 0.5 ? 'موقوف' : 'مغلق';
+      const req = { idx: reqCount, enforceNum: `EN-${5000 + k * 13}`, system: 'sanad', ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, covers, hidden, archetype: arch, debtor: owner };
+      st.requests.push(req); reqCount += 1;
+      for (const i of identified) if (st.exec[i] < 0) st.exec[i] = req.idx;
+      if (arch === 'single' && firstSingle == null) firstSingle = covers[0];
+    }
+  }
   // white-lands comprehensive enforcement file: its own track (not Sanad / Efaa); each order maps to invoices and the order amount is NOT added to the debt
   for (const w of wlEnforce) {
     if (w.opened > todayN) continue;
     const roll = mix(14, st.idKey[w.i] % 1000003) / 4294967296;
-    const req = { idx: reqCount, enforceNum: `WLX-${String(st.idKey[w.i] % 1e8).padStart(7, '0')}`, system: 'white_lands', ent: ENT_HOUSING, amount: st.gross[w.i], openedDay: w.opened, contractIdx: -1, contractNo: null, status: roll < 0.55 ? 'قيد التنفيذ' : roll < 0.8 ? 'موقوف' : 'مغلق', identified: [w.i], crNo: null, method: 0, confidence: 1 };
+    const req = { idx: reqCount, enforceNum: `WLX-${String(st.idKey[w.i] % 1e8).padStart(7, '0')}`, system: 'white_lands', ent: ENT_HOUSING, amount: st.gross[w.i], openedDay: w.opened, contractIdx: -1, contractNo: null, status: roll < 0.55 ? 'قيد التنفيذ' : roll < 0.8 ? 'موقوف' : 'مغلق', identified: [w.i], crNo: null, method: 0, confidence: 1, debtor: st.payer[w.i] };
     st.requests.push(req); st.exec[w.i] = req.idx; reqCount += 1;
   }
   st.trim();

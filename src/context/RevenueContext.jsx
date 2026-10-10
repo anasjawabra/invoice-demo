@@ -6,7 +6,8 @@ import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
-import { addCandidateLinks, reviewLink as reviewLinkFn } from '../data/enforcementMatching';
+import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference } from '../data/orderMatching';
+import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
 import { addDaysIso, startOfYear, startOfMonth, prevMonthEnd, lastCompleteMonths } from '../data/clock';
@@ -19,6 +20,7 @@ export const SCOPE_PRESETS = Object.fromEntries(PRESETS.map((p) => [p.key, p.ran
 const legacyPreset = (p) => (p === 'fytd' ? 'ytd' : p);
 
 const PACE_MS = 420;
+const hashOf = (str) => { let h = 5381; for (let i = 0; i < str.length; i += 1) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0; return `${str.length}.${h.toString(36)}`; };
 
 function usePersistent(key, initial) {
   const [v, setV] = useState(() => {
@@ -42,7 +44,10 @@ export function RevenueProvider({ children }) {
   const [cfg, setCfg] = usePersistent('ib_rev_cfg2', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
   const [targets, setTargets] = usePersistent('ib_rev_targets', DEFAULT_TARGETS);
   const [decisions, setDecisions] = usePersistent('ib_rev_decisions', {});
-  const [casesSaved, setCases] = usePersistent('ib_rev_cases', null);
+  // the older review state (sessionStorage) is only READ, shown as it was; the enforcement work of this version is kept in ib_enforcement_v1 and written only on a user action
+  const casesSaved = useMemo(() => { try { const raw = sessionStorage.getItem('ib_rev_cases'); return raw ? JSON.parse(raw) : null; } catch { return null; } }, []);
+  const [enfStore, setEnfStore] = useState(() => loadEnforcement());
+  const enfRef = useRef(enfStore);
   const [uploads, setUploads] = usePersistent('ib_rev_uploads', { log: [], count: 0 });
   const [notes, setNotes] = usePersistent('ib_rev_notes', {});
   const [scenario, setScenario] = usePersistent('ib_rev_scenario', DEFAULT_SCENARIO);
@@ -61,23 +66,21 @@ export function RevenueProvider({ children }) {
     return () => { off = true; };
   }, [!!user]);
 
-  // Enforcement cases: hand-anchored cases + generated Sanad requests; the user's review state persists per case.
-  const casesAll = useMemo(() => {
+  // Enforcement orders: hand-anchored cases + the Sanad feed (demo data), then the person's own work (documents, proposed / confirmed / rejected links) on top.
+  const casesBase = useMemo(() => {
     if (!serverCases) return casesSaved || ANCHOR_ENFORCEMENT_SEED;
     const saved = new Map((casesSaved || []).map((c) => [c.enforceNum, c]));
     return [...ANCHOR_ENFORCEMENT_SEED, ...serverCases].map((c) => saved.get(c.enforceNum) || c);
   }, [casesSaved, serverCases]);
+  const casesAll = useMemo(() => buildEffectiveCases(casesBase, enfStore), [casesBase, enfStore]);
   const cases = useMemo(() => (org.amanahKeys ? casesAll.filter((c) => org.amanahKeys.includes(c.amanahEn)) : casesAll), [casesAll, org]);
-  const links = useMemo(() => {
-    const m = {};
-    for (const c of casesAll) for (const l of c.links) { if (l.status === 'confirmed') m[l.invoiceId] = 'confirmed'; else if (l.status === 'candidate' && m[l.invoiceId] !== 'confirmed') m[l.invoiceId] = 'candidate'; }
-    return m;
-  }, [casesAll]);
+  // invoice → the status its confirmed order(s) give it (open / suspended / closed); a merely proposed link is sent as «candidate» and changes nothing
+  const links = useMemo(() => invoiceStatusMap(casesAll), [casesAll]);
 
   const orgKeys = org.amanahKeys || null;
   const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', org }), [scope, org]);
   const currentScopeKey = useMemo(() => scopeKey(scopeEff), [scopeEff]);
-  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${Object.values(links).join('').length}${Object.keys(links).length}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, cfg]);
+  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, cfg]);
 
   // request body used by every data-service call (the scope carries only what the service needs from the organisation)
   const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, ...extra }), [orgKeys, cfgN, decisions, links]);
@@ -92,7 +95,6 @@ export function RevenueProvider({ children }) {
     risk: (sc, extra) => api.risk(requestFor(sc, extra)),
     list: (sc, extra) => api.list(requestFor(sc, extra)),
     invoice: (id) => api.invoice(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { id })),
-    matchCandidates: (sc, extra) => api.matchCandidates(requestFor(sc, extra)),
     contracts: (sc) => api.contracts(requestFor(sc)),
     contract: (no) => api.contract(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { no })),
     quality: (sc) => api.quality(requestFor(sc)),
@@ -165,24 +167,27 @@ export function RevenueProvider({ children }) {
     return { ok: true };
   }, [canReview, user, setDecisions]);
 
-  const reviewEnforcementLink = useCallback((args) => {
+  /* ---------- enforcement orders: the person's work (every action is attributed, dated and kept in the order's history) ---------- */
+  const enfAct = useCallback((enforceNum, fn) => {
     if (!canReview) return { ok: false, error: 'no_permission' };
-    const reviewer = user?.nameEn || user?.name || 'Reviewer';
-    if (!cases.some((c) => c.enforceNum === args.enforceNum)) return { ok: false, error: 'not_accessible' };
-    const res = reviewLinkFn(casesAll, { ...args, reviewer, at: DATA_CUTOFF });
-    if (res.error) return { ok: false, error: res.error };
-    setCases(res.cases);
-    return { ok: true };
-  }, [cases, casesAll, canReview, user, setCases]);
-
-  // Candidate invoices are found in the data service (it holds the invoices); the review itself stays here.
-  const proposeEnforcementLinks = useCallback(async (enforceNum, text = '') => {
-    const c = cases.find((x) => x.enforceNum === enforceNum);
-    if (!c) return null;
-    const m = await api.matchCandidates(requestFor({ from: '2000-01-01', to: DATA_CUTOFF, amanah: 'all', source: 'all' }, { case: { enforceNum: c.enforceNum, amanahEn: c.amanahEn, amount: c.amount, openedDate: c.openedDate }, text }));
-    setCases(addCandidateLinks(casesAll, enforceNum, m.candidates, 'AI matcher (demo)', DATA_CUTOFF));
-    return m;
-  }, [cases, casesAll, requestFor, setCases]);
+    const c = cases.find((x) => x.enforceNum === enforceNum); if (!c) return { ok: false, error: 'not_accessible' };
+    const r = fn(enfRef.current, { by: user?.nameEn || user?.name || 'Reviewer', at: new Date().toISOString(), orderStatus: orderStatusOf(c) });
+    if (r.error) return { ok: false, error: r.error };
+    if (!r.unchanged) { enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); }
+    return { ok: true, unchanged: !!r.unchanged };
+  }, [cases, canReview, user]);
+  const enforcement = useMemo(() => ({
+    recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o)),
+    recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o)),
+    propose: (en, input) => enfAct(en, (st, o) => proposeLink(st, en, input, o)),
+    confirm: (en, invoiceId, args = {}) => enfAct(en, (st, o) => confirmLink(st, en, invoiceId, { ...args, ...o })),
+    reject: (en, invoiceId, args = {}) => enfAct(en, (st, o) => rejectLink(st, en, invoiceId, { ...args, ...o })),
+    remove: (en, invoiceId, args = {}) => enfAct(en, (st, o) => removeLink(st, en, invoiceId, { ...args, ...o })),
+    dismiss: (en, key, args = {}) => enfAct(en, (st, o) => dismissReference(st, en, key, { ...args, ...o })),
+    // the references of an order, resolved against the invoices by the data service (reference matching only — never by amount)
+    resolve: (refs) => api.orderMatch(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { refs })),
+    debtorInvoices: (debtor, excludeIds) => api.orderDebtorInvoices(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { debtor, excludeIds }))
+  }), [enfAct, requestFor]);
 
   /* ---------- analyst notes (analytical layer only) ---------- */
   const addNote = useCallback((invoiceId, text) => {
@@ -249,7 +254,6 @@ export function RevenueProvider({ children }) {
       worklist: (sc, limit) => api.worklist(L.requestFor(sc, { limit }), { signal: ac.signal }),
       anomalies: (sc, limit) => api.anomalies(L.requestFor(sc, { limit }), { signal: ac.signal }),
       invoice: (id) => api.invoice(L.requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { id }), { signal: ac.signal }),
-      matchCandidates: (sc, extra) => api.matchCandidates(L.requestFor(sc, extra), { signal: ac.signal }),
       contracts: (sc) => api.contracts(L.requestFor(sc), { signal: ac.signal })
     };
     const promise = runTask(state, {
@@ -302,7 +306,7 @@ export function RevenueProvider({ children }) {
     targets, setTargets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,
     decideExclusion,
-    cases, reviewEnforcementLink, proposeEnforcementLinks,
+    cases, enforcement,
     uploads, commitUpload, clearUploads, notes, addNote,
     scenario, setScenario,
     forecastVersions, saveForecastVersion,

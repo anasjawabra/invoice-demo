@@ -6,6 +6,8 @@ import { CATEGORY_LABELS, exclusionRecordsOf, ruleById } from '../../data/revenu
 import { RULE_APPROVAL_LABEL } from '../../data/ruleRegistry';
 import { REVENUE_SOURCES } from '../../data/revenueLedger';
 import { riyadhToday } from '../../data/clock';
+import { invoiceEnforcement } from '../../data/orderMatching';
+import { OrderStatusChip, PayStatusChip } from './EnforcementUI';
 
 const Row = ({ k, children }) => (<div className="rv-kv"><span className="rv-kv__k">{k}</span><span className="rv-kv__v" dir="auto">{children}</span></div>);
 
@@ -42,6 +44,7 @@ export default function InvoiceLedgerSections({ rec, der, cls, reasons, card, on
   const records = exclusionRecordsOf(rec);
   const myPay = card?.schedule?.find((p) => p.invoiceNo === rec.id);
   const decide = (ruleId, decision) => rev.decideExclusion(rec.id, decision, '', ruleId);
+  const enf = invoiceEnforcement(rec.id, rev.cases);
 
   const timeline = [
     { date: rec.issueDate, text: L('Invoice issued', 'صدرت الفاتورة') },
@@ -136,7 +139,15 @@ export default function InvoiceLedgerSections({ rec, der, cls, reasons, card, on
           <Row k={L('Contract', 'العقد')}>{rec.co ? <Link to={`/contracts?no=${rec.co}`} dir="ltr" onClick={onClose}>{rec.co}</Link> : rec.contract.status === 'unmatched' ? L('Contract not matched (not “no contract”)', 'لم تتم مطابقة العقد (وليس «بدون عقد»)') : rec.contract.status === 'confirmed_none' ? L('No contract — confirmed by Furas', 'بدون عقد — مؤكد من فرص') : '—'}</Row>
           <Row k={L('Installment', 'الدفعة')}>{myPay ? `${myPay.no} / ${card.schedule.length}` : '—'}</Row>
           <Row k={L('Objection', 'الاعتراض')}>{rec.objection ? <span dir="ltr">{rec.objection.ref} · {L('open', 'مفتوح')}</span> : L('None', 'لا يوجد')}</Row>
-          <Row k={L('Execution', 'التنفيذ')}>{rec.executionNo ? <Link to={`/sanad-orders/${rec.executionNo}`} dir="ltr" onClick={onClose}>{rec.executionNo}</Link> : (rec.enforcementLinks || []).length ? rec.enforcementLinks.map((l) => `${l.enforceNum} (${l.status})`).join(', ') : L('No execution recorded (absence of the field is not proof of none)', 'لا تنفيذ مسجل (غياب الحقل ليس دليلاً على عدم وجوده)')}</Row>
+          <Row k={L('Payment status', 'حالة السداد')}><PayStatusChip status={der.payStatus} /><small className="muted"> · {L('separate from the enforcement status', 'منفصلة عن حالة الإنفاذ')}</small></Row>
+          <Row k={L('Enforcement orders', 'أوامر الإنفاذ')}>
+            {enf.confirmed.length ? enf.confirmed.map((o) => (
+              <div key={o.enforceNum}><Link to={`/sanad-orders/${o.enforceNum}`} dir="ltr" onClick={onClose}>{o.enforceNum}</Link> <OrderStatusChip status={o.orderStatus} /> <small className="muted">{L('confirmed link', 'رابط مؤكد')}</small></div>
+            )) : rec.executionNo ? <Link to={`/sanad-orders/${rec.executionNo}`} dir="ltr" onClick={onClose}>{rec.executionNo}</Link> : L('No confirmed enforcement order (absence of the feed is not proof of none)', 'لا يوجد أمر إنفاذ مؤكد (غياب التغذية ليس دليلاً على عدم الوجود)')}
+            {enf.proposed.map((o) => (
+              <div key={`p-${o.enforceNum}`}><Link to={`/sanad-orders/${o.enforceNum}`} dir="ltr" onClick={onClose}>{o.enforceNum}</Link> <span className="rv-tag rv-tag--warn">{L('proposed link — awaiting review, no effect yet', 'رابط مقترح — بانتظار المراجعة، بلا أثر بعد')}</span></div>
+            ))}
+          </Row>
           <Row k={L('CR number (text)', 'رقم السجل التجاري (نص)')}><span dir="ltr">{rec.crNo || '—'}</span>{rec.crEvidence && <small className="muted"> · {rec.crEvidence.method === 'ocr' ? `OCR ${Math.round(rec.crEvidence.confidence * 100)}%` : L('structured', 'بيانات منظمة')} · {rec.crEvidence.source}</small>}</Row>
           <Row k={L('CR View status (raw)', 'حالة CR View (خام)')}><span dir="ltr">{rec.crStatusRaw || '—'}</span>{rec.crStatusRaw && rec.crStatusRaw !== 'Active' && <span className="rv-tag rv-tag--warn">{L('evidence, not an exclusion', 'دليل وليس استبعاداً')}</span>}</Row>
           <Row k={L('Missing mandatory fields', 'حقول إلزامية ناقصة')}>{rec.missingFields.length ? rec.missingFields.join(', ') : L('None', 'لا يوجد')}</Row>

@@ -41,7 +41,7 @@ export default function Contracts() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Contracts, enforcement and registry', 'العقود والتنفيذ والسجل التجاري')}</h1>
-          <div className="page-sub">{L('Furas contract → payments → Tahseel invoices, and the Sanad execution requests tied to the contract number. Execution amounts are shown at contract level and are never added to the uncollected debt again.', 'عقد فرص ← دفعاته ← فواتير تحصيل، وطلبات تنفيذ سند المرتبطة برقم العقد. تُعرض مبالغ التنفيذ على مستوى العقد ولا تُضاف إلى المديونية غير المحصلة مرة ثانية.')}</div>
+          <div className="page-sub">{L('Furas contract → payments → Tahseel invoices, and the Sanad execution requests tied to the contract number. Execution amounts are shown at contract level and are never added to the uncollected debt again. Enforcement orders are not limited to contracts: orders over any invoice type are matched on the Enforcement orders page.', 'عقد فرص ← دفعاته ← فواتير تحصيل، وطلبات تنفيذ سند المرتبطة برقم العقد. تُعرض مبالغ التنفيذ على مستوى العقد ولا تُضاف إلى المديونية غير المحصلة مرة ثانية. أوامر الإنفاذ لا تقتصر على العقود: تُطابَق الأوامر على أي نوع من الفواتير في صفحة أوامر الإنفاذ.')}</div>
         </div>
       </div>
 

@@ -38,6 +38,13 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
 import { detail } from '../server/materialize.js';
 import { sourcesReport } from '../server/sourcesReport.js';
+import { sanadCases } from '../server/contracts.js';
+import { sadadOf } from '../server/names.js';
+import { resolveReferences, sameDebtorInvoices } from '../server/orderMatch.js';
+import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, needsNote, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
+import { caseSummary } from '../src/data/enforcementMatching.js';
+import { readPdfPages } from '../src/data/pdfText.js';
+import fs from 'node:fs';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
@@ -860,6 +867,117 @@ await test('Invoice-status filter: the net-uncollected bridge lands on the stand
     const snap = snapshot(st, { scope: sc, cfg }); const b = bridge(st, { scope: { ...sc, from: '2000-01-01', to: TODAY }, cfg });
     assert.ok(Math.abs(b.check) < 0.5 && Math.abs(b.net - snap.stock.netUncollected) < 0.5, `status ${status}: bridge ${b.net} vs stock ${snap.stock.netUncollected}`);
   }
+});
+
+/* ------------------------------------------------------------ enforcement orders ↔ invoices (all invoice types; Sanad; references only, never amount alone) */
+const feedCases = sanadCases(st); const orderOf = (arch, nth = 0) => st.requests.filter((r) => r.archetype === arch)[nth];
+const caseOf = (q) => feedCases.find((c) => c.enforceNum === q.enforceNum);
+const idOfInv = (i) => st.idKey[i] ? `INV-${Math.floor(st.idKey[i] / 1e8)}-${String(st.idKey[i] % 1e8).padStart(7, '0')}` : null;
+const resolveFor = (refs) => resolveReferences(st, { refs, cfg });
+
+await test('Orders cover ALL invoice types: the demo world holds one-invoice, several-invoice (different revenue sources), partial-reference, no-reference, wrong-reference, ambiguous, discrepancy and duplicate orders', () => {
+  const kinds = new Set(st.requests.filter((r) => r.archetype).map((r) => r.archetype));
+  for (const a of ['single', 'multi_exact', 'multi_partial_refs', 'multi_no_refs', 'multi_typo_ref', 'serial_ambiguous', 'amount_discrepancy', 'duplicate_across_orders']) assert.ok(kinds.has(a), a);
+  const multi = orderOf('multi_exact'); const sources = new Set(multi.covers.map((i) => st.src[i])); assert.ok(multi.covers.length >= 2 && sources.size >= 2, 'one order, invoices of different types');
+  assert.ok(new Set(multi.covers.map((i) => st.payer[i])).size === 1, 'the invoices of one order share its debtor');
+  assert.ok(!multi.contractNo, 'not tied to a contract');
+  const c = caseOf(multi); assert.equal(c.refs.length, multi.covers.length); assert.equal(c.orderDocument.retrievable, false, 'Sanad document retrieval is declared NOT connected'); assert.equal(c.feed, 'synthetic_demo');
+});
+
+await test('Reference classification: invoice numbers are told apart from order, contract, account, IBAN, identity and amount figures; every page and table row is read', () => {
+  const text = ['Enforcement order no: EN-5013', 'Debtor ID 1008640729', 'Contract reference: CT-2026-0087', 'Account no: 4410229981', 'IBAN SA0380000000608010167519', 'Total amount: 85,438,130.00 SAR', 'Invoice No | Type | Amount', 'INV-2025-0000179 | fines | 44,061,510.00 SAR', '0000095 | municipal', 'SADAD 101234567890', 'Violation no 12345678901234'];
+  const r = extractFromText(text.join('\n'), 3); const by = (k) => r.filter((x) => x.kind === k).map((x) => x.value);
+  assert.deepEqual(by('invoice_no'), ['INV-2025-0000179']); assert.deepEqual(by('order_no'), ['EN-5013']); assert.deepEqual(by('contract_no'), ['CT-2026-0087']); assert.deepEqual(by('bank_account'), ['SA0380000000608010167519']);
+  assert.deepEqual(by('invoice_serial'), ['0000095'], 'a zero-padded serial under an Invoice heading'); assert.deepEqual(by('sadad_no'), ['101234567890']); assert.deepEqual(by('violation_no'), ['12345678901234']);
+  assert.ok(by('other_number').includes('1008640729') && by('other_number').includes('4410229981'), 'identity and account numbers are never invoice references');
+  assert.ok(!r.some((x) => x.value.includes('85') && isFinite(x.value) && x.kind !== 'other_number'), 'amounts are not references'); assert.ok(r.every((x) => x.page === 3));
+  const ex = buildExtraction([{ page: 1, text: 'INV-2025-0000179' }, { page: 2, text: 'rows\nINV-2024-0000023\nINV-2025-0000179' }, { page: 3, text: '' }], 'text_layer', { orderNo: 'EN-5013' });
+  assert.deepEqual(ex.refs.map((x) => `${x.value}@${x.occurrences.map((o) => o.page)}`), ['INV-2025-0000179@1,2', 'INV-2024-0000023@2']); assert.equal(ex.pages[2].needsOcr, true, 'a page with no text is reported as unread'); assert.equal(ex.pages[0].needsOcr, false);
+  assert.equal(buildExtraction([{ page: 1, text: 'order EN-9999\nINV-2025-0000001' }], 'text_layer', { orderNo: 'EN-5013' }).orderNumberMismatch, true, 'a document that names another order is flagged');
+  assert.equal(splitOcrText('a\fb').length, 2); assert.equal(splitOcrText('--- page 1 ---\nx\n--- page 2 ---\ny').length, 2);
+});
+
+await test('The PDF text layer is really read (all pages, tables included); a scanned page with no text layer is reported as unread — OCR is never simulated', async () => {
+  const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec); const dir = 'public/samples/enforcement-orders/';
+  const read = async (f) => { const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync(dir + f)), lib); return buildExtraction(pages, 'text_layer', { orderNo: f.match(/EN-\d+/)[0] }); };
+  const multi = await read('EN-5026-multi_partial_refs.pdf'); assert.equal(multi.pages.length, 2); assert.equal(multi.refs.length, 3, 'the invoices on the second page are read too'); assert.ok(multi.refs.some((r) => r.occurrences.some((o) => o.page === 2)));
+  assert.ok(multi.others.some((o) => o.kind === 'contract_no') && multi.others.some((o) => o.value === '4410229981'), 'contract and account numbers are set apart'); assert.equal(multi.orderNumberMismatch, false);
+  const scanned = await read('EN-5039-scanned.pdf'); assert.deepEqual(scanned.pages.map((p) => p.needsOcr), [false, true, true]); assert.equal(scanned.refs.length, 0);
+  const wrong = await read('EN-5000-wrong-document.pdf'); assert.equal(wrong.orderNumberMismatch, true);
+  const bytes = new Uint8Array(fs.readFileSync(dir + 'EN-5026-multi_partial_refs.pdf')); await readPdfPages(bytes, lib); assert.ok(bytes.length > 100, 'the caller keeps its own bytes (pdf.js gets a copy)');
+});
+
+await test('Reference resolution: exact invoice numbers match; a bare serial is ambiguous across years; a wrong number matches nothing and is never replaced by a similar one; non-invoice kinds are never matched', () => {
+  const multi = orderOf('multi_exact'); const r = resolveFor(multi.covers.map((i) => ({ kind: 'invoice_no', value: idOfInv(i) })));
+  assert.ok(r.results.every((x, k) => x.status === 'matched' && x.candidates[0].invoiceId === idOfInv(multi.covers[k]))); assert.ok(new Set(r.results.map((x) => x.candidates[0].source)).size >= 2, 'different invoice types');
+  const amb = orderOf('serial_ambiguous'); const sa = resolveFor(amb.refs).results[0]; assert.equal(sa.status, 'ambiguous'); assert.ok(sa.candidates.length >= 2 && sa.weak); assert.ok(sa.candidates.some((k) => k.invoiceId === idOfInv(amb.covers[0])));
+  const typo = orderOf('multi_typo_ref'); const rt = resolveFor(typo.refs); assert.deepEqual(rt.results.map((x) => x.status), ['matched', 'unmatched']); assert.equal(rt.results[1].candidates.length, 0, 'no “similar” invoice is substituted');
+  const some = idOfInv(multi.covers[0]); const i0 = lookupId(st, some); const sad = resolveFor([{ kind: 'sadad_no', value: sadadOf(st.idKey[i0]) }, { kind: 'violation_no', value: '00000000000001' }, { kind: 'contract_no', value: 'CT-2026-0087' }, { kind: 'invoice_id_exact', value: 'INV-2026-0722' }]);
+  assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'not_invoice_reference'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, 'INV-2026-0722', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
+  const sum = r.results[0].candidates[0]; assert.ok(['overdue', 'partial', 'collected', 'not_due', 'cancelled', 'excluded'].includes(sum.paymentStatus) && sum.grossAmount > 0 && sum.payerName);
+});
+
+await test('Amount alone never matches: the same-debtor list is information only, the order amount is only compared with invoices matched by reference, and a discrepancy is reported — never closed by inventing a match', () => {
+  const q = orderOf('amount_discrepancy'); const c = caseOf(q); assert.equal(c.links.length, 2, 'the two referenced invoices are linked'); const eff = buildEffectiveCases([c], emptyStore())[0];
+  const rec = reconcile(eff); assert.equal(rec.state, 'short'); assert.ok(rec.difference > 0 && Math.abs(rec.difference - st.gross[q.hidden[0]]) < 1, 'the difference equals the invoice nobody referenced');
+  const ms = orderMatchState(eff); assert.equal(ms.state, 'partial'); assert.ok(ms.reasons.includes('amount_short')); assert.notEqual(caseSummary(eff).state, 'linked', 'a partial match is never shown as a full match');
+  const d = sameDebtorInvoices(st, { debtor: q.debtor, excludeIds: c.links.map((l) => l.invoiceId), cfg }); assert.ok(d.invoices.some((x) => x.invoiceId === idOfInv(q.hidden[0])), 'the unreferenced invoice is listed for investigation');
+  const asked = resolveFor(c.refs).results; assert.ok(asked.every((x) => x.candidates.length === 1 && x.candidates[0].invoiceId !== idOfInv(q.hidden[0])), 'resolution never adds it');
+});
+
+await test('Order match state: matched only when every reference is accounted for AND the amounts reconcile; proposals, unread pages, unresolved references and amount differences each keep it partial', () => {
+  const q = orderOf('multi_exact'); const base = caseOf(q);
+  assert.equal(orderMatchState(buildEffectiveCases([base], emptyStore())[0]).state, 'matched');
+  const part = orderOf('multi_partial_refs'); const pc = caseOf(part); const peff = buildEffectiveCases([pc], emptyStore())[0];
+  assert.equal(orderMatchState(peff).state, 'partial'); assert.equal(pc.refs.length, 1, 'Sanad supplied one reference of several'); assert.ok(reconcile(peff).difference > 0);
+  const none = orderOf('multi_no_refs'); const neff = buildEffectiveCases([caseOf(none)], emptyStore())[0]; assert.equal(orderMatchState(neff).state, 'unmatched'); assert.equal(caseSummary(neff).state, 'unresolved');
+  const typo = caseOf(orderOf('multi_typo_ref')); const teff = buildEffectiveCases([typo], emptyStore())[0]; assert.equal(orderMatchState(teff).state, 'partial'); assert.equal(unresolvedReferences(teff).length, 1, 'the wrong reference stays unresolved');
+  let store = emptyStore(); const en = part.enforceNum; const o = { by: 'rev', at: '2026-10-08T10:00:00Z', orderStatus: 'open' };
+  const doc = { id: 'h1', name: 'x.pdf', size: 1, addedAt: o.at, extraction: buildExtraction([{ page: 1, text: 'INV-2025-0000001' }, { page: 2, text: '' }], 'text_layer') };
+  store = recordDocument(store, en, doc, o).store; const withDoc = buildEffectiveCases([pc], store)[0]; const m1 = orderMatchState(withDoc);
+  assert.ok(m1.reasons.includes('document_pages_unread') && m1.reasons.includes('unresolved_references'), 'an unread page and a new reference keep it partial'); assert.equal(m1.gaps[0].page, 2);
+  store = recordSupplementalExtraction(store, en, 'h1', buildExtraction([{ page: 2, text: 'no invoice here' }], 'manual_entry'), o).store; assert.equal(orderMatchState(buildEffectiveCases([pc], store)[0]).gaps.length, 0, 'supplied text closes the page gap');
+});
+
+await test('Link lifecycle: a proposal has NO effect; only a confirmed link reflects the order status; ambiguous / conflicting links need a written reason; rejection and withdrawal keep their history', () => {
+  const q = orderOf('serial_ambiguous'); const c = caseOf(q); const en = c.enforceNum; const cand = resolveFor(q.refs).results[0].candidates; const o = (at) => ({ by: 'Reviewer A', at, orderStatus: 'open' });
+  const conf = (x) => ['ambiguous_reference', ...(x.payerIdx !== q.debtor ? ['debtor_mismatch'] : [])]; const mk = (x) => ({ invoiceId: x.invoiceId, origin: 'manual_selection', gross: x.grossAmount, evidence: [{ refKind: 'invoice_serial', refValue: q.refs[0].value }], conflicts: conf(x) });
+  let store = proposeLink(emptyStore(), en, mk(cand[0]), o('2026-10-08T09:00:00Z')).store;
+  let cases = buildEffectiveCases([c], store); assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'candidate' }, 'a proposal is sent as «candidate» (no category change)'); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).confirmed.length, 0); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).proposed.length, 1);
+  assert.equal(confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:05:00Z'), note: '' }).error, 'note_required', 'ambiguity needs a reason'); assert.equal(needsNote(['weak_reference']), false); assert.equal(needsNote(['debtor_mismatch']), true);
+  store = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:06:00Z'), note: 'same debtor' }).store; cases = buildEffectiveCases([c], store);
+  assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'open' }); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).status, 'open'); assert.equal(invoiceEnforcement(cand[1].invoiceId, cases).status, null, 'the other candidate is untouched');
+  const susp = buildEffectiveCases([{ ...c, requestStatus: 'موقوف' }], store); assert.equal(invoiceStatusMap(susp)[cand[0].invoiceId], 'suspended'); assert.equal(invoiceStatusMap(buildEffectiveCases([{ ...c, requestStatus: 'مغلق' }], store))[cand[0].invoiceId], 'closed');
+  assert.equal(rejectLink(store, en, cand[0].invoiceId, { ...o('x'), note: 'n' }).error, 'use_remove', 'a confirmed link is withdrawn, not rejected'); assert.equal(removeLink(store, en, cand[0].invoiceId, { ...o('x'), note: '' }).error, 'note_required');
+  store = removeLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T10:00:00Z'), note: 'wrong year' }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([c], store)), {}, 'withdrawing removes the effect');
+  store = rejectLink(store, en, cand[1].invoiceId, { ...o('2026-10-08T10:01:00Z'), note: 'other payer', input: mk(cand[1]) }).store;
+  const hist = buildEffectiveCases([c], store)[0].history.map((h) => h.action); assert.deepEqual(hist, ['rejected', 'removed', 'confirmed', 'proposed'], 'every step is kept, newest first');
+  const chg = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-09T10:00:00Z'), note: 'again', orderStatus: 'suspended' }).store; assert.ok(chg.orders[en].history.some((h) => h.action === 'order_status_changed' && h.detail.from === 'open' && h.detail.to === 'suspended'), 'a change of the order status since the last record is logged');
+  const fed = caseOf(orderOf('single')); const fedId = fed.links[0].invoiceId; assert.equal(removeLink(emptyStore(), fed.enforceNum, fedId, { ...o('x'), note: 'r' }).error, 'not_confirmed');
+  const wd = removeLink(emptyStore(), fed.enforceNum, fedId, { ...o('2026-10-08T11:00:00Z'), note: 'the reference is a typing error', base: fed.links[0] }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([fed], wd)), {}, 'a link from the Sanad feed can be withdrawn; the withdrawal is recorded over it');
+  assert.equal(unresolvedReferences(buildEffectiveCases([fed], wd)[0]).length, 0, 'the withdrawn reference stays accounted for by that decision');
+  assert.ok(validStoreShape(store)); assert.equal(validStoreShape({ v: 1, orders: { x: { links: { a: { invoiceId: 'a', status: 'weird' } }, history: [] } } }), false);
+});
+
+await test('Engine: only a CONFIRMED link (order in execution / suspended) changes the invoice category; a proposal or a closed order does not; the payment status is separate and never changes', () => {
+  const q = orderOf('single'); const i = q.covers[0]; const id = idOfInv(i); const run = (links) => detail(st, i, makeCtx(st, { cfg, links }));
+  const base = run({}); assert.ok(!base.derived.cancelled);
+  const same = (x) => assert.deepEqual([x.derived.payStatus, x.derived.outstanding, x.derived.collected], [base.derived.payStatus, base.derived.outstanding, base.derived.collected]);
+  for (const s of ['candidate', 'closed']) { const x = run({ [id]: s }); assert.equal(JSON.stringify(x.cls), JSON.stringify(base.cls), s); same(x); }
+  for (const s of ['open', 'suspended', 'confirmed']) { const x = run({ [id]: s }); assert.equal(x.cls.key || x.cls.primary || JSON.stringify(x.cls), (run({ [id]: 'open' }).cls.key || run({ [id]: 'open' }).cls.primary || JSON.stringify(run({ [id]: 'open' }).cls)), s); assert.notEqual(JSON.stringify(x.cls), JSON.stringify(base.cls), `${s} changes the category`); same(x); }
+  const sn = (links) => snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all', status: 'enforcement' }, cfg, links }).totals.count;
+  assert.equal(sn({ [id]: 'candidate' }), sn({}), 'a proposal does not move any total'); assert.equal(sn({ [id]: 'closed' }), sn({})); assert.equal(sn({ [id]: 'open' }), sn({}) + 1); assert.equal(sn({ [id]: 'suspended' }), sn({}) + 1);
+  assert.ok(snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
+  assert.equal(run({}).derived.payStatus, 'overdue'); assert.equal(list(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, filters: { exec: 'yes' }, links: { [id]: 'candidate' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), false, 'a proposal is not an execution');
+});
+
+await test('Backup: enforcement work (links, document records, extracted references, history) is included and validated; an older backup never removes it; the PDF bytes are not part of the file', () => {
+  const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+  const a = mem(); const store = proposeLink(emptyStore(), 'EN-5000', { invoiceId: 'INV-2025-0000001', origin: 'document_text_layer', gross: 5 }, { by: 'x', at: '2026-10-08T10:00:00Z', orderStatus: 'open' }).store; a.setItem('ib_enforcement_v1', JSON.stringify(store));
+  const b = buildBackup(a); assert.deepEqual(b.data.ib_enforcement_v1, store); const v = validateBackup(b); assert.equal(v.ok, true); assert.equal(v.summary.enforcementOrders, 1);
+  const t = mem(); applyBackup(JSON.parse(JSON.stringify(b)), t); assert.deepEqual(JSON.parse(t.getItem('ib_enforcement_v1')), store, 'round-trips');
+  const old = buildBackup(mem()); assert.ok(!('ib_enforcement_v1' in old.data)); applyBackup(old, t); assert.ok(t.getItem('ib_enforcement_v1'), 'a backup made before this feature does not delete the enforcement records');
+  assert.equal(applyBackup({ ...b, data: { ...b.data, ib_enforcement_v1: { v: 1, orders: { x: { links: [] } } } } }, mem()).ok, false, 'a malformed record is rejected before anything is written');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -22,7 +22,7 @@ import { loadComparison } from '../data/comparison';
 import { analyzeScenario as analyzeWhatIf, baseFromSnapshot, baseWindowScope, OPERATING_PROFILE } from '../data/strategicModel';
 
 // The task runner never sees invoices: every figure comes from the data service through `ctx.data`
-// ({ snapshot, bridge, series, worklist, anomalies, invoice, matchCandidates, contracts }).
+// ({ snapshot, bridge, series, worklist, anomalies, invoice, contracts }).
 const countFmt = (n) => Number(n || 0).toLocaleString('en-US');
 const scopeOnly = (sc) => ({ from: sc.from, to: sc.to, amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status });
 const getSnapshot = async (ctx) => { if (!ctx.snapshot) ctx.snapshot = await ctx.data.snapshot(scopeOnly(ctx.scope)); return ctx.snapshot; };
@@ -132,7 +132,7 @@ const S = {
       if (snap.unapprovedRulesApplied.length) h.warn(bi(`Exclusion rules applied without business approval: ${snap.unapprovedRulesApplied.join(', ')} (${money(T.exclusionsUnapproved)}). The result is shown as "unapproved".`, `قواعد استبعاد مطبّقة دون اعتماد: ${snap.unapprovedRulesApplied.join('، ')} (${mAr(T.exclusionsUnapproved)}). تُعرض النتيجة بوصفها "غير معتمدة".`), { limitation: true });
       if (pending) h.warn(bi(`${pending} exclusion candidate(s) are not yet approved and stay in net billed.`, `${pending} مرشح استبعاد غير معتمد بعد ويبقى ضمن صافي المفوتر.`), { limitation: false });
       if (!cases.length) h.skipNote(bi('No enforcement cases available.', 'لا توجد قضايا إنفاذ متاحة.'));
-      h.detail(bi(`${Object.keys(snap.exclusionsByCategory).length} exclusion categor(ies) applied; ${states.filter((s) => s !== 'linked').length} enforcement case(s) without a confirmed link`, `${Object.keys(snap.exclusionsByCategory).length} فئة استبعاد مطبّقة؛ ${states.filter((s) => s !== 'linked').length} قضية إنفاذ دون رابط مؤكد`));
+      h.detail(bi(`${Object.keys(snap.exclusionsByCategory).length} exclusion categor(ies) applied; ${states.filter((s) => s !== 'linked').length} enforcement order(s) not fully matched to invoices`, `${Object.keys(snap.exclusionsByCategory).length} فئة استبعاد مطبّقة؛ ${states.filter((s) => s !== 'linked').length} أمر إنفاذ غير مطابق بالكامل مع الفواتير`));
     }
   },
   gaps: (label) => ({
@@ -229,61 +229,6 @@ export const TASK_KINDS = {
         }
       },
       S.prepare('invoice')
-    ],
-    modal: true
-  },
-  enforcement: {
-    title: bi('Matching enforcement orders to invoices', 'جارٍ مطابقة أوامر الإنفاذ مع الفواتير'),
-    stages: () => [
-      S.scope(),
-      {
-        id: 'enf_retrieve',
-        label: bi('Retrieve cases and extract references', 'استرجاع القضايا واستخراج المراجع'),
-        active: bi('Reading case data and extracting invoice / contract / SADAD references', 'قراءة بيانات القضية واستخراج مراجع الفاتورة والعقد وسداد'),
-        async run(ctx, h) {
-          const c = (ctx.cases || []).find((x) => x.enforceNum === ctx.params?.enforceNum);
-          if (!c) throw new Error('case_not_found');
-          ctx.case = c;
-          h.detail(bi(`Case ${c.enforceNum} · ${money(c.amount)}`, `القضية ${c.enforceNum} · ${money(c.amount)}`));
-          if (!ctx.params?.text) h.warn(bi('No document text supplied — matching relies on amount and Amanah only (weaker evidence).', 'لم يُزوَّد بنص مستند — تعتمد المطابقة على المبلغ والأمانة فقط (دليل أضعف).'), { limitation: true });
-        }
-      },
-      {
-        id: 'enf_match',
-        label: bi('Find candidate invoices and evidence', 'إيجاد الفواتير المرشحة والأدلة'),
-        active: bi('Scoring candidate invoices on references, amount, Amanah and status', 'تقييم الفواتير المرشحة بحسب المراجع والمبلغ والأمانة والحالة'),
-        async run(ctx, h) {
-          const c = ctx.case;
-          ctx.match = await ctx.data.matchCandidates({ amanah: 'all', source: 'all', from: '2000-01-01', to: ctx.cfg.cutoff }, { case: { enforceNum: c.enforceNum, amanahEn: c.amanahEn, amount: c.amount, openedDate: c.openedDate }, text: ctx.params?.text || '' });
-          h.units(1, 1);
-          if (ctx.match.verdict === 'ambiguous') h.warn(bi('Several plausible candidates — a human must choose; it cannot be auto-confirmed.', 'عدة مرشحين محتملين — يجب أن يختار إنسان؛ ولا يمكن تأكيده تلقائياً.'), { limitation: true });
-          if (ctx.match.verdict === 'none') h.warn(bi('No candidate reached the evidence threshold; the case stays unresolved.', 'لم يبلغ أي مرشح عتبة الدليل؛ تبقى القضية غير محسومة.'), { limitation: true });
-          h.detail(bi(`${ctx.match.candidates.length} candidate(s); verdict: ${ctx.match.verdict}`, `${ctx.match.candidates.length} مرشح؛ الحكم: ${ctx.match.verdict}`));
-        }
-      },
-      {
-        id: 'enf_prepare',
-        label: bi('Prepare candidate list for review', 'إعداد قائمة المرشحين للمراجعة'),
-        active: bi('Packaging candidates with evidence for human review', 'تجهيز المرشحين مع الأدلة للمراجعة البشرية'),
-        async run(ctx, h) {
-          ctx.result = {
-            kind: 'enforcement',
-            cutoff: ctx.cfg.cutoff,
-            scope: ctx.scope,
-            provenance: bi('Illustrative demo data — not production figures.', 'بيانات توضيحية للعرض — وليست أرقام إنتاج.'),
-            executiveSummary: bi(
-              `Case ${ctx.case.enforceNum} (${money(ctx.case.amount)}): ${ctx.match.candidates.length} candidate invoice(s), verdict "${ctx.match.verdict}". All candidates need human review before they count.`,
-              `القضية ${ctx.case.enforceNum} (${money(ctx.case.amount)}): ${ctx.match.candidates.length} فاتورة مرشحة، الحكم "${ctx.match.verdict}". تتطلب جميع المرشحات مراجعة بشرية قبل اعتمادها.`
-            ),
-            indicators: [], references: [], confirmed: [], hypotheses: ctx.match.candidates.map((c) => ({ kind: 'hypothesis', text: bi(`Candidate ${c.invoiceId} (score ${c.score}; evidence: ${c.evidence.join(', ') || '—'}${c.conflicts.length ? `; conflicts: ${c.conflicts.join(', ')}` : ''}).`, `مرشح ${c.invoiceId} (الدرجة ${c.score}؛ الأدلة: ${c.evidence.join('، ') || '—'}${c.conflicts.length ? `؛ تعارضات: ${c.conflicts.join('، ')}` : ''}).`), invoices: [c.invoiceId] })),
-            missing: [], recommendations: [{ kind: 'recommendation', text: bi('Confirm or reject each candidate. Leave ambiguous cases unresolved until more evidence is added; a conflicting candidate needs a written justification.', 'تأكيد أو رفض كل مرشح. تُترك الحالات الملتبسة غير محسومة حتى إضافة دليل؛ والمرشح المتعارض يحتاج مبرراً مكتوباً.') }],
-            assumptions: [bi('Case amounts are not allocated across invoices unless the pair is exact; unallocated amounts are reported separately.', 'لا تُوزّع مبالغ القضايا على الفواتير ما لم يكن الزوج مطابقاً تماماً؛ وتُعرض المبالغ غير الموزعة منفصلة.')],
-            limitations: [bi('Document text in this demo is simulated; extraction results must be reviewed.', 'نص المستند في هذا العرض محاكى؛ ولا يوجد OCR إنتاجي متصل.')],
-            links: [], extra: { enforceNum: ctx.case.enforceNum, match: ctx.match }
-          };
-          h.detail(bi('Ready for review', 'جاهز للمراجعة'));
-        }
-      }
     ],
     modal: true
   },

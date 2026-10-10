@@ -13,12 +13,14 @@
     "verify:sources": "esbuild scripts/verify-sources.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/verify-sources.mjs && node .test-build/verify-sources.mjs",
     "check": "node scripts/check-undef.mjs",
     "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
-    "verify:exports": "esbuild scripts/export-parity.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/export-parity.mjs && node .test-build/export-parity.mjs .test-build/exports && python3 scripts/export_parity_check.py .test-build/exports"
+    "verify:exports": "esbuild scripts/export-parity.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/export-parity.mjs && node .test-build/export-parity.mjs .test-build/exports && python3 scripts/export_parity_check.py .test-build/exports",
+    "make:samples": "esbuild scripts/make-order-pdfs.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-order-pdfs.mjs && node .test-build/make-order-pdfs.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
     "chart.js": "^4.4.4",
     "docx": "^9.7.1",
+    "pdfjs-dist": "^4.10.38",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",

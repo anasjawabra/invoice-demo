@@ -75,7 +75,8 @@ export const api = {
   contracts: (req, o) => post('/contracts', req, o),
   contract: (req, o) => post('/contract', req, o),
   invoice: (req, o) => post('/invoice', req, o),
-  matchCandidates: (req, o) => post('/match-candidates', req, { ...o, cached: false }),
+  orderMatch: (req, o) => post('/order-match', req, { ...o, cached: false }),
+  orderDebtorInvoices: (req, o) => post('/order-debtor-invoices', req, { ...o, cached: false }),
   upload: async (records) => { const r = await post('/upload', { records }, { cached: false }); bumpEpoch(); return r; },
   clearUploads: async () => { const r = await post('/upload/clear', {}, { cached: false }); bumpEpoch(); return r; },
   // a plain GET URL so the browser streams the CSV to disk (the page never builds the file)

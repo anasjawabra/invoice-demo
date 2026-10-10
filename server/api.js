@@ -4,8 +4,9 @@ import { currentStore } from './store.js';
 import { snapshot, series, bridge, makeCtx, lookupId } from './engine.js';
 import { list, exportChunks, worklist, anomalies, risk, bumpEpoch } from './lists.js';
 import { contractCards, contractCard, contractRollup, sanadCases } from './contracts.js';
-import { meta, quality, matchCandidates } from './misc.js';
+import { meta, quality } from './misc.js';
 import { sourcesReport } from './sourcesReport.js';
+import { resolveReferences, sameDebtorInvoices } from './orderMatch.js';
 import { detail } from './materialize.js';
 import { appendRecord } from './fixtures.js';
 
@@ -67,7 +68,8 @@ export async function handleApi(req, res) {
         if (i < 0 || (st.owner[i] !== 0 && st.owner[i] !== owner)) return send(res, 404, { error: 'invoice_not_found' });
         return send(res, 200, detail(st, i, makeCtx(st, body)));
       }
-      case '/match-candidates': return send(res, 200, matchCandidates(st, body));
+      case '/order-match': return send(res, 200, resolveReferences(st, body));
+      case '/order-debtor-invoices': return send(res, 200, sameDebtorInvoices(st, body));
       case '/upload': {
         const recs = [];
         const duplicates = [];

@@ -114,8 +114,8 @@ export function candidates(st, req) {
     if (periodFilter && (st.issue[i] < sc.fromN || st.issue[i] > sc.toN)) return;
     if (cs >= 0 && st.cstat[i] !== cs) return;
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
-    if (f.exec === 'yes' && st.exec[i] < 0 && !(ctx.mark && ctx.ov.get(i)?.link)) return;
-    if (f.exec === 'no' && (st.exec[i] >= 0 || (ctx.mark && ctx.ov.get(i)?.link))) return;
+    if (f.exec === 'yes' && st.exec[i] < 0 && !(ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2)) return;
+    if (f.exec === 'no' && (st.exec[i] >= 0 || (ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2))) return;
     if (f.rule === 'none' && st.exMask[i]) return;
     if (f.rule === 'any' && !st.exMask[i]) return;
     if (ruleBit && !(st.exMask[i] & ruleBit)) return;

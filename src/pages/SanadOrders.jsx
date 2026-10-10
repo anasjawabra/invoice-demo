@@ -1,75 +1,104 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Pager from '../components/Pager';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
-import { MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
+import { MetricTile } from '../components/revenue/RevenueUI';
 import { caseSummary } from '../data/enforcementMatching';
-import { SANAD_ENFORCEMENT } from '../data/mock';
+import { SUMMARY_TO_MATCH, MatchStateBadge, OrderStatusChip, REASON_LABEL, IntegrationNotice } from '../components/revenue/EnforcementUI';
+import { orderStatusOf } from '../data/orderMatching';
 
-const STATE_LABEL = {
-  linked: { en: 'Linked (confirmed)', ar: 'مربوطة (مؤكدة)', cls: 'rv-cat--enforcement' },
-  candidate: { en: 'Candidate — needs review', ar: 'مرشح — يحتاج مراجعة', cls: 'rv-cat--partial' },
-  ambiguous: { en: 'Ambiguous — needs a human choice', ar: 'ملتبس — يحتاج اختياراً بشرياً', cls: 'rv-cat--partial' },
-  unresolved: { en: 'Unresolved', ar: 'غير محسومة', cls: '' }
-};
+const PAGE = 25;
 
-// Enforcement workspace: Sanad / Efaa cases and their (human-reviewed) links to invoices.
+// Enforcement orders (Sanad is the source). An order can cover ONE OR MANY invoices of ANY revenue type; its state is matched only when every
+// reference is accounted for AND the amounts reconcile — anything less is shown as partial.
 export default function SanadOrders() {
   const { cases } = useRevenue();
-  const { L, B, short, ar, sar, count: fmt } = useL();
+  const { L, B, short, sar, count: fmt } = useL();
   const nav = useNavigate();
   const [page, setPage] = useState(0);
-  const rows = cases.map((c) => ({ c, s: caseSummary(c) }));
-  const count = (st) => rows.filter((r) => r.s.state === st).length;
-  const totalUnalloc = rows.reduce((a, r) => a + r.s.unallocated, 0);
+  const [fState, setFState] = useState('all');
+  const [fStatus, setFStatus] = useState('all');
+  const [q, setQ] = useState('');
+
+  const rows = useMemo(() => cases.map((c) => { const s = caseSummary(c); return { c, s, match: SUMMARY_TO_MATCH[s.state], status: orderStatusOf(c) }; }), [cases]);
+  const count = (m) => rows.filter((r) => r.match === m).length;
+  const notCovered = rows.reduce((a, r) => a + (r.match === 'matched' ? 0 : r.s.unallocated), 0);
+  const shown = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return rows.filter((r) => (fState === 'all' || r.match === fState) && (fStatus === 'all' || r.status === fStatus) && (!t || r.c.enforceNum.toLowerCase().includes(t) || `${r.c.debtorName?.ar || ''} ${r.c.debtorName?.en || r.c.debtorName || ''}`.toLowerCase().includes(t) || (r.c.debtorId || '').includes(t)));
+  }, [rows, fState, fStatus, q]);
+  const view = shown.slice(page * PAGE, (page + 1) * PAGE);
 
   return (
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">{L('Enforcement workspace — case-to-invoice linking', 'مساحة عمل الإنفاذ — ربط القضايا بالفواتير')}</h1>
-          <div className="page-sub">{L('Structured identifiers first; document-extracted references when needed. One case can link to several invoices. Ambiguous matches stay unresolved until a person decides, and every decision keeps its history inside this solution — no source system is changed.', 'المعرّفات المهيكلة أولاً؛ ثم المراجع المستخرجة من المستندات عند الحاجة. يمكن لقضية واحدة أن ترتبط بعدة فواتير. تبقى المطابقات الملتبسة غير محسومة حتى يقرر شخص، ويحتفظ كل قرار بسجله داخل هذه المنصة — ولا يتغير أي نظام مصدر.')}</div>
+          <h1 className="page-title">{L('Enforcement orders — matching to invoices', 'أوامر الإنفاذ — مطابقتها مع الفواتير')}</h1>
+          <div className="page-sub">{L('An enforcement order from Sanad can cover one or several invoices of any revenue type (not only contracts). Invoice references come from Sanad and from the order document; an amount alone never creates a match. Nothing counts on an invoice until a person confirms the link, and a partial match is always shown as partial.', 'قد يشمل أمر الإنفاذ الصادر من سند فاتورة واحدة أو عدة فواتير من أي نوع إيراد (وليس العقود فقط). تأتي مراجع الفواتير من سند ومن مستند الأمر؛ والمبلغ وحده لا يُنشئ مطابقة. ولا يُحتسب شيء على الفاتورة قبل أن يؤكد شخص الربط، ويُعرض التطابق الجزئي دائماً كجزئي.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/noncollection')}>{L('Noncollection & exclusions', 'عدم التحصيل والاستبعادات')}</button>
         </div>
       </div>
 
-      <div className="rv-callout">{L('Requests and statuses come from the Sanad report loaded in Data sources (demo data). A request linked to a contract number without identified invoices stays at contract level and is never added to the uncollected debt.', 'الطلبات وحالاتها من تقرير سند المحمّل في مصادر البيانات (بيانات تجريبية). والطلب المرتبط برقم عقد دون فواتير محددة يبقى على مستوى العقد ولا يُضاف إلى المديونية غير المحصلة.')}</div>
+      <IntegrationNotice />
 
       <div className="rv-tiles">
-        <MetricTile label={L('Cases', 'القضايا')} value={fmt(cases.length)} />
-        <MetricTile label={L('Linked (confirmed)', 'مربوطة (مؤكدة)')} value={fmt(count('linked'))} />
-        <MetricTile label={L('Awaiting review', 'بانتظار المراجعة')} value={fmt(count('candidate') + count('ambiguous'))} tone={count('candidate') + count('ambiguous') ? 'warn' : undefined} />
-        <MetricTile label={L('Unresolved', 'غير محسومة')} value={fmt(count('unresolved'))} />
-        <MetricTile label={L('Unallocated case amount', 'مبلغ القضايا غير الموزع')} value={short(totalUnalloc)} sub={L('Case amounts are not spread across invoices unless the pair is exact', 'لا تُوزّع مبالغ القضايا على الفواتير ما لم يكن الزوج مطابقاً')} />
+        <MetricTile label={L('Orders', 'الأوامر')} value={fmt(rows.length)} />
+        <MetricTile label={L('Fully matched', 'مطابقة بالكامل')} value={fmt(count('matched'))} sub={L('every reference accounted for and amounts reconcile', 'كل المراجع محسومة والمبالغ متطابقة')} />
+        <MetricTile label={L('Partially matched', 'مطابقة جزئياً')} value={fmt(count('partial'))} tone={count('partial') ? 'warn' : undefined} sub={L('something is confirmed but the order is not complete', 'يوجد ما هو مؤكد لكن الأمر غير مكتمل')} />
+        <MetricTile label={L('Awaiting review', 'بانتظار المراجعة')} value={fmt(count('awaiting_review'))} tone={count('awaiting_review') ? 'warn' : undefined} />
+        <MetricTile label={L('Not matched', 'غير مطابقة')} value={fmt(count('unmatched'))} />
+        <MetricTile label={L('Order amount not covered by a confirmed invoice', 'مبلغ الأوامر غير المغطى بفاتورة مؤكدة')} value={short(notCovered)} sub={L('reported separately — never added to the debt and never spread across invoices', 'يُعرض منفصلاً — لا يُضاف إلى المديونية ولا يُوزَّع على الفواتير')} />
       </div>
 
       <div className="card card-pad">
+        <div className="rv-form" style={{ marginBottom: 10 }}>
+          <label>{L('Match state', 'حالة المطابقة')}
+            <select className="input" value={fState} onChange={(e) => { setFState(e.target.value); setPage(0); }}>
+              <option value="all">{L('All', 'الكل')}</option>
+              {['matched', 'partial', 'awaiting_review', 'unmatched'].map((k) => <option key={k} value={k}>{L({ matched: 'Fully matched', partial: 'Partially matched', awaiting_review: 'Awaiting review', unmatched: 'Not matched' }[k], { matched: 'مطابق بالكامل', partial: 'مطابق جزئياً', awaiting_review: 'بانتظار المراجعة', unmatched: 'غير مطابق' }[k])}</option>)}
+            </select>
+          </label>
+          <label>{L('Order status (Sanad)', 'حالة الأمر (سند)')}
+            <select className="input" value={fStatus} onChange={(e) => { setFStatus(e.target.value); setPage(0); }}>
+              <option value="all">{L('All', 'الكل')}</option>
+              <option value="open">{L('In execution', 'قيد التنفيذ')}</option>
+              <option value="suspended">{L('Suspended', 'موقوف')}</option>
+              <option value="closed">{L('Closed', 'مغلق')}</option>
+            </select>
+          </label>
+          <label style={{ flex: 1, minWidth: 220 }}>{L('Search order number or debtor', 'بحث برقم الأمر أو المدين')}
+            <input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="EN-5013" dir="auto" />
+          </label>
+        </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Case', 'القضية')}</th><th>{L('Platform', 'المنصة')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Case amount', 'مبلغ القضية')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Linked invoices', 'فواتير مربوطة')}</th><th className="num">{L('Unallocated', 'غير موزع')}</th><th><span className="sr-only">{L('Action', 'إجراء')}</span></th></tr></thead>
+            <thead><tr><th>{L('Order', 'الأمر')}</th><th>{L('Amanah', 'الأمانة')}</th><th>{L('Debtor', 'المدين')}</th><th className="num">{L('Order amount', 'مبلغ الأمر')}</th><th>{L('Order status (Sanad)', 'حالة الأمر (سند)')}</th><th>{L('Match state', 'حالة المطابقة')}</th><th className="num">{L('Invoices confirmed / proposed', 'فواتير مؤكدة / مقترحة')}</th><th className="num">{L('Difference', 'الفرق')}</th><th><span className="sr-only">{L('Action', 'إجراء')}</span></th></tr></thead>
             <tbody>
-              {rows.slice(page * 25, (page + 1) * 25).map(({ c, s }) => (
+              {view.map(({ c, s, match, status }) => (
                 <tr key={c.enforceNum}>
-                  <td dir="ltr"><b>{c.enforceNum}</b></td>
-                  <td>{c.system === 'sanad' ? 'Sanad' : c.system === 'white_lands' ? L('White-lands file', 'ملف الأراضي البيضاء') : 'Efaa'}</td>
+                  <td dir="ltr"><b>{c.enforceNum}</b><div className="muted" style={{ fontSize: 11 }}>{c.system === 'sanad' ? 'Sanad' : c.system === 'white_lands' ? L('White-lands file', 'ملف الأراضي البيضاء') : 'Efaa'}{c.contractNo ? ` · ${c.contractNo}` : ''}</div></td>
                   <td>{c.amanahEn}</td>
+                  <td dir="auto">{B(c.debtorName) || '—'}</td>
                   <td className="num" dir="ltr">{sar(c.amount)}</td>
-                  <td><span className={`rv-cat ${STATE_LABEL[s.state].cls}`}>{B(STATE_LABEL[s.state])}</span>{s.candidates > 0 && <span className="rv-tag" style={{ marginInlineStart: 6 }}>{L(`${s.candidates} candidate(s)`, `${s.candidates} مرشح`)}</span>}</td>
-                  <td className="num">{s.confirmed}</td>
-                  <td className="num" dir="ltr">{sar(s.unallocated)}</td>
+                  <td><OrderStatusChip status={status} /></td>
+                  <td>
+                    <MatchStateBadge state={match} />
+                    {s.reasons.length > 0 && match !== 'unmatched' && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>{s.reasons.map((r) => B(REASON_LABEL[r])).join(' · ')}</div>}
+                    {match === 'unmatched' && c.contractNo && <div className="muted" style={{ fontSize: 11, marginTop: 3 }}>{L('contract level — invoices not identified', 'على مستوى العقد — الفواتير غير محددة')}</div>}
+                  </td>
+                  <td className="num">{s.confirmed} / {s.candidates}</td>
+                  <td className="num" dir="ltr">{s.difference == null ? '—' : s.confirmed || s.candidates ? sar(s.difference) : '—'}</td>
                   <td><Link className="btn btn-sm btn-primary" to={`/sanad-orders/${encodeURIComponent(c.enforceNum)}`}>{L('Open', 'فتح')}</Link></td>
                 </tr>
               ))}
+              {!view.length && <tr><td colSpan={9} className="rv-empty">{L('No orders match this filter.', 'لا توجد أوامر مطابقة لهذا المرشح.')}</td></tr>}
             </tbody>
           </table>
         </div>
-        <Pager page={page} total={rows.length} size={25} onPage={setPage} />
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-          {L(`Illustrative portfolio statistics (not derived from the cases above): ${SANAD_ENFORCEMENT.ordersUnlinked} of ${SANAD_ENFORCEMENT.ordersIssued} issued orders reported without a linked invoice.`, `إحصاءات توضيحية للمحفظة (غير مشتقة من القضايا أعلاه): ${SANAD_ENFORCEMENT.ordersUnlinked} من ${SANAD_ENFORCEMENT.ordersIssued} أمراً صادراً بلا فاتورة مرتبطة.`)}
-        </p>
+        <Pager page={page} total={shown.length} size={PAGE} onPage={setPage} />
       </div>
     </div>
   );

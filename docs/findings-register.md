@@ -468,3 +468,18 @@ F-05 **partial**; F-19 **blocked (server store)**; F-23 **explanation closed, fu
 **Smart Reports for the demo.** The page now states, in bold next to the request box, that the assistant works with fixed rules, not a language model, and to check «How I read your request» before relying on a result; the supported prompts are listed in the handover.
 
 **Verification (isolated origin `127.0.0.1:3000`; start: localStorage empty, session = demo date + sign-in; end: one test plan in localStorage, then cleared — the origin is my own test origin).** `npm test` 84 passed (the funding test now asserts no scenario figure and an unchanged baseline); `verify:exports` 100 % (the parity script now includes a funding table with an active scenario: docx/pptx tables 4744/4744, xlsx amounts 2202/2202, 1408/1408 items in each format); Planning in the browser: baseline unchanged under a scenario, effects separate, plan Excel export (79 KB), banner shown. **The `localhost:3000` profile was not touched** (it still holds the one Smart conversation I did not create).
+
+
+---
+
+# Round 8 — business correction: enforcement orders and invoice matching (branch `enforcement-order-matching`)
+
+Full description, impact review and verification: `docs/enforcement-order-matching.md`.
+
+**Finding E-01 — enforcement orders were modelled only at contract level; matching used amount + Amanah and simulated document text (fixed in this branch).** Orders from Sanad can cover one or several invoices of any type. Now: orders over all invoice types in the synthetic feed (labelled demo data); reference-only matching (invoice number, serial, SADAD, violation number) against the invoices; the order PDF is added by hand (Sanad retrieval is **not connected**) and its **text layer** is really read (every page, tables included) — **no OCR engine is connected**, so unread pages are flagged and block «fully matched» until external OCR text or typed references are supplied (recorded as such); an amount never creates a match; discrepancies stay visible; ambiguous / duplicate / conflicting references are shown for a person to decide; only a **confirmed** link reflects the order's status on an invoice and the payment status stays separate; partial matches stay partial; history is kept.
+
+**Behaviour changes to be aware of:** (1) a proposed link no longer moves an invoice to «linkage unresolved»; (2) a confirmed link to a **closed** order no longer puts the invoice in «Referred to enforcement» (assumption — flagged for confirmation; demo effect: 4 → 3 invoices, net uncollected unchanged); (3) the old amount/Amanah candidate finder and its analysis task were removed.
+
+**Status:** E-01 **fixed for the demo scope**; **dependencies open** — live Sanad retrieval, Sanad PDF retrieval, an OCR service, Arabic-PDF text verification, server-side store with identity/audit (F-19). Tests 84 → 93; exports 100 %.
+
+**Audit statuses preserved:** F-05 partial; F-19 blocked (server store); F-23 explanation closed / funding approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked (assets); screen-reader verification open. EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and the logo / Figma / icon-licence decisions remain unresolved and are not inferred.

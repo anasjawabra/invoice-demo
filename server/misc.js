@@ -1,8 +1,6 @@
-// Meta, data-quality / matching counts and enforcement-candidate preselection.
+// Meta and data-quality / matching counts.
 import { ENTITIES, SOURCES, F, isoOf, dayNum } from '../src/data/catalog.js';
 import { makeCtx, resolveScope, derive, inScope, idOf, lookupId } from './engine.js';
-import { materialize } from './materialize.js';
-import { proposeMatches } from '../src/data/enforcementMatching.js';
 
 export function meta(st, today) {
   const y = today.slice(0, 4); const yN = dayNum(`${y}-01-01`); const pyN = dayNum(`${Number(y) - 1}-01-01`);
@@ -50,28 +48,4 @@ export function quality(st, req) {
   return { ...q, requests: sanad.length, requestsIdentified: sanad.filter((r) => r.identified.length).length, whiteLandsOrders: st.requests.length - sanad.length, ocrCrChains: sanad.filter((r) => r.method === 1).length, crChains: sanad.length, crChainsMatched: sanad.filter((r) => st.crView.has(r.crNo)).length, ocrLowConfidence: ocrLow, futureInstallments: future, crViewKnown: st.crView.size, void: D.gross };
 }
 
-// Candidate preselection for an enforcement case: same Amanah + amount near, or explicit references in the supplied text.
-export function matchCandidates(st, req) {
-  const ctx = makeCtx(st, req); const sc = resolveScope(ctx, { ...req.scope, from: '2000-01-01', to: ctx.cfg.cutoff });
-  const c = req.case; const text = req.text || '';
-  const picks = new Map(); const D = ctx.D;
-  const refIds = [...new Set(text.match(/INV-\d{4}-\d{7}/gi) || [])];
-  for (const id of refIds) { const i = lookupId(st, id.toUpperCase()); if (i >= 0) picks.set(i, 0); }
-  const coRefs = [...new Set(text.match(/CT-\d{4}-\d{4}/gi) || [])];
-  for (const no of coRefs) { const ct = st.contracts.find((x) => x && x.contractNo === no.toUpperCase()); if (ct) for (const i of ct.invs) picks.set(i, 0); }
-  const entIdx = ENTITIES.findIndex((e) => e.en === c.amanahEn);
-  const best = [];
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.ent[i] !== entIdx) continue;
-    derive(ctx, i, ctx.cutoffN);
-    if (!(D.outstanding > 0) || D.excluded) continue;
-    const diff = Math.abs(D.outstanding - c.amount) / Math.max(1, c.amount);
-    if (diff <= 0.25) best.push([diff, i]);
-  }
-  best.sort((a, b) => a[0] - b[0]);
-  for (const [, i] of best.slice(0, 120)) picks.set(i, 1);
-  const recs = [...picks.keys()].map((i) => materialize(st, i, ctx)).filter(Boolean);
-  const m = proposeMatches(c, recs, text, req.cfg || {});
-  return { ...m, preselected: recs.length, candidates: m.candidates.slice(0, 20) };
-}
 void SOURCES; void idOf;

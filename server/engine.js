@@ -102,10 +102,11 @@ export function makeCtx(st, req = {}) {
     for (const [id, status] of Object.entries(links)) {
       const i = lookupId(st, id); if (i < 0) continue;
       const o = ctx.ov.get(i) || { set: 0, clr: 0, rej: 0, link: 0 };
-      o.link = status === 'confirmed' ? 2 : status === 'candidate' ? 1 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1;
+      // enforcement link codes: 1 = proposed (NOT confirmed: never changes a status or a category), 2 = confirmed, order in execution, 3 = confirmed, order suspended, 4 = confirmed, order closed
+      o.link = status === 'confirmed' || status === 'open' ? 2 : status === 'suspended' ? 3 : status === 'closed' ? 4 : status === 'candidate' ? 1 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1;
     }
   }
-  ctx.D = { gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
+  ctx.D = { payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
   return ctx;
 }
 function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit) return r.bit; return 0; }
@@ -126,7 +127,7 @@ export function derive(ctx, i, asOfN) {
   let received = 0; const ps = st.payStart[i]; const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  const cancelled = cd !== 0 && cd <= asOfN && link !== 2;
+  const cancelled = cd !== 0 && cd <= asOfN && link !== 2 && link !== 3;
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -149,14 +150,16 @@ export function derive(ctx, i, asOfN) {
   else {
     const isPartial = received > 0 && outstanding > 0; const isOverdue = daysOverdue > 0; const cs = st.cstat[i];
     if (flags & F.OBJECTION) cls = C.objection;
-    else if (link === 2) cls = C.enforcement;
-    else if ((flags & F.LEGACY_CANCELLED) || link === 1 || (st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue)) cls = C.linkage_unresolved;
+    else if (link === 2 || link === 3) cls = C.enforcement; // a CONFIRMED link to an order in execution / suspended; a closed order (4) and a merely proposed link (1) never change the category
+    else if ((flags & F.LEGACY_CANCELLED) || (st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue)) cls = C.linkage_unresolved;
     else if (isOverdue && (flags & F.MISSING_ID)) cls = C.ineligible_referral;
     else if (isPartial) cls = C.partial;
     else if (isOverdue) cls = C.overdue;
     else cls = C.not_due;
   }
   D.cls = cls;
+  // PAYMENT status, independent of enforcement / objection / linkage: what the payments say about this invoice
+  D.payStatus = cancelled ? 'cancelled' : excluded ? 'excluded' : outstanding <= 0 ? 'collected' : received > 0 ? 'partial' : daysOverdue > 0 ? 'overdue' : 'not_due';
   return D;
 }
 

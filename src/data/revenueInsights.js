@@ -232,14 +232,14 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
     });
   }
 
-  const pendingCases = enforcementCases.filter((c) => !c.contractNo && ['unresolved', 'candidate', 'ambiguous'].includes(caseSummary(c).state));
+  const pendingCases = enforcementCases.filter((c) => !(c.contractNo && !(c.refs || []).length && !c.links.length) && ['unresolved', 'candidate', 'ambiguous', 'partial'].includes(caseSummary(c).state)); // contract-level requests without identified invoices have their own card below
   if (pendingCases.length) {
     const amount = pendingCases.reduce((s, c) => s + c.amount, 0);
     mk({
       id: 'enforcement_matching', kind: 'matching', amount, count: pendingCases.length, invoiceIds: [], maxDaysOverdue: 0,
       actionability: 0.6, evidenceQuality: 0.45,
-      title: bi('Enforcement orders not yet linked to invoices', 'أوامر إنفاذ غير مربوطة بفواتير'),
-      gap: bi(`${pendingCases.length} enforcement case(s) worth ${money(amount)} have no confirmed invoice link, so their recoveries cannot be tied to receivables.`, `${pendingCases.length} قضية إنفاذ بقيمة ${mAr(amount)} بلا رابط فاتورة مؤكد، لذا لا يمكن ربط متحصلاتها بالمستحقات.`),
+      title: bi('Enforcement orders not fully matched to invoices', 'أوامر إنفاذ غير مطابقة بالكامل مع الفواتير'),
+      gap: bi(`${pendingCases.length} enforcement order(s) worth ${money(amount)} are not fully matched to invoices (no confirmed link, or only some of the order's invoices / amount), so their recoveries cannot yet be tied to receivables.`, `${pendingCases.length} أمر إنفاذ بقيمة ${mAr(amount)} غير مطابق بالكامل مع الفواتير (لا رابط مؤكد، أو فواتير/مبلغ جزئي فقط)، لذا لا يمكن بعد ربط متحصلاتها بالمستحقات.`),
       evidence: bi('Source facts: case numbers and amounts (illustrative). Candidate matches need human confirmation.', 'حقائق المصدر: أرقام القضايا ومبالغها (توضيحية). المطابقات المقترحة تحتاج تأكيداً بشرياً.'),
       cause: { status: 'confirmed', text: bi('Confirmed gap: no reviewed link. Not evidence of non-payment by itself.', 'فجوة مؤكدة: لا يوجد ربط مراجَع. وهي ليست دليلاً على عدم السداد بحد ذاتها.') },
       action: bi('Review candidate matches case by case; keep ambiguous cases unresolved until evidence is added.', 'مراجعة المطابقات المقترحة حالة بحالة؛ وإبقاء الحالات الملتبسة غير محسومة حتى إضافة دليل.'),

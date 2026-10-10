@@ -1,7 +1,7 @@
 // Furas contracts ↔ invoices ↔ Sanad execution requests, computed from the columnar store.
 import { ENTITIES, ITEMS, CR_STATUS, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { makeCtx, derive, idOf } from './engine.js';
-import { payerName, sadadOf } from './names.js';
+import { payerName, sadadOf, beneficiaryIdOf } from './names.js';
 
 const METHOD = ['structured', 'ocr'];
 
@@ -87,8 +87,12 @@ export function sanadCases(st) {
     const wl = q.system === 'white_lands';
     return {
       enforceNum: q.enforceNum, system: q.system || 'sanad', amanahEn: ENTITIES[q.ent].en, amount: q.amount, openedDate: isoOf(q.openedDay), contractNo: q.contractNo || null, requestStatus: q.status,
+      // what the feed supplies for the order: the invoice references it carries (possibly none / incomplete / wrong), the debtor, and whether the order document can be fetched
+      refs: q.refs ? q.refs.map((r) => ({ ...r })) : q.identified.map((i) => ({ kind: 'invoice_no', value: idOf(st, i) })),
+      debtorIdx: q.debtor ?? null, debtorName: q.debtor != null ? payerName(q.debtor) : null, debtorId: q.debtor != null ? beneficiaryIdOf(q.debtor) : null,
+      orderDocument: { retrievable: false, reason: 'sanad_document_integration_not_connected' }, feed: 'synthetic_demo',
       documents: wl ? [] : [{ type: 'فاتورة', item: 'بند ١', crNo: q.crNo, method: METHOD[q.method], confidence: q.confidence }],
-      links: q.identified.map((i) => ({ invoiceId: idOf(st, i), allocated: 0, status: 'confirmed', evidence: wl ? ['reference_match'] : ['contract_match', 'reference_match'], reviewedBy: wl ? 'White-lands enforcement file (demo)' : 'Revenue data steward (demo reviewer)', reviewedAt: isoOf(q.openedDay) })), history: []
+      links: q.identified.map((i) => ({ invoiceId: idOf(st, i), allocated: 0, gross: st.gross[i], origin: 'sanad_structured', status: 'confirmed', evidence: wl ? ['reference_match'] : ['contract_match', 'reference_match'], reviewedBy: wl ? 'White-lands enforcement file (demo feed)' : 'Sanad structured reference (demo feed)', reviewedAt: isoOf(q.openedDay) })), history: []
     };
   });
 }

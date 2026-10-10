@@ -10,6 +10,7 @@ import { describeScope, pickBi, bi } from './revenueInsights';
 import { fmtMoney, scaled, unitOfValues, unitLabel } from '../utils/money';
 import { BRIDGE_LABELS } from './bridgeLabels';
 import { riyadhToday } from './clock';
+import { caseSummary } from './enforcementMatching';
 
 export const REPORT_FOCUS = ['revenue', 'amanah', 'noncollection', 'investment'];
 
@@ -82,8 +83,8 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   if (Q.contractIssueCount) risks.push({ priority: L('Medium', 'متوسطة'), title: L('Investment invoices without a linked contract', 'فواتير استثمار بلا عقد مرتبط'), rationale: L(`${Q.contractIssues.join(', ')}: not excluded; a human decision is required.`, `${Q.contractIssues.join('، ')}: لم تُستبعد؛ ويلزم قرار بشري.`) });
   if (Q.missingFieldCount) risks.push({ priority: L('Medium', 'متوسطة'), title: L('Missing mandatory fields', 'حقول إلزامية ناقصة'), rationale: L(`${Q.missingFieldRecords.join(', ')}: cannot be referred to enforcement until completed.`, `${Q.missingFieldRecords.join('، ')}: لا يمكن إحالتها للتنفيذ قبل الاستكمال.`) });
   if (snapshot.unapprovedRulesApplied.length) risks.push({ priority: L('High', 'عالية'), title: L('Exclusions rest on unapproved rules', 'استبعادات تستند إلى قواعد غير معتمدة'), rationale: L(`${snapshot.unapprovedRulesApplied.join(', ')}: ${M(T.exclusionsUnapproved)} is shown as unapproved and can be switched off in the rule registry.`, `${snapshot.unapprovedRulesApplied.join('، ')}: ${M(T.exclusionsUnapproved)} يُعرض بوصفه غير معتمد ويمكن تعطيل القواعد من سجل القواعد.`) });
-  const pendingCases = cases.filter((c) => !c.links.some((l) => l.status === 'confirmed'));
-  if (pendingCases.length) risks.push({ priority: L('Medium', 'متوسطة'), title: L(`${pendingCases.length} enforcement case(s) without a confirmed invoice link`, `${pendingCases.length} قضية إنفاذ بلا رابط فاتورة مؤكد`), rationale: L('Recoveries on these cases cannot yet be tied to receivables; candidate matches need human review.', 'لا يمكن ربط متحصلات هذه القضايا بالمستحقات بعد؛ والمطابقات المقترحة تحتاج مراجعة بشرية.') });
+  const pendingCases = cases.filter((c) => caseSummary(c).state !== 'linked');
+  if (pendingCases.length) risks.push({ priority: L('Medium', 'متوسطة'), title: L(`${pendingCases.length} enforcement order(s) not fully matched to invoices`, `${pendingCases.length} أمر إنفاذ غير مطابق بالكامل مع الفواتير`), rationale: L('Recoveries on these cases cannot yet be tied to receivables; candidate matches need human review.', 'لا يمكن ربط متحصلات هذه القضايا بالمستحقات بعد؛ والمطابقات المقترحة تحتاج مراجعة بشرية.') });
   risks.push({ priority: L('Medium', 'متوسطة'), title: L('All figures are demo data', 'جميع الأرقام بيانات تجريبية'), rationale: L('Records are generated demo data standing in for periodic uploads / feeds from Tahseel, Furas, Sanad, Efaa and CR View. They are labelled demo and are not the Ministry\'s actual figures.', 'السجلات بيانات تجريبية مولّدة تحل محل الرفع الدوري أو التغذية من تحصيل وفرص وسند وإيفاء وCR View. وهي موسومة تجريبية وليست أرقام الوزارة الفعلية.'), timeframe: L('Until real reports are uploaded', 'حتى رفع التقارير الفعلية'), confidence: L('Certain', 'مؤكد') });
   risks.push({ priority: L('Medium', 'متوسطة'), title: L('Unresolved business definitions', 'تعريفات أعمال غير محسومة'), rationale: L('Grace-period treatment, the exclusion approval authority and category list, the approved collection-rate target and the coverage eligibility/transfer rules are unresolved and kept configurable.', 'معاملة فترة السماح وجهة اعتماد الاستبعاد وقائمة فئاته والمستهدف المعتمد لمعدل التحصيل وقواعد أهلية التغطية والمناقلة غير محسومة وتبقى قابلة للضبط.') });
 

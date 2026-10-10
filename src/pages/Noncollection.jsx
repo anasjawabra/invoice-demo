@@ -232,7 +232,7 @@ export default function Noncollection() {
       <div className="rv-two">
         <div className="card card-pad">
           <h2 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h2>
-          <p className="rv-sec-sub">{L('A confirmed link turns an invoice into "Referred to enforcement" (still counted as uncollected). Case amounts are not spread across invoices; unallocated amounts stay separate.', 'الرابط المؤكد يجعل الفاتورة "محالة إلى التنفيذ" (وتُحتسب غير محصّلة). لا تُوزّع مبالغ القضايا على الفواتير؛ وتبقى المبالغ غير الموزعة منفصلة.')}</p>
+          <p className="rv-sec-sub">{L('A CONFIRMED link to an order in execution or suspended turns an invoice into "Referred to enforcement" (still counted as uncollected). A proposed link, or a closed order, does not change the category, and the invoice\'s payment status is always separate. Order amounts are never spread across invoices.', 'الرابط «المؤكد» بأمر قيد التنفيذ أو موقوف يجعل الفاتورة "محالة إلى التنفيذ" (وتُحتسب غير محصّلة). أما الرابط المقترح أو الأمر المغلق فلا يغيّران الفئة، وحالة سداد الفاتورة منفصلة دائماً. ولا تُوزّع مبالغ الأوامر على الفواتير.')}</p>
           <div className="rv-table-wrap" tabIndex={0}>
             <table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th>{L('Case', 'القضية')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('State', 'الحالة')}</th></tr></thead>
@@ -243,14 +243,14 @@ export default function Noncollection() {
                     <tr key={c.enforceNum}>
                       <td><Link to={`/sanad-orders/${encodeURIComponent(c.enforceNum)}`} dir="ltr">{c.enforceNum}</Link></td>
                       <td className="num">{short(c.amount)}</td>
-                      <td><span className={`rv-cat ${s.state === 'linked' ? 'rv-cat--enforcement' : s.state === 'unresolved' ? '' : 'rv-cat--partial'}`}>{{ linked: L('Linked', 'مربوطة'), candidate: L('Candidate — review', 'مرشح — مراجعة'), ambiguous: L('Ambiguous — review', 'ملتبس — مراجعة'), unresolved: L('Unresolved', 'غير محسومة') }[s.state]}</span></td>
+                      <td><span className={`rv-cat ${s.state === 'linked' ? 'rv-cat--enforcement' : s.state === 'unresolved' ? '' : 'rv-cat--partial'}`}>{{ linked: L('Fully matched', 'مطابق بالكامل'), partial: L('Partially matched', 'مطابق جزئياً'), candidate: L('Awaiting review', 'بانتظار المراجعة'), ambiguous: L('Ambiguous — review', 'ملتبس — مراجعة'), unresolved: L('Not matched', 'غير مطابق') }[s.state]}</span></td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/sanad-orders">{L('Open enforcement workspace', 'فتح مساحة عمل الإنفاذ')}</Link></div>
+          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/sanad-orders">{L('Open enforcement orders', 'فتح أوامر الإنفاذ')}</Link></div>
         </div>
       </div>
     </div>
