@@ -5,8 +5,11 @@ import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { fmtRiyadh } from '../data/clock';
 import { RecordHeader, StatusGroup, Figures, Facts, Section, RecordState } from '../components/record/RecordPage';
-import OrderDocuments from '../components/revenue/OrderDocuments';
-import { OrderStatusChip, PayStatusChip, Chip, LINK_STATUS_LABEL, CONFLICT_LABEL, KIND_LABEL, SOURCE_LABEL } from '../components/revenue/EnforcementUI';
+import OrderDocuments, { METHOD_NOTE } from '../components/revenue/OrderDocuments';
+import OrderJourney from '../components/revenue/OrderJourney';
+import { SIM_LABEL } from '../data/ocrSimulation';
+import { locLabel } from '../data/docxText';
+import { OrderStatusChip, PayStatusChip, Chip, LINK_STATUS_LABEL, KIND_LABEL, SOURCE_LABEL, IntegrationNotice } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { invoicePath, contractPath, ordersListPath } from '../utils/paths';
 import { enforcementOf, CLOSE_REASON_LABEL } from '../data/relations';
@@ -21,6 +24,7 @@ const ERR = {
   not_accessible: { en: 'This order is outside your organisation’s access.', ar: 'هذا الأمر خارج صلاحيات جهتك.' },
   contract_not_found: { en: 'That contract number does not exist in the system, so the mention cannot be confirmed.', ar: 'رقم العقد غير موجود في النظام فلا يمكن تأكيد الذكر.' },
   evidence_required: { en: 'Confirming needs supporting evidence: a document that names the contract.', ar: 'التأكيد يحتاج دليلاً داعماً: مستنداً يذكر العقد.' },
+  explicit_statement_required: { en: 'Confirming needs a document that EXPLICITLY states the contract itself is referred, with the statement recorded.', ar: 'التأكيد يحتاج مستنداً ينص صراحة على إحالة العقد نفسه مع تسجيل النص.' },
   use_remove: { en: 'A confirmed link is withdrawn (with a reason), not rejected.', ar: 'الرابط المؤكد يُسحب (مع سبب) ولا يُرفض.' },
   unresolved_conflict: { en: 'This link has a conflict that no evidence resolves. A reason does not resolve it — keep it unresolved or reject it.', ar: 'في هذا الرابط تعارض لا يحسمه دليل. والسبب لا يحسمه — أبقِه غير محسوم أو ارفضه.' }
 };
@@ -29,17 +33,9 @@ const ACTION_LABEL = {
   rejected: { en: 'Link rejected', ar: 'رُفض الرابط' }, removed: { en: 'Confirmed link withdrawn — effect removed from the invoice', ar: 'سُحب رابط مؤكد — أُزيل أثره عن الفاتورة' },
   document_added: { en: 'Document added', ar: 'أُضيف مستند' }, extraction_updated: { en: 'Document re-read', ar: 'أُعيدت قراءة المستند' }, supplemental_extraction: { en: 'Text supplied for unread pages', ar: 'زُوِّد نص للصفحات غير المقروءة' },
   document_file_restored: { en: 'Original file added again (identity checked)', ar: 'أُعيدت إضافة الملف الأصلي (بعد التحقق من هويته)' },
-  contract_reference_confirmed: { en: 'Contract mention confirmed as a direct referral (reviewed)', ar: 'أُكِّد ذكر العقد كإحالة مباشرة (بعد مراجعة)' }, contract_reference_rejected: { en: 'Contract mention recorded as not a referral', ar: 'سُجّل ذكر العقد على أنه ليس إحالة' },
+  manual_references_added: { en: 'References typed by a person', ar: 'مراجع أدخلها شخص' }, contract_reference_confirmed: { en: 'Contract mention confirmed as a direct referral (reviewed)', ar: 'أُكِّد ذكر العقد كإحالة مباشرة (بعد مراجعة)' }, contract_reference_rejected: { en: 'Contract mention recorded as not a referral', ar: 'سُجّل ذكر العقد على أنه ليس إحالة' },
   reference_dismissed: { en: 'Reference set aside (not an invoice of this order)', ar: 'استُبعد مرجع (ليس فاتورة لهذا الأمر)' }, order_status_changed: { en: 'Order status changed in Sanad', ar: 'تغيّرت حالة الأمر في سند' },
   candidates_proposed: { en: 'Candidates proposed (earlier version)', ar: 'اقتُرح مرشحون (إصدار سابق)' }
-};
-const RESOLVE_HINT = {
-  ambiguous_reference: { en: 'Resolved only by another reference that identifies exactly one of these invoices (for example the full invoice number on a page of the document). A reason does not resolve it.', ar: 'يُحسم فقط بمرجع آخر يحدد فاتورة واحدة منها (مثل رقم الفاتورة الكامل في صفحة من المستند). والسبب لا يحسمه.' },
-  debtor_mismatch: { en: 'Resolved only if an order document names the invoice payer’s identity number. Otherwise the link stays unresolved.', ar: 'يُحسم فقط إذا ذكر مستند الأمر هوية دافع الفاتورة. وإلا يبقى الرابط غير محسوم.' },
-  amanah_mismatch: { en: 'No evidence path: the link stays unresolved.', ar: 'لا مسار دليل: يبقى الرابط غير محسوم.' },
-  invoice_issued_after_order: { en: 'No evidence path: the link stays unresolved.', ar: 'لا مسار دليل: يبقى الرابط غير محسوم.' },
-  source_conflict: { en: 'Two sources of this order give the same serial with different years. Resolved only by data evidence (exactly one of the candidates belongs to the order’s debtor); a written reason does not resolve it.', ar: 'مصدران لهذا الأمر يعطيان التسلسل نفسه بسنتين مختلفتين. لا يُحسم إلا بدليل من البيانات (مرشح واحد فقط يعود لمدين الأمر)؛ والسبب المكتوب لا يحسمه.' },
-  document_other_order: { en: 'Found only in a document that names another order: confirm it only if Sanad’s structured data or this order’s own document names the invoice.', ar: 'ورد فقط في مستند يذكر أمراً آخر: لا يُؤكَّد إلا إذا ذكرته بيانات سند المهيكلة أو مستند هذا الأمر.' }
 };
 const originOf = (row) => (row.origins.find((o) => o.type === 'sanad_structured') || row.origins[0])?.type || 'manual_selection';
 
@@ -49,7 +45,7 @@ export default function EnforcementOrderPage() {
   const { L, B, ar, sar } = useL();
   const ret = useReturnTarget({ path: ordersListPath, label: L('Enforcement management', 'إدارة التنفيذ') });
   const c = rev.cases.find((x) => x.enforceNum === enforceNum);
-  const [msg, setMsg] = useState(null); const [notes, setNotes] = useState({}); const [debtor, setDebtor] = useState(null); const [tick, setTick] = useState(0); const [focus, setFocus] = useState(null);
+  const [msg, setMsg] = useState(null); const [notes, setNotes] = useState({}); const [debtor, setDebtor] = useState(null); const [cf, setCf] = useState({}); const [tick, setTick] = useState(0); const [focus, setFocus] = useState(null);
   const docs = c?.docs || []; const links = c?.links || [];
   const refs = useMemo(() => (c ? collectReferences(c, docs) : []), [c, docs]);
   const cmentions = useMemo(() => (c ? contractMentions(c, docs) : []), [c, docs]);
@@ -94,221 +90,152 @@ export default function EnforcementOrderPage() {
   const clauses = rows.filter(clean).length;
   const contracts = [...new Set([c.contractNo, ...[...byInvoice.values()].filter((k) => links.some((l) => l.invoiceId === k.invoiceId && l.status === 'confirmed')).map((k) => k.contractNo)].filter(Boolean))];
   const otherRefs = [...docs.flatMap((d) => (d.extraction?.others || []).map((o) => ({ ...o, docName: d.name }))), ...refs.filter((r) => !isInvoiceKind(r.kind)).map((r) => ({ kind: r.kind, value: r.value, pages: [], docName: null }))];
-  const stateWord = (s) => B({ complete: { en: 'Complete', ar: 'مكتملة' }, incomplete: { en: 'Incomplete', ar: 'غير مكتملة' }, none: { en: 'Not identified — review required', ar: 'غير محددة — يلزم مراجعة' }, no_document: { en: 'No document', ar: 'لا مستند' }, reconciled: { en: 'Reconciled', ar: 'متطابقة' }, short: { en: 'Difference', ar: 'فرق' }, over: { en: 'Difference', ar: 'فرق' }, no_links: { en: 'Not checkable', ar: 'غير قابلة للفحص' }, no_confirmed: { en: 'Not checkable', ar: 'غير قابلة للفحص' }, not_checkable: { en: 'Not checkable', ar: 'غير قابلة للفحص' } }[s]);
+  const stateWord = (s) => B({ complete: { en: 'Complete', ar: 'مكتملة' }, incomplete: { en: 'Incomplete', ar: 'غير مكتملة' }, none: { en: 'Not identified — review required', ar: 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة' }, no_document: { en: 'No document', ar: 'لا مستند' }, reconciled: { en: 'Reconciled', ar: 'متطابقة' }, short: { en: 'Difference', ar: 'فرق' }, over: { en: 'Difference', ar: 'فرق' }, no_links: { en: 'Not checkable', ar: 'غير قابلة للفحص' }, no_confirmed: { en: 'Not checkable', ar: 'غير قابلة للفحص' }, not_checkable: { en: 'Not checkable', ar: 'غير قابلة للفحص' } }[s]);
   const tone = (ok) => (ok ? 'rp-ok' : 'rp-warn');
   const srcs = comp.references.sources;
   const contractExists = (no) => (resolved?.results || []).some((r) => r.ref.kind === 'contract_no' && String(r.ref.value).toUpperCase() === no && r.status === 'contract_found');
-  const reviewContract = (m, decision, origin, exists) => say(rev.enforcement.reviewContract(c.enforceNum, m.contractNo, { decision, note: notes[`ct-${m.contractNo}`] || '', exists, evidence: origin ? { type: origin.type, docId: origin.docId, docName: origin.docName, pages: origin.pages || [], snippet: origin.snippet || null } : null }),
-    decision === 'confirmed' ? 'Mention confirmed as a direct referral of the contract (kept in the history). This does not say which invoices are referred.' : 'Mention recorded as not a referral (kept in the history).',
-    decision === 'confirmed' ? 'أُكِّد الذكر كإحالة مباشرة للعقد (محفوظ في السجل). وهذا لا يحدد أي فواتير محالة.' : 'سُجّل الذكر على أنه ليس إحالة (محفوظ في السجل).');
+  const reviewContract = (m, decision, evidence, exists) => say(rev.enforcement.reviewContract(c.enforceNum, m.contractNo, { decision, note: notes[`ct-${m.contractNo}`] || '', exists, evidence }),
+    decision === 'confirmed' ? 'Direct referral of the contract confirmed on the recorded evidence (kept in the history). This does not say which invoices are referred.' : 'Mention recorded as not a referral (kept in the history).',
+    decision === 'confirmed' ? 'أُكِّدت الإحالة المباشرة للعقد بالدليل المسجّل (محفوظ في السجل). وهذا لا يحدد أي فواتير محالة.' : 'سُجّل الذكر على أنه ليس إحالة (محفوظ في السجل).');
   const hist = c.history || [];
 
   return (
     <div className="rp">
       <RecordHeader
         crumbs={crumbs} ret={ret} kind={L('Enforcement order', 'أمر تنفيذ')} title={c.enforceNum}
-        actions={<><a className="btn btn-sm btn-primary" href="#docs">{L('Add / view the order PDF', 'إضافة / عرض ملف PDF للأمر')}</a><a className="btn btn-sm" href="#refs">{L('Review the references', 'مراجعة المراجع')}</a></>}
         statuses={<>
           <StatusGroup label={L('Order status (Sanad)', 'حالة الأمر (سند)')} hint={status === 'closed' ? L('closing an order does not mean payment and does not erase its links', 'إغلاق الأمر لا يعني السداد ولا يمحو روابطه') : null}><OrderStatusChip status={status} />{status === 'closed' && <span className="rv-tag">{c.closeReason ? B(CLOSE_REASON_LABEL[c.closeReason] || { en: c.closeReason, ar: c.closeReason }) : L('closure reason unknown', 'سبب الإغلاق غير معروف')}</span>}</StatusGroup>
-          <StatusGroup label={L('Source', 'المصدر')} hint={L('live Sanad retrieval is not connected', 'الاسترجاع الحي من سند غير متصل')}><span className="rv-tag rv-tag--warn">{c.feed === 'synthetic_demo' ? L('Sanad — synthetic demo feed', 'سند — تغذية تجريبية اصطناعية') : L('Hand-anchored demo case', 'حالة تجريبية مثبّتة يدوياً')}</span></StatusGroup>
+          <StatusGroup label={L('Source', 'المصدر')}><span className="rv-tag rv-tag--warn">{c.feed === 'synthetic_demo' ? L('Sanad — synthetic demo feed', 'سند — تغذية تجريبية اصطناعية') : L('Hand-anchored demo case', 'حالة تجريبية مثبّتة يدوياً')}</span></StatusGroup>
         </>}
       />
-      <Figures label={L('Reconciliation summary', 'ملخص التسوية')} items={[
+      <IntegrationNotice />
+      <Figures label={L('Order summary', 'ملخص الأمر')} items={[
         { label: L('Order amount', 'مبلغ الأمر'), value: sar(c.amount) },
-        { label: L(`Confirmed invoices (${rec.confirmedCount})`, `فواتير مؤكدة (${rec.confirmedCount})`), value: rec.confirmedTotal == null ? L('n/a', 'غير متاح') : sar(rec.confirmedTotal), note: L('each invoice counted once', 'كل فاتورة تُحتسب مرة') },
-        { label: L(`Proposed (${rec.proposedCount})`, `مقترحة (${rec.proposedCount})`), value: rec.proposedTotal == null ? L('n/a', 'غير متاح') : sar(rec.proposedTotal), note: L('no effect until confirmed', 'بلا أثر حتى التأكيد') },
-        { label: L('Difference (order − confirmed)', 'الفرق (الأمر − المؤكد)'), value: rec.difference == null ? '—' : sar(rec.difference), tone: rec.state === 'short' || rec.state === 'over' ? 'bad' : undefined }
+        { label: L('Debtor', 'المدين'), value: <span dir="auto">{B(c.debtorName) || '—'}</span>, note: c.debtorId ? <span dir="ltr">{c.debtorId}</span> : null },
+        { label: L(`Linked invoices (${rec.confirmedCount})`, `الفواتير المربوطة (${rec.confirmedCount})`), value: rec.confirmedTotal == null ? L('n/a', 'غير متاح') : sar(rec.confirmedTotal), note: L('each invoice counted once', 'كل فاتورة تُحتسب مرة') },
+        { label: L('Difference (order − linked)', 'الفرق (الأمر − المربوط)'), value: rec.difference == null ? '—' : sar(rec.difference), tone: rec.state === 'short' || rec.state === 'over' ? 'bad' : undefined, note: L('reported, never forced', 'يُعرض ولا يُفرض') }
       ]} />
-
-      <div className="rp-compl" role="group" aria-label={L('Three completeness states — kept separate', 'ثلاث حالات اكتمال — منفصلة')}>
-        <div>
-          <h3>{L('1 · Reference matching', '1 · مطابقة المراجع')}</h3>
-          <div className={`rp-compl__v ${tone(comp.references.state === 'complete')}`}>{comp.references.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.references.state)}</div>
-          <div className="rp-compl__d">{comp.references.state === 'none' ? L('Invoice references not identified — review required. This is not “no related invoices”: nothing in the structured fields, the description, the notes or the documents added so far names one.', 'لم تُحدَّد مراجع الفواتير — يلزم مراجعة. وهذا لا يعني «لا فواتير مرتبطة»: لا شيء في الحقول المهيكلة ولا الوصف ولا الملاحظات ولا المستندات المضافة حتى الآن يذكر فاتورة.') : L(`${comp.references.total} reference(s) found · ${comp.references.confirmedLinks} confirmed link(s)${comp.references.unresolved ? ` · ${comp.references.unresolved} unresolved` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} proposal(s) to confirm` : ''}.`, `${comp.references.total} مرجع · ${comp.references.confirmedLinks} رابط مؤكد${comp.references.unresolved ? ` · ${comp.references.unresolved} غير محسوم` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} اقتراح للتأكيد` : ''}.`)}</div>
-          <div className="rp-compl__d">{L('Does not depend on the amount.', 'لا تعتمد على المبلغ.')}</div>
-        </div>
-        <div>
-          <h3>{L('2 · Document extraction', '2 · استخراج المستند')}</h3>
-          <div className={`rp-compl__v ${tone(comp.extraction.state === 'complete')}`}>{comp.extraction.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.extraction.state)}</div>
-          <div className="rp-compl__d">{comp.extraction.state === 'no_document' ? L('No order document attached.', 'لا مستند مرفق بالأمر.') : comp.extraction.state === 'incomplete' ? L(`${comp.extraction.unreadPages} page(s) not read (scan, image or unsupported format — see the sources table).`, `${comp.extraction.unreadPages} صفحة لم تُقرأ (ممسوحة أو صورة أو صيغة غير مدعومة — انظر جدول المصادر).`) : L(`Every page of ${comp.extraction.documents} document(s) has text.`, `لكل صفحات ${comp.extraction.documents} مستند نص.`)}</div>
-          {comp.extraction.suppliedPages > 0 && <div className="rp-compl__d rp-warn">{L(`${comp.extraction.suppliedPages} page(s) rely on supplied text (imported external OCR or typed) — its quality is NOT verified by this system.`, `${comp.extraction.suppliedPages} صفحة تعتمد على نص مُزوَّد (OCR خارجي مستورد أو مُدخل يدوياً) — ولا يتحقق هذا النظام من جودته.`)}</div>}
-        </div>
-        <div>
-          <h3>{L('3 · Financial reconciliation', '3 · التسوية المالية')}</h3>
-          <div className={`rp-compl__v ${tone(comp.finance.state === 'reconciled')}`}>{comp.finance.state === 'reconciled' ? '✓ ' : '! '}{stateWord(comp.finance.state)}</div>
-          <div className="rp-compl__d">{comp.finance.state === 'reconciled' ? L('Confirmed invoices add up to the order amount.', 'الفواتير المؤكدة تساوي مبلغ الأمر.') : comp.finance.difference != null && (comp.finance.state === 'short' || comp.finance.state === 'over') ? L(`${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'of the order is not covered by a confirmed invoice' : 'more than the order is covered'} — reported, never forced to match.`, `${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'من الأمر غير مغطى بفاتورة مؤكدة' : 'أكثر من الأمر مغطى'} — يُعرض ولا يُفرض تطابقه.`) : L('No confirmed invoice to compare yet.', 'لا فاتورة مؤكدة للمقارنة بعد.')}</div>
-        </div>
-      </div>
       {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" aria-live="polite">{msg.text}</div>}
 
-      <Section id="sources" title={L('Sources examined for invoice references', 'المصادر التي فُحصت بحثاً عن مراجع الفواتير')}
-        note={<div className="rp-limit">{L('Every source is read in full — one number found is never taken to be the whole list. People may type one reference in the structured field and the rest in the description, only in the description, or only in an attachment; each place is listed here with what it yielded. “Complete” on this page means every reference FOUND is decided; it does not prove that every invoice the order covers was found (see the other two completeness states).', 'تُقرأ كل المصادر كاملة — ولا يُعدّ رقم واحد وُجد هو القائمة كلها. فقد يكتب الموظف مرجعاً في الحقل المهيكل والبقية في الوصف، أو في الوصف فقط، أو في مرفق فقط؛ ويُسرد كل موضع هنا مع ما أنتجه. و«مكتملة» في هذه الصفحة تعني أن كل مرجع وُجد قد حُسم؛ ولا تثبت أن كل فاتورة يشملها الأمر قد وُجدت (انظر حالتي الاكتمال الأخريين).')}</div>}>
+      <Section id="invoices" title={L('Linked invoices', 'الفواتير المربوطة')} count={links.filter((l) => l.status === 'confirmed' || l.status === 'candidate').length}>
+        {links.filter((l) => l.status !== 'rejected').length ? (
+          <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Linked invoices', 'الفواتير المربوطة')}>
+            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th className="num">{L('Invoice amount', 'مبلغ الفاتورة')}</th><th>{L('Payment status', 'حالة السداد')}</th><th>{L('Link', 'الرابط')}</th><th style={{ minWidth: 190 }}>{L('Action', 'إجراء')}</th></tr></thead>
+            <tbody>{links.filter((l) => l.status !== 'rejected').map((l) => {
+              const k = byInvoice.get(l.invoiceId); const snap = l.snapshot || {};
+              return (
+                <tr key={l.invoiceId}>
+                  <td><RecordLink to={invoicePath(l.invoiceId)} dir="ltr"><b>{l.invoiceId}</b></RecordLink> <RecordLink className="rv-link" to={invoicePath(l.invoiceId)}>{L('View the invoice', 'عرض الفاتورة')}</RecordLink>
+                    <div className="muted" style={{ fontSize: 12 }}>{B(SOURCE_LABEL[k?.source || snap.source] || { en: k?.source || snap.source || '', ar: k?.source || snap.source || '' })} · <span dir="auto">{B(k?.payerName || snap.payerName)}</span></div>
+                    {k?.enfConflict && <div><span className="rv-tag rv-tag--bad">{L('source/enforcement conflict — review required', 'تعارض بين المصدر والإنفاذ — يلزم مراجعة')}</span></div>}</td>
+                  <td className="num" dir="ltr">{sar(k?.grossAmount ?? l.gross ?? 0)}</td>
+                  <td>{k ? <PayStatusChip status={k.paymentStatus} /> : '—'}{k && <div className="muted" style={{ fontSize: 12 }} dir="ltr">{L('remaining', 'المتبقي')} {sar(k.outstanding)}</div>}</td>
+                  <td><Chip def={LINK_STATUS_LABEL[l.status] || LINK_STATUS_LABEL.rejected} /><div className="muted" style={{ fontSize: 11 }}>{B(ORIGIN_LABEL[l.origin] || ORIGIN_LABEL.sanad_structured)}</div></td>
+                  <td>{l.status === 'confirmed' ? (<>{noteInput(`rm-${l.invoiceId}`, L('Reason to withdraw (required)', 'سبب السحب (مطلوب)'))}<button type="button" className="btn btn-sm" disabled={!rev.canReview} onClick={() => withdraw(l.invoiceId)}>{L('Withdraw link…', 'سحب الرابط…')}</button></>) : <span className="muted">{L('awaiting confirmation', 'بانتظار التأكيد')}</span>}</td>
+                </tr>
+              );
+            })}</tbody>
+          </table></div>
+        ) : <div className="muted">{L('No invoice is linked yet. Use the steps below.', 'لا فاتورة مربوطة بعد. استخدم الخطوات أدناه.')}</div>}
+        <div className="rp-limit">{L('Only a confirmed link reflects this order’s status on the invoice; payment status is separate. Closing an order does not erase the referral and does not mean payment; withdrawing one link never removes another order’s effect.', 'الرابط المؤكد وحده يعكس حالة هذا الأمر على الفاتورة؛ وحالة السداد منفصلة. إغلاق الأمر لا يمحو الإحالة ولا يعني السداد؛ وسحب رابط لا يزيل أثر أمر آخر.')}</div>
+      </Section>
+
+      <OrderJourney c={c} rev={rev} rows={rows} loading={loading} error={error} onRetry={() => setTick((x) => x + 1)} comp={comp} inputFor={inputFor} others={others} onMessage={setMsg} setTick={setTick} />
+
+      <Section id="details-sources" secondary title={L('Sources and extraction evidence', 'المصادر وأدلة الاستخراج')}>
         <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Sources examined', 'المصادر المفحوصة')}>
           <thead><tr><th>{L('Source', 'المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Invoice references found', 'مراجع فواتير وُجدت')}</th></tr></thead>
           <tbody>
             <tr><td>{L('Sanad structured invoice-reference field', 'حقل مراجع الفواتير المهيكل في سند')}</td><td>{srcs.structured ? L('read', 'قُرئ') : L('empty', 'فارغ')}</td><td className="num">{srcs.structured}</td></tr>
             <tr><td>{L('Sanad description (free text)', 'وصف سند (نص حر)')}</td><td>{srcs.hasDescription ? L('read', 'قُرئ') : L('empty', 'فارغ')}</td><td className="num">{srcs.description}</td></tr>
             <tr><td>{L('Sanad notes (free text)', 'ملاحظات سند (نص حر)')}</td><td>{srcs.hasNotes ? L('read', 'قُرئت') : L('empty', 'فارغة')}</td><td className="num">{srcs.notes}</td></tr>
-            <tr><td>{L('Attachments listed by Sanad', 'مرفقات تدرجها سند')}</td><td>{srcs.attachmentsListed ? <span className="rv-tag rv-tag--warn">{L(`${srcs.attachmentsListed} listed — retrieval from Sanad is not connected; add the files by hand`, `${srcs.attachmentsListed} مدرجة — جلبها من سند غير متصل؛ أضف الملفات يدوياً`)}</span> : L('none listed', 'لا مرفقات مدرجة')}{(c.attachments || []).length > 0 && <div className="muted" style={{ fontSize: 12 }} dir="ltr">{(c.attachments || []).map((a) => a.name || a).join(' · ')}</div>}</td><td className="num">—</td></tr>
+            <tr><td>{L('Attachments listed by Sanad', 'مرفقات تدرجها سند')}</td><td>{srcs.attachmentsListed ? <span className="rv-tag rv-tag--warn">{L(`${srcs.attachmentsListed} listed — not retrievable here; add the files by hand`, `${srcs.attachmentsListed} مدرجة — لا يمكن جلبها هنا؛ أضف الملفات يدوياً`)}</span> : L('none listed', 'لا مرفقات مدرجة')}{(c.attachments || []).length > 0 && <div className="muted" style={{ fontSize: 12 }} dir="ltr">{(c.attachments || []).map((a) => a.name || a).join(' · ')}</div>}</td><td className="num">—</td></tr>
             {docs.map((d) => { const pgs = d.extraction?.pages || []; const unreadN = pgs.filter((p) => p.needsOcr && !(d.ocrCovered || []).includes(p.page)).length; return (
-              <tr key={d.id}><td dir="ltr">{d.name}<div className="muted" style={{ fontSize: 12 }}>{B(FORMAT_LABEL[d.extraction?.format || 'pdf'] || FORMAT_LABEL.unknown)}</div></td>
-                <td>{unreadN ? <span className="rv-tag rv-tag--bad">{L(`${unreadN} of ${pgs.length} page(s) NOT read`, `${unreadN} من ${pgs.length} صفحة لم تُقرأ`)}</span> : <span className="rv-tag rv-tag--ok">{L(`${pgs.length} page(s) read`, `قُرئت ${pgs.length} صفحة`)}</span>}{d.extraction?.tables > 0 && <span className="muted"> · {d.extraction.tables} {L('table(s)', 'جدول')}</span>}</td>
+              <tr key={d.id}><td dir="ltr">{d.kind === 'manual' ? L('Typed references', 'مراجع مُدخلة') : d.name}<div className="muted" style={{ fontSize: 12 }}>{d.kind === 'manual' ? B(METHOD_NOTE.manual_entry) : B(FORMAT_LABEL[d.extraction?.format || d.format || 'pdf'] || FORMAT_LABEL.unknown)}{d.extraction?.method === 'ocr_simulated' ? <> · <b>{B(SIM_LABEL)}</b></> : null}</div></td>
+                <td>{!d.extraction && d.kind !== 'manual' ? <span className="rv-tag">{L('not analysed yet', 'لم يُحلَّل بعد')}</span> : unreadN ? <span className="rv-tag rv-tag--bad">{L(`${unreadN} of ${pgs.length} page(s) NOT read`, `${unreadN} من ${pgs.length} صفحة لم تُقرأ`)}</span> : <span className="rv-tag rv-tag--ok">{d.extraction?.exactPages === false ? L('read (paragraphs and tables)', 'قُرئ (فقرات وجداول)') : L(`${pgs.length} page(s) read`, `قُرئت ${pgs.length} صفحة`)}</span>}{d.extraction?.tables > 0 && <span className="muted"> · {d.extraction.tables} {L('table(s)', 'جدول')}</span>}</td>
                 <td className="num">{d.extraction?.refs?.length || 0}</td></tr>); })}
             {!docs.length && <tr><td>{L('Documents added to this order', 'مستندات أُضيفت إلى هذا الأمر')}</td><td className="muted">{L('none yet', 'لا شيء بعد')}</td><td className="num">—</td></tr>}
           </tbody>
         </table></div>
-        {comp.references.state === 'none' && <div className="rp-limit rp-limit--warn" role="status"><b>{L('Invoice references not identified — review required.', 'لم تُحدَّد مراجع الفواتير — يلزم مراجعة.')}</b> {L('This is not “no related invoices”. Continue with the attachments: add each document, or supply the text of unreadable pages.', 'وهذا لا يعني «لا فواتير مرتبطة». تابع بالمرفقات: أضف كل مستند أو زوّد نص الصفحات غير المقروءة.')}</div>}
-        {comp.references.sourceConflicts > 0 && <div className="rp-limit rp-limit--warn" role="alert"><b>{L(`${comp.references.sourceConflicts} source conflict(s)`, `${comp.references.sourceConflicts} تعارض بين المصادر`)}</b> — {L('the same serial appears with different years in different sources; see the flagged rows below.', 'يظهر التسلسل نفسه بسنوات مختلفة في مصادر مختلفة؛ انظر الصفوف المعلّمة أدناه.')}</div>}
+        <OrderDocuments order={c} rev={rev} onMessage={setMsg} focus={null} tick={tick} onChanged={() => setTick((x) => x + 1)} />
+        {docs.some((d) => files[d.id] === false) && <div className="rp-limit rp-limit--warn" role="status">{L('Some original files are unavailable in this browser (for example after restoring a backup: backups keep the extracted evidence, provenance and link history but NOT the document files). Only extracted evidence remains for them; add the file again to view it — its identity (SHA-256) is checked first.', 'بعض الملفات الأصلية غير متاحة في هذا المتصفح (مثلاً بعد استعادة نسخة احتياطية: تحتفظ النسخ بالأدلة المستخرجة والمصدر وسجل الروابط ولا تتضمن ملفات المستندات). لم يبقَ لها إلا الدليل المستخرج؛ أضف الملف مرة أخرى لعرضه — وتُفحص بصمته (SHA-256) أولاً.')}</div>}
       </Section>
 
-      <Section id="invoices" title={L('Linked invoices', 'الفواتير المرتبطة')} count={links.filter((l) => l.status !== 'rejected').length}
-        note={<div className="rp-limit">{L('Only a CONFIRMED link reflects this order’s status on the invoice. Payment status is a separate field and does not change. An invoice can carry several orders: withdrawing this link never removes the effect of another confirmed order.', 'الرابط «المؤكد» فقط يعكس حالة هذا الأمر على الفاتورة. وحالة السداد حقل منفصل ولا تتغير. وقد تحمل الفاتورة عدة أوامر: سحب هذا الرابط لا يزيل أثر أي أمر مؤكد آخر.')}</div>}>
-        {links.length ? (
-          <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Linked invoices', 'الفواتير المرتبطة')}>
-            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th className="num">{L('Gross', 'الإجمالي')}</th><th>{L('Payment status', 'حالة السداد')}</th><th>{L('Link', 'الرابط')}</th><th>{L('Enforcement on the invoice', 'الإنفاذ على الفاتورة')}</th><th style={{ minWidth: 190 }}>{L('Action', 'إجراء')}</th></tr></thead>
-            <tbody>{links.map((l) => {
-              const k = byInvoice.get(l.invoiceId); const snap = l.snapshot || {}; const enf = enforcementOf(l.invoiceId, rev.cases);
-              const sameDebtor = k && c.debtorIdx != null && k.payerIdx != null ? c.debtorIdx === k.payerIdx : null;
-              return (
-                <tr key={l.invoiceId}>
-                  <td><RecordLink to={invoicePath(l.invoiceId)} dir="ltr"><b>{l.invoiceId}</b></RecordLink><div className="muted" style={{ fontSize: 12 }}>{B(SOURCE_LABEL[k?.source || snap.source] || { en: k?.source || snap.source || '', ar: k?.source || snap.source || '' })} · <span dir="auto">{B(k?.payerName || snap.payerName)}</span> {sameDebtor === false && <span className="rv-tag rv-tag--bad">{L('not the order debtor', 'ليس مدين الأمر')}</span>}{k?.enfConflict && <div><span className="rv-tag rv-tag--bad">{L('source/enforcement conflict — review required', 'تعارض بين المصدر والإنفاذ — يلزم مراجعة')}</span> <span className="muted">{L('cancelled in the source; documented treatment retained, pending EQ3', 'ملغاة في المصدر؛ المعالجة الموثقة محتفظ بها بانتظار EQ3')}</span></div>}</div></td>
-                  <td className="num" dir="ltr">{sar(k?.grossAmount ?? l.gross ?? 0)}</td>
-                  <td>{k ? <PayStatusChip status={k.paymentStatus} /> : '—'}{k && <div className="muted" style={{ fontSize: 12 }} dir="ltr">{L('remaining', 'المتبقي')} {sar(k.outstanding)}</div>}</td>
-                  <td><Chip def={LINK_STATUS_LABEL[l.status] || LINK_STATUS_LABEL.rejected} />{l.ledgerStatus === 'removed' && <div className="muted" style={{ fontSize: 12 }}>{L('withdrawn', 'مسحوب')}</div>}<div className="muted" style={{ fontSize: 11 }}>{B(ORIGIN_LABEL[l.origin] || ORIGIN_LABEL.sanad_structured)}</div>{l.reviewNote ? <div className="muted" dir="auto" style={{ fontSize: 11 }}>“{l.reviewNote}”</div> : null}{l.removeNote ? <div className="muted" dir="auto" style={{ fontSize: 11 }}>{L('withdrawn:', 'سُحب:')} “{l.removeNote}”</div> : null}</td>
-                  <td style={{ fontSize: 12 }}>{l.status === 'confirmed' ? <><OrderStatusChip status={status} />{enf.confirmed.length > 1 && <div className="muted">{L(`on ${enf.confirmed.length} orders in total`, `على ${enf.confirmed.length} أوامر إجمالاً`)}</div>}</> : <span className="muted">{l.status === 'candidate' ? L('none — awaiting confirmation', 'لا شيء — بانتظار التأكيد') : L('none', 'لا شيء')}</span>}</td>
-                  <td>{l.status === 'confirmed' ? (<>{noteInput(`rm-${l.invoiceId}`, L('Reason to withdraw (required)', 'سبب السحب (مطلوب)'))}<button type="button" className="btn btn-sm" disabled={!rev.canReview} onClick={() => withdraw(l.invoiceId)}>{L('Withdraw link…', 'سحب الرابط…')}</button></>) : '—'}</td>
-                </tr>
-              );
-            })}</tbody>
-          </table></div>
-        ) : <div className="muted">{L('No linked or proposed invoice yet. Add the order document or review the references below.', 'لا فواتير مرتبطة أو مقترحة بعد. أضف مستند الأمر أو راجع المراجع أدناه.')}</div>}
-      </Section>
-
-      <Section id="refs" title={L('References and matching review', 'المراجع ومراجعة المطابقة')} count={rows.length}
-        note={<div className="rp-limit">{L('Every reference from Sanad and from the document is listed; one number is never taken to be the whole list. A reference matches only an invoice, SADAD or violation number that exists in the system. Order, contract, account and identity numbers are set apart. The amount never creates a match, and a written reason never resolves a conflict — only evidence does.', 'تُسرد كل المراجع من سند ومن المستند؛ ولا يُعدّ رقم واحد القائمة الكاملة. يطابق المرجع فقط رقم فاتورة أو سداد أو مخالفة موجوداً في النظام. وتُعزل أرقام الأوامر والعقود والحسابات والهويات. والمبلغ لا يُنشئ مطابقة، والسبب المكتوب لا يحسم تعارضاً — الدليل وحده يحسمه.')}</div>}>
-        {loading && !resolved && <div role="status" className="muted">{L('Matching the references…', 'جارٍ مطابقة المراجع…')}</div>}
-        {error && <div className="rp-limit rp-limit--warn" role="alert">{L('The data service could not match the references.', 'تعذّر على خدمة البيانات مطابقة المراجع.')} <button type="button" className="btn btn-sm" onClick={() => setTick((x) => x + 1)}>{L('Retry', 'إعادة المحاولة')}</button></div>}
-        {!rows.length && !loading && <div className="muted">{L('Invoice references not identified — review required — Sanad’s fields, description and notes name none. Add the order’s documents below (PDF or Word), or supply the text of unread pages. This does not mean the order has no related invoices.', 'لم تُحدَّد مراجع الفواتير — يلزم مراجعة — لا تذكر حقول سند ووصفها وملاحظاتها أي مرجع. أضف مستندات الأمر أدناه (PDF أو Word) أو زوّد نص الصفحات غير المقروءة. وهذا لا يعني أن الأمر بلا فواتير مرتبطة.')}</div>}
-        {clauses > 0 && rev.canReview && <div><button type="button" className="btn btn-sm" onClick={proposeAll}>{L(`Save the ${clauses} clean match(es) as proposals`, `حفظ ${clauses} مطابقة سليمة كاقتراحات`)}</button> <span className="muted" style={{ fontSize: 12 }}>{L('Proposals have no effect on any invoice; matches with unresolved conflicts are never included.', 'الاقتراحات بلا أثر على أي فاتورة؛ ولا تُشمل المطابقات ذات التعارضات غير المحسومة.')}</span></div>}
-        {rows.length > 0 && (
-          <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('References', 'المراجع')}>
-            <thead><tr><th>{L('Reference', 'المرجع')}</th><th>{L('Found in', 'وُجد في')}</th><th>{L('Result', 'النتيجة')}</th><th>{L('Invoice', 'الفاتورة')}</th><th style={{ minWidth: 230 }}>{L('Review', 'المراجعة')}</th></tr></thead>
-            <tbody>{rows.map((row) => (
-              <tr key={row.key}>
-                <td><b dir="ltr">{row.value}</b><div className="muted" style={{ fontSize: 12 }}>{B(KIND_LABEL[row.kind] || { en: row.kind, ar: row.kind })}{row.normalized ? ` → ${row.normalized}` : ''}</div></td>
-                <td style={{ fontSize: 12 }}>{row.origins.map((o, i) => <div key={i}>{B(ORIGIN_LABEL[o.type] || { en: o.type, ar: o.type })}{o.docName ? <span dir="ltr"> · {o.docName}</span> : null}{o.pages?.length ? <> · <button type="button" className="rv-link" onClick={() => { setFocus({ docId: o.docId, page: o.pages[0] }); document.getElementById('docs')?.scrollIntoView({ behavior: 'smooth' }); }}>{L('page', 'صفحة')} {o.pages.join(', ')}</button></> : ''}{o.raw && o.raw !== row.value ? <div className="muted" dir="ltr">{L('as written', 'كما كُتب')}: «{o.raw}»</div> : null}{o.snippet ? <div className="muted" dir="ltr">“{o.snippet}”</div> : null}</div>)}</td>
-                <td>
-                  {row.status === 'matched' && <Chip def={{ en: 'Matched', ar: 'مطابق', cls: 'rv-cat--collected' }} />}
-                  {row.status === 'ambiguous' && <Chip def={{ en: `Ambiguous — ${row.candidates.length} invoices`, ar: `ملتبس — ${row.candidates.length} فواتير`, cls: 'rv-cat--partial' }} />}
-                  {row.status === 'resolved_by_reference' && <Chip def={{ en: 'Weak reference settled by another reference', ar: 'مرجع ضعيف حُسم بمرجع آخر', cls: 'rv-cat--collected' }} />}
-                  {row.status === 'unmatched' && <Chip def={{ en: 'Not found in the system', ar: 'غير موجود في النظام', cls: 'rv-cat--overdue' }} />}
-                  {row.status === 'duplicate_reference' && <Chip def={{ en: 'Duplicate of another reference', ar: 'مكرر لمرجع آخر', cls: 'rv-cat--partial' }} />}
-                  {row.status === 'pending' && <span className="muted">…</span>}
-                  {row.sourceConflict && <div className="rv-tag rv-tag--bad">{L('differs from', 'تختلف عن')} <span dir="ltr">{row.sourceConflict.with.join(', ')}</span> ({L('same serial, other year', 'التسلسل نفسه بسنة أخرى')})</div>}
-                  {row.duplicateOf && <div className="muted" style={{ fontSize: 12 }}>{L('same invoice as', 'نفس فاتورة')} <span dir="ltr">{row.duplicateOf}</span> — {L('evidence kept, amount counted once', 'الدليل محفوظ والمبلغ يُحتسب مرة')}</div>}
-                  {row.weak && row.status === 'matched' && <div className="muted" style={{ fontSize: 12 }}>{L('weak reference (year missing / padded)', 'مرجع ضعيف (بلا سنة / مُكمَّل)')}</div>}
-                  {row.status === 'unmatched' && <div className="muted" style={{ fontSize: 12 }}>{L('Possibly a typing or OCR error — never replaced by a “similar” invoice.', 'ربما خطأ طباعة أو OCR — ولا يُستبدل بفاتورة «مشابهة».')}</div>}
-                </td>
-                <td>{row.candidates.map((k) => (
-                  <div key={k.invoiceId} style={{ marginBottom: 6, fontSize: 13 }}>
-                    <RecordLink to={invoicePath(k.invoiceId)} dir="ltr">{k.invoiceId}</RecordLink> · {B(SOURCE_LABEL[k.source] || { en: k.source, ar: k.source })}
-                    <div className="muted" style={{ fontSize: 12 }}>{B(k.payerName)} · <span dir="ltr">{sar(k.grossAmount)}</span> · <PayStatusChip status={k.paymentStatus} /></div>
-                    {(row.conflicts[k.invoiceId] || []).map((x) => <span key={x} className={`rv-tag ${isHardConflict(x) && (row.unresolved[k.invoiceId] || []).includes(x) ? 'rv-tag--bad' : 'rv-tag--warn'}`}>{B(CONFLICT_LABEL[x] || { en: x, ar: x })}</span>)}
-                    {(row.resolved[k.invoiceId] || []).map((r) => <div key={r.conflict} className="rp-ok" style={{ fontSize: 12 }}>✓ {L('conflict resolved by evidence', 'حُسم التعارض بدليل')}: {r.by === 'document_names_payer' ? `${L('the document names the payer', 'المستند يذكر الدافع')} (${r.evidence.value}${r.evidence.pages?.length ? `, ${L('page', 'صفحة')} ${r.evidence.pages.join(',')}` : ''})` : r.by === 'only_candidate_of_order_debtor' ? L('only this candidate belongs to the order’s debtor (the other source’s invoice is another payer’s)', 'هذا المرشح وحده يعود لمدين الأمر (فاتورة المصدر الآخر لدافع آخر)') : r.by}</div>)}
-                    {(others.get(k.invoiceId) || []).map((o) => <div key={o.enforceNum} className="muted" style={{ fontSize: 12 }}>{L('also on', 'عليها أيضاً')} <RecordLink to={`/enforcement-orders/${o.enforceNum}`} dir="ltr">{o.enforceNum}</RecordLink> ({o.status === 'confirmed' ? L('confirmed', 'مؤكد') : L('proposed', 'مقترح')}, <OrderStatusChip status={o.orderStatus} />)</div>)}
-                  </div>
-                ))}</td>
-                <td>
-                  {row.status === 'duplicate_reference' && <span className="muted">—</span>}
-                  {row.status !== 'duplicate_reference' && row.candidates.map((k) => {
-                    const l = links.find((x) => x.invoiceId === k.invoiceId); const hard = row.unresolved[k.invoiceId] || [];
-                    return (
-                      <div key={k.invoiceId} style={{ marginBottom: 8 }}>
-                        {row.candidates.length > 1 && <div dir="ltr" style={{ fontSize: 12, fontWeight: 700 }}>{k.invoiceId}</div>}
-                        {l && <div style={{ marginBottom: 3 }}><Chip def={LINK_STATUS_LABEL[l.status]} /></div>}
-                        {hard.length > 0 && (!l || l.status !== 'confirmed') && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}><b>{L('Unresolved — cannot be confirmed', 'غير محسوم — لا يمكن تأكيده')}</b>{hard.map((x) => <div key={x}>{B(RESOLVE_HINT[x] || { en: '', ar: '' })}</div>)}</div>}
-                        {(!l || l.status === 'rejected') && (<div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                          <button type="button" className="btn btn-sm btn-primary" disabled={!rev.canReview || hard.length > 0} onClick={() => confirm(row, k)}>{L('Confirm link', 'تأكيد الربط')}</button>
-                          {!l && <button type="button" className="btn btn-sm" disabled={!rev.canReview || hard.length > 0} onClick={() => propose(row, k)}>{L('Save as proposal', 'حفظ كاقتراح')}</button>}
-                          {!l && <button type="button" className="btn btn-sm" disabled={!rev.canReview} onClick={() => reject(row, k)}>{L('Reject', 'رفض')}</button>}
-                        </div>)}
-                        {l?.status === 'candidate' && <div style={{ display: 'flex', gap: 5 }}><button type="button" className="btn btn-sm btn-primary" disabled={!rev.canReview || hard.length > 0} onClick={() => confirm(row, k)}>{L('Confirm link', 'تأكيد الربط')}</button><button type="button" className="btn btn-sm" disabled={!rev.canReview} onClick={() => reject(row, k)}>{L('Reject', 'رفض')}</button></div>}
-                        {l?.status === 'confirmed' && <span className="muted" style={{ fontSize: 12 }}>{L('Withdraw it in «Linked invoices».', 'يُسحب من «الفواتير المرتبطة».')}</span>}
-                      </div>
-                    );
-                  })}
-                  {row.status === 'unmatched' && (c.dismissedRefs || []).includes(row.key) && <span className="rv-tag">{L('set aside', 'مستبعد')}</span>}
-                  {row.status === 'unmatched' && rev.canReview && !(c.dismissedRefs || []).includes(row.key) && (<>{noteInput(row.key, L('Reason (optional)', 'السبب (اختياري)'))}<button type="button" className="btn btn-sm" onClick={() => dismiss(row)}>{L('Set aside — not an invoice of this order', 'استبعاد — ليس فاتورة لهذا الأمر')}</button></>)}
-                </td>
-              </tr>
-            ))}</tbody>
-          </table></div>
+      <Section id="details-complete" secondary title={L('Completeness details (three separate states)', 'تفاصيل الاكتمال (ثلاث حالات منفصلة)')}>
+        <div className="rp-compl" role="group" aria-label={L('Three completeness states — kept separate', 'ثلاث حالات اكتمال — منفصلة')}>
+          <div>
+            <h3>{L('1 · Reference matching', '1 · مطابقة المراجع')}</h3>
+            <div className={`rp-compl__v ${tone(comp.references.state === 'complete')}`}>{comp.references.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.references.state)}</div>
+            <div className="rp-compl__d">{comp.references.state === 'none' ? L('Invoice numbers not identified — needs review. This is not “no related invoices”.', 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة. وهذا لا يعني «لا فواتير مرتبطة».') : L(`${comp.references.total} reference(s) found · ${comp.references.confirmedLinks} confirmed link(s)${comp.references.unresolved ? ` · ${comp.references.unresolved} unresolved` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} proposal(s) to confirm` : ''}.`, `${comp.references.total} مرجع · ${comp.references.confirmedLinks} رابط مؤكد${comp.references.unresolved ? ` · ${comp.references.unresolved} غير محسوم` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} اقتراح للتأكيد` : ''}.`)}</div>
+            <div className="rp-compl__d">{L('“Complete” means every reference found is decided; it does not prove every covered invoice was found. Does not depend on the amount.', '«مكتملة» تعني أن كل مرجع وُجد قد حُسم؛ ولا تثبت أن كل فاتورة مشمولة وُجدت. ولا تعتمد على المبلغ.')}</div>
+          </div>
+          <div>
+            <h3>{L('2 · Document extraction', '2 · استخراج المستند')}</h3>
+            <div className={`rp-compl__v ${tone(comp.extraction.state === 'complete')}`}>{comp.extraction.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.extraction.state)}</div>
+            <div className="rp-compl__d">{comp.extraction.state === 'no_document' ? L('No order document attached.', 'لا مستند مرفق بالأمر.') : comp.extraction.state === 'incomplete' ? (comp.extraction.unreadPages ? L(`${comp.extraction.unreadPages} page(s) not read.`, `${comp.extraction.unreadPages} صفحة لم تُقرأ.`) : L(`${comp.extraction.attachmentsPending} listed attachment(s) not added.`, `${comp.extraction.attachmentsPending} مرفق مدرج لم يُضَف.`)) : L(`Every page of ${comp.extraction.documents} document(s) has text.`, `لكل صفحات ${comp.extraction.documents} مستند نص.`)}</div>
+            {comp.extraction.suppliedPages > 0 && <div className="rp-compl__d rp-warn">{L(`${comp.extraction.suppliedPages} page(s) rely on supplied text (imported external OCR or typed) — its quality is NOT verified by this system.`, `${comp.extraction.suppliedPages} صفحة تعتمد على نص مُزوَّد (OCR خارجي مستورد أو مُدخل يدوياً) — ولا يتحقق هذا النظام من جودته.`)}</div>}
+          </div>
+          <div>
+            <h3>{L('3 · Financial reconciliation', '3 · التسوية المالية')}</h3>
+            <div className={`rp-compl__v ${tone(comp.finance.state === 'reconciled')}`}>{comp.finance.state === 'reconciled' ? '✓ ' : '! '}{stateWord(comp.finance.state)}</div>
+            <div className="rp-compl__d">{comp.finance.state === 'reconciled' ? L('Linked invoices add up to the order amount.', 'الفواتير المربوطة تساوي مبلغ الأمر.') : comp.finance.difference != null && (comp.finance.state === 'short' || comp.finance.state === 'over') ? L(`${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'of the order is not covered by a linked invoice' : 'more than the order is covered'} — reported, never forced to match.`, `${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'من الأمر غير مغطى بفاتورة مربوطة' : 'أكثر من الأمر مغطى'} — يُعرض ولا يُفرض تطابقه.`) : L('No linked invoice to compare yet.', 'لا فاتورة مربوطة للمقارنة بعد.')}</div>
+            {rec.proposedCount > 0 && <div className="rp-compl__d">{L('Difference if every proposal were confirmed', 'الفرق لو أُكِّدت كل الاقتراحات')}: <span dir="ltr">{rec.differenceIfProposedConfirmed == null ? '—' : sar(rec.differenceIfProposedConfirmed)}</span></div>}
+          </div>
+        </div>
+        {(rec.state === 'short' || rec.state === 'over') && <div className="rp-limit rp-limit--warn">{rec.state === 'short' ? L('The linked invoices cover LESS than the order: look for further references in the documents or in Sanad — never force a match to make the totals agree.', 'الفواتير المربوطة تغطي أقل من الأمر: ابحث عن مراجع إضافية في المستندات أو في سند — ولا تفرض مطابقة لجعل المجاميع تتفق.') : L('The linked invoices cover MORE than the order: check for a wrong or duplicate link.', 'الفواتير المربوطة تغطي أكثر من الأمر: افحص رابطاً خاطئاً أو مكرراً.')}</div>}
+        {rec.state === 'short' && c.debtorIdx != null && (
+          <div><button type="button" className="btn btn-sm" onClick={loadDebtor}>{L('Show other open invoices of this debtor (investigation only)', 'عرض فواتير مفتوحة أخرى لهذا المدين (للتحقق فقط)')}</button>
+            {debtor && (<div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
+              <div className="rp-limit">{L('These are NOT proposed matches. An amount alone never links an invoice.', 'هذه ليست مطابقات مقترحة. فالمبلغ وحده لا يربط فاتورة.')}</div>
+              <div className="rp-tablewrap" tabIndex={0}><table><thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Type', 'النوع')}</th><th className="num">{L('Invoice amount', 'مبلغ الفاتورة')}</th><th className="num">{L('Remaining', 'المتبقي')}</th><th>{L('Payment status', 'حالة السداد')}</th></tr></thead>
+                <tbody>{debtor.map((d) => <tr key={d.invoiceId}><td dir="ltr"><RecordLink to={invoicePath(d.invoiceId)}>{d.invoiceId}</RecordLink></td><td>{B(SOURCE_LABEL[d.source] || { en: d.source, ar: d.source })}</td><td className="num" dir="ltr">{sar(d.grossAmount)}</td><td className="num" dir="ltr">{sar(d.outstanding)}</td><td><PayStatusChip status={d.paymentStatus} /></td></tr>)}{!debtor.length && <tr><td colSpan={5} className="muted">{L('No other open invoices.', 'لا فواتير مفتوحة أخرى.')}</td></tr>}</tbody></table></div>
+            </div>)}
+          </div>
         )}
-        {comp.unresolved.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{L(`${comp.unresolved.length} reference(s) are not yet accounted for by a link or a decision.`, `${comp.unresolved.length} مرجع لم يُحسم برابط أو قرار بعد.`)}</div>}
         {otherRefs.length > 0 && (
           <Section id="others" secondary title={L('Other numbers found — not invoice references, never matched', 'أرقام أخرى وُجدت — ليست مراجع فواتير ولا تُطابَق')} count={otherRefs.length}>
             <div className="rp-tablewrap" tabIndex={0}><table>
               <thead><tr><th>{L('Number', 'الرقم')}</th><th>{L('Read as', 'قُرئ على أنه')}</th><th>{L('Where', 'أين')}</th></tr></thead>
-              <tbody>{otherRefs.map((o, i) => <tr key={i}><td dir="ltr">{o.value}</td><td>{B(KIND_LABEL[o.kind] || { en: o.kind, ar: o.kind })}{o.label && o.label !== 'pattern' && o.label !== 'unlabelled' ? <span className="muted"> · {o.label}</span> : null}</td><td style={{ fontSize: 12 }} dir="ltr">{o.docName ? `${o.docName} · p.${(o.pages || []).join(',')}` : ''}{o.snippet ? <div className="muted">“{o.snippet}”</div> : null}</td></tr>)}</tbody>
+              <tbody>{otherRefs.map((o, i) => <tr key={i}><td dir="ltr">{o.value}</td><td>{B(KIND_LABEL[o.kind] || { en: o.kind, ar: o.kind })}{o.label && o.label !== 'pattern' && o.label !== 'unlabelled' ? <span className="muted"> · {o.label}</span> : null}</td><td style={{ fontSize: 12 }} dir="ltr">{o.docName ? `${o.docName}${(o.locs || []).length ? ` · ${o.locs.map((x) => locLabel(x, ar)).join(', ')}` : (o.pages || []).length ? ` · p.${o.pages.join(',')}` : ''}` : ''}{o.snippet ? <div className="muted">“{o.snippet}”</div> : null}</td></tr>)}</tbody>
             </table></div>
           </Section>
         )}
       </Section>
 
       {cmentions.length > 0 && (
-        <Section id="contract-refs" title={L('Contract references', 'مراجع العقود')} count={cmentions.length}
-          note={<div className="rp-limit">{L('Three different facts are kept apart: a contract MENTIONED in the order (description or document), a contract DIRECTLY referred (named in Sanad’s structured field, or a mention that a reviewer confirmed from a document), and a contract some of whose INVOICES are referred (shown on the contract page). A mention alone is never a direct referral, and a directly referred contract never implies that all its invoices are referred.', 'ثلاث حقائق مختلفة تُفصل: عقد «مذكور» في الأمر (الوصف أو مستند)، وعقد «محال مباشرة» (مذكور في حقل سند المهيكل، أو ذكر أكّده مراجع من مستند)، وعقد «بعض فواتيره محالة» (يظهر في صفحة العقد). والذكر وحده ليس إحالة مباشرة، والعقد المحال مباشرة لا يعني أن كل فواتيره محالة.')}</div>}>
+        <Section id="contract-refs" secondary title={L('Contract references', 'مراجع العقود')} count={cmentions.length}
+          note={<div className="rp-limit">{L('Three different facts are kept apart: a contract MENTIONED in the order, a contract DIRECTLY referred (Sanad’s structured field, or a document that EXPLICITLY states the contract itself is referred and that a reviewer confirmed), and a contract some of whose INVOICES are referred (on the contract page). A mention — even in a document, even of an existing contract — is never a direct referral, and a directly referred contract never makes all its invoices referred.', 'ثلاث حقائق مختلفة تُفصل: عقد «مذكور» في الأمر، وعقد «محال مباشرة» (حقل سند المهيكل، أو مستند ينص صراحة على إحالة العقد نفسه وأكّده مراجع)، وعقد «بعض فواتيره محالة» (في صفحة العقد). والذكر — ولو في مستند ولو لعقد موجود — ليس إحالة مباشرة، والعقد المحال مباشرة لا يجعل كل فواتيره محالة.')}</div>}>
           <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Contract references', 'مراجع العقود')}>
-            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Found in', 'وُجد في')}</th><th>{L('Status', 'الحالة')}</th><th style={{ minWidth: 220 }}>{L('Review', 'المراجعة')}</th></tr></thead>
-            <tbody>{cmentions.map((m) => { const exists = m.structured || contractExists(m.contractNo); const docOrigin = m.origins.find((o) => o.docId); return (
+            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Found in', 'وُجد في')}</th><th>{L('Status', 'الحالة')}</th><th style={{ minWidth: 260 }}>{L('Evidence of a direct referral', 'دليل الإحالة المباشرة')}</th></tr></thead>
+            <tbody>{cmentions.map((m) => { const exists = m.structured || contractExists(m.contractNo); const docOrigins = m.origins.filter((o) => o.docId); const f = cf[m.contractNo] || {}; const picked = docOrigins[f.at ?? 0]; return (
               <tr key={m.contractNo}>
                 <td>{exists ? <RecordLink to={contractPath(m.contractNo)} dir="ltr"><b>{m.contractNo}</b></RecordLink> : <b dir="ltr">{m.contractNo}</b>}{!exists && resolved && <div className="rv-tag rv-tag--bad">{L('no such contract in the system', 'لا عقد بهذا الرقم في النظام')}</div>}</td>
-                <td style={{ fontSize: 12 }}>{m.origins.map((o, i) => <div key={i}>{B(ORIGIN_LABEL[o.type] || { en: o.type, ar: o.type })}{o.docName ? <span dir="ltr"> · {o.docName}</span> : null}{o.pages?.length ? <> · {L('page', 'صفحة')} {o.pages.join(', ')}</> : null}{o.snippet ? <div className="muted" dir="ltr">“{o.snippet}”</div> : null}</div>)}</td>
-                <td>{m.status === 'supported_by_source' && <span className="rv-tag rv-tag--ok">{L('Directly referred — Sanad structured field', 'محال مباشرة — حقل سند المهيكل')}</span>}{m.status === 'confirmed_by_review' && <span className="rv-tag rv-tag--ok">{L('Directly referred — confirmed by review from a document', 'محال مباشرة — أكّدته المراجعة من مستند')}</span>}{m.status === 'mentioned' && <span className="rv-tag rv-tag--warn">{L('Mentioned only — not a direct referral', 'مذكور فقط — ليس إحالة مباشرة')}</span>}{m.status === 'rejected' && <span className="rv-tag">{L('Mention rejected by review', 'رفضت المراجعة هذا الذكر')}</span>}{m.review && <div className="muted" style={{ fontSize: 11 }}>{m.review.by} · {fmtRiyadh(m.review.at)}{m.review.note ? ` · “${m.review.note}”` : ''}</div>}</td>
-                <td>{m.status === 'mentioned' && rev.canReview ? (<>
-                  {noteInput(`ct-${m.contractNo}`, L('Note (optional)', 'ملاحظة (اختيارية)'))}
-                  <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                    <button type="button" className="btn btn-sm btn-primary" disabled={!exists || !docOrigin} onClick={() => reviewContract(m, 'confirmed', docOrigin, exists)}>{L('Confirm direct referral', 'تأكيد الإحالة المباشرة')}</button>
-                    <button type="button" className="btn btn-sm" onClick={() => reviewContract(m, 'rejected', null, exists)}>{L('Not a referral', 'ليست إحالة')}</button>
-                  </div>
-                  {!docOrigin && <div className="muted" style={{ fontSize: 11 }}>{L('Needs supporting evidence: a mention in the description alone cannot be confirmed; a document that names the contract is required.', 'يلزم دليل داعم: لا يمكن تأكيد ذكر في الوصف وحده؛ ويلزم مستند يذكر العقد.')}</div>}
-                  {docOrigin && !exists && <div className="muted" style={{ fontSize: 11 }}>{L('The contract does not exist in the system, so it cannot be confirmed.', 'العقد غير موجود في النظام فلا يمكن تأكيده.')}</div>}
-                </>) : '—'}</td>
+                <td style={{ fontSize: 12 }}>{m.origins.map((o, i) => <div key={i}>{B(ORIGIN_LABEL[o.type] || { en: o.type, ar: o.type })}{o.docName ? <span dir="ltr"> · {o.docName}</span> : null}{o.locs?.length ? <> · {o.locs.map((x) => locLabel(x, ar)).join('، ')}</> : o.pages?.length ? <> · {L('page', 'صفحة')} {o.pages.join(', ')}</> : null}{o.snippet ? <div className="muted" dir="ltr">“{o.snippet}”</div> : null}</div>)}</td>
+                <td>{m.status === 'supported_by_source' && <span className="rv-tag rv-tag--ok">{L('Directly referred — Sanad structured field', 'محال مباشرة — حقل سند المهيكل')}</span>}{m.status === 'confirmed_by_review' && <span className="rv-tag rv-tag--ok">{L('Directly referred — explicit statement confirmed by review', 'محال مباشرة — نص صريح أكّدته المراجعة')}</span>}{m.status === 'mentioned' && <span className="rv-tag rv-tag--warn">{L('Mentioned only — not a direct referral', 'مذكور فقط — ليس إحالة مباشرة')}</span>}{m.status === 'rejected' && <span className="rv-tag">{L('Mention rejected by review', 'رفضت المراجعة هذا الذكر')}</span>}{m.review && <div className="muted" style={{ fontSize: 11 }}>{m.review.by} · {fmtRiyadh(m.review.at)}{m.review.note ? ` · “${m.review.note}”` : ''}</div>}</td>
+                <td style={{ fontSize: 12 }}>
+                  {m.status === 'confirmed_by_review' && m.review?.evidence && <div>{L('Evidence', 'الدليل')}: <span dir="ltr">{m.review.evidence.docName}</span>{m.review.evidence.location ? ` · ${m.review.evidence.location}` : ''}<div className="muted" dir="auto">“{m.review.evidence.quote}”</div></div>}
+                  {m.status === 'mentioned' && rev.canReview ? (docOrigins.length && exists ? (<div style={{ display: 'grid', gap: 5 }}>
+                    <label>{L('Document location', 'موضع المستند')}<select className="input" value={f.at ?? 0} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, at: Number(e.target.value) } }))}>{docOrigins.map((o, i) => <option key={i} value={i}>{o.docName}{o.locs?.length ? ` — ${o.locs.map((x) => locLabel(x, ar)).join(', ')}` : o.pages?.length ? ` — ${L('page', 'صفحة')} ${o.pages.join(',')}` : ''}</option>)}</select></label>
+                    <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}><input type="checkbox" checked={!!f.explicit} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, explicit: e.target.checked } }))} /> <span>{L('The document EXPLICITLY states that the contract itself is referred to enforcement (it does not merely mention it)', 'المستند ينص صراحة على أن العقد نفسه محال إلى التنفيذ (وليس مجرد ذكره)')}</span></label>
+                    <label>{L('The statement, as written in the document', 'النص كما ورد في المستند')}<input className="input" dir="auto" value={f.quote || ''} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, quote: e.target.value } }))} /></label>
+                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                      <button type="button" className="btn btn-sm btn-primary" disabled={!f.explicit || String(f.quote || '').trim().length < 5} onClick={() => reviewContract(m, 'confirmed', { type: picked.type, docId: picked.docId, docName: picked.docName, location: picked.locs?.length ? picked.locs.map((x) => locLabel(x, ar)).join(', ') : picked.pages?.length ? `${L('page', 'صفحة')} ${picked.pages.join(',')}` : null, statedExplicitly: !!f.explicit, quote: String(f.quote || '').trim() }, exists)}>{L('Confirm direct referral', 'تأكيد الإحالة المباشرة')}</button>
+                      <button type="button" className="btn btn-sm" onClick={() => reviewContract(m, 'rejected', null, exists)}>{L('Not a referral', 'ليست إحالة')}</button>
+                    </div></div>) : (<div style={{ display: 'grid', gap: 4 }}><span className="muted">{!exists ? L('The contract does not exist in the system, so it cannot be confirmed.', 'العقد غير موجود في النظام فلا يمكن تأكيده.') : L('Needs explicit evidence: a mention in the description cannot be confirmed; a document that explicitly states the contract itself is referred is required.', 'يلزم دليل صريح: لا يمكن تأكيد ذكر في الوصف؛ ويلزم مستند ينص صراحة على إحالة العقد نفسه.')}</span>
+                    <div><button type="button" className="btn btn-sm" onClick={() => reviewContract(m, 'rejected', null, exists)}>{L('Not a referral', 'ليست إحالة')}</button></div></div>)) : null}
+                </td>
               </tr>); })}</tbody>
           </table></div>
         </Section>
       )}
 
-      <Section id="docs" title={L('Document and extraction evidence', 'المستند وأدلة الاستخراج')} count={docs.length}>
-        <OrderDocuments order={c} rev={rev} onMessage={setMsg} focus={focus} tick={tick} onChanged={() => setTick((x) => x + 1)} />
-        {docs.some((d) => files[d.id] === false) && <div className="rp-limit rp-limit--warn" role="status">{L('Some original PDF files are unavailable in this browser (for example after restoring a backup, which does not contain PDF files). The extracted references, pages, evidence and link history are kept; add the file again to view it — its identity is checked first.', 'بعض ملفات PDF الأصلية غير متاحة في هذا المتصفح (مثلاً بعد استعادة نسخة احتياطية لا تتضمن ملفات PDF). تبقى المراجع المستخرجة والصفحات والأدلة وسجل الروابط؛ أضف الملف مرة أخرى لعرضه — وتُفحص هويته أولاً.')}</div>}
-      </Section>
-
-      <Section id="finance" title={L('Financial reconciliation', 'التسوية المالية')}>
-        <Facts items={[
-          { k: L('Order amount (Sanad)', 'مبلغ الأمر (سند)'), v: sar(c.amount), ltr: true }, { k: L('Confirmed invoices, each counted once', 'الفواتير المؤكدة، كل فاتورة مرة'), v: rec.confirmedTotal == null ? '—' : sar(rec.confirmedTotal), ltr: true },
-          { k: L('Difference', 'الفرق'), v: rec.difference == null ? '—' : sar(rec.difference), ltr: true }, rec.proposedCount > 0 && { k: L('Difference if every proposal were confirmed', 'الفرق لو أُكِّدت كل الاقتراحات'), v: rec.differenceIfProposedConfirmed == null ? '—' : sar(rec.differenceIfProposedConfirmed), ltr: true }
-        ].filter(Boolean)} />
-        {(rec.state === 'short' || rec.state === 'over') && <div className="rp-limit rp-limit--warn">{rec.state === 'short' ? L('The confirmed invoices cover LESS than the order: look for further references in the document or in Sanad — do not force a match to make the totals agree.', 'الفواتير المؤكدة تغطي أقل من الأمر: ابحث عن مراجع إضافية في المستند أو في سند — ولا تفرض مطابقة لجعل المجاميع تتفق.') : L('The confirmed invoices cover MORE than the order: check for a wrong or duplicate link.', 'الفواتير المؤكدة تغطي أكثر من الأمر: افحص رابطاً خاطئاً أو مكرراً.')}</div>}
-        {rec.state === 'short' && c.debtorIdx != null && (
-          <div><button type="button" className="btn btn-sm" onClick={loadDebtor}>{L('Show other open invoices of this debtor (investigation only)', 'عرض فواتير مفتوحة أخرى لهذا المدين (للتحقق فقط)')}</button>
-            {debtor && (<div style={{ marginTop: 8, display: 'grid', gap: 8 }}>
-              <div className="rp-limit">{L('These are NOT proposed matches. An amount alone never links an invoice — use them only to know where to look for a further reference.', 'هذه ليست مطابقات مقترحة. فالمبلغ وحده لا يربط فاتورة — استعملها فقط لمعرفة أين تبحث عن مرجع إضافي.')}</div>
-              <div className="rp-tablewrap" tabIndex={0}><table><thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Type', 'النوع')}</th><th className="num">{L('Gross', 'الإجمالي')}</th><th className="num">{L('Remaining', 'المتبقي')}</th><th>{L('Payment status', 'حالة السداد')}</th></tr></thead>
-                <tbody>{debtor.map((d) => <tr key={d.invoiceId}><td dir="ltr"><RecordLink to={invoicePath(d.invoiceId)}>{d.invoiceId}</RecordLink></td><td>{B(SOURCE_LABEL[d.source] || { en: d.source, ar: d.source })}</td><td className="num" dir="ltr">{sar(d.grossAmount)}</td><td className="num" dir="ltr">{sar(d.outstanding)}</td><td><PayStatusChip status={d.paymentStatus} /></td></tr>)}{!debtor.length && <tr><td colSpan={5} className="muted">{L('No other open invoices.', 'لا فواتير مفتوحة أخرى.')}</td></tr>}</tbody></table></div>
-            </div>)}
-          </div>
-        )}
-      </Section>
-
-      <Section id="facts" title={L('Sanad order information', 'بيانات الأمر من سند')}>
+      <Section id="facts" secondary title={L('Sanad order information', 'بيانات الأمر من سند')}>
         <Facts items={[
           { k: L('Order number', 'رقم الأمر'), v: c.enforceNum, ltr: true }, { k: L('Opened', 'تاريخ الفتح'), v: c.openedDate, ltr: true }, { k: L('Amanah', 'الأمانة'), v: c.amanahEn },
           { k: L('Debtor', 'المدين'), v: <>{B(c.debtorName) || '—'}{c.debtorId ? <span className="muted" dir="ltr"> · {c.debtorId}</span> : null}</> },
           { k: L('Invoice references from Sanad', 'مراجع الفواتير من سند'), v: (c.refs || []).length ? (c.refs || []).map((r) => r.value).join(', ') : L('none supplied', 'لم تُزوَّد'), ltr: true },
           { k: L('Contract', 'العقد'), v: contracts.length ? contracts.map((no, i) => <span key={no}>{i ? ' · ' : ''}<RecordLink to={contractPath(no)} dir="ltr">{no}</RecordLink></span>) : L('none — this order is not tied to a contract (it covers invoices of any type)', 'لا عقد — هذا الأمر غير مرتبط بعقد (يشمل فواتير من أي نوع)') }
         ]} />
-        <div className="rp-limit">{L('Contracts are listed only where the invoice record itself carries one, or where Sanad names the contract number — never inferred from an amount or a payer name.', 'تُسرد العقود فقط حيث يحمل سجل الفاتورة عقداً أو تذكر سند رقم العقد — ولا تُستنتج من مبلغ أو اسم دافع.')}</div>
       </Section>
 
       <Section id="history" secondary title={L('Link and status history', 'سجل الروابط والحالات')} count={hist.length}>

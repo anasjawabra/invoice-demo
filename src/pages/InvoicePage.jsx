@@ -6,7 +6,7 @@ import { useL } from '../utils/bi';
 import { RecordHeader, StatusGroup, Figures, Facts, Section, RecordState, Finding } from '../components/record/RecordPage';
 import PdfPreview, { useDocFiles } from '../components/record/PdfPreview';
 import SourceRecordSection from '../components/revenue/SourceRecordSection';
-import { PayStatusChip, OrderStatusChip, Chip, EnforcementChips, LINK_STATUS_LABEL, CONFLICT_LABEL, SOURCE_LABEL } from '../components/revenue/EnforcementUI';
+import { PayStatusChip, OrderStatusChip, Chip, EnforcementChips, LINK_STATUS_LABEL, CONFLICT_LABEL, SOURCE_LABEL, Enf1Explainer } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { orderPath, contractPath } from '../utils/paths';
 import { enforcementOf, evidenceForInvoice, CLOSE_REASON_LABEL } from '../data/relations';
@@ -16,14 +16,15 @@ import { RULE_IDS } from '../data/catalog';
 import { REVENUE_SOURCES } from '../data/revenueLedger';
 import { ORIGIN_LABEL, unresolvedConflicts } from '../data/orderMatching';
 import { fmtRiyadh, fmtDateText } from '../data/clock';
+import { locLabel } from '../data/docxText';
 
 const CHANNEL = { sadad: { en: 'SADAD', ar: 'سداد' }, voluntary: { en: 'Voluntary', ar: 'طوعي' }, enforcement: { en: 'Enforcement', ar: 'تنفيذ' }, transfer: { en: 'Transfer', ar: 'تحويل' }, card: { en: 'Card', ar: 'بطاقة' }, wallet: { en: 'Wallet', ar: 'محفظة' } };
-function exportReview(rec, der, enf, notes) {
+function exportReview(rec, der, enf, notes, evidence = []) {
   const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const lines = [['Invoice review report (demo data)', ''], ['Invoice number', rec.id], ['Revenue source', rec.revenueSource], ['Payer', rec.entityEn], ['Amanah', rec.amanahEn], ['Issue date', rec.issueDate], ['Due date', rec.dueDate],
     ['Gross billed (SAR)', der.gross], ['Exclusions (SAR)', der.exclusionsTotal], ['Net billed (SAR)', der.net], ['Collected (SAR)', der.collected], ['Remaining balance (SAR)', der.outstanding], ['Payment status', der.payStatus],
-    ['Enforcement now', enf.current], ['Referred before', enf.referredEver ? 'yes' : 'no'], ['Confirmed orders', enf.confirmed.map((o) => `${o.enforceNum}:${o.orderStatus}`).join(' | ')], ['Proposed orders (no effect)', enf.proposed.map((o) => o.enforceNum).join(' | ')],
-    ['Notes', (notes || []).map((n) => `${n.at} ${n.by}: ${n.text}`).join(' | ')], ['Note', 'An analysis review is not a payment and not a legal approval.']];
+    ['Source cancelled', der.sourceCancelled ? 'yes' : 'no'], ['Source/enforcement conflict (review required)', der.enfConflict ? 'yes' : 'no'], ['ENF-1 treatment applied by a reviewer decision', der.enf1Applied ? 'yes' : 'no'], ['Enforcement now', enf.current], ['Referred before', enf.referredEver ? 'yes' : 'no'], ['Confirmed orders', enf.confirmed.map((o) => `${o.enforceNum}:${o.orderStatus}`).join(' | ')], ['Proposed orders (no effect)', enf.proposed.map((o) => o.enforceNum).join(' | ')],
+    ['Link evidence (method — document — location)', evidence.map((e) => `${e.enforceNum}: ${e.method || ''} — ${e.docName || ''} — ${e.loc || (e.page ? `page ${e.page}` : '')}`).join(' | ')], ['Notes', (notes || []).map((n) => `${n.at} ${n.by}: ${n.text}`).join(' | ')], ['Note', 'An analysis review is not a payment and not a legal approval.']];
   const blob = new Blob([`\uFEFF${lines.map((r) => r.map(esc).join(',')).join('\n')}`], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `invoice-review-${rec.id}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
@@ -75,9 +76,10 @@ export default function InvoicePage() {
   if (rec.objection) findings.push({ k: 'obj', tone: 'info', title: L('Open objection', 'اعتراض مفتوح'), why: L('An objection is registered against this invoice.', 'يوجد اعتراض مسجّل على هذه الفاتورة.'), evidence: rec.objection.ref, action: null });
   if (enf.confirmed.length > 1) findings.push({ k: 'multi', tone: 'info', title: L(`Named by ${enf.confirmed.length} orders`, `مذكورة في ${enf.confirmed.length} أوامر`), why: L('One invoice can carry several orders (for example a closed one and a newer one). Enforcement status follows all of them.', 'قد تحمل الفاتورة الواحدة عدة أوامر (مثلاً أمر مغلق وأحدث منه). وتتبع حالة الإنفاذ كلها.'), evidence: enf.confirmed.map((o) => `${o.enforceNum} (${o.orderStatus})`).join(' · '), action: null });
 
+  const enf1Dec = rev.enf1Decisions?.[id] || null; const orderList = [...enf.confirmed.map((o) => `${o.enforceNum} (${o.orderStatus})`), ...enf.withdrawn.map((o) => `${o.enforceNum} (link withdrawn)`)].join(', ') || '—';
   if (der.enfConflict) findings.push({ k: 'srcconf', tone: 'bad', title: L('Source/enforcement conflict — review required', 'تعارض بين المصدر والإنفاذ — يلزم مراجعة'),
-    why: enf.confirmed.length ? L('The source system shows this invoice as cancelled, yet an enforcement order has been confirmed against it. Neither fact overrides the other: no amount is removed or reinstated merely because an order exists, closes or is withdrawn.', 'يُظهر النظام المصدر هذه الفاتورة ملغاة، ومع ذلك أُكِّد عليها أمر تنفيذ. لا تلغي إحدى الحقيقتين الأخرى: ولا يُزال مبلغ ولا يُعاد لمجرد وجود أمر أو إغلاقه أو سحبه.') : L('The source system shows this invoice as cancelled, and a confirmed enforcement link to it was withdrawn. Withdrawing a link does not move an amount either: the retained treatment stays until the business decision is taken.', 'يُظهر النظام المصدر هذه الفاتورة ملغاة، وقد سُحب رابط تنفيذ مؤكد عليها. وسحب الرابط لا يحرّك مبلغاً أيضاً: تبقى المعالجة المحتفظ بها حتى يُتخذ القرار.'),
-    evidence: L(`Cancelled in the source${rec.cancelled?.date ? ` on ${rec.cancelled.date}` : ''} · orders: ${[...enf.confirmed.map((o) => `${o.enforceNum} (${o.orderStatus})`), ...enf.withdrawn.map((o) => `${o.enforceNum} (link withdrawn)`)].join(', ') || '—'}. The documented treatment (ENF-1) is retained: the invoice stays uncollected, remaining ${sar(der.outstanding)}. This treatment is pending the open decision EQ3 and is marked as such — it is not a finding that the invoice is collectible.`, `أُلغيت في المصدر${rec.cancelled?.date ? ` بتاريخ ${rec.cancelled.date}` : ''} · الأوامر: ${[...enf.confirmed.map((o) => `${o.enforceNum} (${o.orderStatus})`), ...enf.withdrawn.map((o) => `${o.enforceNum} (رابط مسحوب)`)].join('، ') || '—'}. تبقى المعالجة الموثقة (ENF-1): الفاتورة تبقى غير محصلة والمتبقي ${sar(der.outstanding)}. وهذه المعالجة بانتظار القرار المفتوح EQ3 وموسومة بذلك — وليست حكماً بأن الفاتورة قابلة للتحصيل.`), action: null });
+    why: L('The source system shows this invoice as cancelled, and an enforcement order is (or was) linked to it. Neither fact overrides the other: the invoice stays cancelled in every total, and no order event — confirmation, closing or withdrawal — changes an amount.', 'يُظهر النظام المصدر هذه الفاتورة ملغاة، وهناك أمر تنفيذ مرتبط بها (أو كان). لا تلغي إحدى الحقيقتين الأخرى: تبقى الفاتورة ملغاة في كل الإجماليات، ولا يغيّر أي حدث للأمر — تأكيداً أو إغلاقاً أو سحباً — أي مبلغ.'),
+    evidence: L(`Cancelled in the source${rec.cancelled?.date ? ` on ${rec.cancelled.date}` : ''} · orders: ${orderList}. ${enf1Dec ? (enf1Dec.decision === 'apply' ? 'A reviewer applied the documented ENF-1 treatment (counted uncollected).' : 'A reviewer kept the source cancellation.') : 'No review decision yet. The documented rule ENF-1 would count the invoice uncollected; it is applied only on a reviewer’s decision. Business confirmation is pending (EQ3).'}`, `أُلغيت في المصدر${rec.cancelled?.date ? ` بتاريخ ${rec.cancelled.date}` : ''} · الأوامر: ${orderList}. ${enf1Dec ? (enf1Dec.decision === 'apply' ? 'طبّق مراجع معالجة ENF-1 الموثقة (تُحتسب غير محصّلة).' : 'أبقى مراجع الإلغاء في المصدر.') : 'لا قرار مراجعة بعد. القاعدة الموثقة ENF-1 تحتسب الفاتورة غير محصّلة؛ وتُطبَّق فقط بقرار مراجع. والتأكيد من الأعمال معلّق (EQ3).'}`), action: ['enf1'] });
 
   const myPay = card?.schedule?.find((p) => p.invoiceNo === id);
   const timeline = [
@@ -103,12 +105,12 @@ export default function InvoicePage() {
           <StatusGroup label={L('Enforcement status', 'حالة الإنفاذ')} hint={L('from confirmed orders only; “referred before” stays after an order closes', 'من الأوامر المؤكدة فقط؛ وتبقى «سبقت إحالتها» بعد إغلاق الأمر')}><EnforcementChips enf={enf} /></StatusGroup>
           <StatusGroup label={L('Review (this analysis)', 'المراجعة (هذا التحليل)')} hint={L('an analysis decision — not a payment or a legal approval', 'قرار تحليلي — وليس سداداً ولا اعتماداً قانونياً')}>{findings.filter((f) => f.action).length ? <span className="rv-tag rv-tag--warn">{L(`${findings.filter((f) => f.action).length} awaiting your decision`, `${findings.filter((f) => f.action).length} بانتظار قرارك`)}</span> : <span className="rv-tag rv-tag--ok">{L('No decision pending', 'لا قرار معلّق')}</span>}</StatusGroup>
         </>}
-        actions={<><span className="rv-cat">{typeLabel}</span><span className="rv-tag">{rec.sourcePlatform}</span><button type="button" className="btn btn-sm" onClick={() => exportReview(rec, der, enf, notes)}>{L('Export review report (CSV)', 'تصدير تقرير المراجعة (CSV)')}</button></>}
+        actions={<><span className="rv-cat">{typeLabel}</span><span className="rv-tag">{rec.sourcePlatform}</span><button type="button" className="btn btn-sm" onClick={() => exportReview(rec, der, enf, notes, evidence)}>{L('Export review report (CSV)', 'تصدير تقرير المراجعة (CSV)')}</button></>}
       />
 
       <Figures label={L('Financial summary', 'الملخص المالي')} items={[
         { label: L('Gross billed', 'إجمالي المفوتر'), value: sar(der.gross) },
-        { label: L('Exclusions', 'الاستبعادات'), value: sar(der.exclusionsTotal), note: der.cancelled ? L('cancelled', 'ملغاة') : der.enfConflict ? L('cancelled in the source — kept (ENF-1)', 'ملغاة في المصدر — محتفظ بها (ENF-1)') : reasons[0] || null },
+        { label: L('Exclusions', 'الاستبعادات'), value: sar(der.exclusionsTotal), note: der.cancelled ? L('cancelled', 'ملغاة') : der.enf1Applied ? L('cancelled in the source — ENF-1 applied by decision', 'ملغاة في المصدر — طُبّقت ENF-1 بقرار') : reasons[0] || null },
         { label: L('Net billed', 'صافي المفوتر'), value: sar(der.net) },
         { label: L('Collected', 'المحصّل'), value: sar(der.collected), tone: der.collected > 0 ? 'good' : undefined },
         { label: L('Remaining balance', 'الرصيد المتبقي'), value: sar(der.outstanding), tone: der.outstanding > 0 && der.daysOverdue > 0 ? 'bad' : undefined }
@@ -129,13 +131,14 @@ export default function InvoicePage() {
         <Section id="separate" title={L('Cancellation, exclusion, balance and enforcement — kept separate', 'الإلغاء والاستبعاد والرصيد والإنفاذ — منفصلة')}>
           <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Cancellation, exclusion, balance and enforcement', 'الإلغاء والاستبعاد والرصيد والإنفاذ')}><tbody>{[
             { k: L('Source cancellation', 'الإلغاء في المصدر'), v: der.sourceCancelled ? L(`Cancelled in the source${rec.cancelled?.date ? ` (${rec.cancelled.date})` : ''}`, `ملغاة في المصدر${rec.cancelled?.date ? ` (${rec.cancelled.date})` : ''}`) : L('Not cancelled at the reference date', 'غير ملغاة في التاريخ المرجعي') },
-            { k: L('Effective treatment (exclusion / review)', 'المعالجة الفعلية (استبعاد / مراجعة)'), v: der.enfConflict ? L('Not excluded as cancelled — retained by the documented rule ENF-1 because an order link is confirmed or was withdrawn (pending EQ3)', 'غير مستبعدة كملغاة — محتفظ بها وفق القاعدة الموثقة ENF-1 لوجود رابط أمر مؤكد أو مسحوب (بانتظار EQ3)') : der.cancelled ? L('Excluded as cancelled (counted once)', 'مستبعدة كملغاة (تُحتسب مرة)') : L('No cancellation exclusion', 'لا استبعاد للإلغاء') },
+            { k: L('Effective treatment (exclusion / review)', 'المعالجة الفعلية (استبعاد / مراجعة)'), v: der.enf1Applied ? L('Not deducted as cancelled — the documented ENF-1 treatment applied by a reviewer’s decision (pending business confirmation, EQ3)', 'غير مخصومة كملغاة — طُبّقت معالجة ENF-1 الموثقة بقرار مراجع (بانتظار تأكيد الأعمال، EQ3)') : der.cancelled ? (der.enfConflict ? L('Cancelled in the source stands; flagged for review (no ENF-1 decision recorded)', 'الإلغاء في المصدر قائم؛ معلَّم للمراجعة (لم يُسجَّل قرار ENF-1)') : L('Excluded as cancelled (counted once)', 'مستبعدة كملغاة (تُحتسب مرة)')) : L('No cancellation exclusion', 'لا استبعاد للإلغاء') },
             { k: L('Remaining collectible balance', 'الرصيد القابل للتحصيل المتبقي'), v: sar(der.outstanding), ltr: true },
             { k: L('Payment status', 'حالة السداد'), v: <PayStatusChip status={der.payStatus} /> },
             { k: L('Active enforcement', 'الإنفاذ الحالي'), v: <EnforcementChips enf={enf} /> },
             { k: L('Historical referral', 'الإحالة التاريخية'), v: enf.referredEver ? L('Referred before', 'سبقت إحالتها') : L('Never referred', 'لم تُحَل') }
           ].map((x) => <tr key={x.k}><th scope="row" style={{ width: '32%', textAlign: 'start' }}>{x.k}</th><td dir={x.ltr ? 'ltr' : 'auto'}>{x.v}</td></tr>)}</tbody></table></div>
-          <div className="rp-limit">{L('A source cancellation, the exclusion/review decision, the remaining balance, the payment status and enforcement are five different facts. An order never reinstates or removes an amount by itself; closing or withdrawing an order never implies payment and never erases the referral from the history.', 'الإلغاء في المصدر وقرار الاستبعاد/المراجعة والرصيد المتبقي وحالة السداد والإنفاذ خمس حقائق مختلفة. لا يعيد الأمر مبلغاً ولا يزيله بذاته؛ وإغلاق الأمر أو سحبه لا يعني السداد ولا يمحو الإحالة من السجل.')}</div>
+          <div className="rp-limit">{L('A source cancellation, the exclusion/review decision, the remaining balance, the payment status and enforcement are different facts. An order never reinstates or removes an amount by itself; closing or withdrawing an order never implies payment and never erases the referral from the history.', 'الإلغاء في المصدر وقرار الاستبعاد/المراجعة والرصيد المتبقي وحالة السداد والإنفاذ خمس حقائق مختلفة. لا يعيد الأمر مبلغاً ولا يزيله بذاته؛ وإغلاق الأمر أو سحبه لا يعني السداد ولا يمحو الإحالة من السجل.')}</div>
+          <Enf1Explainer />
         </Section>
       )}
 
@@ -145,6 +148,7 @@ export default function InvoicePage() {
             {findings.map((f) => (
               <Finding key={f.k} tone={f.tone} title={f.title} why={f.why} evidence={f.evidence}
                 actions={f.action && f.action[0] === 'ex' ? (<><button type="button" className="btn btn-sm btn-primary" disabled={!canReview} onClick={() => decide(f.action[1].ruleId, 'approved')}>{L('Approve exclusion', 'اعتماد الاستبعاد')}</button><button type="button" className="btn btn-sm" disabled={!canReview} onClick={() => decide(f.action[1].ruleId, 'rejected')}>{L('Reject', 'رفض')}</button></>)
+                  : f.action && f.action[0] === 'enf1' ? (<><button type="button" className="btn btn-sm btn-primary" disabled={!canReview || enf1Dec?.decision === 'apply'} onClick={() => setMsg(rev.enforcement.decideEnf1(id, 'apply').ok ? { ok: true, t: L('Decision recorded: the documented ENF-1 treatment is applied to this invoice (counted uncollected).', 'سُجّل القرار: تُطبَّق معالجة ENF-1 الموثقة على هذه الفاتورة (تُحتسب غير محصّلة).') } : { ok: false, t: B(ERR.no_permission) })}>{L('Apply the documented ENF-1 treatment', 'تطبيق معالجة ENF-1 الموثقة')}</button><button type="button" className="btn btn-sm" disabled={!canReview || enf1Dec?.decision === 'keep_cancelled'} onClick={() => setMsg(rev.enforcement.decideEnf1(id, 'keep_cancelled').ok ? { ok: true, t: L('Decision recorded: the source cancellation stands.', 'سُجّل القرار: يبقى الإلغاء في المصدر.') } : { ok: false, t: B(ERR.no_permission) })}>{L('Keep the source cancellation', 'إبقاء الإلغاء في المصدر')}</button>{enf1Dec && <button type="button" className="btn btn-sm btn-ghost" disabled={!canReview} onClick={() => rev.enforcement.decideEnf1(id, 'clear')}>{L('Clear the decision', 'مسح القرار')}</button>}</>)
                   : f.action && f.action[0] === 'link' ? (<><button type="button" className="btn btn-sm btn-primary" disabled={!canReview} onClick={() => linkAct('confirm', f.action[1].enforceNum)}>{L('Confirm link', 'تأكيد الرابط')}</button><button type="button" className="btn btn-sm" disabled={!canReview} onClick={() => linkAct('reject', f.action[1].enforceNum)}>{L('Reject', 'رفض')}</button><RecordLink className="btn btn-sm btn-ghost" to={orderPath(f.action[1].enforceNum)}>{L('Open the order', 'فتح الأمر')}</RecordLink></>) : null} />
             ))}
           </div>
@@ -219,7 +223,7 @@ export default function InvoicePage() {
             <div className="rp-ev" role="list" aria-label={L('Extraction evidence', 'أدلة الاستخراج')}>
               {evidence.map((e, i) => (
                 <button key={i} type="button" role="listitem" className={`rp-ev__item${i === ev ? ' rp-ev__item--active' : ''}`} style={{ textAlign: 'start', cursor: 'pointer', font: 'inherit' }} onClick={() => setEv(i)} aria-current={i === ev}>
-                  <div><b dir="ltr">{e.enforceNum}</b> · {e.docName ? <span dir="ltr">{e.docName}</span> : null} · {L('page', 'صفحة')} {e.page ?? '—'}</div>
+                  <div><b dir="ltr">{e.enforceNum}</b> · {e.docName ? <span dir="ltr">{e.docName}</span> : null} · {e.loc ? locLabel(e.loc, ar) : <>{L('page', 'صفحة')} {e.page ?? '—'}</>}</div>
                   <div className="muted">{files[e.docId] === false ? L('original PDF unavailable', 'ملف PDF الأصلي غير متاح') : B(ORIGIN_LABEL[`document_${e.method}`] || ORIGIN_LABEL[e.method] || { en: String(e.method || ''), ar: String(e.method || '') })}</div>
                   {e.snippet && <div className="rp-ev__snip" dir="ltr">“{e.snippet}”</div>}
                 </button>

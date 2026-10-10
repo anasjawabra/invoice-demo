@@ -27,7 +27,7 @@ for (const q of st.requests.filter((r) => r.archetype === 'attach_docx')) {
     new Paragraph({ children: [new PageBreak()] }),
     new Paragraph(`Order ${q.enforceNum} - second part of the schedule`),
     new Table({ width: { size: 8400, type: WidthType.DXA }, columnWidths: [2600, 2000, 1800, 2000], rows: [head, ...rows.slice(1)] }),
-    new Paragraph(`The invoices are held under contract ${contract} (mentioned for context; this does not say the contract itself is referred).`)
+    new Paragraph(q.rep === 1 ? `Contract ${contract} itself is referred to enforcement under this order (not only the invoices listed above).` : `The invoices are held under contract ${contract} (mentioned for context; this does not say the contract itself is referred).`)
   ] }] });
   fs.writeFileSync(path.join(OUT, `${q.enforceNum}-attachment.docx`), await Packer.toBuffer(doc)); console.log('wrote', `${q.enforceNum}-attachment.docx`);
 }

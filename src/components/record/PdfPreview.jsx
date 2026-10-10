@@ -3,6 +3,7 @@ import { useL } from '../../utils/bi';
 import { loadPdfLib, sha256Hex } from '../../data/pdfText';
 import { detectFormat, FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
 import { readDocxPages } from '../../data/docxText';
+import { loadPreparedSamples } from '../../data/ocrSimulation';
 import { getFile, putFile } from '../../data/enforcementStore';
 
 // Is the original PDF stored in THIS browser? (A backup keeps the extracted references and history but never the file.)
@@ -11,7 +12,7 @@ export function useDocFiles(docIds, tick = 0) {
   const key = docIds.join('|');
   useEffect(() => {
     let off = false;
-    (async () => { const m = {}; for (const id of docIds) m[id] = !!(await getFile(id)); if (!off) setState(m); })();
+    (async () => { const m = {}; for (const id of docIds) m[id] = id === 'manual-entry' ? true : !!(await getFile(id)); if (!off) setState(m); })(); // (typed references have no file)
     return () => { off = true; };
   }, [key, tick]); // eslint-disable-line react-hooks/exhaustive-deps
   return state; // id → true / false (undefined while checking)
@@ -33,6 +34,17 @@ export function RestoreDocument({ doc, onRestored, compact = false }) {
       onRestored?.(file.name);
     } finally { if (ref.current) ref.current.value = ''; }
   };
+  // a prepared demo sample can be restored from the catalogue (its identity is still checked against the recorded SHA-256)
+  const restoreSample = async () => {
+    try {
+      const sample = (await loadPreparedSamples()).find((x) => x.id === doc.sampleId); if (!sample) { setMsg({ bad: true, t: L('The prepared sample is not in the catalogue.', 'العينة المعدّة غير موجودة في القائمة.') }); return; }
+      const bytes = new Uint8Array(await (await fetch(`/samples/prepared/${sample.file}`)).arrayBuffer()); const hash = await sha256Hex(bytes.slice());
+      if (hash !== doc.id) { setMsg({ bad: true, t: L('The catalogue file is not the recorded document (SHA-256 differs). It was NOT associated.', 'ملف القائمة ليس المستند المسجّل (البصمة تختلف). لم يُربط.') }); return; }
+      const ok = await putFile(doc.id, { name: sample.file, size: bytes.length, type: 'application/pdf', bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), at: Date.now() });
+      if (!ok) { setMsg({ bad: true, t: L('The browser could not store the file.', 'تعذّر على المتصفح حفظ الملف.') }); return; }
+      setMsg({ bad: false, t: L('Identity confirmed (same SHA-256). The prepared sample is available again.', 'تأكدت الهوية (البصمة نفسها). عادت العينة المعدّة متاحة.') }); onRestored?.(sample.file);
+    } catch { setMsg({ bad: true, t: L('Could not restore the sample.', 'تعذّر استعادة العينة.') }); }
+  };
   return (
     <div className="rp-limit rp-limit--warn" role="group" aria-label={L('Original file unavailable', 'الملف الأصلي غير متاح')}>
       <b>{L('The original file is not available in this browser', 'الملف الأصلي غير متاح في هذا المتصفح')}</b>
@@ -40,6 +52,7 @@ export function RestoreDocument({ doc, onRestored, compact = false }) {
       <label style={{ display: 'inline-grid', gap: 3, marginTop: 6 }}>{L('Add the file again (its identity is checked)', 'أعد إضافة الملف (يُتحقق من هويته)')}
         <input ref={ref} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
+      {doc.sampleId && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-sm" onClick={restoreSample}>{L('Restore the prepared sample from the catalogue', 'استعادة العينة المعدّة من القائمة')}</button></div>}
       {msg && <div role="status" className={msg.bad ? 'rp-bad' : 'rp-ok'} style={{ marginTop: 4 }}>{msg.t}</div>}
     </div>
   );
@@ -48,7 +61,7 @@ export function RestoreDocument({ doc, onRestored, compact = false }) {
 // The preview of a stored document, by what the file really is: a PDF page drawn by pdf.js, the text and tables of a Word file, or — for files this system
 // cannot read (scans/images, legacy .doc) — an explicit notice that nothing was read.
 export default function PdfPreview(props) {
-  const fmt = props.doc.extraction?.format || 'pdf';
+  const fmt = props.doc.extraction?.format || props.doc.format || 'pdf';
   if (fmt === 'docx') return <DocxPreview {...props} />;
   if (fmt !== 'pdf') return <UnreadPreview {...props} fmt={fmt} />;
   return <PdfCanvas {...props} />;
@@ -97,7 +110,7 @@ function DocxPreview({ doc, page = 1, onRestored, tick = 0 }) {
       {state.status === 'loading' && <div role="status" className="muted">{L('Reading the Word file…', 'جارٍ قراءة ملف Word…')}</div>}
       {state.status === 'error' && <div role="alert" className="rp-bad">{L('The Word file could not be read.', 'تعذّرت قراءة ملف Word.')} {state.msg}</div>}
       {cur && <pre dir="auto" tabIndex={0} aria-label={`${doc.name} — ${L('page', 'صفحة')} ${Math.min(pg, n)}`} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit', fontSize: 13, margin: 0, padding: 10, border: '1px solid var(--line)', borderRadius: 6, maxHeight: 460, overflow: 'auto' }}>{cur.text}</pre>}
-      <div className="muted" style={{ fontSize: 12 }}>{L('Text and tables as read from the Word file. Page boundaries come from the file (page breaks) and are approximate: Word paginates when it displays.', 'النص والجداول كما قُرئت من ملف Word. حدود الصفحات من الملف (فواصل الصفحات) وهي تقريبية: يرقّم Word الصفحات عند العرض.')}</div>
+      <div className="muted" style={{ fontSize: 12 }}>{L('Text and tables as read from the Word file. A Word file has no exact page numbers (Word paginates when it displays), so evidence names the table / row or paragraph.', 'النص والجداول كما قُرئت من ملف Word. لا يوجد في ملف Word ترقيم صفحات دقيق (يرقّم Word الصفحات عند العرض)، لذا يذكر الدليل الجدول/الصف أو الفقرة.')}</div>
     </div>
   );
 }

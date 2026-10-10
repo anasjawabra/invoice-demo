@@ -82,7 +82,7 @@ export function rowOut(st, ctx, i, D) {
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), gross: D.gross, billed: D.billed, collected: D.collected, received: D.received, outstanding: D.outstanding, cancelledAmount: D.cancelledAmount, exclusionAmount: D.exclusionAmount, exclusions: D.exclTotal, net: D.net,
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
-    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
+    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, enf1Applied: D.enf1Applied, rules, nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED)
   };
 }
@@ -149,7 +149,7 @@ export function candidates(st, req) {
 export function list(st, req) {
   const page = Math.max(0, Number(req.page) || 0); const size = Math.min(500, Math.max(1, Number(req.pageSize) || 50));
   const sortKey = SORT_KEYS[req.sort?.key] || 'issue'; const dir = req.sort?.dir === 'asc' ? 1 : -1;
-  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && hashOf(JSON.stringify(req.decisions)), req.links && hashOf(JSON.stringify(req.links)), req.owner, sortKey, dir]); // the CONTENT of the review overlay (not just its size): a link moving from proposed to confirmed, or open to closed, must not return a cached page
+  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && hashOf(JSON.stringify(req.decisions)), req.links && hashOf(JSON.stringify(req.links)), req.enf1 && hashOf(JSON.stringify(req.enf1)), req.owner, sortKey, dir]); // the CONTENT of the review overlay (not just its size): a link moving from proposed to confirmed, or open to closed, must not return a cached page
   let hit = lruGet(ck);
   if (!hit) {
     const { ctx, cand, sums } = candidates(st, req);

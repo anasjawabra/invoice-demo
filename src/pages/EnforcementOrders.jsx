@@ -45,7 +45,7 @@ export default function OrdersView() {
         <div className="rv-form" role="search" aria-label={L('Order filters', 'مرشحات الأوامر')} style={{ marginBottom: 10 }}>
           <label style={{ flex: '1 1 220px' }}>{L('Search order number or debtor', 'بحث برقم الأمر أو المدين')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="EN-5013" dir="auto" /></label>
           {sel('ord_status', L('Order status', 'حالة الأمر'), fStatus, setFStatus, [['all', 'All', 'الكل'], ['open', 'In execution', 'قيد التنفيذ'], ['suspended', 'Suspended', 'موقوف'], ['closed', 'Closed', 'مغلق']])}
-          {sel('ord_refs', L('Reference matching', 'مطابقة المراجع'), fRefs, setFRefs, [['all', 'All', 'الكل'], ['complete', 'Complete', 'مكتملة'], ['incomplete', 'Incomplete', 'غير مكتملة'], ['none', 'Not identified — review required', 'غير محددة — يلزم مراجعة']])}
+          {sel('ord_refs', L('Reference matching', 'مطابقة المراجع'), fRefs, setFRefs, [['all', 'All', 'الكل'], ['complete', 'Complete', 'مكتملة'], ['incomplete', 'Incomplete', 'غير مكتملة'], ['none', 'Not identified — review required', 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة']])}
           {sel('ord_doc', L('Document extraction', 'استخراج المستند'), fDoc, setFDoc, [['all', 'All', 'الكل'], ['complete', 'Complete', 'مكتمل'], ['incomplete', 'Incomplete (unread pages)', 'ناقص (صفحات لم تُقرأ)'], ['no_document', 'No document', 'لا مستند']])}
           {sel('ord_fin', L('Reconciliation', 'التسوية المالية'), fFin, setFFin, [['all', 'All', 'الكل'], ['reconciled', 'Reconciled', 'متطابقة'], ['difference', 'Difference', 'فرق'], ['no_confirmed', 'No confirmed invoice', 'لا فاتورة مؤكدة'], ['no_links', 'No links', 'لا روابط']])}
         </div>

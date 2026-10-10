@@ -594,7 +594,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
        `refs` = the structured field; `description` / `notes` = free text; `attachments` = what Sanad lists as attached (not retrieved here).
        Only the structured field is the feed's own link (`identified`); references found in text or documents always need review. */
     {
-      const E2 = ['desc_multi', 'desc_only', 'attach_pdf', 'attach_docx', 'source_conflict', 'source_conflict_unresolved', 'attach_unreadable', 'cancelled_open', 'cancelled_closed', 'contract_mention'];
+      const E2 = ['one_attached', 'contract_mention', 'same_serial_two_years', 'genuine_conflict', 'mixed_sources', 'attach_unreadable', 'desc_multi', 'desc_only', 'attach_pdf', 'attach_docx', 'cancelled_open', 'cancelled_closed']; // the scenarios the demo needs come first: the compact world has few eligible invoices
+      const eligSet = new Set(elig); const partnerOk = (x) => eligSet.has(x) || (st.exec[x] < 0 && !st.cancelDay[x] && st.exMask[x] === 0 && grpOf(st.flags[x]) === 0 && st.due[x] + 150 <= ORDER_GEN_CUTOFF && st.scope[x] === 0); // the second invoice may be partly paid, it just must not be in another order or cancelled
       const cancelledPool = []; for (let i = 0; i < st.nGen; i += 1) if (st.cancelDay[i] && st.cancelDay[i] <= ORDER_GEN_CUTOFF && st.payCount[i] === 0 && st.exMask[i] === 0 && st.exec[i] < 0 && grpOf(st.flags[i]) === 0 && !used.has(i)) cancelledPool.push(i);
       const idOfi = (i) => invoiceIdOf(st.idKey[i]);
       const fmt = (id, v) => (v === 0 ? id : v === 1 ? id.toLowerCase() : v === 2 ? id.replace(/-/g, ' ') : id.replace('INV-', 'INV – ').replace(/-(\d{7})$/, ' / $1'));
@@ -603,25 +604,30 @@ export function generateWorld(today, { scale = 1 } = {}) {
       for (let rep = 0; rep < 2; rep += 1) for (let a = 0; a < E2.length; a += 1) {
         const arch = E2[a]; const k = rep * 20 + a; const r = rC.reset(mix(16, k)); const cancelled = arch.startsWith('cancelled');
         const pool = cancelled ? cancelledPool : elig; let lead = -1;
-        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch.startsWith('source_conflict') && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j])) continue; lead = j; }
+        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch === 'same_serial_two_years' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue; if (arch === 'genuine_conflict' && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue; lead = j; }
         if (lead < 0) { continue; }
         let covers = [lead]; let other = -1;
         if (arch === 'cancelled_closed') covers = [lead];
         else if (arch === 'cancelled_open') { covers = [lead]; for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && st.ent[j] === st.ent[lead]) covers.push(j); }
-        else if (arch.startsWith('source_conflict')) other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead]);
+        else if (arch === 'same_serial_two_years') { other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[lead]); covers = [lead, other]; } // two LEGITIMATE invoices: same serial, different years, same payer
+        else if (arch === 'genuine_conflict') { covers = [lead]; other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && st.ent[x] === st.ent[lead]); } // a referenced invoice that belongs to ANOTHER payer
+        else if (arch === 'one_attached') covers = [lead]; // ONE invoice, named only in the attached document
         else { covers = pickMore(lead, arch === 'contract_mention' ? 2 : 3, false); }
-        covers = [...new Set(covers)]; if (!cancelled && !arch.startsWith('source_conflict') && covers.length < 2) { continue; }
+        covers = [...new Set(covers)]; if (!cancelled && arch !== 'genuine_conflict' && arch !== 'one_attached' && covers.length < 2) { continue; }
         const owner = st.payer[lead]; const lastDue = Math.max(...covers.map((i) => st.due[i])); const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
         if (opened > todayN) { covers.forEach((i) => used.add(i)); continue; }
-        covers.forEach((i) => { used.add(i); st.payer[i] = owner; }); if (other >= 0 && arch === 'source_conflict_unresolved') st.payer[other] = owner;
+        covers.forEach((i) => { used.add(i); st.payer[i] = owner; }); if (arch === 'genuine_conflict' && other >= 0) used.add(other);
         const amount = covers.reduce((sum, i) => sum + st.gross[i], 0); const ids = covers.map(idOfi);
         let refs = []; let identified = []; let description = ''; let notes = ''; let attachments = []; let status = ['قيد التنفيذ', 'موقوف', 'قيد التنفيذ'][(k + 1) % 3];
         const enforceNum = `EN-${6000 + seq * 7}`; seq += 1;
         if (arch === 'desc_multi') { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `إحالة للتنفيذ — الفاتورة الأولى في الحقل المخصص، وكذلك الفواتير: ${fmt(ids[1], 1)} و ${fmt(ids[2] || ids[1], 2)}. وللتأكيد نكرر ${fmt(ids[0], 3)}.`; }
+        else if (arch === 'one_attached') { description = 'الفاتورة المحالة في المستند المرفق.'; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
         else if (arch === 'desc_only') { description = `Referral to enforcement for invoices ${fmt(ids[0], 0)}, ${fmt(ids[1], 2)} and ${fmt(ids[2] || ids[1], 1)}. بدون تعبئة حقل المراجع.`; notes = `تمت المراجعة مع الجهة؛ المرجع ${fmt(ids[0], 1)}.`; }
         else if (arch === 'attach_pdf') { description = 'الفواتير المشمولة مذكورة في المستند المرفق.'; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
         else if (arch === 'attach_docx') { description = 'التفاصيل في ملف Word المرفق (جدول الفواتير).'; attachments = [{ name: `${enforceNum}-attachment.docx`, type: 'docx' }]; }
-        else if (arch.startsWith('source_conflict')) { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `الفاتورة المقصودة هي ${other >= 0 ? idOfi(other) : ids[0]} حسب الجهة المحيلة.`; }
+        else if (arch === 'mixed_sources') { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `الفاتورة الأولى في الحقل المخصص، والفاتورة ${fmt(ids[1], 1)} في الوصف، والبقية في المستند المرفق.`; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
+        else if (arch === 'same_serial_two_years') { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `وكذلك الفاتورة ${ids[1]} (التسلسل نفسه، سنة مختلفة).`; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
+        else if (arch === 'genuine_conflict') { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `الفاتورة المحالة ${ids[0]} وكذلك ${other >= 0 ? idOfi(other) : ids[0]}.`; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
         else if (arch === 'attach_unreadable') { description = ''; attachments = [{ name: `${enforceNum}-scan.pdf`, type: 'pdf' }, { name: `${enforceNum}-legacy.doc`, type: 'doc' }]; }
         else if (arch === 'cancelled_open') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.slice(); status = rep === 0 ? 'قيد التنفيذ' : 'موقوف'; description = 'أمر إنفاذ على فواتير ملغاة في المصدر — يحتاج مراجعة.'; }
         else if (arch === 'cancelled_closed') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.slice(); status = 'مغلق'; }

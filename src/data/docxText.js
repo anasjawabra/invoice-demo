@@ -27,16 +27,26 @@ export function parseWordXml(xml) {
   return { pages: pages.filter((p, i) => p.length || i === 0), tables };
 }
 
-// bytes → { pages: [{ page, text, hasTextLayer }], tables, parts }
+// bytes → { pages: [{ page: 1, text, hasTextLayer, units: [{ loc, text }] }], tables, parts }
+// A .docx has NO reliable page numbers (Word paginates when it displays), so the whole file is ONE unit of reading and evidence names the LOCATION: «t2r3» = table 2, row 3 ·
+// «p5» = paragraph 5 · «hdr» / «ftr» = header / footer. (`parts` = explicit page breaks, informational only.)
 export async function readDocxPages(bytes) {
   const { default: JSZip } = await import('jszip'); // loaded only when a Word file is opened
   const zip = await JSZip.loadAsync(bytes);
   const body = zip.file('word/document.xml'); if (!body) throw new Error('not_a_docx');
   const { pages, tables } = parseWordXml(await body.async('string'));
-  const extra = [];
+  const units = []; let para = 0;
   for (const name of Object.keys(zip.files).filter((n) => /^word\/(header|footer)\d*\.xml$/.test(n)).sort()) {
-    const t = parseWordXml(await zip.file(name).async('string')).pages.flat().join(' ').trim(); if (t) extra.push(`[${/header/.test(name) ? 'header' : 'footer'}] ${t}`);
+    const t = parseWordXml(await zip.file(name).async('string')).pages.flat().join(' ').trim(); if (t) units.push({ loc: /header/.test(name) ? 'hdr' : 'ftr', text: t });
   }
-  const out = pages.map((lines, i) => ({ page: i + 1, text: [...(i === 0 ? extra : []), ...lines].join('\n'), hasTextLayer: true }));
-  return { pages: out, tables, parts: pages.length };
+  for (const line of pages.flat()) {
+    const m = /^\[table (\d+), row (\d+)\] (.*)$/.exec(line);
+    if (m) units.push({ loc: `t${m[1]}r${m[2]}`, text: m[3] }); else { para += 1; units.push({ loc: `p${para}`, text: line }); }
+  }
+  return { pages: [{ page: 1, text: units.map((u) => u.text).join('\n'), hasTextLayer: true, units }], tables, parts: pages.length };
+}
+export function locLabel(loc, ar) {
+  const m = /^t(\d+)r(\d+)$/.exec(loc || ''); if (m) return ar ? `جدول ${m[1]} · صف ${m[2]}` : `table ${m[1]} · row ${m[2]}`;
+  const q = /^p(\d+)$/.exec(loc || ''); if (q) return ar ? `فقرة ${q[1]}` : `paragraph ${q[1]}`;
+  if (loc === 'hdr') return ar ? 'رأس المستند' : 'header'; if (loc === 'ftr') return ar ? 'تذييل المستند' : 'footer'; return loc || '';
 }

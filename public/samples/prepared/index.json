@@ -1,0 +1,194 @@
+{
+ "version": 1,
+ "note": "SYNTHETIC demo samples. Transcripts are the generator’s own source text of each page; the app replays them as an OCR SIMULATION.",
+ "samples": [
+  {
+   "id": "one_invoice",
+   "orderNo": "EN-6000",
+   "file": "one_invoice-EN-6000.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "فاتورة واحدة",
+    "en": "One invoice"
+   },
+   "what": {
+    "ar": "مستند مصوّر بصفحة واحدة يذكر فاتورة واحدة.",
+    "en": "A scanned one-page document naming one invoice."
+   },
+   "size": 49299,
+   "sha256": "057481729078c64356692beed60abc251a47bbe40313c6c3341105ca9ce6e6ac",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6000\nIssued by: Sanad (demo feed)    Opened: 2025-09-01    Order status: Suspended\nMunicipality: Housing Sector\nDebtor: Land owner 27665 (Beneficiary ID 1044625993)\nTotal amount: 69,533,920.00 SAR\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000072 | white_lands | 2025-02-06 | 69,533,920.00"
+    }
+   ]
+  },
+  {
+   "id": "multi_pages",
+   "orderNo": "EN-5039",
+   "file": "multi_pages-EN-5039.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "عدة فواتير عبر صفحات",
+    "en": "Several invoices across pages"
+   },
+   "what": {
+    "ar": "ثلاث صفحات: الفواتير موزعة على الصفحتين الأولى والثانية، والثالثة ختم بلا نص (تُعدّ غير مقروءة).",
+    "en": "Three pages: invoices on pages 1–2, page 3 is a stamp with no text (reported as not read)."
+   },
+   "size": 96786,
+   "sha256": "c62b8459f5fd7b9a6db5940a52a7fa0e50486fe73f19541eb9610055e1b02662",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-5039\nIssued by: Sanad (demo feed)    Opened: 2025-12-29    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Manara Catering Group (Beneficiary ID 1024322206)\nTotal amount: 228,528,000.00 SAR\nInvoices covered by this order (continued on the next page)\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000146 | fines | 2025-05-29 | 17,067,910.00"
+    },
+    {
+     "page": 2,
+     "text": "Enforcement order EN-5039 - page 2\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000109 | investment | 2025-03-09 | 211,460,090.00"
+    },
+    {
+     "page": 3,
+     "text": " "
+    }
+   ]
+  },
+  {
+   "id": "mixed_sources",
+   "orderNo": "EN-6028",
+   "file": "mixed_sources-EN-6028.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "مراجع في الحقل والوصف والمرفق",
+    "en": "References in the field, description and attachment"
+   },
+   "what": {
+    "ar": "مرجع في الحقل المخصص وآخر في الوصف، والمرفق يذكر الباقي ويكرر الأول (يُدمج دون تكرار).",
+    "en": "One reference in the structured field, one in the description; the attachment names the rest and repeats the first (merged without duplicates)."
+   },
+   "size": 59903,
+   "sha256": "2e76d8d301a82247d4596bf25cb6f07ef32c05e51abc90e90145e5a111fd9af8",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6028\nIssued by: Sanad (demo feed)    Opened: 2026-03-18    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 49,827,890.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000176 | fines | 2025-06-13 | 10,220,080.00\nINV-2025-0000212 | fines | 2025-07-12 | 18,038,390.00\nInvoice INV-2025-0000303 is also named in the order record (repeated here)."
+    }
+   ]
+  },
+  {
+   "id": "same_serial_two_years",
+   "orderNo": "EN-6014",
+   "file": "same_serial_two_years-EN-6014.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "فاتورتان بالتسلسل نفسه وسنتين",
+    "en": "Two invoices, same serial, different years"
+   },
+   "what": {
+    "ar": "فاتورتان صحيحتان بالتسلسل نفسه في سنتين مختلفتين يغطيهما الأمر نفسه: كلتاهما تُطابقان بشكل مستقل.",
+    "en": "Two valid invoices with the same serial in different years covered by one order: each matches independently."
+   },
+   "size": 55434,
+   "sha256": "b1a026a2725f55684011ea4ba344ea10dad10f5669e385b233389d8b0f447b15",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6014\nIssued by: Sanad (demo feed)    Opened: 2026-08-02    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Ruaya Investment Est. (Beneficiary ID 1059135099)\nTotal amount: 60,741,380.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000087 | fines | 2025-03-18 | 40,955,800.00\nINV-2026-0000087 | accommodation | 2026-02-02 | 19,785,580.00"
+    }
+   ]
+  },
+  {
+   "id": "ambiguous_serial",
+   "orderNo": "EN-5065",
+   "file": "ambiguous_serial-EN-5065.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "مرجع ناقص ملتبس",
+    "en": "Incomplete, ambiguous reference"
+   },
+   "what": {
+    "ar": "يذكر المستند تسلسلاً بلا سنة يطابق عدة فواتير: يبقى ملتبساً حتى يتوفر دليل.",
+    "en": "The document gives a serial without a year that matches several invoices: it stays ambiguous until evidence is added."
+   },
+   "size": 48077,
+   "sha256": "a1b59f6c79570f57f1e4ab083b4643d1175ffa7a1123a2014d0db540acbe0690",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-5065\nIssued by: Sanad (demo feed)    Opened: 2025-08-27    Order status: In execution\nMunicipality: Asir Amanah\nDebtor: Al-Nukhba Contracting Group (Beneficiary ID 1099393909)\nTotal amount: 66,992,670.00 SAR\nInvoice number: 0000111\n(The year prefix is missing from the order text.)"
+    }
+   ]
+  },
+  {
+   "id": "genuine_conflict",
+   "orderNo": "EN-6021",
+   "file": "genuine_conflict-EN-6021.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "تعارض حقيقي في المرجع",
+    "en": "A genuine reference conflict"
+   },
+   "what": {
+    "ar": "يذكر المستند فاتورة تعود لدافع آخر غير مدين الأمر: يلزم دليل قبل الربط.",
+    "en": "The document names an invoice that belongs to a different payer than the order’s debtor: evidence is needed before linking."
+   },
+   "size": 54938,
+   "sha256": "64473e536691ff3b852df9b9c33e28d2ec44d0d988c6808d29dd32f012cbe76b",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6021\nIssued by: Sanad (demo feed)    Opened: 2026-03-05    Order status: Suspended\nMunicipality: Jeddah Amanah\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 21,569,420.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000267 | investment | 2025-08-29 | 21,569,420.00\nINV-2025-0000144 | fines | 2025-05-05 | 66,118,220.00"
+    }
+   ]
+  },
+  {
+   "id": "amount_discrepancy",
+   "orderNo": "EN-5078",
+   "file": "amount_discrepancy-EN-5078.pdf",
+   "lang": "en",
+   "title": {
+    "ar": "فرق في المبلغ",
+    "en": "An amount discrepancy"
+   },
+   "what": {
+    "ar": "الفواتير المذكورة لا تساوي مبلغ الأمر: يُعرض الفرق ولا يمنع الربط ولا يُفرض.",
+    "en": "The named invoices do not add up to the order amount: the difference is shown, does not block linking and is never forced."
+   },
+   "size": 55334,
+   "sha256": "948c17486a723a2dcdc227d546d4a10eb933a7e0e0af0815f76eecf7d4c8d78e",
+   "pages": [
+    {
+     "page": 1,
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-5078\nIssued by: Sanad (demo feed)    Opened: 2026-05-14    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Shurooq Investment Group (Beneficiary ID 1001817690)\nTotal amount: 271,036,030.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000367 | investment | 2025-11-09 | 217,803,890.00\nINV-2024-0000061 | fines | 2024-12-24 | 17,822,120.00"
+    }
+   ]
+  },
+  {
+   "id": "arabic_scanned",
+   "orderNo": "EN-5143",
+   "file": "arabic_scanned-EN-5143.pdf",
+   "lang": "ar",
+   "title": {
+    "ar": "مستند عربي ممسوح ضوئياً",
+    "en": "An Arabic scanned document"
+   },
+   "what": {
+    "ar": "صفحتان عربيتان مصوّرتان؛ أرقام الفواتير اللاتينية داخل نص عربي.",
+    "en": "Two scanned Arabic pages; Latin invoice numbers inside Arabic text."
+   },
+   "size": 71640,
+   "sha256": "6b9256ca3c5c3fe9787bde84462ed4ff1ca4ca266a23678e692bd3b0333666a6",
+   "pages": [
+    {
+     "page": 1,
+     "text": "مستند تجريبي اصطناعي — ليس سجلاً رسمياً\nأمر تنفيذ — جدول الفواتير\nرقم أمر التنفيذ: EN-5143\nأمانة محافظة جدة — المدين: مؤسسة المنارة للمقاولات (رقم الهوية 1091120578)\nالمبلغ الإجمالي: 28,521,680.00 ريال\nالفواتير المشمولة بالأمر (يتبع الجدول في الصفحة التالية)\nرقم الفاتورة | النوع | تاريخ الإصدار | المبلغ (ريال)\nINV-2025-0000054 | مخالفات | 2025-02-19 | 6,952,260.00\nرقم العقد: CT-2026-0087 (ليس فاتورة) — رقم الحساب: 4410229981 (حساب العميل)"
+    },
+    {
+     "page": 2,
+     "text": "أمر التنفيذ EN-5143 — الصفحة ٢\nرقم الفاتورة | النوع | تاريخ الإصدار | المبلغ (ريال)\nINV-2025-0000201 | استثمار | 2025-06-28 | 21,569,420.00\nتنبيه: الفواتير الواردة أعلاه واجبة التنفيذ مع ما ورد في الصفحة الأولى."
+    }
+   ]
+  }
+ ]
+}

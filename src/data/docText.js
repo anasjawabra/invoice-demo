@@ -22,6 +22,7 @@ export const UNREAD_REASON = {
   no_text_layer: { en: 'NOT read — no text layer (scanned image); this system performs no OCR', ar: 'لم تُقرأ — بلا طبقة نص (صورة ممسوحة)؛ ولا يجري هذا النظام OCR' },
   needs_ocr: { en: 'NOT read — an image needs OCR, which this system does not perform', ar: 'لم تُقرأ — الصورة تحتاج OCR ولا يجريه هذا النظام' },
   unsupported_format: { en: 'NOT read — legacy .doc is not supported: convert it to .docx or PDF', ar: 'لم تُقرأ — صيغة .doc القديمة غير مدعومة: حوّلها إلى .docx أو PDF' },
+  simulated_no_text: { en: 'NOT read — the page has no recognisable text (OCR simulation of a prepared sample)', ar: 'لم تُقرأ — لا نص يمكن التعرف عليه في الصفحة (محاكاة OCR لعينة معدّة)' },
   unknown_format: { en: 'NOT read — this file format is not supported', ar: 'لم تُقرأ — صيغة الملف غير مدعومة' }
 };
 
@@ -29,7 +30,7 @@ export const UNREAD_REASON = {
 export async function extractDocument(bytes, { orderNo = null, lib = null } = {}) {
   const format = await detectFormat(bytes);
   if (format === 'pdf') { const ex = await extractFromPdf(bytes, { orderNo, lib }); return { ...ex, format }; }
-  if (format === 'docx') { const { pages, tables, parts } = await readDocxPages(bytes); return { ...buildExtraction(pages, 'docx_text', { orderNo, format }), tables, parts }; }
+  if (format === 'docx') { const { pages, tables, parts } = await readDocxPages(bytes); return { ...buildExtraction(pages, 'docx_text', { orderNo, format, exactPages: false }), tables, parts }; }
   const reason = format === 'image' ? 'needs_ocr' : format === 'doc' || format === 'zip_other' ? 'unsupported_format' : 'unknown_format';
   return { ...buildExtraction([{ page: 1, text: '', hasTextLayer: false }], 'text_layer', { orderNo, format, reason }), unsupported: true };
 }

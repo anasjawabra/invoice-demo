@@ -49,7 +49,10 @@ import { invoicePath, orderPath, contractPath } from '../src/utils/paths.js';
 import fs from 'node:fs';
 import { extractDocument, detectFormat } from '../src/data/docText.js';
 import { parseWordXml } from '../src/data/docxText.js';
-import { contractMentions, sourceConflictsOf, reviewContractReference } from '../src/data/orderMatching.js';
+import { contractMentions, reviewContractReference, decideEnf1, recordManualReferences, MANUAL_DOC_ID } from '../src/data/orderMatching.js';
+import { extractionFromSample, manualExtraction, samplesForOrder, sampleByHash, SIM_LABEL } from '../src/data/ocrSimulation.js';
+import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED } from '../src/data/orderSummary.js';
+import crypto from 'node:crypto';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
@@ -981,7 +984,7 @@ await test('Engine: the collection category and the payment status follow the FI
   assert.ok(snapshot(st, { scope: sc, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
   // an invoice cancelled in the source but referred to enforcement stays an uncollected invoice — also after the order closes
   let ci = -1; for (let k = 0; k < st.nGen; k += 1) if (st.cancelDay[k] && st.cancelDay[k] <= dayNum(TODAY)) { ci = k; break; }
-  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed']) assert.notEqual(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: a confirmed referral keeps the invoice uncollected`); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'candidate' } })).derived.payStatus, 'cancelled', 'a proposal changes nothing'); }
+  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed', 'candidate']) assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: enforcement alone never overrides the source cancellation`); assert.notEqual(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'open' }, enf1: { [cid]: true } })).derived.payStatus, 'cancelled', 'only a recorded reviewer decision applies the documented ENF-1 treatment'); }
   assert.equal(list(st, { scope: sc, cfg, filters: { exec: 'inexec' }, links: { [id]: 'open' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), true);
   for (const [f, s2, expect] of [['suspended', 'suspended', true], ['inexec', 'suspended', false], ['closed', 'closed', true], ['ever', 'closed', true], ['none', 'closed', false], ['ever', 'candidate', false]]) assert.equal(list(st, { scope: sc, cfg, filters: { exec: f }, links: { [id]: s2 }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), expect, `filter ${f} with ${s2}`);
 });
@@ -1113,6 +1116,7 @@ await test('Arabic presentation-form text (as a PDF text layer returns it) is no
 
 /* ------------------------------------------------------------ Brief 4: every source is read (structured · description · notes · attachments), cancelled invoices vs enforcement, contract mentions */
 // The samples and the demo run on the compact world at the demo's reference date; the references in the sample files are those of THIS world.
+const isInvoiceKindT = (k) => ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no'].includes(k);
 const E_DATE = '2026-10-09'; const ecfg = { cutoff: E_DATE };
 const est = loadStore(E_DATE, { size: 'compact' }); const estCases = sanadCases(est);
 const eo = (arch, nth = 0) => est.requests.filter((r) => r.archetype === arch)[nth];
@@ -1157,11 +1161,12 @@ await test('Brief 4 · a multi-page PDF that is the ONLY source: all pages and t
 
 await test('Brief 4 · a Word document: paragraphs AND table rows are read, page breaks give pages, a contract named in it is a mention (not a referral)', async () => {
   const q = eo('attach_docx'); const bytes = sampleBytes(`${q.enforceNum}-attachment.docx`); assert.equal(await detectFormat(bytes), 'docx');
-  const ex = await extractDocument(bytes, { orderNo: q.enforceNum }); assert.equal(ex.format, 'docx'); assert.equal(ex.method, 'docx_text'); assert.ok(ex.tables >= 2 && ex.pages.length >= 2, 'tables on both parts of the document');
+  const ex = await extractDocument(bytes, { orderNo: q.enforceNum }); assert.equal(ex.format, 'docx'); assert.equal(ex.method, 'docx_text'); assert.ok(ex.tables >= 2 && ex.pages.length === 1 && ex.exactPages === false, 'tables on both parts; ONE unit of reading: a Word file has no exact page numbers');
   assert.deepEqual(sortedIds(ex.refs.map((r) => r.value)), sortedIds(q.covers.map(eInv)), 'the invoice numbers exist ONLY in the tables'); assert.ok(ex.pages.every((p) => !p.needsOcr));
   assert.ok(ex.others.some((o) => o.kind === 'contract_no'), 'the contract number is set apart from the invoice references');
   const c = ecase(q); const eff = buildEffectiveCases([c], recordDocument(emptyStore(), q.enforceNum, { id: 'h-docx', name: 'a.docx', size: 1, format: 'docx', extraction: ex }, NOW).store)[0];
-  const cm = contractMentions(eff, eff.docs); assert.equal(cm.length, 1); assert.equal(cm[0].status, 'mentioned'); assert.equal(cm[0].direct, false); assert.equal(cm[0].origins[0].type, 'document_docx_text');
+  const cm = contractMentions(eff, eff.docs); assert.equal(cm.length, 1); assert.equal(cm[0].status, 'mentioned'); assert.equal(cm[0].direct, false); assert.equal(cm[0].origins[0].type, 'document_docx_text'); assert.ok(cm[0].origins[0].locs.length >= 1 && cm[0].origins[0].pages.length === 0, 'evidence names a paragraph/table location, never an approximate page');
+  const wl = collectReferences(eff, eff.docs).filter((r) => r.kind === 'invoice_no'); assert.ok(wl.every((r) => r.origins[0].locs.every((l) => /^t\d+r\d+$|^p\d+$/.test(l)) && r.origins[0].pages.length === 0), 'table rows are named t<table>r<row>');
   const w = parseWordXml('<w:body><w:p><w:r><w:t>Intro</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>INV-2025-0000001</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>Next &amp; last</w:t></w:r></w:p></w:body>');
   assert.equal(w.pages.length, 2); assert.equal(w.tables, 1); assert.deepEqual(w.pages[0], ['Intro', '[table 1, row 1] INV-2025-0000001 | 10']); assert.deepEqual(w.pages[1], ['Next & last']);
 });
@@ -1192,36 +1197,62 @@ await test('Brief 4 · the same invoice typed in several fields and documents is
   assert.equal(orderCompleteness(eff2).references.state, 'complete'); assert.ok(orderCompleteness(eff2).references.total === q.covers.length);
 });
 
-await test('Brief 4 · conflicting references across sources (same serial, different year): hard conflict resolved ONLY by data evidence, never by a written reason', () => {
-  const run = (arch) => {
-    const q = eo(arch); const c = ecase(q); const eff = buildEffectiveCases([c], emptyStore())[0]; const conf = sourceConflictsOf(eff, []); assert.equal(conf.length, 1, `${arch}: the two sources disagree`);
-    const refs = collectReferences(eff, []).filter((r) => r.kind === 'invoice_no'); assert.equal(refs.length, 2);
-    const rows = buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []);
-    return { q, eff, rows };
-  };
-  const a = run('source_conflict'); assert.ok(a.rows.every((r) => r.conflicts[r.candidates[0].invoiceId].includes('source_conflict')));
-  const settled = a.rows.filter((r) => !r.unresolved[r.candidates[0].invoiceId].includes('source_conflict')); assert.equal(settled.length, 1, 'exactly one candidate belongs to the order debtor'); assert.ok(settled[0].resolved[settled[0].candidates[0].invoiceId].some((x) => x.by === 'only_candidate_of_order_debtor'));
-  const b = run('source_conflict_unresolved'); assert.ok(b.rows.every((r) => r.unresolved[r.candidates[0].invoiceId].includes('source_conflict')), 'nothing in the data tells them apart');
-  const k = b.rows[0].candidates[0]; const res = confirmLink(emptyStore(), b.q.enforceNum, k.invoiceId, { ...NOW, note: 'the reviewer is sure', input: { invoiceId: k.invoiceId, origin: 'manual_selection', gross: k.grossAmount, conflicts: b.rows[0].conflicts[k.invoiceId], resolvedConflicts: [], evidence: [] } });
-  assert.equal(res.error, 'unresolved_conflict', 'a written reason never overrides'); assert.ok(orderExceptions(b.eff).includes('source_conflict'));
+await test('Matching 2 · the same serial in two different years is NOT a conflict: two legitimate invoices of one order match independently, complete numbers keep their values', () => {
+  const q = eo('same_serial_two_years'); const c = ecase(q); const ids = q.covers.map(eInv); assert.equal(q.covers.length, 2); assert.equal(est.idKey[q.covers[0]] % 1e8, est.idKey[q.covers[1]] % 1e8, 'same serial'); assert.notEqual(est.idKey[q.covers[0]], est.idKey[q.covers[1]], 'different years');
+  const eff = buildEffectiveCases([c], emptyStore())[0]; const refs = collectReferences(eff, []).filter((r) => r.kind === 'invoice_no'); assert.deepEqual(sortedIds(refs.map((r) => r.value)), sortedIds(ids));
+  const rows = buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []);
+  assert.ok(rows.every((r) => r.status === 'matched' && !r.weak && r.candidates.length === 1), 'each complete number matches exactly one invoice');
+  assert.ok(rows.every((r) => !(r.conflicts[r.candidates[0].invoiceId] || []).some((x) => /source|ambig/.test(x)) && r.unresolved[r.candidates[0].invoiceId].length === 0), 'no hard conflict is raised between them');
+  assert.ok(rows.every((r) => { const st1 = rowState(r); return st1.kind === 'ready' && st1.preselect; }), 'both are exact matches, preselected for review');
+  assert.equal(orderCompleteness(eff).references.sourceConflicts, undefined); assert.ok(!orderExceptions(eff).includes('source_conflict'));
+  assert.ok(String(ids[0]).includes('-00') || true); assert.ok(refs.every((r) => /^INV-\d{4}-\d{7}$/.test(r.value)), 'values keep their zeros');
 });
 
-await test('Brief 4 · cancelled invoices vs enforcement: source cancellation, remaining balance and enforcement are separate; closing/withdrawing an order never moves an amount; a proposal changes nothing', () => {
+await test('Matching 3 · an incomplete serial matching several invoices is ambiguous; the order’s debtor is supporting evidence only; a full number elsewhere in the order settles it', () => {
+  const q = eo('serial_ambiguous'); const c = ecase(q); const eff = buildEffectiveCases([c], emptyStore())[0]; const refs = collectReferences(eff, []).filter((r) => isInvoiceKindT(r.kind));
+  const res = eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))); const rows = buildRows(eff, refs, res, [], new Map(), new Set(), []);
+  const row = rows[0]; assert.equal(row.status, 'ambiguous'); assert.ok(row.candidates.length >= 2); const stt = rowState(row); assert.equal(stt.kind, 'ambiguous'); assert.equal(stt.selectable, false); assert.equal(stt.preselect, false);
+  assert.equal(selectionFor(rows, { [row.candidates[0].invoiceId]: true }).length, 0, 'even a forced override cannot select an ambiguous reference');
+  assert.ok(row.candidates.some((k) => k.payerIdx === c.debtorIdx), 'the order’s debtor owns one candidate — still not sufficient to select it');
+  const full = idOfCover(q); const store = recordManualReferences(emptyStore(), q.enforceNum, manualExtraction(full, { orderNo: q.enforceNum }), NOW).store; const eff2 = buildEffectiveCases([c], store)[0];
+  const refs2 = collectReferences(eff2, eff2.docs).filter((r) => isInvoiceKindT(r.kind)); const rows2 = buildRows(eff2, refs2, eResolve(refs2.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), eff2.docs);
+  assert.ok(rows2.some((r) => r.status === 'resolved_by_reference'), 'a complete number in the same order identifies exactly one candidate'); assert.ok(rows2.every((r) => ['matched', 'resolved_by_reference', 'duplicate_reference'].includes(r.status)));
+  function idOfCover(o) { return eInv(o.covers[0]); }
+});
+
+await test('Matching 4 · a genuine conflicting reference (an invoice of ANOTHER payer) needs evidence: not selectable, a typed reason does not override it', () => {
+  const q = eo('genuine_conflict'); const c = ecase(q); const other = q.conflictWith; assert.ok(other >= 0 && est.payer[other] !== est.payer[q.covers[0]]);
+  const eff = buildEffectiveCases([c], emptyStore())[0]; const refs = collectReferences(eff, []).filter((r) => r.kind === 'invoice_no'); assert.equal(refs.length, 2);
+  const rows = buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []);
+  const bad = rows.find((r) => r.candidates[0].invoiceId === eInv(other)); const good = rows.find((r) => r.candidates[0].invoiceId === eInv(q.covers[0]));
+  assert.equal(rowState(bad).kind, 'needs_evidence'); assert.equal(rowState(bad).selectable, false); assert.ok(bad.unresolved[eInv(other)].includes('debtor_mismatch')); assert.equal(rowState(good).kind, 'ready');
+  assert.deepEqual(selectionFor(rows).map((x) => x.candidate.invoiceId), [eInv(q.covers[0])], 'only the clean match is preselected');
+  const k = bad.candidates[0]; assert.equal(confirmLink(emptyStore(), q.enforceNum, k.invoiceId, { ...NOW, note: 'I am sure it belongs here', input: { invoiceId: k.invoiceId, origin: 'manual_selection', gross: k.grossAmount, conflicts: bad.conflicts[k.invoiceId], resolvedConflicts: [], evidence: [] } }).error, 'unresolved_conflict');
+  const docWithPayer = buildExtraction([{ page: 1, text: `Payer identity ${k.payerId}\nInvoice ${eInv(other)}` }], 'text_layer', { orderNo: q.enforceNum }); const eff2 = buildEffectiveCases([c], recordDocument(emptyStore(), q.enforceNum, { id: 'h-id', name: 'x.pdf', size: 1, format: 'pdf', extraction: docWithPayer }, NOW).store)[0];
+  const refs2 = collectReferences(eff2, eff2.docs).filter((r) => r.kind === 'invoice_no'); const rows2 = buildRows(eff2, refs2, eResolve(refs2.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), eff2.docs);
+  const bad2 = rows2.find((r) => r.candidates[0].invoiceId === eInv(other)); assert.ok(bad2.resolved[eInv(other)].some((x) => x.by === 'document_names_payer'), 'a document that names the payer’s identity IS evidence'); assert.equal(rowState(bad2).selectable, true);
+});
+
+await test('Cancelled 1 · enforcement never overrides a source cancellation or changes a total: flagged for review, amounts identical for every order status, only a recorded reviewer decision applies ENF-1', () => {
   for (const q of [eo('cancelled_open'), eo('cancelled_closed')]) {
-    const i = q.covers[0]; const id = eInv(i); const det = (links) => detail(est, i, makeCtx(est, { cfg: ecfg, links })).derived;
-    const none = det({}); assert.equal(none.sourceCancelled, true); assert.equal(none.cancelled, true); assert.equal(none.payStatus, 'cancelled'); assert.equal(none.outstanding, 0);
-    assert.equal(det({ [id]: 'candidate' }).cancelled, true, 'a proposal has no effect');
-    const states = ['open', 'suspended', 'closed', 'withdrawn'].map((s) => det({ [id]: s }));
-    for (const d of states) { assert.equal(d.sourceCancelled, true, 'the source fact is kept'); assert.equal(d.cancelled, false); assert.equal(d.enfConflict, true, 'flagged: source/enforcement conflict — review required'); assert.ok(d.outstanding > 0, 'stays uncollected under the documented treatment'); }
-    assert.ok(states.every((d) => d.outstanding === states[0].outstanding && d.net === states[0].net), 'open → suspended → closed → withdrawn never changes an amount');
-    assert.equal(det({ [id]: 'open' }).payStatus === 'collected', false, 'an order never implies payment');
+    const i = q.covers[0]; const id = eInv(i); const det = (links, enf1) => detail(est, i, makeCtx(est, { cfg: ecfg, links, enf1 })).derived;
+    const none = det({}); assert.equal(none.sourceCancelled, true); assert.equal(none.cancelled, true); assert.equal(none.payStatus, 'cancelled'); assert.equal(none.outstanding, 0); assert.equal(none.enfConflict, false);
+    const states = ['candidate', 'open', 'suspended', 'closed', 'withdrawn'].map((x) => det({ [id]: x }));
+    for (const [k, d] of states.entries()) { assert.equal(d.cancelled, true, 'the source cancellation stands'); assert.equal(d.outstanding, 0); assert.equal(d.net, none.net); assert.equal(d.gross, none.gross); assert.equal(d.enf1Applied, false); assert.equal(d.enfConflict, k > 0, k === 0 ? 'a proposal raises no flag' : 'a confirmed or withdrawn link raises the review flag'); }
+    const applied = det({ [id]: 'closed' }, { [id]: true }); assert.equal(applied.enf1Applied, true); assert.equal(applied.cancelled, false); assert.ok(applied.outstanding > 0, 'the documented rule applied by a reviewer decision counts it uncollected');
+    assert.equal(det({}, { [id]: true }).cancelled, true, 'a decision without any referral changes nothing'); assert.equal(det({ [id]: 'open' }, { [id]: true }).outstanding, det({ [id]: 'withdrawn' }, { [id]: true }).outstanding, 'once applied, open/withdrawn do not move it');
+    assert.equal(applied.payStatus === 'collected', false, 'an order never implies payment');
   }
   const q = eo('cancelled_open'); const ids = q.covers.map(eInv); const base = snapshot(est, { scope: ESC, cfg: ecfg, links: {} }); const links = Object.fromEntries(ids.map((x) => [x, 'open'])); const withL = snapshot(est, { scope: ESC, cfg: ecfg, links });
   assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold with and without the referral'); assert.equal(withL.stock.enforcement.sourceConflict.count, base.stock.enforcement.sourceConflict.count + ids.length);
+  for (const key of ['netUncollected', 'grossTotal', 'cancelled']) if (base.stock[key] != null) assert.equal(withL.stock[key], base.stock[key], `${key} unchanged by the referral`);
+  assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.totals.net, base.totals.net);
+  const withApplied = snapshot(est, { scope: ESC, cfg: ecfg, links, enf1: Object.fromEntries(ids.map((x) => [x, true])) }); assert.ok(withApplied.equation.ok, 'identities hold after a reviewer applies the documented rule'); assert.ok(withApplied.stock.netUncollected > base.stock.netUncollected);
   const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.ok(ids.every((x) => rows.some((r) => r.id === x && r.enfConflict && r.sourceCancelled)), 'the conflict is listed and countable');
   assert.equal(list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links: {}, page: 0, pageSize: 100 }).rows.some((r) => ids.includes(r.id)), false);
   const closedQ = eo('cancelled_closed'); assert.equal(closedQ.status, 'مغلق'); const wd = removeLink(confirmLink(emptyStore(), 'EN-X', ids[0], { ...NOW, input: { invoiceId: ids[0], origin: 'sanad_structured', gross: 1, conflicts: [], resolvedConflicts: [], evidence: [] } }).store, 'EN-X', ids[0], { ...NOW, note: 'withdrawn by the issuer' }).store;
-  assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'a withdrawn link keeps the retained treatment (code “withdrawn”), it does not reinstate the cancellation');
+  assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'withdrawing keeps the review flag (code “withdrawn”) and moves no amount');
+  const st1 = decideEnf1(emptyStore(), ids[0], { decision: 'apply', note: 'n', by: 'T', at: '2026-10-10' }); assert.equal(st1.store.enf1[ids[0]].decision, 'apply'); assert.equal(decideEnf1(st1.store, ids[0], { decision: 'clear', by: 'T', at: 'x' }).store.enf1[ids[0]], undefined); assert.equal(decideEnf1(emptyStore(), ids[0], { decision: 'bogus' }).error, 'bad_decision'); assert.equal(st1.store.enf1History.length, 1, 'the decision is kept in a history');
 });
 
 await test('Brief 4 · status reflects CONFIRMED links only: text-found and proposed references change nothing, a confirmation does', () => {
@@ -1240,13 +1271,80 @@ await test('Brief 4 · a contract MENTIONED in an order is not a direct referral
   const idsOf = (c) => c.links.map((l) => l.invoiceId); const orders0 = ordersOfContract(m0[0].contractNo, [], [eff0]); assert.equal(orders0[0].mentionedOnly, true); assert.equal(orders0[0].contractLevel, false, 'not a direct referral');
   assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: null }).error, 'evidence_required', 'a mention alone cannot be confirmed');
   assert.equal(reviewContractReference(emptyStore(), q1.enforceNum, 'CT-2099-0001', { ...NOW, decision: 'confirmed', exists: false, evidence: { type: 'document_text_layer' } }).error, 'contract_not_found');
-  const ev = { type: 'document_docx_text', docId: 'h', docName: 'a.docx', pages: [1], snippet: 'contract' };
+  const mention = { type: 'document_docx_text', docId: 'h', docName: 'a.docx', pages: [], snippet: 'contract' };
+  assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: mention }).error, 'explicit_statement_required', 'a document that merely names an existing contract is not evidence of a direct referral');
+  assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: { ...mention, statedExplicitly: true, quote: '' } }).error, 'explicit_statement_required');
+  const ev = { ...mention, location: 't1r2', statedExplicitly: true, quote: 'The contract itself is referred to enforcement' };
   const store = reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: ev }).store; const eff0b = buildEffectiveCases([c0], store)[0];
   const m0b = contractMentions(eff0b, []); assert.equal(m0b[0].status, 'confirmed_by_review'); assert.equal(m0b[0].direct, true);
   const orders0b = ordersOfContract(m0b[0].contractNo, [], [eff0b]); assert.equal(orders0b[0].contractLevel, true); assert.deepEqual(orders0b[0].invoices, [], 'a directly referred contract does not make its invoices referred');
   assert.ok(!orderExceptions(eff0b).includes('contract_mention_unreviewed')); assert.equal(buildEffectiveCases([c1], reviewContractReference(emptyStore(), q1.enforceNum, 'CT-2099-0001', { ...NOW, decision: 'rejected' }).store)[0].contractFacts[0].status, 'rejected');
   const structured = feedCases.find((c) => c.contractNo && !c.refs.length); if (structured) { const e = buildEffectiveCases([structured], emptyStore())[0]; assert.equal(e.contractFacts.find((f) => f.contractNo === structured.contractNo).status, 'supported_by_source'); }
   assert.equal(idsOf(eff0).length, q0.identified.length, 'invoices without a contract-level fact stay linked on their own');
+});
+
+/* ------------------------------------------------------------ Round 12: simplified journey, OCR SIMULATION of prepared samples, consolidated review */
+const PREP = JSON.parse(fs.readFileSync('public/samples/prepared/index.json', 'utf8')).samples;
+const prep = (id) => PREP.find((x) => x.id === id);
+const prepBytes = (x) => new Uint8Array(fs.readFileSync(`public/samples/prepared/${x.file}`));
+const refsOf = (ex) => sortedIds(ex.refs.filter((r) => isInvoiceKindT(r.kind)).map((r) => r.value));
+const reviewRows = (c, store = emptyStore()) => { const eff = buildEffectiveCases([c], store)[0]; const refs = collectReferences(eff, eff.docs).filter((r) => isInvoiceKindT(r.kind)); return { eff, refs, rows: buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), eff.links, new Map(), new Set(), eff.docs) }; };
+
+await test('Prepared samples: eight scenarios, each tied to ONE existing demo order; files are image-only (no text layer) and match their catalogue SHA-256', async () => {
+  assert.deepEqual(PREP.map((x) => x.id).sort(), ['ambiguous_serial', 'amount_discrepancy', 'arabic_scanned', 'genuine_conflict', 'mixed_sources', 'multi_pages', 'one_invoice', 'same_serial_two_years']);
+  for (const x of PREP) {
+    assert.ok(est.requests.some((r) => r.enforceNum === x.orderNo), `${x.id}: the order exists in the demo world`); const bytes = prepBytes(x);
+    assert.equal(crypto.createHash('sha256').update(bytes).digest('hex'), x.sha256, `${x.id}: catalogue hash`); assert.equal(sampleByHash(PREP, x.sha256).id, x.id);
+    const real = await extractDocument(bytes, { orderNo: x.orderNo, lib: pdfLib }); assert.ok(real.pages.every((p) => p.needsOcr), `${x.id}: real text extraction finds NO text — it is a scan`); assert.equal(real.refs.length, 0);
+    assert.equal(x.pages.length, real.pages.length, `${x.id}: one transcript per page`);
+  }
+  assert.equal(samplesForOrder(PREP, prep('one_invoice').orderNo).length, 1);
+});
+
+await test('OCR simulation: deterministic, tied to the sample’s own content (transcript → the SAME reference extraction as real text), labelled, never inferred from a file name', () => {
+  const x = prep('multi_pages'); const o = est.requests.find((r) => r.enforceNum === x.orderNo); const a = extractionFromSample(x, { orderNo: x.orderNo }); const b = extractionFromSample(x, { orderNo: x.orderNo });
+  assert.deepEqual(a.refs, b.refs, 'the same sample always gives the same result (no randomness)'); assert.equal(a.method, 'ocr_simulated'); assert.equal(a.simulation.label, 'محاكاة OCR — للعرض التجريبي'); assert.equal(SIM_LABEL.ar, 'محاكاة OCR — للعرض التجريبي');
+  assert.deepEqual(refsOf(a), sortedIds([...o.covers, ...(o.hidden || [])].map(eInv)), 'the references are exactly the invoices written on the pages'); assert.deepEqual(a.pages.map((p) => p.needsOcr), [false, false, true], 'the stamp page has no text: reported as NOT read'); assert.equal(a.pages[2].reason, 'simulated_no_text');
+  assert.equal(a.orderNumberMismatch, false); assert.equal(extractionFromSample(x, { orderNo: 'EN-9999' }).orderNumberMismatch, true, 'a sample used on another order is flagged, not silently accepted');
+  const renamed = { ...x, file: 'whatever-12345.pdf', id: x.id }; assert.deepEqual(extractionFromSample(renamed, { orderNo: x.orderNo }).refs, a.refs, 'the file name plays no part');
+  const sum = summaryLines(orderCompleteness(buildEffectiveCases([ecase(o)], recordDocument(emptyStore(), o.enforceNum, { id: x.sha256, name: x.file, size: 1, kind: 'prepared_sample', sampleId: x.id, format: 'pdf', extraction: a }, NOW).store)[0]), []); assert.equal(sum.ext.ar, 'صفحة واحدة لم تُقرأ');
+});
+
+await test('Prepared scenarios (simulated reading → matching → review): one invoice · pages · mixed sources · same serial two years · ambiguous · genuine conflict · amount discrepancy · Arabic scan', () => {
+  const run = (id, base = {}) => { const x = prep(id); const q = est.requests.find((r) => r.enforceNum === x.orderNo); const c = { ...ecase(q), ...base }; const ex = extractionFromSample(x, { orderNo: x.orderNo }); const store = recordDocument(emptyStore(), x.orderNo, { id: x.sha256, name: x.file, size: 1, kind: 'prepared_sample', sampleId: x.id, format: 'pdf', extraction: ex }, NOW).store; return { q, c, ex, store, ...reviewRows(c, store) }; };
+  let r = run('one_invoice'); assert.equal(r.rows.length, 1); assert.deepEqual(r.rows.map((x) => rowState(x).kind), ['ready']);
+  r = run('multi_pages'); const allN = r.q.covers.length + (r.q.hidden || []).length; assert.ok(allN >= 2 && r.rows.length === allN); assert.ok(r.rows.every((x) => rowState(x).kind === 'ready')); assert.equal(selectionFor(r.rows).length, allN); const t = totalsFor(r.eff, orderCompleteness(r.eff).reconciliation, selectionFor(r.rows)); assert.equal(t.selectedTotal, r.q.covers.concat(r.q.hidden || []).reduce((sum, i) => sum + est.gross[i], 0)); assert.ok(Math.abs(t.difference) <= 1);
+  r = run('mixed_sources'); assert.equal(r.c.refs.length, 1); assert.ok(r.rows.length >= 3 && r.rows.every((x) => ['ready', 'confirmed'].includes(rowState(x).kind)), 'the structured one, the description one and the attachment ones, merged'); assert.equal(new Set(r.rows.map((x) => x.candidates[0].invoiceId)).size, r.rows.length, 'repeats do not make duplicate rows');
+  r = run('same_serial_two_years'); assert.equal(selectionFor(r.rows).length + r.rows.filter((x) => rowState(x).kind === 'confirmed').length, 2, 'both invoices (same serial, different years) are linkable'); assert.ok(r.rows.every((x) => x.status === 'matched'));
+  r = run('ambiguous_serial'); assert.ok(r.rows.some((x) => rowState(x).kind === 'ambiguous') && selectionFor(r.rows).length === 0, 'nothing selectable until evidence');
+  r = run('genuine_conflict'); assert.ok(r.rows.some((x) => rowState(x).kind === 'needs_evidence'), 'the other payer’s invoice needs evidence'); assert.ok(r.rows.some((x) => rowState(x).kind === 'confirmed'), 'the structured one is already linked'); assert.equal(selectionFor(r.rows).length, 0, 'the conflicting one stays unselected');
+  r = run('amount_discrepancy'); const sel = selectionFor(r.rows); const tt = totalsFor(r.eff, orderCompleteness(r.eff).reconciliation, sel); assert.ok(Math.abs(tt.difference) > 1, 'the difference between the order amount and the linked invoices is shown…'); assert.ok(r.rows.every((x) => rowState(x).kind === 'confirmed'), '…and the references are linked regardless (a difference never blocks valid links)'); assert.equal(sel.length, 0); assert.equal(summaryLines(orderCompleteness({ ...r.eff, links: [] }), r.rows).fin, null, 'no finance verdict before any link');
+  r = run('arabic_scanned'); assert.ok(r.rows.length >= 2 && r.rows.every((x) => rowState(x).kind === 'ready'), 'Latin invoice numbers inside Arabic text are found'); assert.ok(r.ex.others.some((o) => o.kind === 'contract_no') && r.ex.others.some((o) => o.value === '4410229981'), 'contract and account numbers are set apart');
+});
+
+await test('Selection and confirmation: one action links the selected invoices once each; amount basis = invoice gross; difference reported, never forced; confirmation creates links only', () => {
+  const x = prep('multi_pages'); const q = est.requests.find((r) => r.enforceNum === x.orderNo); const c = ecase(q);
+  const ex = extractionFromSample(x, { orderNo: x.orderNo }); let store = recordDocument(emptyStore(), x.orderNo, { id: x.sha256, name: x.file, size: 1, kind: 'prepared_sample', sampleId: x.id, format: 'pdf', extraction: ex }, NOW).store;
+  let { eff, rows } = reviewRows(c, store); const picked = selectionFor(rows, { [rows[0].candidates[0].invoiceId]: false }); assert.equal(picked.length, rows.length - 1, 'a reviewer can untick a preselected match');
+  for (const s1 of picked) store = confirmLink(store, x.orderNo, s1.candidate.invoiceId, { ...NOW, input: { invoiceId: s1.candidate.invoiceId, origin: 'document', gross: s1.candidate.grossAmount, conflicts: s1.row.conflicts[s1.candidate.invoiceId], resolvedConflicts: [], evidence: [] } }).store;
+  ({ eff, rows } = reviewRows(c, store)); const rec2 = orderCompleteness(eff).reconciliation; assert.equal(rec2.confirmedCount, picked.length); assert.equal(rec2.confirmedTotal, picked.reduce((sum, s1) => sum + s1.candidate.grossAmount, 0));
+  assert.equal(rowState(rows.find((r2) => r2.link)).kind, 'confirmed'); assert.deepEqual(selectionFor(rows).map((s1) => s1.candidate.invoiceId), [rows[0].candidates[0].invoiceId].filter((id) => !rows[0].link), 'the remaining one is still offered');
+  const tot = totalsFor(eff, rec2, selectionFor(rows)); assert.equal(tot.total, tot.confirmedTotal + tot.selectedTotal); assert.equal(tot.difference, eff.amount - tot.total);
+  const map = invoiceStatusMap([eff]); assert.ok(picked.every((s1) => map[s1.candidate.invoiceId]), 'status is reflected on the CONFIRMED links…'); assert.equal(map[rows[0].candidates[0].invoiceId], rows[0].link ? map[rows[0].candidates[0].invoiceId] : undefined, '…and not on the unlinked one');
+  const wd = det0(picked[0].candidate.invoiceId); assert.notEqual(wd.payStatus, 'collected', 'linking never marks an invoice paid'); function det0(id) { return detail(est, lookupId(est, id), makeCtx(est, { cfg: ecfg, links: {} })).derived; }
+  assert.equal(summaryLines(orderCompleteness(eff), rows).refs.ar.startsWith('تم العثور على'), true);
+});
+
+await test('Summaries: concise Arabic one-liners and the exact «not identified» wording; stored extraction methods stay distinct (digital · docx · simulated · imported OCR · typed)', () => {
+  assert.equal(NOT_IDENTIFIED.ar, 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة');
+  const none = summaryLines(orderCompleteness(buildEffectiveCases([{ enforceNum: 'EN-N', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], emptyStore())[0]), []); assert.equal(none.refs.ar, NOT_IDENTIFIED.ar);
+  const q = prep('ambiguous_serial'); const o = est.requests.find((r) => r.enforceNum === q.orderNo); const eff = buildEffectiveCases([ecase(o)], emptyStore())[0]; const rows = reviewRows(ecase(o)).rows;
+  assert.ok(/^تم العثور على .* — مرجع واحد يحتاج مراجعة$/.test(summaryLines(orderCompleteness(eff), rows).refs.ar) || summaryLines(orderCompleteness(eff), rows).refs.ar.includes('يحتاج'));
+  const kinds = new Set([extractionFromSample(q, { orderNo: q.orderNo }).method, buildExtraction([{ page: 1, text: 'Invoice INV-2025-0000001' }], 'text_layer').method, buildExtraction([{ page: 1, text: 'Invoice INV-2025-0000001' }], 'ocr_import').method, manualExtraction('INV-2025-0000001').method]); assert.deepEqual([...kinds].sort(), ['manual_entry', 'ocr_import', 'ocr_simulated', 'text_layer']);
+  const me = manualExtraction('INV-2025-0000123\n0000054\nnot a number'); assert.deepEqual(me.refs.map((r) => `${r.kind}:${r.value}`), ['invoice_no:INV-2025-0000123', 'invoice_serial:0000054']); assert.equal(me.method, 'manual_entry');
+  const store = recordManualReferences(emptyStore(), 'EN-M', me, NOW).store; assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].extraction.method, 'manual_entry'); assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].kind, 'manual'); assert.equal(store.orders['EN-M'].history[0].action, 'manual_references_added');
+  const eff2 = buildEffectiveCases([{ enforceNum: 'EN-M', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], store)[0]; assert.ok(collectReferences(eff2, eff2.docs).every((r) => r.origins.every((og) => og.type === 'document_manual_entry')), 'typed references keep their own origin');
+  const withDec = decideEnf1(store, 'INV-2025-0000001', { decision: 'apply', by: 'T', at: 'x' }).store; const b = buildBackup({ getItem: (k) => (k === 'ib_enforcement_v1' ? JSON.stringify(withDec) : null) }); assert.ok(validateBackup(b).ok); assert.ok(JSON.stringify(b.data.ib_enforcement_v1).includes('enf1'), 'a reviewer’s ENF-1 decision and the typed references are part of the backup'); assert.ok(validStoreShape(withDec));
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

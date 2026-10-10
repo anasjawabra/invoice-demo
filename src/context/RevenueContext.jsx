@@ -6,7 +6,7 @@ import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
-import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference } from '../data/orderMatching';
+import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference, decideEnf1, recordManualReferences } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
@@ -77,13 +77,15 @@ export function RevenueProvider({ children }) {
   // invoice → the status its confirmed order(s) give it (open / suspended / closed); a merely proposed link is sent as «candidate» and changes nothing
   const links = useMemo(() => invoiceStatusMap(casesAll), [casesAll]);
 
+  // invoices for which a reviewer recorded «apply the documented ENF-1 treatment» (the only way an enforcement link keeps a source-cancelled invoice uncollected)
+  const enf1 = useMemo(() => Object.fromEntries(Object.entries(enfStore?.enf1 || {}).filter(([, v]) => v?.decision === 'apply').map(([k]) => [k, true])), [enfStore]);
   const orgKeys = org.amanahKeys || null;
   const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', org }), [scope, org]);
   const currentScopeKey = useMemo(() => scopeKey(scopeEff), [scopeEff]);
-  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, cfg]);
+  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${hashOf(JSON.stringify(enf1))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, enf1, cfg]);
 
   // request body used by every data-service call (the scope carries only what the service needs from the organisation)
-  const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, ...extra }), [orgKeys, cfgN, decisions, links]);
+  const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, enf1, ...extra }), [orgKeys, cfgN, decisions, links, enf1]);
 
   // the same provider the analysis tasks use, for pages that need extra aggregates (series, bridge, contracts, ...)
   const data = useMemo(() => ({
@@ -102,8 +104,8 @@ export function RevenueProvider({ children }) {
     // a plain GET URL; review decisions / links ride along only while they are small enough for a URL
     exportUrl: (sc, extra) => {
       const full = requestFor(sc, extra);
-      const small = JSON.stringify({ d: full.decisions, l: full.links }).length < 3000;
-      return api.exportUrl(small ? full : { ...full, decisions: {}, links: {} });
+      const small = JSON.stringify({ d: full.decisions, l: full.links, e: full.enf1 }).length < 3000;
+      return api.exportUrl(small ? full : { ...full, decisions: {}, links: {}, enf1: {} });
     }
   }), [requestFor]);
 
@@ -180,6 +182,7 @@ export function RevenueProvider({ children }) {
     recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o)),
     restoreFile: (en, docId, name) => enfAct(en, (st, o) => recordFileRestored(st, en, docId, { ...o, name })),
     recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o)),
+    addManual: (en, extraction) => enfAct(en, (st, o) => recordManualReferences(st, en, extraction, o)),
     propose: (en, input) => enfAct(en, (st, o) => proposeLink(st, en, input, o)),
     confirm: (en, invoiceId, args = {}) => enfAct(en, (st, o) => confirmLink(st, en, invoiceId, { ...args, ...o })),
     reject: (en, invoiceId, args = {}) => enfAct(en, (st, o) => rejectLink(st, en, invoiceId, { ...args, ...o })),
@@ -187,10 +190,12 @@ export function RevenueProvider({ children }) {
     dismiss: (en, key, args = {}) => enfAct(en, (st, o) => dismissReference(st, en, key, { ...args, ...o })),
     // a contract number MENTIONED in an order's text/document: a reviewer confirms it as a direct referral (with evidence) or rejects it
     reviewContract: (en, contractNo, args = {}) => enfAct(en, (st, o) => reviewContractReference(st, en, contractNo, { ...args, ...o })),
+    // a reviewer's decision on an invoice that is cancelled in the source yet referred to enforcement: apply the documented ENF-1 treatment, or keep the cancellation
+    decideEnf1: (invoiceId, decision, note = '') => { if (!canReview) return { ok: false, error: 'no_permission' }; const r = decideEnf1(enfRef.current, invoiceId, { decision, note, by: user?.nameEn || user?.name || 'Reviewer', at: new Date().toISOString() }); if (r.error) return { ok: false, error: r.error }; enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); return { ok: true }; },
     // the references of an order, resolved against the invoices by the data service (reference matching only — never by amount)
     resolve: (refs) => api.orderMatch(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { refs })),
     debtorInvoices: (debtor, excludeIds) => api.orderDebtorInvoices(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { debtor, excludeIds }))
-  }), [enfAct, requestFor]);
+  }), [enfAct, requestFor, canReview, user]);
 
   /* ---------- analyst notes (analytical layer only) ---------- */
   const addNote = useCallback((invoiceId, text) => {
@@ -309,7 +314,7 @@ export function RevenueProvider({ children }) {
     targets, setTargets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,
     decideExclusion,
-    cases, enforcement,
+    cases, enforcement, enf1Decisions: enfStore?.enf1 || {},
     uploads, commitUpload, clearUploads, notes, addNote,
     scenario, setScenario,
     forecastVersions, saveForecastVersion,

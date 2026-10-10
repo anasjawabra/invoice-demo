@@ -95,13 +95,13 @@ export const CLOSE_REASON_LABEL = {
 // plus the evidence stored with the link itself. Used to show the original document next to the evidence.
 export function evidenceForInvoice(invoiceId, cases) {
   const out = []; const seen = new Set();
-  const add = (e) => { const k = `${e.enforceNum}|${e.docId}|${e.page}|${e.snippet}`; if (!seen.has(k)) { seen.add(k); out.push(e); } };
+  const add = (e) => { const k = `${e.enforceNum}|${e.docId}|${e.page}|${e.loc}|${e.snippet}`; if (!seen.has(k)) { seen.add(k); out.push(e); } };
   for (const c of cases) {
     const link = (c.links || []).find((l) => l.invoiceId === invoiceId && (l.status === 'confirmed' || l.status === 'candidate'));
     if (!link) continue;
     for (const d of c.docs || []) for (const r of d.extraction?.refs || []) {
       if (String(r.value).toUpperCase() !== invoiceId.toUpperCase()) continue;
-      for (const o of r.occurrences || []) add({ enforceNum: c.enforceNum, docId: d.id, docName: d.name, page: o.page, snippet: o.snippet, method: o.via || d.extraction.method, refValue: r.value });
+      for (const o of r.occurrences || []) add({ enforceNum: c.enforceNum, docId: d.id, docName: d.name, page: d.extraction.exactPages === false ? null : o.page, loc: o.loc || null, snippet: o.snippet, method: o.via || d.extraction.method, refValue: r.value });
     }
     for (const e of link.evidence || []) if (e && typeof e === 'object' && e.docId) for (const pg of e.pages || [null]) add({ enforceNum: c.enforceNum, docId: e.docId, docName: e.docName, page: pg, snippet: e.snippet || null, method: e.origin, refValue: e.refValue });
   }

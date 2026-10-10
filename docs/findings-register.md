@@ -542,3 +542,23 @@ Description, evidence and demo script: `docs/all-sources-and-cancelled-invoices.
 **Tests:** 114 (10 new). **Open dependencies:** live Sanad retrieval and attachment retrieval; **actual OCR**; legacy `.doc` support; approximate `.docx` pagination; EQ3 decision on the treatment; Sanad's real description/attachment conventions.
 
 **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+
+
+---
+
+# Round 12 — simplified journey, OCR simulation, corrected matching and ENF-1 clarification (branch `enforcement-order-matching`)
+
+Description, evidence and demo script: `docs/simplified-journey-and-ocr-simulation.md`.
+
+**E-16 — «same serial, different year» was treated as a hard conflict (fixed).** Two legitimate invoices of one order are matched independently; the cross-source conflict rule and its debtor-based auto-resolution were removed. An incomplete serial matching several invoices stays ambiguous; the order's debtor is shown as supporting evidence only.
+
+**E-17 — contract mention confirmed from a document mention (fixed).** A document naming an existing contract is not evidence of a direct referral; confirmation needs a document location, an explicit statement that the contract itself is referred, and the recorded statement.
+
+**E-18 — enforcement changed financial totals through an implementation assumption (fixed).** The documented rule ENF-1 (registry; recorded as a «meeting correction»; minutes not in the repository) was applied automatically to any confirmed link, including links created from documents. Enforcement — active, closed or withdrawn — no longer overrides a source cancellation, reinstates collectibility or changes a total; the conflict is flagged and ENF-1 is applied only on a reviewer's recorded decision. **EQ3 stays unresolved; no new financial policy.** (Visible change: the previous round's automatic retention is gone.)
+
+**E-19 — the order page was a long technical review (simplified).** Three steps (add · analyse · review and confirm), one primary action, one consolidated review table with one confirm action, concise Arabic summaries, a compact «بيانات تجريبية · محاكاة OCR» marker with «تفاصيل التكامل», details and history under expandable sections.
+
+**E-20 — OCR (clearly labelled simulation added).** Eight prepared scanned-style samples replayed through the real extraction from their own transcripts (deterministic, never from file names), labelled «محاكاة OCR — للعرض التجريبي»; other files use real extraction or are flagged unread; methods are stored and exported distinctly. **This is not live OCR; actual OCR and live Sanad remain pending.** Word evidence names table/row or paragraph (no approximate pages); legacy `.doc` unavailable.
+
+**Tests:** 121. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+

@@ -81,32 +81,34 @@ export function documentStatedAmount(text) {
 }
 
 // Pages → one extraction record. `pages`: [{ page, text, hasTextLayer }]; method: 'text_layer' | 'ocr_import' | 'manual_entry'
-export function buildExtraction(pages, method, { orderNo = null, format = null, reason = null } = {}) {
+// Methods (kept DISTINCT in every stored record): text_layer (digital PDF text) · docx_text (Word paragraphs/tables) · ocr_simulated (prepared demo sample, NOT real OCR) · ocr_system (an OCR engine of this system — not connected)
+// · ocr_import (text imported from an external OCR tool) · manual_entry (typed by a person).
+export function buildExtraction(pages, method, { orderNo = null, format = null, reason = null, simulation = null, exactPages = true } = {}) {
   const refs = new Map();
   const others = [];
   let docOrderNos = [];
-  const pageInfo = pages.map((p) => ({ page: p.page, chars: String(p.text || '').trim().length, textLayer: p.hasTextLayer !== false, needsOcr: method === 'text_layer' && String(p.text || '').trim().length < 10 }));
-  for (const pi of pageInfo) pi.reason = pi.needsOcr ? (reason || 'no_text_layer') : null; // why a page counts as unread: no text layer (scan) · unsupported format (legacy .doc, image) …
+  const pageInfo = pages.map((p) => ({ page: p.page, chars: String(p.text || '').trim().length, textLayer: p.hasTextLayer !== false, needsOcr: (method === 'text_layer' || method === 'ocr_simulated') && String(p.text || '').trim().length < 10 }));
+  for (const pi of pageInfo) pi.reason = pi.needsOcr ? (reason || (method === 'ocr_simulated' ? 'simulated_no_text' : 'no_text_layer')) : null; // why a page counts as unread: no text layer (scan) · unsupported format (legacy .doc, image) …
   for (const p of pages) {
-    for (const r of extractFromText(p.text || '', p.page)) {
+    for (const u of (p.units || [{ loc: null, text: p.text || '' }])) for (const r of extractFromText(u.text || '', p.page)) { // `units`: a Word file is read by paragraph / table row, so evidence can name the LOCATION
       if (r.kind === 'order_no') { docOrderNos.push(r.value); continue; }
-      if (!isInvoiceKind(r.kind)) { others.push(r); continue; }
+      if (!isInvoiceKind(r.kind)) { others.push({ ...r, loc: u.loc }); continue; }
       const k = refKey(r.kind, r.value);
       if (!refs.has(k)) refs.set(k, { kind: r.kind, value: r.value, occurrences: [] });
-      refs.get(k).occurrences.push({ page: r.page, snippet: r.snippet, raw: r.raw });
+      refs.get(k).occurrences.push({ page: r.page, loc: u.loc || null, snippet: r.snippet, raw: r.raw });
     }
   }
   docOrderNos = [...new Set(docOrderNos)];
   const stated = pages.map((p) => documentStatedAmount(p.text || '')).find((x) => x != null) ?? null;
   return {
-    method, format, pages: pageInfo, refs: [...refs.values()], others: dedupeOthers(others), orderNumbersInDocument: docOrderNos,
+    method, format, exactPages, simulation, pages: pageInfo, refs: [...refs.values()], others: dedupeOthers(others), orderNumbersInDocument: docOrderNos,
     orderNumberMismatch: !!(orderNo && docOrderNos.length && !docOrderNos.includes(String(orderNo).toUpperCase())),
     statedAmount: stated, extractedAt: new Date().toISOString()
   };
 }
 function dedupeOthers(list) {
   const m = new Map();
-  for (const r of list) { const k = refKey(r.kind, r.value); if (!m.has(k)) m.set(k, { kind: r.kind, value: r.value, label: r.label, pages: [], snippet: r.snippet }); const e = m.get(k); if (!e.pages.includes(r.page)) e.pages.push(r.page); }
+  for (const r of list) { const k = refKey(r.kind, r.value); if (!m.has(k)) m.set(k, { kind: r.kind, value: r.value, label: r.label, pages: [], locs: [], snippet: r.snippet }); const e = m.get(k); if (!e.pages.includes(r.page)) e.pages.push(r.page); if (r.loc && !e.locs.includes(r.loc)) e.locs.push(r.loc); }
   return [...m.values()];
 }
 
@@ -148,7 +150,7 @@ export function collectReferences(order, docs = []) {
   for (const d of docs) for (const r of d.extraction?.refs || []) {
     const byMethod = new Map(); // text found by the PDF reader, by imported OCR text, or typed by a person are different kinds of evidence
     for (const o of r.occurrences) { const mm = o.via || d.extraction.method; if (!byMethod.has(mm)) byMethod.set(mm, []); byMethod.get(mm).push(o); }
-    for (const [mm, occ] of byMethod) add(r.kind, r.value, { type: `document_${mm}`, docId: d.id, docName: d.name, pages: [...new Set(occ.map((o) => o.page))], snippet: occ[0]?.snippet, raw: occ[0]?.raw || r.value });
+    for (const [mm, occ] of byMethod) add(r.kind, r.value, { type: `document_${mm}`, docId: d.id, docName: d.name, pages: d.extraction.exactPages === false ? [] : [...new Set(occ.map((o) => o.page))], locs: [...new Set(occ.map((o) => o.loc).filter(Boolean))], snippet: occ[0]?.snippet, raw: occ[0]?.raw || r.value });
   }
   return [...m.values()];
 }
@@ -160,7 +162,7 @@ export function contractMentions(order, docs = []) {
   const add = (no, origin) => { const k = String(no).toUpperCase(); if (!m.has(k)) m.set(k, { contractNo: k, origins: [] }); m.get(k).origins.push(origin); };
   if (order.contractNo) add(order.contractNo, { type: 'sanad_structured', field: 'contract_number' });
   for (const r of orderTextRefs(order)) if (r.kind === 'contract_no') add(r.value, { type: r.origin, field: r.field, snippet: r.snippet });
-  for (const d of docs) for (const o of d.extraction?.others || []) if (o.kind === 'contract_no') add(o.value, { type: `document_${d.extraction.method}`, docId: d.id, docName: d.name, pages: o.pages || [], snippet: o.snippet });
+  for (const d of docs) for (const o of d.extraction?.others || []) if (o.kind === 'contract_no') add(o.value, { type: `document_${d.extraction.method}`, docId: d.id, docName: d.name, pages: d.extraction.exactPages === false ? [] : o.pages || [], locs: o.locs || [], snippet: o.snippet });
   return [...m.values()].map((c) => {
     const review = order.contractReviews?.[c.contractNo] || null;
     const structured = c.origins.some((o) => o.type === 'sanad_structured');
@@ -169,17 +171,13 @@ export function contractMentions(order, docs = []) {
   });
 }
 
-// Two references that share the 7-digit serial but not the year («INV-2025-0000111» in one place, «INV-2026-0000111» in another): sources that CONTRADICT each other.
-export function sourceConflictsOf(order, docs = []) {
-  const bySerial = new Map();
-  for (const r of collectReferences(order, docs)) { if (r.kind !== 'invoice_no') continue; const mm = /^INV-(\d{4})-(\d+)$/i.exec(r.value); if (!mm) continue; const ser = mm[2].padStart(7, '0'); if (!bySerial.has(ser)) bySerial.set(ser, []); bySerial.get(ser).push(r); }
-  return [...bySerial.entries()].filter(([, list]) => new Set(list.map((r) => r.value.toUpperCase().replace(/-(\d+)$/, (x, d) => `-${d.padStart(7, '0')}`))).size > 1).map(([serial, refs]) => ({ serial, refs }));
-}
 export const ORIGIN_LABEL = {
   sanad_structured: { en: 'Sanad structured field', ar: 'حقل سند المهيكل' },
   sanad_description: { en: 'Sanad description (free text)', ar: 'وصف سند (نص حر)' },
   sanad_notes: { en: 'Sanad notes (free text)', ar: 'ملاحظات سند (نص حر)' },
-  document_docx_text: { en: 'Word document (text and tables, read by this system)', ar: 'مستند Word (النص والجداول، قرأها النظام)' },
+  document_docx_text: { en: 'Word document (paragraphs and tables, read by this system)', ar: 'مستند Word (الفقرات والجداول، قرأها النظام)' },
+  document_ocr_simulated: { en: 'OCR simulation — demo only (prepared sample)', ar: 'محاكاة OCR — للعرض التجريبي (عينة معدّة)' },
+  document_ocr_system: { en: 'OCR engine of this system (not connected)', ar: 'محرك OCR في هذا النظام (غير متصل)' },
   document_text_layer: { en: 'Order PDF (text layer)', ar: 'ملف الأمر (طبقة النص)' },
   document_ocr_import: { en: 'Order document (OCR text imported)', ar: 'مستند الأمر (نص OCR مستورد)' },
   document_manual_entry: { en: 'Order document (typed by a person)', ar: 'مستند الأمر (أدخله شخص)' },
@@ -202,7 +200,7 @@ export function conflictsFor(order, cand, { otherOrders = [], weak = false, ambi
   if (weak && !ambiguous) c.push('weak_reference');
   return c;
 }
-export const HARD_CONFLICTS = new Set(['debtor_mismatch', 'amanah_mismatch', 'invoice_issued_after_order', 'document_other_order', 'ambiguous_reference', 'source_conflict']);
+export const HARD_CONFLICTS = new Set(['debtor_mismatch', 'amanah_mismatch', 'invoice_issued_after_order', 'document_other_order', 'ambiguous_reference']);
 export const isHardConflict = (x) => HARD_CONFLICTS.has(x);
 // the hard conflicts still standing after the evidence that resolves some of them (`resolved`: [{ conflict, by, evidence }])
 export const unresolvedConflicts = (conflicts = [], resolved = []) => conflicts.filter((x) => HARD_CONFLICTS.has(x) && !resolved.some((r) => r.conflict === x));
@@ -242,18 +240,6 @@ export function buildRows(order, refs, results, links, otherOrdersByInvoice = ne
     const linkIds = row.candidates.map((c) => c.invoiceId);
     row.link = links.find((l) => linkIds.includes(l.invoiceId) && l.status !== 'rejected') || null;
     row.rejected = !row.link && links.some((l) => linkIds.includes(l.invoiceId) && l.status === 'rejected');
-  }
-  // references from different sources that CONTRADICT each other (same serial, different year): every member is a hard conflict; it is resolved by data evidence only
-  // when exactly one member belongs to the order's debtor (the others then also carry «payer is not the order debtor»)
-  for (const g of sourceConflictsOf(order, docs)) {
-    const members = rows.filter((r) => r.kind === 'invoice_no' && g.refs.some((x) => x.key === r.key) && r.candidates.length);
-    if (members.length < 2) continue;
-    const clean = members.filter((r) => !(r.conflicts[r.candidates[0].invoiceId] || []).includes('debtor_mismatch'));
-    for (const r of members) {
-      const id = r.candidates[0].invoiceId; r.conflicts[id] = [...r.conflicts[id], 'source_conflict']; r.sourceConflict = { serial: g.serial, with: members.filter((x) => x !== r).map((x) => x.value) };
-      if (clean.length === 1 && clean[0] === r) r.resolved[id] = [...r.resolved[id], { conflict: 'source_conflict', by: 'only_candidate_of_order_debtor', evidence: { serial: g.serial } }];
-      r.unresolved[id] = unresolvedConflicts(r.conflicts[id], r.resolved[id]);
-    }
   }
   return rows;
 }
@@ -305,9 +291,8 @@ export function orderCompleteness(order) {
   const total = collectReferences(order, docs).filter((r) => isInvoiceKind(r.kind)).length;
   const all = collectReferences(order, docs).filter((r) => isInvoiceKind(r.kind)); const bySource = (t) => all.filter((r) => r.origins.some((o) => o.type === t)).length;
   const sources = { structured: bySource('sanad_structured'), description: bySource('sanad_description'), notes: bySource('sanad_notes'), documents: all.filter((r) => r.origins.some((o) => o.docId)).length, hasDescription: !!String(order.description || '').trim(), hasNotes: !!String(order.notes || '').trim(), attachmentsListed: (order.attachments || []).length, documentsAdded: docs.length };
-  const conflicts = sourceConflictsOf(order, docs);
   // «complete» = every reference FOUND (in any source) is decided. It does NOT prove that every invoice covered by the order was found: extraction and reconciliation say whether anything may be missing.
-  const references = { total, unresolved: unresolved.length, proposed: rec.proposedCount, confirmedLinks: rec.confirmedCount, sourceConflicts: conflicts.length, sources, state: !total && !rec.confirmedCount && !rec.proposedCount ? 'none' : unresolved.length || rec.proposedCount ? 'incomplete' : 'complete' };
+  const references = { total, unresolved: unresolved.length, proposed: rec.proposedCount, confirmedLinks: rec.confirmedCount, sources, state: !total && !rec.confirmedCount && !rec.proposedCount ? 'none' : unresolved.length || rec.proposedCount ? 'incomplete' : 'complete' };
   const suppliedPages = docs.reduce((n, d) => n + (d.ocrCovered || []).length, 0); // pages whose text was supplied from outside (imported OCR) or typed — not read by this system
   const attachmentsPending = Math.max(0, (order.attachments || []).length - docs.length); // listed by Sanad, not yet added here (retrieval is not connected)
   const extraction = { documents: docs.length, unreadPages: gaps.length, suppliedPages, attachmentsPending, state: attachmentsPending && !gaps.length && docs.length ? 'incomplete' : !docs.length ? 'no_document' : gaps.length ? 'incomplete' : 'complete' };
@@ -333,7 +318,7 @@ export function orderMatchState(order) {
 
 /* ------------------------------------------------------------------ effective cases = Sanad/anchor base + the user's overlay */
 const LINK_STATUS_OUT = { proposed: 'candidate', confirmed: 'confirmed', rejected: 'rejected', removed: 'rejected' };
-export const emptyStore = () => ({ v: 1, orders: {} });
+export const emptyStore = () => ({ v: 1, orders: {}, enf1: {} });
 const ord = (store, en) => store.orders[en] || { links: {}, docs: {}, history: [], dismissedRefs: [], contractReviews: {}, statusSeen: null };
 
 export function buildEffectiveCases(baseCases, store) {
@@ -382,6 +367,18 @@ export function recordSupplementalExtraction(store, en, docId, extraction, { by,
   const supplements = [...(d.supplements || []), { method: extraction.method, at, by, pages: extraction.pages.map((p) => p.page), refs: extraction.refs.length }];
   o = { ...o, docs: { ...o.docs, [docId]: { ...d, extraction: { ...d.extraction, refs: [...seen.values()] }, ocrCovered: covered, supplements } } };
   o = hist(o, { at, by, action: 'supplemental_extraction', detail: { docId, method: extraction.method, pages: extraction.pages.map((p) => p.page), invoiceReferences: extraction.refs.length } });
+  return { store: put(store, en, o), error: null };
+}
+
+// References typed by a person (no file): one pseudo-document «manual-entry» per order that accumulates them; method manual_entry, never mixed with any extraction.
+export const MANUAL_DOC_ID = 'manual-entry';
+export function recordManualReferences(store, en, extraction, { by, at, orderStatus }) {
+  let o = noteOrderStatus(ord(store, en), orderStatus, at, by); const prev = o.docs[MANUAL_DOC_ID];
+  const seen = new Map((prev?.extraction?.refs || []).map((r) => [refKey(r.kind, r.value), { ...r, occurrences: [...r.occurrences] }]));
+  for (const r of extraction.refs) { const k = refKey(r.kind, r.value); if (!seen.has(k)) seen.set(k, { kind: r.kind, value: r.value, occurrences: [] }); seen.get(k).occurrences.push(...r.occurrences); }
+  const doc = { ...(prev || { id: MANUAL_DOC_ID, name: 'manual-entry', size: 0, kind: 'manual', format: 'manual', addedAt: at, fileStored: false }), extraction: { ...extraction, refs: [...seen.values()] } };
+  o = { ...o, docs: { ...o.docs, [MANUAL_DOC_ID]: doc } };
+  o = hist(o, { at, by, action: 'manual_references_added', detail: { references: extraction.refs.map((r) => r.value), method: 'manual_entry' } });
   return { store: put(store, en, o), error: null };
 }
 
@@ -463,14 +460,13 @@ export function recordFileRestored(store, en, docId, { by, at, orderStatus, name
 }
 
 // The matching-review EXCEPTIONS of an order: what a person still has to look at. An order can carry several (counted once per type).
-export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'source_conflict', 'attachments_not_retrieved', 'unread_pages', 'amount_difference', 'contract_mention_unreviewed', 'contract_level_only'];
+export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'attachments_not_retrieved', 'unread_pages', 'amount_difference', 'contract_mention_unreviewed', 'contract_level_only'];
 export function orderExceptions(order) {
   const comp = orderCompleteness(order); const out = [];
   const contractLevel = !!order.contractNo && !(order.refs || []).length && !(order.links || []).length;
   if (contractLevel) out.push('contract_level_only');
   else if (comp.references.state === 'none') out.push('no_references');
   if (comp.references.unresolved > 0) out.push('unresolved_references');
-  if (comp.references.sourceConflicts > 0) out.push('source_conflict');
   if (comp.extraction.attachmentsPending > 0) out.push('attachments_not_retrieved');
   if (contractMentions(order, order.docs || []).some((c) => c.status === 'mentioned')) out.push('contract_mention_unreviewed');
   if (comp.references.proposed > 0) out.push('proposals_pending');
@@ -481,12 +477,24 @@ export function orderExceptions(order) {
 }
 
 
+// An invoice cancelled in the source that a confirmed enforcement link refers to: a REVIEWER records whether the documented rule ENF-1 (counted uncollected instead of cancelled) is applied,
+// or the source cancellation stands. Nothing is applied automatically, and no order event (confirmation, closure, withdrawal) ever changes an amount by itself. (Open business question: EQ3.)
+export function decideEnf1(store, invoiceId, { decision, note = '', by, at }) {
+  if (!['apply', 'keep_cancelled', 'clear'].includes(decision)) return { store, error: 'bad_decision' };
+  const enf1 = { ...(store.enf1 || {}) };
+  if (decision === 'clear') delete enf1[invoiceId]; else enf1[invoiceId] = { decision, note: String(note).trim(), by, at };
+  const hist = [...(store.enf1History || []), { invoiceId, decision, note: String(note).trim(), by, at }];
+  return { store: { ...store, enf1, enf1History: hist }, error: null };
+}
+
 // A reviewer decides whether a contract number MENTIONED in the description or a document is a direct referral of that contract. The structured field never needs this;
 // a mention alone never establishes a referral. `exists` = the contract number exists in the data (checked by the caller); a number that does not exist cannot be confirmed.
 export function reviewContractReference(store, en, contractNo, { decision, note = '', evidence = null, by, at, orderStatus, exists = false }) {
   if (!['confirmed', 'rejected'].includes(decision)) return { store, error: 'bad_decision' };
   if (decision === 'confirmed' && !exists) return { store, error: 'contract_not_found' };
-  if (decision === 'confirmed' && !evidence) return { store, error: 'evidence_required' };
+  // a document that merely NAMES an existing contract is not enough: the reviewer must point at the document location AND record that it explicitly states the contract itself is referred, with the statement
+  if (decision === 'confirmed' && !(evidence && evidence.docId)) return { store, error: 'evidence_required' };
+  if (decision === 'confirmed' && !(evidence.statedExplicitly === true && String(evidence.quote || '').trim().length >= 5)) return { store, error: 'explicit_statement_required' };
   let o = noteOrderStatus(ord(store, en), orderStatus, at, by);
   o = { ...o, contractReviews: { ...(o.contractReviews || {}), [contractNo]: { decision, note: String(note).trim(), evidence, by, at } } };
   o = hist(o, { at, by, action: decision === 'confirmed' ? 'contract_reference_confirmed' : 'contract_reference_rejected', detail: { contractNo, evidence, note: String(note).trim() } });
