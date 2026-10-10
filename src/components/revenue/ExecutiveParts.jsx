@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { RecordLink as Link } from '../../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../../utils/paths';
 import { useL, ratioText } from '../../utils/bi';
 import { BRIDGE_LABELS } from '../../data/bridgeLabels';
 import { explainChange } from '../../data/changeExplanation';
@@ -200,13 +201,13 @@ export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
     <div className="rv-three">
       <div className="card card-pad">
         <h2 className="rv-sec-title">{L('Large overdue invoices', 'فواتير متأخرة كبيرة')}</h2>
-        {overdueRows.length ? <ul className="rv-list">{overdueRows.map((d) => <li key={d.id}><Link to={`/invoices?id=${d.id}`} dir="ltr">{d.id}</Link> <span className="muted">{ar ? d.amanahAr : d.amanahEn}</span> <b dir="ltr">{sar(d.outstanding)}</b> <small className="muted">{d.daysOverdue} {L('days', 'يوماً')}</small></li>)}</ul> : <div className="rv-empty">{L('None in this scope.', 'لا شيء في هذا النطاق.')}</div>}
+        {overdueRows.length ? <ul className="rv-list">{overdueRows.map((d) => <li key={d.id}><Link to={invoicePath(d.id)} dir="ltr">{d.id}</Link> <span className="muted">{ar ? d.amanahAr : d.amanahEn}</span> <b dir="ltr">{sar(d.outstanding)}</b> <small className="muted">{d.daysOverdue} {L('days', 'يوماً')}</small></li>)}</ul> : <div className="rv-empty">{L('None in this scope.', 'لا شيء في هذا النطاق.')}</div>}
       </div>
       <div className="card card-pad">
         <h2 className="rv-sec-title">{L('Contracts with overdue installments', 'عقود بدفعات متأخرة')}</h2>
-        {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : c.tenantEn}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
+        {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={contractPath(c.contractNo)} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : c.tenantEn}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
         <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 12 }}>{L('Enforcement to follow up', 'تنفيذ يحتاج متابعة')}</h4>
-        {execRows.length ? <ul className="rv-list">{execRows.map((c) => <li key={c.contractNo}><Link to={`/contracts?no=${c.contractNo}`} dir="ltr">{c.requests[0].enforceNum}</Link> <b>{short(c.execution.amount)}</b> <small className="muted">{c.execution.invoicesIdentified ? L('invoices identified', 'فواتير محددة') : L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
+        {execRows.length ? <ul className="rv-list">{execRows.map((c) => <li key={c.contractNo}><Link to={orderPath(c.requests[0].enforceNum)} dir="ltr">{c.requests[0].enforceNum}</Link> <b>{short(c.execution.amount)}</b> <small className="muted">{c.execution.invoicesIdentified ? L('invoices identified', 'فواتير محددة') : L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
       </div>
       <div className="card card-pad">
         <h2 className="rv-sec-title">{L('Data gaps that move the numbers', 'فجوات بيانات تؤثر في الأرقام')}</h2>

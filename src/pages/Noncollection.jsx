@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import Pager from '../components/Pager';
-import { Link } from 'react-router-dom';
+import { RecordLink as Link } from '../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
 import { ScopeBar, MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
 import { CATEGORY_LABELS, NONCOLLECTION_CATEGORIES, EXCLUSION_RULE_SET_VERSION, ruleById } from '../data/revenueMetrics';
 import { registryRows, RULE_APPROVAL_LABEL } from '../data/ruleRegistry';
-import { caseSummary } from '../data/enforcementMatching';
+import { orderCompleteness } from '../data/orderMatching';
+import { CompletenessMarks } from '../components/revenue/EnforcementUI';
 import { REVENUE_SOURCES } from '../data/revenueLedger';
 
 const TAG_LABEL = {
@@ -107,7 +109,7 @@ export default function Noncollection() {
             <tbody>
               {rows.length ? rows.map((r) => (
                 <tr key={r.id}>
-                  <td><Link to={`/invoices?id=${r.id}`} dir="ltr">{r.id}</Link></td>
+                  <td><Link to={invoicePath(r.id)} dir="ltr">{r.id}</Link></td>
                   <td>{lang === 'ar' ? r.amanahAr : r.amanahEn} · {ar ? REVENUE_SOURCES[r.source].ar : REVENUE_SOURCES[r.source].en}</td>
                   <td><span className={`rv-cat rv-cat--${r.cls}`}>{B(CATEGORY_LABELS[r.cls])}</span></td>
                   <td className="num" dir="ltr">{sar(r.cls === 'excluded' ? r.exclusionAmount : r.cls === 'cancelled' ? r.cancelledAmount : r.outstanding)}</td>
@@ -142,7 +144,7 @@ export default function Noncollection() {
                   const unapproved = rule?.approval !== 'approved';
                   return (
                     <tr key={`${d.rec.id}-${ex.ruleId}`}>
-                      <td>{idx === 0 ? <Link to={`/invoices?id=${d.rec.id}`} dir="ltr">{d.rec.id}</Link> : <span className="muted">↳</span>}{idx === 0 && records.length > 1 && <span className="rv-tag" style={{ marginInlineStart: 6 }}>{records.length} {L('reasons', 'أسباب')}</span>}</td>
+                      <td>{idx === 0 ? <Link to={invoicePath(d.rec.id)} dir="ltr">{d.rec.id}</Link> : <span className="muted">↳</span>}{idx === 0 && records.length > 1 && <span className="rv-tag" style={{ marginInlineStart: 6 }}>{records.length} {L('reasons', 'أسباب')}</span>}</td>
                       <td>{ex.category.replace(/_/g, ' ')} · <span dir="ltr">{ex.ruleId} v{ex.ruleVersion}</span>
                         {unapproved && <span className="rv-badge rv-badge--sm rv-badge--warn" style={{ marginInlineStart: 6 }}>{B(RULE_APPROVAL_LABEL.unapproved)}</span>}
                         <div className="muted" style={{ fontSize: 12 }}>
@@ -232,25 +234,28 @@ export default function Noncollection() {
       <div className="rv-two">
         <div className="card card-pad">
           <h2 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h2>
-          <p className="rv-sec-sub">{L('A CONFIRMED link to an order in execution or suspended turns an invoice into "Referred to enforcement" (still counted as uncollected). A proposed link, or a closed order, does not change the category, and the invoice\'s payment status is always separate. Order amounts are never spread across invoices.', 'الرابط «المؤكد» بأمر قيد التنفيذ أو موقوف يجعل الفاتورة "محالة إلى التنفيذ" (وتُحتسب غير محصّلة). أما الرابط المقترح أو الأمر المغلق فلا يغيّران الفئة، وحالة سداد الفاتورة منفصلة دائماً. ولا تُوزّع مبالغ الأوامر على الفواتير.')}</p>
+          <p className="rv-sec-sub">{L('A CONFIRMED link to an order in execution or suspended puts an invoice under an OPEN enforcement order (still counted as uncollected; «ever referred» also keeps the history after an order closes). A proposed link, or a closed order, does not change the category, and the invoice\'s payment status is always separate. Order amounts are never spread across invoices.', 'الرابط «المؤكد» بأمر قيد التنفيذ أو موقوف يضع الفاتورة تحت أمر تنفيذ مفتوح (وتُحتسب غير محصّلة؛ وتبقى «سبقت إحالتها» بعد إغلاق الأمر). أما الرابط المقترح أو الأمر المغلق فلا يغيّران الفئة، وحالة سداد الفاتورة منفصلة دائماً. ولا تُوزّع مبالغ الأوامر على الفواتير.')}</p>
+          {snapshot.stock.enforcement && (
+            <ul className="rv-list" aria-label={L('Enforcement counts — unique invoices', 'أعداد الإنفاذ — فواتير فريدة')}>
+              <li>{L('Under an OPEN order (in execution or suspended)', 'تحت أمر مفتوح (قيد التنفيذ أو موقوف)')}: <b>{snapshot.stock.enforcement.open.count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement.open.outstanding)}</span> {L('remaining', 'متبقٍ')}</li>
+              <li>{L('EVER referred (also those whose orders are all closed)', 'سبقت إحالتها (وتشمل ما أُغلقت كل أوامرها)')}: <b>{snapshot.stock.enforcement.everReferred.count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement.everReferred.outstanding)}</span> {L('remaining', 'متبقٍ')}</li>
+            </ul>
+          )}
           <div className="rv-table-wrap" tabIndex={0}>
             <table className="rv-table" style={{ minWidth: 0 }}>
-              <thead><tr><th>{L('Case', 'القضية')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('State', 'الحالة')}</th></tr></thead>
+              <thead><tr><th>{L('Order', 'الأمر')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Completeness (three separate states)', 'الاكتمال (ثلاث حالات منفصلة)')}</th></tr></thead>
               <tbody>
-                {cases.map((c) => {
-                  const s = caseSummary(c);
-                  return (
-                    <tr key={c.enforceNum}>
-                      <td><Link to={`/sanad-orders/${encodeURIComponent(c.enforceNum)}`} dir="ltr">{c.enforceNum}</Link></td>
-                      <td className="num">{short(c.amount)}</td>
-                      <td><span className={`rv-cat ${s.state === 'linked' ? 'rv-cat--enforcement' : s.state === 'unresolved' ? '' : 'rv-cat--partial'}`}>{{ linked: L('Fully matched', 'مطابق بالكامل'), partial: L('Partially matched', 'مطابق جزئياً'), candidate: L('Awaiting review', 'بانتظار المراجعة'), ambiguous: L('Ambiguous — review', 'ملتبس — مراجعة'), unresolved: L('Not matched', 'غير مطابق') }[s.state]}</span></td>
-                    </tr>
-                  );
-                })}
+                {cases.map((c) => (
+                  <tr key={c.enforceNum}>
+                    <td><Link to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</Link></td>
+                    <td className="num">{short(c.amount)}</td>
+                    <td><CompletenessMarks comp={orderCompleteness(c)} /></td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
-          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/sanad-orders">{L('Open enforcement orders', 'فتح أوامر الإنفاذ')}</Link></div>
+          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/enforcement-orders">{L('Open enforcement orders', 'فتح أوامر الإنفاذ')}</Link></div>
         </div>
       </div>
     </div>

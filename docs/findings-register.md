@@ -483,3 +483,20 @@ Full description, impact review and verification: `docs/enforcement-order-matchi
 **Status:** E-01 **fixed for the demo scope**; **dependencies open** — live Sanad retrieval, Sanad PDF retrieval, an OCR service, Arabic-PDF text verification, server-side store with identity/audit (F-19). Tests 84 → 93; exports 100 %.
 
 **Audit statuses preserved:** F-05 partial; F-19 blocked (server store); F-23 explanation closed / funding approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked (assets); screen-reader verification open. EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and the logo / Figma / icon-licence decisions remain unresolved and are not inferred.
+
+
+---
+
+# Round 9 — full-page records and enforcement corrections (branch `enforcement-order-matching`)
+
+Full description, drawer-to-page mapping, verification: `docs/full-page-records.md`; OCR assessment: `docs/ocr-integration-assessment.md`.
+
+**E-02 — long detail drawers (fixed).** The invoice drawer, the stacked AI run-trace drawer (a fixture trace unrelated to generated records), the inline contract panel and the analysis-result drawer are replaced by directly addressable full pages (`/invoices/:id`, `/contracts/:no`, `/enforcement-orders/:n`, `/analysis/:id`) on one shared layout with breadcrumbs, a contextual return, three separate status groups, an essential-figures strip, findings that need action and folded secondary detail. Lists restore filters, sorting, page and scroll on return. No two competing detail experiences remain.
+
+**E-03 — enforcement status conflated referral, current enforcement and closure (fixed).** One relationship/status model (`src/data/relations.js`): historical referral, current enforcement, each order's status (+ closure reason or «unknown»), payment status — kept apart; closing/withdrawing one order never removes another confirmed order's effect; the data service returns explicit unique-invoice counts (open vs ever referred). **Policy assumptions to confirm:** suspended counts as open; a closed order keeps «ever referred» but not the category.
+
+**E-04 — one «Fully matched» label and reason-based conflict approval (fixed).** Reference matching, document extraction and financial reconciliation are shown separately; hard conflicts are resolved only by evidence (never by a typed reason); duplicates merge evidence and count an invoice amount once.
+
+**E-05 — PDF files not in backups (clarified, handled).** Stated in the backup panel and on every affected order; after a restore documents are reported as unavailable, provenance and links survive, and re-association checks the SHA-256.
+
+**Open dependencies (original requirement NOT fully delivered):** live Sanad retrieval; Sanad PDF retrieval; **real OCR** — none connected; the macOS Vision probe on an Arabic scan damaged the Latin invoice numbers and lost a whole table (so OCR output must always be reviewed); accuracy on real Arabic scans unmeasured. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen-reader verification open; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.

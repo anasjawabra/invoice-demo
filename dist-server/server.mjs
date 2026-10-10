@@ -2300,8 +2300,11 @@ function generateWorld(today, { scale = 1 } = {}) {
         refs = covers.map((i) => ({ kind: "invoice_no", value: idOfi(i) }));
         identified = covers.slice();
       }
-      const status = r.next() < 0.5 ? "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630" : r.next() < 0.5 ? "\u0645\u0648\u0642\u0648\u0641" : "\u0645\u063A\u0644\u0642";
-      const req = { idx: reqCount, enforceNum: `EN-${5e3 + k * 13}`, system: "sanad", ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, covers, hidden, archetype: arch, debtor: owner };
+      const roll = r.next();
+      const roll2 = r.next();
+      const status = arch === "single" && firstSingle == null ? "\u0645\u063A\u0644\u0642" : arch === "duplicate_across_orders" ? roll < 0.7 ? "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630" : "\u0645\u0648\u0642\u0648\u0641" : roll < 0.5 ? "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630" : roll2 < 0.5 ? "\u0645\u0648\u0642\u0648\u0641" : "\u0645\u063A\u0644\u0642";
+      const closeReason = status === "\u0645\u063A\u0644\u0642" ? [null, "withdrawn_by_authority", "order_expired", "replaced_by_other_order"][Math.floor(roll2 * 3.999) % 4] : null;
+      const req = { idx: reqCount, enforceNum: `EN-${5e3 + k * 13}`, system: "sanad", ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, covers, hidden, archetype: arch, debtor: owner, closeReason };
       st.requests.push(req);
       reqCount += 1;
       for (const i of identified) if (st.exec[i] < 0) st.exec[i] = req.idx;
@@ -2542,7 +2545,7 @@ var EXCLUSION_RULES = [
     approval: "approved",
     effectiveFrom: "2026-07-01",
     owner: { en: "Revenue data steward", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A" },
-    label: { en: "Referred to enforcement", ar: "\u0645\u062D\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u0646\u0641\u064A\u0630" },
+    label: { en: "Under an open enforcement order", ar: "\u062A\u062D\u062A \u0623\u0645\u0631 \u062A\u0646\u0641\u064A\u0630 \u0645\u0641\u062A\u0648\u062D" },
     note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: '\u062A\u0635\u062D\u064A\u062D \u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639: \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0645\u062D\u0627\u0644\u0629 \u0644\u0644\u062A\u0646\u0641\u064A\u0630 (\u0648\u062A\u0638\u0647\u0631 \u063A\u0627\u0644\u0628\u0627\u064B "\u0645\u0644\u063A\u0627\u0629" \u0641\u064A \u0627\u0644\u0645\u0635\u062F\u0631) \u062A\u064F\u062D\u062A\u0633\u0628 \u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629 \u0648\u0644\u064A\u0633\u062A \u0645\u0633\u062A\u0628\u0639\u062F\u0629. \u0645\u063A\u0644\u0642\u0629.' }
   }
 ];
@@ -2963,6 +2966,7 @@ function snapshot(st, req) {
   let objAmt = 0;
   const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
   const q2 = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
+  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 } };
   let ledgerInScope = 0;
   let issued = 0;
   const { fromN, toN } = sc;
@@ -2981,6 +2985,11 @@ function snapshot(st, req) {
       stk.tot.add(0, D);
       stk.ent.add(e, D);
       stk.src.add(s, D);
+    }
+    if (okCut && D.link >= 2) {
+      const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly;
+      b.count += 1;
+      b.outstanding += D.outstanding;
     }
     if (okCut && D.outstanding > 0) {
       const b = agingBucket(D.daysOverdue);
@@ -3219,6 +3228,7 @@ function snapshot(st, req) {
     net: stockTot.net,
     collected: stockTot.collected,
     invoices: stockTot.count,
+    enforcement: { ...enfStock, open: { count: enfStock.inExecution.count + enfStock.suspended.count, outstanding: enfStock.inExecution.outstanding + enfStock.suspended.outstanding }, everReferred: { count: enfStock.inExecution.count + enfStock.suspended.count + enfStock.closedOnly.count, outstanding: enfStock.inExecution.outstanding + enfStock.suspended.outstanding + enfStock.closedOnly.outstanding } },
     aging: AGING.map((a, b) => ({ ...a, amount: aging[b * 2], count: aging[b * 2 + 1] })),
     agingPlanning: ["current", "d1_30", "d31_60", "d61_90", "d90plus"].map((key, b) => ({ key, amount: agingC[b * 2], count: agingC[b * 2 + 1] })),
     avgDaysOverdue: ageN ? ageSum / ageN : 0,
@@ -4798,6 +4808,7 @@ function sanadCases(st) {
       debtorIdx: q2.debtor ?? null,
       debtorName: q2.debtor != null ? payerName(q2.debtor) : null,
       debtorId: q2.debtor != null ? beneficiaryIdOf(q2.debtor) : null,
+      closeReason: q2.status === "\u0645\u063A\u0644\u0642" ? q2.closeReason || null : null,
       orderDocument: { retrievable: false, reason: "sanad_document_integration_not_connected" },
       feed: "synthetic_demo",
       documents: wl ? [] : [{ type: "\u0641\u0627\u062A\u0648\u0631\u0629", item: "\u0628\u0646\u062F \u0661", crNo: q2.crNo, method: METHOD[q2.method], confidence: q2.confidence }],
@@ -5024,6 +5035,8 @@ function summary(st, ctx, i) {
     daysOverdue: D.daysOverdue,
     excluded: D.excluded,
     cancelled: D.cancelled,
+    contractNo: st.contract[i] >= 0 && st.contracts[st.contract[i]] ? st.contracts[st.contract[i]].contractNo : null,
+    // only the contract the invoice itself carries — never inferred
     serverIdentifiedOrder: exec ? exec.enforceNum : null
   };
 }

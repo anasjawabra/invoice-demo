@@ -236,6 +236,7 @@ export function snapshot(st, req) {
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
   const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
   const q = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
+  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 } }; // unique invoices by the state of their CONFIRMED enforcement orders at the reference date
   let ledgerInScope = 0; let issued = 0;
   const { fromN, toN } = sc; const periodAsOf = ctx.periodEndMode ? Math.min(toN, ctx.cutoffN) : ctx.cutoffN;
   const n = st.n; const D = ctx.D;
@@ -248,6 +249,7 @@ export function snapshot(st, req) {
     const okCut = !sc.statusSet || sc.statusSet[D.cls]; // invoice-status filter (standing balance and receipts use the status at the reference date)
     // ---- standing balance (everything issued up to the cutoff)
     if (okCut) { stk.tot.add(0, D); stk.ent.add(e, D); stk.src.add(s, D); }
+    if (okCut && D.link >= 2) { const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly; b.count += 1; b.outstanding += D.outstanding; }
     if (okCut && D.outstanding > 0) { const b = agingBucket(D.daysOverdue); aging[b * 2] += D.outstanding; aging[b * 2 + 1] += 1; const dd = D.daysOverdue; const cb = dd <= 0 ? 0 : dd <= 30 ? 1 : dd <= 60 ? 2 : dd <= 90 ? 3 : 4; agingC[cb * 2] += D.outstanding; agingC[cb * 2 + 1] += 1; if (dd > 0) { ageSum += dd; ageN += 1; } if (D.cls === C.objection) objAmt += D.outstanding; }
     const hasReason = D.mask !== 0;
     // ---- receipts in the period (population A)
@@ -336,6 +338,7 @@ export function snapshot(st, req) {
     excluded: stockTot.exclusionsRules, excludedUnapproved: stockTot.exclusionsUnapproved, excludedApproved: stockTot.exclusionsApproved, excludedCount: stockTot.excludedCount,
     overlapCount: stockTot.overlapCount, overlapAmount: stockTot.overlapAmount, gross: stockTot.gross, exclusionsTotal: stockTot.exclusions, net: stockTot.net, collected: stockTot.collected,
     invoices: stockTot.count,
+    enforcement: { ...enfStock, open: { count: enfStock.inExecution.count + enfStock.suspended.count, outstanding: enfStock.inExecution.outstanding + enfStock.suspended.outstanding }, everReferred: { count: enfStock.inExecution.count + enfStock.suspended.count + enfStock.closedOnly.count, outstanding: enfStock.inExecution.outstanding + enfStock.suspended.outstanding + enfStock.closedOnly.outstanding } },
     aging: AGING.map((a, b) => ({ ...a, amount: aging[b * 2], count: aging[b * 2 + 1] })),
     agingPlanning: ['current', 'd1_30', 'd31_60', 'd61_90', 'd90plus'].map((key, b) => ({ key, amount: agingC[b * 2], count: agingC[b * 2 + 1] })), avgDaysOverdue: ageN ? ageSum / ageN : 0, objectionOutstanding: objAmt,
     byAmanah: groupOut(stk.ent, NE, entLabel, (g) => ENTITIES[g].en),

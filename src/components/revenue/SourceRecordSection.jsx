@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { RecordLink as Link } from '../../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../../utils/paths';
 import { useL } from '../../utils/bi';
 import { ASSUMPTIONS } from '../../data/sourceAssumptions';
 
@@ -43,11 +44,11 @@ export default function SourceRecordSection({ sr }) {
       {sr.related.map((x, k) => (
         <div key={k} className="rv-callout" style={{ marginTop: 6 }}>
           <b>{B(x.label)}</b>
-          {x.invoiceId && <> · <Link to={`/invoices?id=${x.invoiceId}`} dir="ltr">{x.invoiceId}</Link></>}
+          {x.invoiceId && <> · <Link to={invoicePath(x.invoiceId)} dir="ltr">{x.invoiceId}</Link></>}
           {x.deedNo && <> · <span dir="ltr">{x.deedNo}</span></>}
           {x.note && <div>{B(x.note)}</div>}
           {x.invoices && (
-            <ul className="rv-list" style={{ marginTop: 4 }}>{x.invoices.map((v) => <li key={v.id}><Link to={`/invoices?id=${v.id}`} dir="ltr">{v.id}</Link> · {v.share}% · <span dir="ltr">{sar(v.amount)}</span>{v.current ? ` · ${L('this invoice', 'هذه الفاتورة')}` : ''}</li>)}</ul>
+            <ul className="rv-list" style={{ marginTop: 4 }}>{x.invoices.map((v) => <li key={v.id}><Link to={invoicePath(v.id)} dir="ltr">{v.id}</Link> · {v.share}% · <span dir="ltr">{sar(v.amount)}</span>{v.current ? ` · ${L('this invoice', 'هذه الفاتورة')}` : ''}</li>)}</ul>
           )}
         </div>
       ))}

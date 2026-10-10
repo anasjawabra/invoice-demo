@@ -16,9 +16,8 @@
 // ============================================================================
 
 export const AMOUNT_TOLERANCE = 1; // SAR — rounding only; anything larger is a real difference
-export const ORDER_STATUS = { 'قيد التنفيذ': 'open', 'موقوف': 'suspended', 'مغلق': 'closed' };
-export const orderStatusOf = (c) => ORDER_STATUS[c?.requestStatus] || 'open'; // hand-anchored cases carry no status: they were treated as in execution
-export const STATUS_RANK = { open: 3, suspended: 2, closed: 1 };
+import { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap } from './relations';
+export { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap };
 
 export const INVOICE_KINDS = ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no'];
 export const isInvoiceKind = (k) => INVOICE_KINDS.includes(k);
@@ -36,7 +35,9 @@ const LABEL = {
   person: /national id|identity|iqama|\bID\b|هوية|إقامة|اقامة/i
 };
 const NON_INVOICE_LABELS = ['account', 'cr', 'person', 'contract'];
-const toLatinDigits = (s) => String(s).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
+// Arabic text from a PDF often carries bidi marks, tashkeel, tatweel and presentation forms: normalised before any label is looked for (the numbers themselves are never altered)
+const normalizeArabic = (s) => String(s).normalize('NFKC').replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069\u064B-\u065F\u0640\u0001]/g, '');
+const toLatinDigits = (s) => normalizeArabic(s).replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)));
 const clip = (s, n = 170) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
 
 // → [{ kind, value, label, page, snippet }]  — kinds: invoice_no | invoice_serial | sadad_no | violation_no | order_no | contract_no | bank_account | other_number
@@ -144,40 +145,62 @@ export const ORIGIN_LABEL = {
   manual_selection: { en: 'Chosen by a reviewer', ar: 'اختيار المراجع' }
 };
 
-// Conflicts a reviewer must see (and justify) before a candidate invoice can be linked to this order.
+// Conflicts between a reference and the data. Two kinds:
+//  * HARD conflicts make the link unacceptable AS IT STANDS. A written reason does NOT resolve them: they are resolved only by SUPPORTING EVIDENCE
+//    (see `buildRows`: another reference that identifies exactly one candidate; a document that names the payer's identity number), otherwise the link stays unresolved.
+//  * WARNINGS are shown next to the link but do not block it (an invoice may legitimately carry several orders, be already collected, etc.).
 export function conflictsFor(order, cand, { otherOrders = [], weak = false, ambiguous = false, docMismatch = false } = {}) {
   const c = [];
   if (order.debtorIdx != null && cand.payerIdx != null && order.debtorIdx !== cand.payerIdx) c.push('debtor_mismatch');
   if (order.amanahEn && cand.amanahEn && order.amanahEn !== cand.amanahEn) c.push('amanah_mismatch');
-  if (otherOrders.length) c.push('linked_to_other_order');
-  if (cand.cancelled) c.push('invoice_cancelled'); else if (cand.excluded) c.push('invoice_excluded'); else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
   if (order.openedDate && cand.issueDate && cand.issueDate > order.openedDate) c.push('invoice_issued_after_order');
   if (docMismatch) c.push('document_other_order');
-  if (ambiguous) c.push('ambiguous_reference'); else if (weak) c.push('weak_reference');
+  if (ambiguous) c.push('ambiguous_reference');
+  if (otherOrders.length) c.push('linked_to_other_order');
+  if (cand.cancelled) c.push('invoice_cancelled'); else if (cand.excluded) c.push('invoice_excluded'); else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
+  if (weak && !ambiguous) c.push('weak_reference');
   return c;
 }
-export const NOTE_REQUIRED = new Set(['debtor_mismatch', 'amanah_mismatch', 'linked_to_other_order', 'invoice_cancelled', 'invoice_excluded', 'invoice_collected', 'invoice_issued_after_order', 'ambiguous_reference', 'document_other_order']);
-export const needsNote = (conflicts = []) => conflicts.some((x) => NOTE_REQUIRED.has(x));
+export const HARD_CONFLICTS = new Set(['debtor_mismatch', 'amanah_mismatch', 'invoice_issued_after_order', 'document_other_order', 'ambiguous_reference']);
+export const isHardConflict = (x) => HARD_CONFLICTS.has(x);
+// the hard conflicts still standing after the evidence that resolves some of them (`resolved`: [{ conflict, by, evidence }])
+export const unresolvedConflicts = (conflicts = [], resolved = []) => conflicts.filter((x) => HARD_CONFLICTS.has(x) && !resolved.some((r) => r.conflict === x));
 
-// server results (one per reference) → rows for display, with duplicates distinguished
-export function buildRows(order, refs, results, links, otherOrdersByInvoice = new Map(), mismatchedDocs = new Set()) {
+// server results (one per reference) → rows for display, with duplicates distinguished and hard conflicts resolved ONLY by evidence
+export function buildRows(order, refs, results, links, otherOrdersByInvoice = new Map(), mismatchedDocs = new Set(), docs = []) {
   const byKey = new Map(results.map((r) => [refKey(r.ref.kind, r.ref.value), r]));
   const firstSeen = new Map();
   const rows = [];
   for (const ref of refs) {
     const res = byKey.get(ref.key);
     const status = !isInvoiceKind(ref.kind) ? 'not_invoice_reference' : !res ? 'pending' : res.status;
-    const row = { ...ref, status, weak: !!res?.weak, normalized: res?.normalized || null, candidates: res?.candidates || [], duplicateOf: null, conflicts: {} };
+    const row = { ...ref, status, weak: !!res?.weak, normalized: res?.normalized || null, candidates: res?.candidates || [], duplicateOf: null, resolvedBy: null, conflicts: {}, resolved: {}, unresolved: {} };
     if (status === 'matched') {
       const id = row.candidates[0].invoiceId;
       if (firstSeen.has(id)) { row.status = 'duplicate_reference'; row.duplicateOf = firstSeen.get(id); } else firstSeen.set(id, ref.value);
     }
-    const docOnlyMismatch = ref.origins.length > 0 && ref.origins.every((o) => o.docId && mismatchedDocs.has(o.docId));
-    for (const c of row.candidates) row.conflicts[c.invoiceId] = conflictsFor(order, c, { otherOrders: otherOrdersByInvoice.get(c.invoiceId) || [], weak: row.weak, ambiguous: status === 'ambiguous', docMismatch: docOnlyMismatch });
+    rows.push(row);
+  }
+  // an ambiguous reference (a bare serial that exists in several years) is settled ONLY when another reference of the same order identifies exactly one of its candidates
+  for (const row of rows) {
+    if (row.status !== 'ambiguous') continue;
+    const hit = rows.find((r) => r !== row && (r.status === 'matched' || r.status === 'duplicate_reference') && !r.weak && row.candidates.some((c) => c.invoiceId === r.candidates[0].invoiceId));
+    if (hit) { row.candidates = row.candidates.filter((c) => c.invoiceId === hit.candidates[0].invoiceId); row.status = 'resolved_by_reference'; row.resolvedBy = hit.value; row.duplicateOf = hit.value; }
+  }
+  // identity numbers the order documents name (payer / debtor ids) with where they were read
+  const idEvidence = new Map();
+  for (const d of docs) for (const o of d.extraction?.others || []) { if (o.label !== 'person' && !/^\d{10}$/.test(o.value)) continue; if (!idEvidence.has(o.value)) idEvidence.set(o.value, []); idEvidence.get(o.value).push({ docId: d.id, docName: d.name, pages: o.pages || [] }); }
+  for (const row of rows) {
+    const docOnlyMismatch = row.origins.length > 0 && row.origins.every((o) => o.docId && mismatchedDocs.has(o.docId));
+    for (const c of row.candidates) {
+      const conflicts = conflictsFor(order, c, { otherOrders: otherOrdersByInvoice.get(c.invoiceId) || [], weak: row.weak, ambiguous: row.status === 'ambiguous', docMismatch: docOnlyMismatch });
+      const resolved = [];
+      if (conflicts.includes('debtor_mismatch') && c.payerId && idEvidence.has(c.payerId)) resolved.push({ conflict: 'debtor_mismatch', by: 'document_names_payer', evidence: { value: c.payerId, ...idEvidence.get(c.payerId)[0] } });
+      row.conflicts[c.invoiceId] = conflicts; row.resolved[c.invoiceId] = resolved; row.unresolved[c.invoiceId] = unresolvedConflicts(conflicts, resolved);
+    }
     const linkIds = row.candidates.map((c) => c.invoiceId);
     row.link = links.find((l) => linkIds.includes(l.invoiceId) && l.status !== 'rejected') || null;
     row.rejected = !row.link && links.some((l) => linkIds.includes(l.invoiceId) && l.status === 'rejected');
-    rows.push(row);
   }
   return rows;
 }
@@ -220,21 +243,34 @@ export function unresolvedReferences(order) {
 }
 export const documentGaps = (order) => (order.docs || []).flatMap((d) => (d.extraction?.pages || []).filter((p) => p.needsOcr && !(d.ocrCovered || []).includes(p.page)).map((p) => ({ docId: d.id, docName: d.name, page: p.page })));
 
-// matched | partial | awaiting_review | unmatched  (+ reasons). `matched` requires EVERYTHING to line up; anything less is visibly partial.
+// THREE separate completeness states — never merged into one label:
+//   references  : are all the invoice references found accounted for (confirmed link / recorded decision) and no proposal pending?   (amount equality is NOT required)
+//   extraction  : was every page of the order document(s) read (text layer, or text supplied for unread pages)?
+//   finance     : do the invoices matched BY REFERENCE add up to the order amount?  (a difference is reported, never closed by inventing a link)
+export function orderCompleteness(order) {
+  const rec = reconcile(order); const unresolved = unresolvedReferences(order); const gaps = documentGaps(order); const docs = order.docs || [];
+  const total = collectReferences(order, docs).filter((r) => isInvoiceKind(r.kind)).length;
+  const references = { total, unresolved: unresolved.length, proposed: rec.proposedCount, confirmedLinks: rec.confirmedCount, state: !total && !rec.confirmedCount && !rec.proposedCount ? 'none' : unresolved.length || rec.proposedCount ? 'incomplete' : 'complete' };
+  const suppliedPages = docs.reduce((n, d) => n + (d.ocrCovered || []).length, 0); // pages whose text was supplied from outside (imported OCR) or typed — not read by this system
+  const extraction = { documents: docs.length, unreadPages: gaps.length, suppliedPages, state: !docs.length ? 'no_document' : gaps.length ? 'incomplete' : 'complete' };
+  const finance = { state: { none: 'no_links', unconfirmed: 'no_confirmed', unknown: 'not_checkable', reconciled: 'reconciled', short: 'short', over: 'over' }[rec.state], difference: rec.difference, confirmedTotal: rec.confirmedTotal, orderAmount: order.amount, proposedTotal: rec.proposedTotal, wouldReconcile: rec.wouldReconcile };
+  return { references, extraction, finance, unresolved, gaps, reconciliation: rec };
+}
+
+// legacy single summary kept for older callers (insights, analysis tasks): `matched` only if all three are complete — it is never shown as a label
 export function orderMatchState(order) {
-  const rec = reconcile(order);
-  const unresolved = unresolvedReferences(order); const gaps = documentGaps(order);
+  const comp = orderCompleteness(order); const rec = comp.reconciliation;
   const reasons = [];
   if (rec.proposedCount) reasons.push('proposed_unconfirmed');
-  if (unresolved.length) reasons.push('unresolved_references');
-  if (gaps.length) reasons.push('document_pages_unread');
+  if (comp.unresolved.length) reasons.push('unresolved_references');
+  if (comp.gaps.length) reasons.push('document_pages_unread');
   if (rec.state === 'short' || rec.state === 'over') reasons.push(rec.state === 'short' ? 'amount_short' : 'amount_over');
   if (rec.state === 'unknown') reasons.push('amount_not_checkable');
   let state;
   if (!rec.confirmedCount && !rec.proposedCount) state = 'unmatched';
   else if (!rec.confirmedCount) state = 'awaiting_review';
   else state = reasons.length ? 'partial' : 'matched';
-  return { state, reasons, reconciliation: rec, unresolved, gaps };
+  return { state, reasons, reconciliation: rec, unresolved: comp.unresolved, gaps: comp.gaps, completeness: comp };
 }
 
 /* ------------------------------------------------------------------ effective cases = Sanad/anchor base + the user's overlay */
@@ -252,31 +288,6 @@ export function buildEffectiveCases(baseCases, store) {
   });
 }
 
-// enforcement status each invoice carries — the map the data service receives (confirmed links only; a proposal is code 'candidate' = no effect)
-export function invoiceStatusMap(cases) {
-  const m = {};
-  for (const c of cases) {
-    for (const l of c.links || []) {
-      if (l.status === 'confirmed') {
-        const s = orderStatusOf(c); const cur = m[l.invoiceId];
-        if (!cur || cur === 'candidate' || STATUS_RANK[s] > STATUS_RANK[cur]) m[l.invoiceId] = s;
-      } else if (l.status === 'candidate' && !m[l.invoiceId]) m[l.invoiceId] = 'candidate';
-    }
-  }
-  return m;
-}
-
-// everything the invoice view needs: the orders that are confirmed on it (with their status), and proposals awaiting review
-export function invoiceEnforcement(invoiceId, cases) {
-  const confirmed = []; const proposed = [];
-  for (const c of cases) for (const l of c.links || []) {
-    if (l.invoiceId !== invoiceId) continue;
-    const item = { enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null };
-    if (l.status === 'confirmed') confirmed.push(item); else if (l.status === 'candidate') proposed.push(item);
-  }
-  const status = confirmed.reduce((best, x) => (!best || STATUS_RANK[x.orderStatus] > STATUS_RANK[best] ? x.orderStatus : best), null);
-  return { confirmed, proposed, status };
-}
 export function otherOrdersByInvoice(cases, exceptEn) {
   const m = new Map();
   for (const c of cases) if (c.enforceNum !== exceptEn) for (const l of c.links || []) if (l.status === 'confirmed' || l.status === 'candidate') { if (!m.has(l.invoiceId)) m.set(l.invoiceId, []); m.get(l.invoiceId).push({ enforceNum: c.enforceNum, status: l.status, orderStatus: orderStatusOf(c) }); }
@@ -319,7 +330,7 @@ export function proposeLink(store, en, input, { by, at, orderStatus }) {
   const o0 = ord(store, en); const ex = o0.links[input.invoiceId];
   if (ex && (ex.status === 'confirmed' || ex.status === 'proposed')) return { store, error: null, unchanged: true };
   let o = noteOrderStatus(o0, orderStatus, at, by);
-  const link = { invoiceId: input.invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
+  const link = { invoiceId: input.invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], resolvedConflicts: input.resolvedConflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
   o = { ...o, links: { ...o.links, [input.invoiceId]: link } };
   o = hist(o, { at, by, action: 'proposed', invoiceId: input.invoiceId, detail: { origin: input.origin, evidence: link.evidence, conflicts: link.conflicts } });
   return { store: put(store, en, o), error: null };
@@ -327,21 +338,23 @@ export function proposeLink(store, en, input, { by, at, orderStatus }) {
 
 export function confirmLink(store, en, invoiceId, { by, at, note = '', orderStatus, input = null }) {
   const o0 = ord(store, en); let ex = o0.links[invoiceId];
-  if (!ex && input) ex = { invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
+  if (!ex && input) ex = { invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], resolvedConflicts: input.resolvedConflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
   if (!ex) return { store, error: 'not_found' };
   if (input) ex = { ...ex, conflicts: input.conflicts || ex.conflicts, gross: input.gross ?? ex.gross, snapshot: input.snapshot || ex.snapshot }; // the conflicts as they stand NOW decide whether a reason is needed
   if (ex.status === 'confirmed') return { store, error: null, unchanged: true };
-  if (needsNote(ex.conflicts) && !String(note).trim()) return { store, error: 'note_required' };
+  if (input?.resolvedConflicts) ex = { ...ex, resolvedConflicts: input.resolvedConflicts };
+  // a written reason never makes a conflicting link acceptable: every HARD conflict must be resolved by supporting evidence, otherwise the link stays unresolved
+  if (unresolvedConflicts(ex.conflicts, ex.resolvedConflicts).length) return { store, error: 'unresolved_conflict', conflicts: unresolvedConflicts(ex.conflicts, ex.resolvedConflicts) };
   let o = noteOrderStatus(o0, orderStatus, at, by);
   const link = { ...ex, status: 'confirmed', reviewedBy: by, reviewedAt: at, reviewNote: String(note).trim(), appliedStatus: orderStatus || null };
   o = { ...o, links: { ...o.links, [invoiceId]: link } };
-  o = hist(o, { at, by, action: 'confirmed', invoiceId, detail: { origin: link.origin, evidence: link.evidence, conflicts: link.conflicts, appliedOrderStatus: orderStatus || null, note: link.reviewNote } });
+  o = hist(o, { at, by, action: 'confirmed', invoiceId, detail: { origin: link.origin, evidence: link.evidence, conflicts: link.conflicts, resolvedConflicts: link.resolvedConflicts || [], appliedOrderStatus: orderStatus || null, note: link.reviewNote } });
   return { store: put(store, en, o), error: null };
 }
 
 export function rejectLink(store, en, invoiceId, { by, at, note = '', orderStatus, input = null }) {
   const o0 = ord(store, en); let ex = o0.links[invoiceId];
-  if (!ex && input) ex = { invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
+  if (!ex && input) ex = { invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], resolvedConflicts: input.resolvedConflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
   if (!ex) return { store, error: 'not_found' };
   if (ex.status === 'confirmed') return { store, error: 'use_remove' };
   let o = noteOrderStatus(o0, orderStatus, at, by);
@@ -379,3 +392,12 @@ export function validStoreShape(v) {
 }
 
 void live;
+
+// the original PDF was added again (after a restore, or on another browser): recorded in the history. The caller has ALREADY checked that the file's SHA-256 equals the record's id.
+export function recordFileRestored(store, en, docId, { by, at, orderStatus, name }) {
+  const o0 = ord(store, en); const d = o0.docs[docId]; if (!d) return { store, error: 'document_not_found' };
+  let o = noteOrderStatus(o0, orderStatus, at, by);
+  o = { ...o, docs: { ...o.docs, [docId]: { ...d, fileRestoredAt: at, fileStored: true } } };
+  o = hist(o, { at, by, action: 'document_file_restored', detail: { docId, name: name || d.name, sha256: docId } });
+  return { store: put(store, en, o), error: null };
+}

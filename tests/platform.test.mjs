@@ -41,9 +41,11 @@ import { sourcesReport } from '../server/sourcesReport.js';
 import { sanadCases } from '../server/contracts.js';
 import { sadadOf } from '../server/names.js';
 import { resolveReferences, sameDebtorInvoices } from '../server/orderMatch.js';
-import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, needsNote, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
+import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, unresolvedConflicts, orderCompleteness, recordFileRestored, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
 import { caseSummary } from '../src/data/enforcementMatching.js';
 import { readPdfPages } from '../src/data/pdfText.js';
+import { enforcementOf, buildIndex, enforcementCounts, ordersOfContract, evidenceForInvoice } from '../src/data/relations.js';
+import { invoicePath, orderPath, contractPath } from '../src/utils/paths.js';
 import fs from 'node:fs';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
@@ -944,8 +946,9 @@ await test('Link lifecycle: a proposal has NO effect; only a confirmed link refl
   const conf = (x) => ['ambiguous_reference', ...(x.payerIdx !== q.debtor ? ['debtor_mismatch'] : [])]; const mk = (x) => ({ invoiceId: x.invoiceId, origin: 'manual_selection', gross: x.grossAmount, evidence: [{ refKind: 'invoice_serial', refValue: q.refs[0].value }], conflicts: conf(x) });
   let store = proposeLink(emptyStore(), en, mk(cand[0]), o('2026-10-08T09:00:00Z')).store;
   let cases = buildEffectiveCases([c], store); assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'candidate' }, 'a proposal is sent as «candidate» (no category change)'); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).confirmed.length, 0); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).proposed.length, 1);
-  assert.equal(confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:05:00Z'), note: '' }).error, 'note_required', 'ambiguity needs a reason'); assert.equal(needsNote(['weak_reference']), false); assert.equal(needsNote(['debtor_mismatch']), true);
-  store = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:06:00Z'), note: 'same debtor' }).store; cases = buildEffectiveCases([c], store);
+  assert.equal(confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:05:00Z'), note: 'same debtor and the amount equals the order' }).error, 'unresolved_conflict', 'a written reason NEVER makes a conflicting / ambiguous link acceptable'); assert.deepEqual(unresolvedConflicts(['weak_reference', 'linked_to_other_order'], []), [], 'warnings do not block'); assert.deepEqual(unresolvedConflicts(['debtor_mismatch'], []), ['debtor_mismatch']);
+  const evidence = conf(cand[0]).map((x) => ({ conflict: x, by: 'supporting_evidence', evidence: { page: 1 } }));
+  store = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:06:00Z'), note: 'resolved by evidence', input: { ...mk(cand[0]), resolvedConflicts: evidence } }).store; cases = buildEffectiveCases([c], store);
   assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'open' }); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).status, 'open'); assert.equal(invoiceEnforcement(cand[1].invoiceId, cases).status, null, 'the other candidate is untouched');
   const susp = buildEffectiveCases([{ ...c, requestStatus: 'موقوف' }], store); assert.equal(invoiceStatusMap(susp)[cand[0].invoiceId], 'suspended'); assert.equal(invoiceStatusMap(buildEffectiveCases([{ ...c, requestStatus: 'مغلق' }], store))[cand[0].invoiceId], 'closed');
   assert.equal(rejectLink(store, en, cand[0].invoiceId, { ...o('x'), note: 'n' }).error, 'use_remove', 'a confirmed link is withdrawn, not rejected'); assert.equal(removeLink(store, en, cand[0].invoiceId, { ...o('x'), note: '' }).error, 'note_required');
@@ -978,6 +981,107 @@ await test('Backup: enforcement work (links, document records, extracted referen
   const t = mem(); applyBackup(JSON.parse(JSON.stringify(b)), t); assert.deepEqual(JSON.parse(t.getItem('ib_enforcement_v1')), store, 'round-trips');
   const old = buildBackup(mem()); assert.ok(!('ib_enforcement_v1' in old.data)); applyBackup(old, t); assert.ok(t.getItem('ib_enforcement_v1'), 'a backup made before this feature does not delete the enforcement records');
   assert.equal(applyBackup({ ...b, data: { ...b.data, ib_enforcement_v1: { v: 1, orders: { x: { links: [] } } } } }, mem()).ok, false, 'a malformed record is rejected before anything is written');
+});
+
+/* ------------------------------------------------------------ full-page records: one relationship model, enforcement status, completeness, evidence */
+await test('Record addresses: one builder per record type (invoice, order, contract) — no query-string drawer addresses', () => {
+  assert.equal(invoicePath('INV-2025-0000111'), '/invoices/INV-2025-0000111'); assert.equal(orderPath('EN-5013'), '/enforcement-orders/EN-5013'); assert.equal(contractPath('CT-2023-0013'), '/contracts/CT-2023-0013');
+  assert.equal(invoicePath('A B/C'), '/invoices/A%20B%2FC');
+});
+
+await test('Enforcement status keeps four things apart: historical referral, current enforcement, each order\'s status, payment status; closing or withdrawing one order never removes another confirmed order\'s effect', () => {
+  const c1 = { enforceNum: 'EN-A', requestStatus: 'مغلق', amount: 10, closeReason: null, links: [{ invoiceId: 'INV-X', status: 'confirmed' }] };
+  const c2 = { enforceNum: 'EN-B', requestStatus: 'قيد التنفيذ', amount: 20, links: [{ invoiceId: 'INV-X', status: 'confirmed' }, { invoiceId: 'INV-Y', status: 'candidate' }] };
+  let e = enforcementOf('INV-X', [c1, c2]);
+  assert.equal(e.referredEver, true); assert.equal(e.current, 'in_execution'); assert.equal(e.confirmed.length, 2); assert.deepEqual(e.confirmed.map((o) => o.orderStatus), ['closed', 'open']); assert.equal(e.confirmed[0].closeReason, null, 'unknown closure reason stays unknown');
+  assert.deepEqual(invoiceStatusMap([c1, c2]), { 'INV-X': 'open', 'INV-Y': 'candidate' });
+  // the open order is withdrawn: the closed one remains a historical referral, nothing is open any more
+  const w = { ...c2, links: c2.links.map((l) => (l.invoiceId === 'INV-X' ? { ...l, status: 'rejected' } : l)) }; e = enforcementOf('INV-X', [c1, w]);
+  assert.equal(e.current, 'none'); assert.equal(e.referredEver, true, 'closing/withdrawing does not erase the referral'); assert.equal(e.closedOnly, true);
+  // the CLOSED order is withdrawn instead: the open order keeps its full effect
+  const w1 = { ...c1, links: [{ invoiceId: 'INV-X', status: 'rejected' }] }; e = enforcementOf('INV-X', [w1, c2]); assert.equal(e.current, 'in_execution'); assert.equal(invoiceStatusMap([w1, c2])['INV-X'], 'open');
+  const n = enforcementCounts([c1, c2]); assert.deepEqual([n.inExecution, n.everReferred, n.open, n.closedOnly, n.proposedOnly], [1, 1, 1, 0, 1], 'unique invoices: INV-X counted once although it carries two orders');
+  assert.equal(enforcementOf('INV-Z', [c1, c2]).referredEver, false); assert.equal(buildIndex([c1, c2]).get('INV-X').orders.length, 2);
+  assert.deepEqual(ordersOfContract('CT-1', ['INV-X', null], [c1, c2, { enforceNum: 'EN-C', contractNo: 'CT-1', links: [] }]).map((o) => [o.enforceNum, o.contractLevel]), [['EN-A', false], ['EN-B', false], ['EN-C', true]], 'orders of a contract: via its invoices, and contract-level requests that name its number');
+  assert.deepEqual(ordersOfContract('CT-9', ['INV-Q'], [c1, c2]), [], 'nothing is inferred');
+});
+
+await test('Report counts are explicit: the data service returns open-order and ever-referred counts by UNIQUE invoice; a closed-only invoice is ever-referred but not open; payment figures never move', () => {
+  const q = orderOf('single'); const id = idOfInv(q.covers[0]); const sc = { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const E = (links) => snapshot(st, { scope: sc, cfg, links }).stock; const base = E({});
+  assert.deepEqual([base.enforcement.open.count, base.enforcement.everReferred.count], [0, 0]);
+  const closed = E({ [id]: 'closed' }); assert.deepEqual([closed.enforcement.open.count, closed.enforcement.closedOnly.count, closed.enforcement.everReferred.count], [0, 1, 1]);
+  const open = E({ [id]: 'open' }); assert.deepEqual([open.enforcement.inExecution.count, open.enforcement.everReferred.count], [1, 1]); const susp = E({ [id]: 'suspended' }); assert.equal(susp.enforcement.open.count, 1);
+  assert.equal(E({ [id]: 'candidate' }).enforcement.everReferred.count, 0, 'a proposal is not a referral');
+  assert.equal(open.netUncollected, base.netUncollected, 'enforcement never changes the balance'); assert.equal(closed.netUncollected, base.netUncollected);
+  assert.ok(open.enforcement.open.outstanding > 0);
+});
+
+await test('Closure reasons come only from the feed (never a payment reason) and are unknown otherwise; one invoice carries a closed AND an open order in the demo feed', () => {
+  const closed = feedCases.filter((c) => c.requestStatus === 'مغلق' && c.feed === 'synthetic_demo' && c.enforceNum.startsWith('EN-5'));
+  assert.ok(closed.length >= 2 && closed.some((c) => c.closeReason) && closed.some((c) => !c.closeReason), 'some closure reasons known, some unknown');
+  for (const c of feedCases) { if (c.requestStatus !== 'مغلق') assert.equal(c.closeReason ?? null, null); else assert.ok([null, 'withdrawn_by_authority', 'order_expired', 'replaced_by_other_order'].includes(c.closeReason ?? null)); }
+  const first = orderOf('single'); assert.equal(first.status, 'مغلق'); const dup = st.requests.filter((r) => r.archetype === 'duplicate_across_orders'); assert.ok(dup.length && dup.every((r) => r.status !== 'مغلق') && dup.some((r) => r.covers.includes(first.covers[0])), 'a later order names the same invoice as the closed one');
+});
+
+await test('Three completeness states are separate: references complete while the amount differs; extraction incomplete while references are complete; no document is not "complete"', () => {
+  const q = orderOf('amount_discrepancy'); const eff = buildEffectiveCases([caseOf(q)], emptyStore())[0]; const m = orderCompleteness(eff);
+  assert.equal(m.references.state, 'complete', 'every reference found is confirmed — the amount is not required'); assert.equal(m.finance.state, 'short'); assert.equal(m.extraction.state, 'no_document');
+  const doc = { id: 'd1', name: 'x.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 1, text: 'INV-2025-0000001' }, { page: 2, text: '' }], 'text_layer') };
+  const o = { by: 'r', at: '2026-10-08T10:00:00Z', orderStatus: 'open' }; let store = recordDocument(emptyStore(), q.enforceNum, { ...doc, extraction: buildExtraction([{ page: 1, text: `${caseOf(q).refs[0].value} and more text here` }, { page: 2, text: '' }], 'text_layer') }, o).store;
+  const e2 = orderCompleteness(buildEffectiveCases([caseOf(q)], store)[0]); assert.equal(e2.extraction.state, 'incomplete'); assert.equal(e2.references.state, 'complete'); assert.equal(e2.finance.state, 'short');
+  const full = orderOf('multi_exact'); const f = orderCompleteness(buildEffectiveCases([caseOf(full)], emptyStore())[0]); assert.deepEqual([f.references.state, f.finance.state, f.extraction.state], ['complete', 'reconciled', 'no_document'], 'reconciled and referenced, but no document was read: not the same as complete extraction');
+  assert.equal(orderCompleteness(buildEffectiveCases([caseOf(orderOf('multi_no_refs'))], emptyStore())[0]).references.state, 'none');
+});
+
+await test('Conflicts are resolved by EVIDENCE only: an ambiguous serial is settled by another reference that names one invoice; a debtor mismatch only by a document naming the payer; a reason never helps', () => {
+  const q = orderOf('serial_ambiguous'); const c = caseOf(q); const cand = resolveFor(q.refs).results[0].candidates; const exact = cand.find((x) => x.invoiceId === idOfInv(q.covers[0]));
+  const doc = { id: 'dx', name: 'o.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 1, text: `Invoice ${exact.invoiceId}\nDebtor ID ${exact.payerId}` }], 'text_layer', { orderNo: q.enforceNum }) };
+  const eff0 = buildEffectiveCases([c], emptyStore())[0];
+  const rowsOf = (eff, docs) => { const refs = collectReferences(eff, docs).filter((r) => ['invoice_no', 'invoice_serial'].includes(r.kind)); const asked = resolveFor(refs.map((r) => ({ kind: r.kind, value: r.value }))).results; return buildRows(eff, refs, asked, eff.links, new Map(), new Set(), docs); };
+  const before = rowsOf(eff0, []); assert.equal(before[0].status, 'ambiguous'); assert.ok(before[0].unresolved[cand[0].invoiceId].includes('ambiguous_reference'), 'cannot be confirmed as it stands');
+  const after = rowsOf(eff0, [doc]); const serialRow = after.find((r) => r.kind === 'invoice_serial'); assert.equal(serialRow.status, 'resolved_by_reference'); assert.equal(serialRow.candidates.length, 1); assert.equal(serialRow.candidates[0].invoiceId, exact.invoiceId); assert.equal(serialRow.unresolved[exact.invoiceId].length, 0);
+  const exactRow = after.find((r) => r.kind === 'invoice_no'); assert.equal(exactRow.status, 'matched');
+  // a candidate whose payer is not the order debtor: unresolved unless a document names that payer's identity number
+  const other = cand.find((x) => x.payerIdx !== q.debtor);
+  if (other) { const b = before[0].unresolved[other.invoiceId]; assert.ok(b.includes('debtor_mismatch')); const named = { id: 'dy', name: 'p.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 2, text: `Joint debtor ID ${other.payerId}` }], 'text_layer', { orderNo: q.enforceNum }) }; const withId = rowsOf(eff0, [named])[0]; assert.ok(!withId.unresolved[other.invoiceId].includes('debtor_mismatch') && withId.resolved[other.invoiceId].length === 1); }
+});
+
+await test('Repeated references across pages and documents and different forms of the same invoice are deduplicated: evidence is kept, the invoice amount is counted once', () => {
+  const q = orderOf('multi_exact'); const c = caseOf(q); const id0 = idOfInv(q.covers[0]); const i0 = lookupId(st, id0);
+  const d1 = { id: 'a1', name: 'a.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 1, text: id0 }, { page: 3, text: `again ${id0}\nSADAD ${sadadOf(st.idKey[i0])}` }], 'text_layer', { orderNo: q.enforceNum }) };
+  const d2 = { id: 'b2', name: 'b.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 2, text: id0 }], 'ocr_import', { orderNo: q.enforceNum }) };
+  const eff = { ...buildEffectiveCases([c], emptyStore())[0], docs: [d1, d2] }; const refs = collectReferences(eff, [d1, d2]).filter((r) => r.key === `invoice_no|${id0}`);
+  assert.equal(refs.length, 1, 'one reference'); assert.equal(refs[0].origins.length, 3, 'with every place it was found: Sanad, a.pdf (pages 1 and 3), b.pdf (imported OCR text, page 2)'); assert.deepEqual(refs[0].origins.find((o) => o.docId === 'a1').pages, [1, 3]); assert.ok(refs[0].origins.some((o) => o.type === 'document_ocr_import'));
+  const asked = resolveFor(collectReferences(eff, [d1, d2]).filter((r) => ['invoice_no', 'sadad_no'].includes(r.kind)).map((r) => ({ kind: r.kind, value: r.value }))).results;
+  const rows = buildRows(eff, collectReferences(eff, [d1, d2]).filter((r) => ['invoice_no', 'sadad_no'].includes(r.kind)), asked, eff.links, new Map(), new Set(), [d1, d2]);
+  assert.ok(rows.some((r) => r.status === 'duplicate_reference' && r.kind === 'sadad_no'), 'the SADAD number of the same invoice is a duplicate reference');
+  assert.equal(reconcile(eff).confirmedTotal, q.covers.reduce((s, i) => s + st.gross[i], 0), 'amounts are counted once per invoice');
+});
+
+await test('Arabic PDFs: a digital Arabic PDF is read (numbers robust across pages and the table); an Arabic SCANNED PDF has no text layer and stays «not read» — nothing is OCR\'d by this system', async () => {
+  const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec); const dir = 'public/samples/enforcement-orders/';
+  const read = async (f) => { const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync(dir + f)), lib); return { pages, ex: buildExtraction(pages, 'text_layer', { orderNo: 'EN-5013' }) }; };
+  const dig = await read('ar-EN-5013-digital.pdf'); assert.equal(dig.pages.length, 2); assert.ok(/[؀-ۿ]/.test(dig.pages[0].text), 'a real Arabic text layer');
+  assert.deepEqual(dig.ex.refs.map((r) => r.value), ['INV-2025-0000179', 'INV-2024-0000023', 'INV-2025-0000095']); assert.ok(dig.ex.refs[2].occurrences[0].page === 2, 'the table row on page 2 is read');
+  assert.ok(dig.ex.others.some((o) => o.kind === 'contract_no') && dig.ex.others.some((o) => o.value === '1008640729' && o.label === 'person'), 'contract and identity numbers are set apart'); assert.equal(dig.ex.orderNumberMismatch, false);
+  const sc = await read('ar-EN-5143-scanned.pdf'); assert.deepEqual(sc.ex.pages.map((p) => p.needsOcr), [true, true]); assert.equal(sc.ex.refs.length, 0);
+  assert.deepEqual(extractFromText('رقم الفاتورة ١٢٣٤٥٦٧\nفاتورة ٠٠٠٠٠٩٥').map((r) => r.value), ['1234567', '0000095'], 'Arabic-Indic digits are read as Latin digits'); assert.deepEqual(extractFromText('الرصيد ٦٦٩٩٢٦٧').filter((r) => r.kind === 'invoice_serial'), [], 'a bare 7-digit figure with no invoice label is not a serial');
+});
+
+await test('Backup restore with missing PDFs: the extracted references, page evidence and confirmed links survive; the order reports the file as unavailable; the original is associated again only after an identity check', () => {
+  const q = orderOf('multi_partial_refs'); const c = caseOf(q); const o = { by: 'r', at: '2026-10-08T10:00:00Z', orderStatus: 'open' };
+  const ex = buildExtraction([{ page: 1, text: `${c.refs[0].value}\nINV-2025-0000999` }, { page: 2, text: 'INV-2025-0000888 on page two' }], 'text_layer', { orderNo: q.enforceNum });
+  let store = recordDocument(emptyStore(), q.enforceNum, { id: 'f'.repeat(64), name: 'order.pdf', size: 10, kind: 'uploaded', addedAt: o.at, fileStored: true, extraction: ex }, o).store;
+  store = proposeLink(store, q.enforceNum, { invoiceId: 'INV-2025-0000999', origin: 'document_text_layer', gross: 5, evidence: [{ refKind: 'invoice_no', refValue: 'INV-2025-0000999', docId: 'f'.repeat(64), docName: 'order.pdf', pages: [1] }] }, o).store;
+  const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+  const a = mem(); a.setItem('ib_enforcement_v1', JSON.stringify(store)); const b = buildBackup(a); const t = mem(); assert.equal(applyBackup(JSON.parse(JSON.stringify(b)), t).ok, true);
+  const restored = JSON.parse(t.getItem('ib_enforcement_v1')); const eff = buildEffectiveCases([c], restored)[0];
+  assert.equal(eff.docs.length, 1); assert.equal(eff.docs[0].extraction.refs.length, 3); assert.deepEqual(eff.docs[0].extraction.refs.find((r) => r.value === 'INV-2025-0000888').occurrences.map((x) => x.page), [2], 'page references survive');
+  assert.ok(evidenceForInvoice('INV-2025-0000999', [eff]).some((e) => e.page === 1 && e.docName === 'order.pdf'), 'the evidence (document, page, line) survives without the PDF bytes');
+  assert.ok(!('bytes' in eff.docs[0]) && JSON.stringify(b).indexOf('%PDF') < 0, 'the backup holds no PDF content');
+  const r = recordFileRestored(restored, q.enforceNum, 'f'.repeat(64), { ...o, name: 'order.pdf' }); assert.equal(r.error, null); assert.ok(r.store.orders[q.enforceNum].history.some((h) => h.action === 'document_file_restored'));
+  assert.equal(recordFileRestored(restored, q.enforceNum, 'e'.repeat(64), o).error, 'document_not_found', 'a different identity is not associated');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

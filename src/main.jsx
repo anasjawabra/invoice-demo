@@ -15,6 +15,7 @@ import './styles/variables.css';
 import './styles/global.css';
 import './styles/ai-process.css';
 import './styles/revenue.css';
+import './styles/record.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

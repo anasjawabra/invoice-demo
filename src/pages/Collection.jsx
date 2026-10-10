@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { RecordLink as Link } from '../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
 import { ScopeBar, MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
@@ -67,7 +69,7 @@ export default function Collection() {
               {rows.length ? rows.map((w, i) => (
                 <tr key={w.id} data-clickable="true" onClick={() => setDetail(detail === w.id ? null : w.id)}>
                   <td className="num">{i + 1}</td>
-                  <td><Link to={`/invoices?id=${w.id}`} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link></td>
+                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link></td>
                   <td>{ar ? w.amanahAr : w.amanahEn} · {ar ? REVENUE_SOURCES[w.source].ar : REVENUE_SOURCES[w.source].en}</td>
                   <td><span className={`rv-cat rv-cat--${w.category}`}>{B(CATEGORY_LABELS[w.category])}</span></td>
                   <td className="num" dir="ltr">{sar(w.outstanding)}</td>

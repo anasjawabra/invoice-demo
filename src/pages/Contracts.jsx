@@ -1,23 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import Pager from '../components/Pager';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
+import { RecordLink, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
+import { contractPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { ProvenanceBadge } from '../components/revenue/RevenueUI';
 import { INSTALLMENT_STATES } from '../data/contracts';
 import { AMANAH_CATALOG, ITEMS } from '../data/catalog';
 
-const amanahName = (en, ar) => { const a = AMANAH_CATALOG.find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };
-const itemName = (key, ar) => { const i = ITEMS.find((x) => x.key === key); return i ? (ar ? i.ar : i.en) : key; };
+export const amanahName = (en, ar) => { const a = AMANAH_CATALOG.find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };
+export const itemName = (key, ar) => { const i = ITEMS.find((x) => x.key === key); return i ? (ar ? i.ar : i.en) : key; };
 
 export default function Contracts() {
   const rev = useRevenue();
   const { L, B, ar, short, money, count, sar } = useL();
-  const [sp, setSp] = useSearchParams();
-  const [filter, setFilter] = useState('all');
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(0);
+  const [sp] = useSearchParams();
+  const restore = useShouldRestore();
+  const mem = useMemo(() => readListMemory('contracts', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [filter, setFilter] = useState(mem.filter ?? 'all');
+  const [q, setQ] = useState(mem.q ?? '');
+  const [page, setPage] = useState(mem.page ?? 0);
+  useEffect(() => { writeListMemory('contracts', { filter, q, page }); }, [filter, q, page]);
   const PS = 25;
   const scopeReq = useMemo(() => ({ amanah: rev.scopeEff.amanah, source: 'investment', from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff.amanah, rev.cfg.cutoff]);
   // contract cards (aggregates per contract; the payment schedule is loaded only for the contract opened)
@@ -32,9 +37,11 @@ export default function Contracts() {
     if (filter === 'crinactive') return ['Deleted', 'Cancelled', 'Suspended'].includes(c.crStatusRaw);
     return true;
   }).sort((a, b) => b.totals.arrears - a.totals.arrears), [visible, q, filter]);
-  useEffect(() => { setPage(0); }, [q, filter]);
-  const selNo = sp.get('no');
-  const { data: sel } = useAsync(() => (selNo ? rev.data.contract(selNo).catch(() => null) : Promise.resolve(null)), [rev.data, selNo]);
+  const firstRun = React.useRef(true);
+  useEffect(() => { if (firstRun.current) { firstRun.current = false; return; } setPage(0); }, [q, filter]);
+  useRestoreScroll(visible.length > 0);
+
+  if (sp.get('no')) return <Navigate to={contractPath(sp.get('no'))} replace />; // the old «?no=» address of the former inline panel
 
   return (
     <div className="rv-page">
@@ -71,8 +78,8 @@ export default function Contracts() {
             <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th className="num">{L('Future', 'مستقبلية')}</th><th>{L('Execution', 'التنفيذ')}</th><th>{L('CR (raw)', 'السجل (خام)')}</th></tr></thead>
             <tbody>
               {list.slice(page * PS, (page + 1) * PS).map((c) => (
-                <tr key={c.contractNo} className={c.contractNo === selNo ? 'rv-row--sel' : ''}>
-                  <td><button type="button" className="rv-link" dir="ltr" onClick={() => setSp({ no: c.contractNo })}>{c.contractNo}</button></td>
+                <tr key={c.contractNo}>
+                  <td><RecordLink to={contractPath(c.contractNo)} dir="ltr">{c.contractNo}</RecordLink></td>
                   <td dir="auto">{ar ? c.tenantAr : c.tenantEn}</td>
                   <td>{amanahName(c.amanahEn, ar)}</td>
                   <td className="num">{short(c.totals.contractValue)}</td>
@@ -90,84 +97,6 @@ export default function Contracts() {
         <Pager page={page} total={list.length} size={PS} onPage={setPage} />
       </div>
 
-      {sel && <ContractCard c={sel} amanah={amanahName(sel.amanahEn, ar)} item={itemName(sel.itemKey, ar)} onClose={() => setSp({})} />}
     </div>
-  );
-}
-
-function ContractCard({ c, amanah, item, onClose }) {
-  const { L, B, ar, short, money, sar } = useL();
-  const t = c.totals;
-  return (
-    <section className="card card-pad rv-contract" aria-label={`${L('Contract', 'العقد')} ${c.contractNo}`}>
-      <div className="rv-card__head">
-        <div>
-          <h2 className="rv-sec-title" dir="ltr">{c.contractNo}</h2>
-          <p className="rv-sec-sub" dir="auto">{ar ? c.tenantAr : c.tenantEn} · {amanah} · {item} · {L('status', 'الحالة')}: {c.status} · {L('starts', 'يبدأ')} <span dir="ltr">{c.start}</span></p>
-        </div>
-        <button type="button" className="btn btn-sm btn-ghost" onClick={onClose}>{L('Close', 'إغلاق')}</button>
-      </div>
-
-      <div className="rv-tiles">
-        <div className="rv-tile"><div className="rv-tile__label">{L('Contract value', 'قيمة العقد')}</div><div className="rv-tile__value">{short(t.contractValue)}</div><div className="rv-tile__sub">{t.installments} {L('installments', 'دفعة')}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label">{L('Due to the reference date', 'المستحق حتى التاريخ المرجعي')}</div><div className="rv-tile__value">{short(t.dueToDate)}</div></div>
-        <div className="rv-tile rv-tile--good"><div className="rv-tile__label">{L('Collected', 'المحصل')}</div><div className="rv-tile__value">{short(t.collected)}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label">{L('Remaining of the due installments', 'المتبقي من الدفعات المستحقة')}</div><div className="rv-tile__value">{short(t.remainingOfDue)}</div></div>
-        <div className={`rv-tile${t.arrears ? ' rv-tile--bad' : ''}`}><div className="rv-tile__label">{L('Overdue', 'المتأخر')}</div><div className="rv-tile__value">{short(t.arrears)}</div><div className="rv-tile__sub">{t.overdueInstallments} {L('installment(s)', 'دفعة')}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label">{L('Future installments', 'الدفعات المستقبلية')}</div><div className="rv-tile__value">{short(t.futureNotInvoiced)}</div><div className="rv-tile__sub">{t.futureInstallments} {L('— not arrears', '— ليست متأخرات')}</div></div>
-      </div>
-
-      <h4 className="rv-sec-title" style={{ fontSize: 13 }}>{L('Payment schedule', 'جدول الدفعات')}</h4>
-      <div className="rv-table-wrap" tabIndex={0}>
-        <table className="rv-table">
-          <thead><tr><th className="num">#</th><th>{L('Due date', 'الاستحقاق')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('SADAD no. (text)', 'رقم سداد (نص)')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Outstanding', 'المتبقي')}</th><th className="num">{L('Contract balance after payment', 'رصيد العقد بعد الدفعة')}</th></tr></thead>
-          <tbody>
-            {c.schedule.map((p) => (
-              <tr key={p.no}>
-                <td className="num">{p.no}</td>
-                <td dir="ltr">{p.dueDate}</td>
-                <td className="num" dir="ltr">{sar(p.amount)}</td>
-                <td>{p.invoiceNo ? <Link to={`/invoices?id=${p.invoiceNo}`} dir="ltr">{p.invoiceNo}</Link> : <span className="muted">{L('not invoiced', 'لم تُفوتر')}</span>}</td>
-                <td dir="ltr">{p.sadadNo || '—'}</td>
-                <td><span className={`rv-badge rv-badge--sm rv-badge--${INSTALLMENT_STATES[p.state].tone}`}>{B(INSTALLMENT_STATES[p.state])}</span></td>
-                <td className="num">{p.collected ? sar(p.collected) : '—'}</td>
-                <td className="num">{p.outstanding ? sar(p.outstanding) : '—'}</td>
-                <td className="num muted">{sar(p.remainingContractBalance)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <small className="muted">{L('The repeated balance column is the contract balance AFTER each payment, not an independent amount — it is never summed.', 'عمود الرصيد المتكرر هو رصيد العقد بعد كل دفعة وليس مبلغاً مستقلاً — ولا يُجمع أبداً.')}</small>
-
-      <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Execution requests (Sanad)', 'طلبات التنفيذ (سند)')}</h4>
-      {c.requests.length ? (
-        <>
-          <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
-            <thead><tr><th>{L('Request', 'الطلب')}</th><th>{L('Status', 'الحالة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Invoices covered', 'الفواتير المشمولة')}</th></tr></thead>
-            <tbody>{c.requests.map((q) => <tr key={q.enforceNum}><td dir="ltr"><Link to={`/sanad-orders/${q.enforceNum}`}>{q.enforceNum}</Link></td><td>{q.status}</td><td className="num" dir="ltr">{sar(q.amount)}</td><td>{q.identified ? q.identifiedInvoices.map((id) => <Link key={id} to={`/invoices?id=${id}`} dir="ltr" style={{ marginInlineEnd: 6 }}>{id}</Link>) : <span className="rv-tag">{L('not identified', 'غير محددة')}</span>}</td></tr>)}</tbody>
-          </table></div>
-          <ul className="rv-list" style={{ marginTop: 8 }}>
-            <li>{L('Execution amount', 'مبلغ التنفيذ')}: <b>{short(c.execution.amount)}</b></li>
-            <li>{L('Debt that could be tied to execution (outstanding of the identified invoices)', 'المديونية التي أمكن ربطها بالتنفيذ (متبقي الفواتير المحددة)')}: <b>{short(c.execution.linkedDebt)}</b></li>
-            <li>{L('Execution amounts whose invoices are not identified', 'مبالغ التنفيذ التي لم تتحدد فواتيرها')}: <b>{short(c.execution.unidentifiedAmount)}</b></li>
-          </ul>
-          <div className="rv-callout">{B(c.execution.note)} {L('Execution is not allocated to installments without evidence or an approved rule.', 'لا يُوزَّع التنفيذ على الدفعات دون دليل أو قاعدة معتمدة.')}</div>
-        </>
-      ) : <div className="rv-empty">{L('No execution request is recorded for this contract. (A missing execution field is not evidence that no execution exists.)', 'لا يوجد طلب تنفيذ مسجل لهذا العقد. (غياب حقل التنفيذ ليس دليلاً على عدم وجود تنفيذ.)')}</div>}
-
-      <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Commercial registration chain', 'سلسلة السجل التجاري')}</h4>
-      {c.crChain.length ? (
-        <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
-          <thead><tr><th>{L('Sanad request · document / item', 'طلب سند · المستند/البند')}</th><th>{L('CR number (text)', 'رقم السجل (نص)')}</th><th>{L('Extraction', 'الاستخراج')}</th><th>{L('CR View status (raw)', 'حالة CR View (خام)')}</th></tr></thead>
-          <tbody>{c.crChain.map((x, i) => (
-            <tr key={i}><td dir="auto">{x.sanadRequest} · {x.document}</td><td dir="ltr">{x.crNo}</td>
-              <td>{x.method === 'ocr' ? <>OCR <span className={`rv-tag${x.confidence < 0.8 ? ' rv-tag--warn' : ''}`}>{Math.round(x.confidence * 100)}%{x.confidence < 0.8 ? ` · ${L('review', 'مراجعة')}` : ''}</span></> : L('Structured data', 'بيانات منظمة')}</td>
-              <td dir="ltr"><b>{x.crViewStatusRaw || '—'}</b></td></tr>
-          ))}</tbody>
-        </table></div>
-      ) : <div className="rv-empty">{L('No Sanad document with a CR number for this contract; the registration link is not claimed.', 'لا مستند سند برقم سجل تجاري لهذا العقد؛ ولا يُدّعى ربط السجل.')}</div>}
-      <div className="rv-callout rv-callout--warn" style={{ marginTop: 8 }}>{L('A non-Active CR status is evidence, not an exclusion. The invoice is excluded only if rule CR-1 is enabled, the raw status is one the rule accepts, and a reviewer approves it.', 'حالة السجل غير النشطة دليل وليست استبعاداً. لا تُستبعد الفاتورة إلا إذا فُعّلت القاعدة CR-1 وكانت الحالة الخام مما تقبله القاعدة واعتمدها مراجع.')}</div>
-    </section>
   );
 }

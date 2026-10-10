@@ -239,46 +239,23 @@ html[dir='rtl'] .data-diff__arrow { transform: scaleX(-1); }
 }
 
 /* -------------------------------------------------------------- Drawer */
-.ai-drawer-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  background: rgba(0, 0, 0, 0.32);
-  animation: aiFade 0.2s ease;
-}
+
 
 @keyframes aiFade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.ai-drawer {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  inset-inline-end: 0;
-  z-index: 1001;
-  width: min(480px, 100vw);
-  background: #ffffff;
-  border-inline-start: 1px solid var(--line);
-  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.10);
-  display: flex;
-  flex-direction: column;
-  animation: aiSlideIn 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
 
-html[dir='rtl'] .ai-drawer {
-  box-shadow: 12px 0 32px rgba(0, 0, 0, 0.10);
-  border-inline-start: none;
-  border-inline-end: 1px solid var(--line);
-}
+
+
 
 @keyframes aiSlideIn {
   from { transform: translateX(100%); opacity: 0.4; }
   to { transform: translateX(0); opacity: 1; }
 }
 
-html[dir='rtl'] .ai-drawer { animation-name: aiSlideInRtl; }
+
 
 @keyframes aiSlideInRtl {
   from { transform: translateX(-100%); opacity: 0.4; }
@@ -289,103 +266,37 @@ html[dir='rtl'] .ai-drawer { animation-name: aiSlideInRtl; }
    viewport instead of a narrow sidebar, so tool-call grids and long agent
    names have room to breathe. Content is centered with a readable max-width
    rather than stretched edge-to-edge. */
-.ai-drawer--wide {
-  width: 100vw;
-}
+
 
 /* Header keeps its full-bleed gradient background; only its content aligns
    to the same reading column as the body below. */
-.ai-drawer--wide .ai-drawer__head {
-  padding-inline: max(18px, calc((100% - 1040px) / 2));
-}
 
-.ai-drawer--wide .ai-drawer__body {
-  max-width: 1040px;
-  margin-inline: auto;
-  width: 100%;
-}
 
-.ai-drawer--wide .ai-drawer__stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
 
-.ai-drawer--wide .idd-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
 
-@media (max-width: 900px) {
-  .ai-drawer--wide .ai-drawer__stats,
-  .ai-drawer--wide .idd-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 
-@media (max-width: 560px) {
-  .ai-drawer--wide .ai-drawer__stats,
-  .ai-drawer--wide .idd-grid {
-    grid-template-columns: 1fr;
-  }
-}
 
-.ai-drawer__head {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  background: linear-gradient(90deg, rgba(22, 106, 69, 0.06), rgba(24, 73, 169, 0.04));
-}
 
-.ai-drawer__title {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--heading);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
 
-.ai-drawer__sub {
-  margin-top: 5px;
-  font-size: 12px;
-  color: var(--txt-mute);
-  line-height: 1.5;
-}
 
-.ai-drawer__close {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  border: 1px solid var(--line);
-  background: #ffffff;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  color: var(--txt-mute);
-  flex: none;
-}
 
-.ai-drawer__close:hover { background: rgba(0, 0, 0, 0.04); }
 
-.ai-drawer__close:focus-visible {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(22, 106, 69, 0.18);
-}
 
-.ai-drawer__body {
-  padding: 16px 18px 28px;
-  overflow: auto;
-  flex: 1;
-}
 
-.ai-drawer__stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 .ai-stat {
   padding: 10px 12px;

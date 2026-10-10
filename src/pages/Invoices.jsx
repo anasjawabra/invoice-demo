@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useRevenue } from '../context/RevenueContext';
 import { NONCOLLECTION_CATEGORIES, CATEGORY_LABELS, EXCLUSION_RULES } from '../data/revenueMetrics';
@@ -10,24 +10,12 @@ import { amanahOptionsOf } from '../data/revenueLedger';
 import { ITEMS, municipalitiesOf } from '../data/catalog';
 import { AGING_BUCKETS } from '../data/assistantProtocol';
 import { useAsync } from '../utils/useAsync';
-import { legacyFromRow } from '../utils/legacyInvoice';
-import { NODE_DRAWERS, RISK_ANALYSIS } from '../data/aiProcess';
-import InvoiceDetailDrawer from '../components/ai/InvoiceDetailDrawer';
-import AIProcessDrawer from '../components/ai/AIProcessDrawer';
+import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
+import { invoicePath } from '../utils/paths';
 import { fmtDateText } from '../data/clock';
 
 const PAGE_SIZE = 50;
 const SORTABLE = { id: 'id', issue: 'issue', gross: 'gross', outstanding: 'outstanding', age: 'daysOverdue' };
-
-// Which agent node best represents each scenario's "full AI analysis".
-const PRIMARY_AGENT = { normal: 'validation', fraud: 'anomaly', dup: 'dedup', taxfail: 'validation' };
-function aiBundleForInvoice(inv) {
-  if (RISK_ANALYSIS[inv.id]) return RISK_ANALYSIS[inv.id];
-  const scenario = inv.tag || 'normal';
-  const nodes = NODE_DRAWERS[scenario] || NODE_DRAWERS.normal;
-  const agent = PRIMARY_AGENT[scenario] || 'validation';
-  return nodes[agent] || nodes.ingest || nodes.validation || null;
-}
 
 function useDebounced(value, ms) {
   const [v, setV] = useState(value);
@@ -47,19 +35,23 @@ export default function Invoices() {
   const srcParam = searchParams.get('src');
 
   const bi = useL();
-  const [amanahFilter, setAmanahFilter] = useState(searchParams.get('amanah') || 'all');
-  const [collectionFilter, setCollectionFilter] = useState('all');
-  const [search, setSearch] = useState(highlightCo || '');
-  const [scopeType, setScopeType] = useState('all');
-  const [muniFilter, setMuniFilter] = useState('all');
-  const [itemFilter, setItemFilter] = useState('all');
-  const [exFilter, setExFilter] = useState('all');
-  const [ageFilter, setAgeFilter] = useState('all');
-  const [contractFilter, setContractFilter] = useState('all');
-  const [execFilter, setExecFilter] = useState('all');
-  const [allPeriods, setAllPeriods] = useState(!!(highlightCo || idParam));
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState({ key: 'issue', dir: 'desc' });
+  // coming BACK from a record page (the return link or the browser's Back) restores the filters, sorting, page and scroll position this list had
+  const restore = useShouldRestore();
+  const mem = useMemo(() => readListMemory('invoices', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [amanahFilter, setAmanahFilter] = useState(mem.amanahFilter ?? (searchParams.get('amanah') || 'all'));
+  const [collectionFilter, setCollectionFilter] = useState(mem.collectionFilter ?? 'all');
+  const [search, setSearch] = useState(mem.search ?? (highlightCo || ''));
+  const [scopeType, setScopeType] = useState(mem.scopeType ?? 'all');
+  const [muniFilter, setMuniFilter] = useState(mem.muniFilter ?? 'all');
+  const [itemFilter, setItemFilter] = useState(mem.itemFilter ?? 'all');
+  const [exFilter, setExFilter] = useState(mem.exFilter ?? 'all');
+  const [ageFilter, setAgeFilter] = useState(mem.ageFilter ?? 'all');
+  const [contractFilter, setContractFilter] = useState(mem.contractFilter ?? 'all');
+  const [execFilter, setExecFilter] = useState(mem.execFilter ?? 'all');
+  const [allPeriods, setAllPeriods] = useState(mem.allPeriods ?? !!highlightCo);
+  const [page, setPage] = useState(mem.page ?? 0);
+  const [sort, setSort] = useState(mem.sort ?? { key: 'issue', dir: 'desc' });
+  useEffect(() => { writeListMemory('invoices', { amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort }); }, [amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort]);
   const debouncedSearch = useDebounced(search.trim(), 350);
 
   const amanahOptions = useMemo(() => amanahOptionsOf().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
@@ -90,24 +82,10 @@ export default function Invoices() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const sums = res?.sums || { gross: 0, exclusions: 0, net: 0, collected: 0, outstanding: 0 };
 
-  const [detailId, setDetailId] = useState(idParam || null); // invoice shown in the detail drawer
-  const [detailInv, setDetailInv] = useState(null);
-  const [aiDrawer, setAiDrawer] = useState(null); // aiProcess bundle (stacked on top)
-  const triggerRef = useRef(null);
-
-  const openDetail = useCallback((row, e) => {
-    triggerRef.current = e.currentTarget;
-    setDetailInv(legacyFromRow(row));
-    setDetailId(row.id);
-  }, []);
-  const closeDetail = useCallback(() => {
-    setDetailId(null); setDetailInv(null); setAiDrawer(null);
-    triggerRef.current?.focus?.();
-  }, []);
-  const openAi = useCallback(() => { if (detailInv) setAiDrawer(aiBundleForInvoice(detailInv)); else if (detailId) setAiDrawer(aiBundleForInvoice({ id: detailId, tag: 'normal' })); }, [detailInv, detailId]);
-  const onRowKey = useCallback((row, e) => {
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); openDetail(row, e); }
-  }, [openDetail]);
+  const openRecord = useOpenRecord(); // a row opens the invoice's own full page; «back» returns here with everything as it was
+  const openDetail = useCallback((row) => openRecord(invoicePath(row.id)), [openRecord]);
+  const onRowKey = useCallback((row, e) => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); openDetail(row); } }, [openDetail]);
+  useRestoreScroll(rows.length > 0 && !loading);
 
   const toggleSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'id' ? 'asc' : 'desc' }));
   const th = (label, key) => (
@@ -125,6 +103,8 @@ export default function Invoices() {
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
   };
   const selStyle = { height: 32, width: 'auto', paddingInline: 10, fontSize: 13 };
+
+  if (idParam) return <Navigate to={invoicePath(idParam)} replace />; // the old «?id=» address of the former drawer
 
   return (
     <div className="grid" style={{ gap: 14 }}>
@@ -247,10 +227,10 @@ export default function Invoices() {
                 <tr
                   key={r.id}
                   className="row-clickable"
-                  onClick={(e) => openDetail(r, e)}
+                  onClick={(e) => openDetail(r)}
                   style={idParam === r.id ? { background: 'rgba(21, 112, 239, 0.08)' } : undefined}
                 >
-                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r, e); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
+                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
                   <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
                   <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
                   <td>{bi.ar ? r.itemAr : r.itemEn}</td>
@@ -284,15 +264,6 @@ export default function Invoices() {
         </div>
       </div>
 
-      <InvoiceDetailDrawer
-        inv={detailInv}
-        invoiceId={detailId}
-        open={!!detailId}
-        onClose={closeDetail}
-        onOpenAI={openAi}
-        suppressClose={!!aiDrawer}
-      />
-      <AIProcessDrawer open={!!aiDrawer} onClose={() => setAiDrawer(null)} data={aiDrawer} />
     </div>
   );
 }

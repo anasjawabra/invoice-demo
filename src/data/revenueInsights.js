@@ -167,7 +167,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       timeframe: bi('Within 21 days (proposed)', 'خلال 21 يوماً (مقترح)'),
       impact: upperBoundImpact(snapshot, amount),
       followUp: bi('Count of invoices with unresolved links should fall to zero.', 'يجب أن ينخفض عدد الفواتير ذات الروابط غير المحسومة إلى الصفر.'),
-      drill: { to: '/sanad-orders' }
+      drill: { to: '/enforcement-orders' }
     });
   }
 
@@ -247,7 +247,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       timeframe: bi('Within 30 days (proposed)', 'خلال 30 يوماً (مقترح)'),
       impact: { kind: 'not_calculable', reason: bi('Recovery depends on case outcomes, not on linking itself.', 'الاسترداد يعتمد على نتائج القضايا وليس على الربط نفسه.') },
       followUp: bi('Number of cases with a confirmed link; unallocated case amount.', 'عدد القضايا ذات الرابط المؤكد؛ والمبلغ غير المخصص.'),
-      drill: { to: '/sanad-orders' }
+      drill: { to: '/enforcement-orders' }
     });
   }
 
@@ -366,7 +366,7 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
   if (coverage) out.indicators.push(indicator(bi('Coverage of chapters 1–3 (own denominator)', 'تغطية الأبواب 1–3 (مقام مستقل)'), formatRatio(coverage.coverage), 'calculated', bi('Eligibility and transfer rules unresolved', 'قواعد الأهلية والمناقلة غير محسومة')));
 
   out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'سجل الفواتير') }];
-  if (invoiceId) out.links.unshift({ to: `/invoices?id=${invoiceId}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });
+  if (invoiceId) out.links.unshift({ to: `/invoices/${encodeURIComponent(invoiceId)}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });
   return out;
 }
 

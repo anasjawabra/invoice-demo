@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { analysisPath } from '../../utils/paths';
 import { useRevenue } from '../../context/RevenueContext';
 import { useL } from '../../utils/bi';
 import AnalysisProgress, { AnalysisModal, isTerminal, summarizeProgress } from './AnalysisProgress';
-import AnalysisResultView from './AnalysisResultView';
 
 /* Persistent task panel: lists running / finished analyses so longer tasks can
    continue in the background and results stay reachable. */
@@ -53,33 +54,16 @@ function TaskDock() {
   );
 }
 
-function ResultDrawer() {
-  const { tasks, resultTaskId, closeResult, isStale } = useRevenue();
-  const { L, B } = useL();
-  const task = tasks.find((t) => t.id === resultTaskId);
-  const ref = useRef(null);
+// A finished analysis opens as a FULL PAGE (it used to open in a long side drawer): this hook moves to it whenever a result is requested.
+function ResultRouter() {
+  const { resultTaskId, closeResult } = useRevenue();
+  const nav = useNavigate(); const loc = useLocation();
   useEffect(() => {
-    if (!task) return undefined;
-    const prev = document.activeElement;
-    ref.current?.focus();
-    const onKey = (e) => { if (e.key === 'Escape') closeResult(); };
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); prev?.focus?.(); };
-  }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  if (!task) return null;
-  return (
-    <div className="ap-overlay ap-overlay--side" onMouseDown={(e) => { if (e.target === e.currentTarget) closeResult(); }}>
-      <aside ref={ref} tabIndex={-1} className="resdrawer" role="dialog" aria-modal="true" aria-label={B(task.title)}>
-        <header className="resdrawer__head">
-          <div><div className="ap__eyebrow"><span>{L('Analysis result', 'نتيجة التحليل')}</span></div><b>{B(task.title)}</b></div>
-          <button type="button" className="ap__btn" onClick={closeResult}>{L('Close', 'إغلاق')}</button>
-        </header>
-        <div className="resdrawer__body">
-          <AnalysisResultView result={task.result} task={task} stale={isStale(task)} />
-        </div>
-      </aside>
-    </div>
-  );
+    if (!resultTaskId) return;
+    const id = resultTaskId; closeResult();
+    nav(analysisPath(id), { state: { from: { path: loc.pathname, search: loc.search, label: document.title.split(' | ')[0] } } });
+  }, [resultTaskId]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 export default function AnalysisHost() {
@@ -95,7 +79,7 @@ export default function AnalysisHost() {
         onClose={closeModal}
         onView={() => task && viewResult(task.id)}
       />
-      <ResultDrawer />
+      <ResultRouter />
       <TaskDock />
     </>
   );

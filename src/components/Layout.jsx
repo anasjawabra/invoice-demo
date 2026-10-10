@@ -141,15 +141,16 @@ function LayoutInner() {
       { to: '/noncollection', icon: 'what-if', label: t('nav_noncollection') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
+      { to: '/enforcement-orders', icon: 'collection', label: lang === 'ar' ? 'إدارة أوامر التنفيذ' : lang === 'zh' ? '执行令管理' : 'Enforcement orders' },
       { to: '/risk', icon: 'risk', label: t('nav_risk_quality') },
       { to: '/data-sources', icon: 'smart-reports', label: t('nav_data_sources') },
       { to: '/metrics', icon: 'dashboard', label: t('nav_metrics') }
     ],
-    [t]
+    [t, lang]
   );
 
   const primaryTabs = tabs.slice(0, 2); const opsTabs = tabs.slice(2);
-  const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`)) || loc.pathname.startsWith('/sanad-orders') || loc.pathname.startsWith('/investment-invoices');
+  const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
   const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
   useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
   useEffect(() => {
@@ -172,8 +173,8 @@ function LayoutInner() {
     if (p.startsWith('/risk')) return t('nav_risk_quality');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/planning')) return t('nav_planning');
-    if (p.startsWith('/sanad-orders')) return t('sanad_orders_title');
-    if (p.startsWith('/investment-invoices')) return lang === 'ar' ? 'ربط العقود الاستثمارية' : lang === 'zh' ? '投资合同关联' : 'Investment contract linkage';
+    if (p.startsWith('/enforcement-orders')) return lang === 'ar' ? 'إدارة أوامر التنفيذ' : lang === 'zh' ? '执行令管理' : 'Enforcement orders';
+    if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';
     return 'INTELLIBILL';
   }, [loc.pathname, t, lang]);
 

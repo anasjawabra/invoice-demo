@@ -1,5 +1,6 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { RecordLink as Link } from '../../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../../utils/paths';
 import { useL } from '../../utils/bi';
 import { describeScope } from '../../data/revenueInsights';
 
@@ -29,7 +30,7 @@ function InvoiceChips({ ids }) {
   if (!ids || !ids.length) return null;
   return (
     <span className="res__chips">
-      {ids.slice(0, 6).map((id) => <Link key={id} className="res__chip" to={`/invoices?id=${id}`} dir="ltr">{id}</Link>)}
+      {ids.slice(0, 6).map((id) => <Link key={id} className="res__chip" to={invoicePath(id)} dir="ltr">{id}</Link>)}
       {ids.length > 6 && <span className="res__chip res__chip--more">+{ids.length - 6}</span>}
     </span>
   );

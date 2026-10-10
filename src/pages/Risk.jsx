@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
-import { Link } from 'react-router-dom';
+import { RecordLink as Link } from '../utils/returnContext';
+import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { ScopeBar, MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
@@ -84,14 +85,14 @@ export default function Risk() {
             <tbody>
               {filtered.length ? filtered.map((it) => (
                 <tr key={it.id}>
-                  <td><Link to={`/invoices?id=${it.id}`} dir="ltr">{it.id}</Link></td>
+                  <td><Link to={invoicePath(it.id)} dir="ltr">{it.id}</Link></td>
                   <td>{ar ? it.row.amanahAr : it.row.amanahEn} · {ar ? REVENUE_SOURCES[it.row.source].ar : REVENUE_SOURCES[it.row.source].en}</td>
                   <td className="num" dir="ltr">{sar(it.row.gross)}</td>
                   <td>{it.excluded ? <span className="rv-cat rv-cat--excluded">{L('Excluded', 'مستبعدة')}</span> : it.collected ? <span className="rv-cat rv-cat--collected">{L('Collected — data review only', 'محصّلة — مراجعة بيانات فقط')}</span> : <span className="rv-cat rv-cat--overdue">{L(`Outstanding ${short(it.outstanding)}`, `متبقٍ ${short(it.outstanding)}`)}</span>}</td>
                   <td style={{ fontSize: 12 }}>
                     {it.reasons.map((r, i) => <div key={i} style={{ marginBottom: 3 }} dir="auto"><span className={`rv-tag ${r.severity >= 3 ? 'rv-tag--bad' : 'rv-tag--warn'}`}>{B(CODE_LABEL[r.code] || { en: r.code, ar: r.code })}</span>{B(r.text)}</div>)}
                   </td>
-                  <td><button type="button" className="btn btn-sm" onClick={() => rev.startAnalysis('invoice', { invoiceId: it.id }, { origin: 'risk' })}>{L('Analyze invoice', 'تحليل الفاتورة')}</button></td>
+                  <td><Link className="btn btn-sm" to={invoicePath(it.id)}>{L('Analyze and review', 'تحليل ومراجعة')}</Link></td>
                 </tr>
               )) : <tr><td colSpan={6}><div className="rv-empty">{L('No data-quality issues in this scope.', 'لا توجد مشكلات جودة بيانات في هذا النطاق.')}</div></td></tr>}
             </tbody>

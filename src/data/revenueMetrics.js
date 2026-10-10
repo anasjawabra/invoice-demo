@@ -86,7 +86,7 @@ export const EXCLUSION_RULES = [
     label: { en: 'Open objection / appeal', ar: 'اعتراض / استئناف مفتوح' },
     note: { en: 'Not confirmed in the latest meeting. Default OFF: an objection is a follow-up state, not an exclusion. Configurable.', ar: 'غير مؤكد في آخر اجتماع. الافتراضي: معطّل؛ الاعتراض حالة متابعة وليس استبعاداً. قابل للضبط.' } },
   { id: 'ENF-1', category: 'enforcement', version: 1, priority: 99, defaultEnabled: false, locked: true, basis: 'not_an_exclusion', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
-    label: { en: 'Referred to enforcement', ar: 'محال إلى التنفيذ' },
+    label: { en: 'Under an open enforcement order', ar: 'تحت أمر تنفيذ مفتوح' },
     note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: 'تصحيح الاجتماع: الفواتير المحالة للتنفيذ (وتظهر غالباً "ملغاة" في المصدر) تُحتسب غير محصّلة وليست مستبعدة. مغلقة.' } }
 ];
 export const EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
@@ -233,7 +233,7 @@ export const CATEGORY_LABELS = {
   cancelled: { en: 'Cancelled in the source (removed from the base)', ar: 'ملغاة في المصدر (خارج الأساس)' },
   excluded: { en: 'Excluded under a rule (review decision approved)', ar: 'مستبعدة وفق قاعدة (بقرار مراجعة معتمد)' },
   objection: { en: 'Under objection', ar: 'قيد الاعتراض' },
-  enforcement: { en: 'Referred to enforcement', ar: 'محالة إلى التنفيذ' },
+  enforcement: { en: 'Under an open enforcement order (in execution or suspended)', ar: 'تحت أمر تنفيذ مفتوح (قيد التنفيذ أو موقوف)' },
   linkage_unresolved: { en: 'Status or linkage unresolved', ar: 'حالة أو ربط غير محسوم' },
   ineligible_referral: { en: 'Ineligible for referral (incomplete data)', ar: 'غير مؤهلة للإحالة (بيانات ناقصة)' },
   partial: { en: 'Partially collected', ar: 'محصّلة جزئياً' },

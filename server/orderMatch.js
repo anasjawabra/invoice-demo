@@ -25,6 +25,7 @@ function summary(st, ctx, i) {
     payerName: generated ? payerName(st.payer[i]) : null, payerId: generated ? beneficiaryIdOf(st.payer[i]) : null, payerIdx: generated ? st.payer[i] : null,
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), grossAmount: D.billed, netAmount: D.net, outstanding: D.outstanding, collected: D.collected,
     paymentStatus: D.payStatus, daysOverdue: D.daysOverdue, excluded: D.excluded, cancelled: D.cancelled,
+    contractNo: st.contract[i] >= 0 && st.contracts[st.contract[i]] ? st.contracts[st.contract[i]].contractNo : null, // only the contract the invoice itself carries — never inferred
     serverIdentifiedOrder: exec ? exec.enforceNum : null
   };
 }

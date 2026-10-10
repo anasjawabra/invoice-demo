@@ -2,20 +2,10 @@ import React from 'react';
 import { useL } from '../../utils/bi';
 
 // Shared labels and chips for enforcement orders — used by the order list, the order page and the invoice view.
-export const MATCH_STATE_LABEL = {
-  matched: { en: 'Fully matched', ar: 'مطابق بالكامل', cls: 'rv-cat--collected' },
-  partial: { en: 'Partially matched', ar: 'مطابق جزئياً', cls: 'rv-cat--partial' },
-  awaiting_review: { en: 'Awaiting review', ar: 'بانتظار المراجعة', cls: 'rv-cat--linkage_unresolved' },
-  unmatched: { en: 'Not matched', ar: 'غير مطابق', cls: '' }
-};
-export const SUMMARY_TO_MATCH = { linked: 'matched', partial: 'partial', candidate: 'awaiting_review', ambiguous: 'awaiting_review', unresolved: 'unmatched' };
-export const REASON_LABEL = {
-  proposed_unconfirmed: { en: 'proposed links not yet confirmed', ar: 'روابط مقترحة لم تُؤكَّد بعد' },
-  unresolved_references: { en: 'references in the order not yet accounted for', ar: 'مراجع في الأمر لم تُحسم بعد' },
-  document_pages_unread: { en: 'document pages not read (no text layer)', ar: 'صفحات مستند لم تُقرأ (بلا طبقة نص)' },
-  amount_short: { en: 'matched invoices total less than the order amount', ar: 'مجموع الفواتير المطابقة أقل من مبلغ الأمر' },
-  amount_over: { en: 'matched invoices total more than the order amount', ar: 'مجموع الفواتير المطابقة أكثر من مبلغ الأمر' },
-  amount_not_checkable: { en: 'invoice amounts not available to compare', ar: 'مبالغ الفواتير غير متاحة للمقارنة' }
+export const CURRENT_ENFORCEMENT_LABEL = {
+  in_execution: { en: 'An order is in execution', ar: 'أمر قيد التنفيذ الآن', cls: 'rv-cat--enforcement' },
+  suspended: { en: 'An order is suspended', ar: 'أمر موقوف', cls: 'rv-cat--partial' },
+  none: { en: 'No open order', ar: 'لا أمر مفتوح', cls: '' }
 };
 export const ORDER_STATUS_LABEL = {
   open: { en: 'In execution', ar: 'قيد التنفيذ', cls: 'rv-cat--enforcement' },
@@ -62,7 +52,6 @@ export function Chip({ def, extra = null }) {
   const { B } = useL();
   return <span className={`rv-cat ${def.cls || ''}`}>{B(def)}{extra}</span>;
 }
-export const MatchStateBadge = ({ state }) => <Chip def={MATCH_STATE_LABEL[state] || MATCH_STATE_LABEL.unmatched} />;
 export const OrderStatusChip = ({ status }) => <Chip def={ORDER_STATUS_LABEL[status] || ORDER_STATUS_LABEL.open} />;
 export const PayStatusChip = ({ status }) => (PAY_STATUS_LABEL[status] ? <Chip def={PAY_STATUS_LABEL[status]} /> : <span className="muted">—</span>);
 
@@ -75,6 +64,33 @@ export function IntegrationNotice({ compact = false }) {
       {L('Orders and their invoice references come from a SYNTHETIC Sanad demo feed — live Sanad retrieval is not connected. Sanad order documents cannot be fetched here: add the order PDF by hand. Only the TEXT of digital PDFs is read; no OCR engine is connected, so scanned pages need text from an external OCR tool or typed references.',
         'الأوامر ومراجع فواتيرها من تغذية تجريبية «اصطناعية» لسند — الاسترجاع الحيّ من سند غير متصل. لا يمكن جلب مستندات أوامر سند هنا: أضف ملف PDF للأمر يدوياً. يُقرأ فقط نص ملفات PDF الرقمية؛ ولا يوجد محرك OCR متصل، لذا تحتاج الصفحات الممسوحة ضوئياً إلى نص من أداة OCR خارجية أو إلى مراجع تُدخل يدوياً.')}
       {!compact && ' ' + L('Nothing below is a simulated retrieval or a simulated extraction.', 'ولا شيء أدناه استرجاع أو استخراج محاكى.')}
+    </div>
+  );
+}
+
+// the enforcement status of an invoice, shown as separate facts: CURRENT (open order now) and HISTORICAL (ever referred — stays true after an order closes)
+export function EnforcementChips({ enf }) {
+  const { L } = useL();
+  return (
+    <>
+      <Chip def={CURRENT_ENFORCEMENT_LABEL[enf.current]} />
+      {enf.referredEver
+        ? <span className="rv-cat rv-cat--linkage_unresolved" title={L('Referred to enforcement at least once (confirmed link) — remains true after the order closes', 'أُحيلت إلى التنفيذ مرة على الأقل (رابط مؤكد) — وتبقى هذه الحقيقة بعد إغلاق الأمر')}>{L(`Referred before · ${enf.confirmed.length} order(s)`, `سبقت إحالتها · ${enf.confirmed.length} أمر`)}</span>
+        : <span className="rv-cat">{L('Never referred', 'لم تُحَل إلى التنفيذ')}</span>}
+      {enf.proposed.length > 0 && <span className="rv-tag rv-tag--warn">{L(`${enf.proposed.length} proposed link(s) — no effect`, `${enf.proposed.length} رابط مقترح — بلا أثر`)}</span>}
+    </>
+  );
+}
+
+// the three completeness states in one compact cell — each its own line, never merged into a single label
+export function CompletenessMarks({ comp }) {
+  const { L } = useL();
+  const m = (ok, text) => <div className={ok ? 'rp-ok' : 'rp-warn'} style={{ fontSize: 12 }}>{ok ? '✓' : '!'} {text}</div>;
+  return (
+    <div>
+      {m(comp.references.state === 'complete', comp.references.state === 'complete' ? L('references complete', 'المراجع مكتملة') : comp.references.state === 'none' ? L('no references yet', 'لا مراجع بعد') : L(`${comp.references.unresolved + comp.references.proposed} reference(s) open`, `${comp.references.unresolved + comp.references.proposed} مرجع مفتوح`))}
+      {m(comp.extraction.state === 'complete', comp.extraction.state === 'complete' ? L('all pages have text', 'لكل الصفحات نص') : comp.extraction.state === 'incomplete' ? L(`${comp.extraction.unreadPages} page(s) unread`, `${comp.extraction.unreadPages} صفحة لم تُقرأ`) : L('no document', 'لا مستند'))}
+      {m(comp.finance.state === 'reconciled', comp.finance.state === 'reconciled' ? L('amount reconciled', 'المبلغ متطابق') : comp.finance.state === 'short' || comp.finance.state === 'over' ? L('amount difference', 'فرق في المبلغ') : L('amount not checkable', 'المبلغ غير قابل للفحص'))}
     </div>
   );
 }

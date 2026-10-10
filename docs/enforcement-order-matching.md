@@ -1,6 +1,8 @@
 # Enforcement orders and invoice matching — business correction (branch `enforcement-order-matching`)
 
-A clearly labelled **synthetic-data demonstration**. Not production-ready; no accessibility-conformance or "reliable AI understanding" claim. Branch created from the tag `demo-baseline-final` (the tag itself is unchanged). Nothing is pushed or merged.
+A clearly labelled **synthetic-data demonstration**. Not production-ready; no accessibility-conformance or "reliable AI understanding" claim. > **Superseded in part by `docs/full-page-records.md`:** the single «Fully matched» label was replaced by three separate completeness states; a written reason no longer makes a conflicting link acceptable (only evidence does); the order list/page/invoice view are now full pages (the drawer and the `/sanad-orders` page are gone — old addresses redirect); closed orders keep the invoice as «ever referred» (the category is «under an open order»). The verification table below describes the first round.
+
+Branch created from the tag `demo-baseline-final` (the tag itself is unchanged). Nothing is pushed or merged.
 
 ## 1. The correction
 

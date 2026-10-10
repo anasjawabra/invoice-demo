@@ -6,7 +6,7 @@ import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
-import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference } from '../data/orderMatching';
+import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
@@ -178,6 +178,7 @@ export function RevenueProvider({ children }) {
   }, [cases, canReview, user]);
   const enforcement = useMemo(() => ({
     recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o)),
+    restoreFile: (en, docId, name) => enfAct(en, (st, o) => recordFileRestored(st, en, docId, { ...o, name })),
     recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o)),
     propose: (en, input) => enfAct(en, (st, o) => proposeLink(st, en, input, o)),
     confirm: (en, invoiceId, args = {}) => enfAct(en, (st, o) => confirmLink(st, en, invoiceId, { ...args, ...o })),

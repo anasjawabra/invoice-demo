@@ -578,8 +578,12 @@ export function generateWorld(today, { scale = 1 } = {}) {
       else if (arch === 'multi_typo_ref') { refs = [{ kind: 'invoice_no', value: idOfi(covers[0]) }, { kind: 'invoice_no', value: typo(idOfi(covers[1])) }]; identified = [covers[0]]; }
       else if (arch === 'serial_ambiguous') refs = [{ kind: 'invoice_serial', value: String(serialOf(lead)).padStart(7, '0') }];
       else if (arch === 'amount_discrepancy') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.slice(); }
-      const status = r.next() < 0.5 ? 'قيد التنفيذ' : r.next() < 0.5 ? 'موقوف' : 'مغلق';
-      const req = { idx: reqCount, enforceNum: `EN-${5000 + k * 13}`, system: 'sanad', ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, covers, hidden, archetype: arch, debtor: owner };
+      // statuses: the first single-invoice order is CLOSED so that an invoice named again by a later order carries one closed and one open order;
+      // a closure reason is supplied for some closed orders only (never a payment reason: a closed order says nothing about payment)
+      const roll = r.next(); const roll2 = r.next();
+      const status = arch === 'single' && firstSingle == null ? 'مغلق' : arch === 'duplicate_across_orders' ? (roll < 0.7 ? 'قيد التنفيذ' : 'موقوف') : roll < 0.5 ? 'قيد التنفيذ' : roll2 < 0.5 ? 'موقوف' : 'مغلق';
+      const closeReason = status === 'مغلق' ? [null, 'withdrawn_by_authority', 'order_expired', 'replaced_by_other_order'][Math.floor(roll2 * 3.999) % 4] : null;
+      const req = { idx: reqCount, enforceNum: `EN-${5000 + k * 13}`, system: 'sanad', ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, covers, hidden, archetype: arch, debtor: owner, closeReason };
       st.requests.push(req); reqCount += 1;
       for (const i of identified) if (st.exec[i] < 0) st.exec[i] = req.idx;
       if (arch === 'single' && firstSingle == null) firstSingle = covers[0];
