@@ -3,7 +3,7 @@
 //   ib_enforcement_v1 (localStorage) : links, document records (name, hash, extracted references), history  — included in the backup file
 //   ib_enforcement_docs (IndexedDB)  : the PDF bytes, keyed by SHA-256 — NOT in the backup (a restored record says the file must be added again)
 // The older review state (sessionStorage «ib_rev_cases») is only read, never written, and is shown as it was.
-import { emptyStore, validStoreShape } from './orderMatching';
+import { emptyStore, validStoreShape, migrateIdScheme } from './orderMatching';
 
 export const ENFORCEMENT_KEY = 'ib_enforcement_v1';
 
@@ -11,7 +11,7 @@ export function loadEnforcement(storage = (typeof localStorage !== 'undefined' ?
   try {
     const raw = storage?.getItem(ENFORCEMENT_KEY); if (!raw) return emptyStore();
     const v = JSON.parse(raw);
-    return validStoreShape(v) && v ? v : emptyStore();
+    return validStoreShape(v) && v ? migrateIdScheme(v) : emptyStore(); // records under ambiguous legacy order ids are set aside, never applied (see migrateIdScheme)
   } catch { return emptyStore(); }
 }
 export function saveEnforcement(store, storage = (typeof localStorage !== 'undefined' ? localStorage : null)) {

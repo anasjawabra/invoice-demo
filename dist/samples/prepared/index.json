@@ -67,12 +67,12 @@
     "ar": "مرجع في الحقل المخصص وآخر في الوصف، والمرفق يذكر الباقي ويكرر الأول (يُدمج دون تكرار).",
     "en": "One reference in the structured field, one in the description; the attachment names the rest and repeats the first (merged without duplicates)."
    },
-   "size": 60445,
-   "sha256": "298c13c8dda50382912fd42db639751c2a737f22c1724753df089fac06d8200f",
+   "size": 60389,
+   "sha256": "8cc30a41c55a0730b8419db2f9169bf255ba6a1e4125f9b51b924c905af28d88",
    "pages": [
     {
      "page": 1,
-     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6042\nIssued by: Sanad (demo feed)    Opened: 2025-12-07    Order status: Suspended\nMunicipality: Unassigned\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 245,133,200.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000139 | investment | 2025-04-09 | 217,803,890.00\nINV-2025-0000172 | investment | 2025-05-28 | 6,388,130.00\nInvoice INV-2025-0000137 is also named in the order record (repeated here)."
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6042\nIssued by: Sanad (demo feed)    Opened: 2025-12-07    Order status: In execution\nMunicipality: Unassigned\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 245,133,200.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\nINV-2025-0000139 | investment | 2025-04-09 | 217,803,890.00\nINV-2025-0000172 | investment | 2025-05-28 | 6,388,130.00\nInvoice INV-2025-0000137 is also named in the order record (repeated here)."
     }
    ]
   },

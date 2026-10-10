@@ -22,7 +22,7 @@ const ENTRIES = [
     definition: BI('فواتير حالتها ملغاة في المصدر. تُخصم من الأساس مرة واحدة، وتأخذ الأسبقية على الاستبعاد.', 'Invoices whose source status is cancelled. Deducted once, and take precedence over exclusion.'),
     formula: BI('Σ المتبقي على الفواتير الملغاة (بعد المقبوض)', 'Σ remaining amount of cancelled invoices (after receipts)'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('تاريخ الإلغاء ≤ تاريخ القطع', 'Cancellation date ≤ cutoff'),
-    caveat: BI('الفواتير المحالة للتنفيذ وتظهر "ملغاة" في المصدر تبقى غير محصلة (قاعدة ENF-1).', 'Enforcement-referred invoices shown "cancelled" in the source stay uncollected (rule ENF-1).') },
+    caveat: BI('الفاتورة الملغاة في المصدر تبقى ملغاة ولو أُحيلت للتنفيذ؛ ويُعلَّم التعارض للمراجعة.', 'An invoice cancelled in the source stays cancelled even if referred to enforcement; the disagreement is flagged for review.') },
   { key: 'exclusions', kind: 'flow', sources: ['tahseel', 'efaa', 'cr-view', 'furas'], label: BI('الاستبعادات', 'Exclusions'),
     definition: BI('جزء من إجمالي المفوتر يُخصم مرة واحدة فقط: الفواتير الملغاة + الفواتير ذات سبب استبعاد معتمد. للفاتورة سبب رئيسي واحد مهما تعددت الأسباب، والملغاة التي لها سبب استبعاد تُخصم مرة واحدة.', 'The part of gross billed removed exactly once: cancelled invoices + invoices with an approved exclusion reason. One primary reason per invoice however many apply; a cancelled invoice that also has a reason is deducted once.'),
     formula: BI('الملغى + المستبعد بقاعدة معتمدة = إجمالي المفوتر − صافي المفوتر', 'Cancelled + rule-excluded = gross billed − net billed'),

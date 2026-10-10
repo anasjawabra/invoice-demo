@@ -8,9 +8,9 @@ import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { ProvenanceBadge } from '../components/revenue/RevenueUI';
 import { INSTALLMENT_STATES } from '../data/contracts';
-import { AMANAH_CATALOG, ITEMS } from '../data/catalog';
+import { AMANAH_CATALOG, ENTITIES, ITEMS } from '../data/catalog';
 
-export const amanahName = (en, ar) => { const a = AMANAH_CATALOG.find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };
+export const amanahName = (en, ar) => { const a = (ENTITIES || AMANAH_CATALOG).find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };
 export const itemName = (key, ar) => { const i = ITEMS.find((x) => x.key === key); return i ? (ar ? i.ar : i.en) : key; };
 
 export default function Contracts() {
@@ -48,7 +48,7 @@ export default function Contracts() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Contracts, enforcement and registry', 'العقود والتنفيذ والسجل التجاري')}</h1>
-          <div className="page-sub">{L('Furas contract → payments → Tahseel invoices, and the Sanad execution requests tied to the contract number. Execution amounts are shown at contract level and are never added to the uncollected debt again. Enforcement orders are not limited to contracts: orders over any invoice type are matched on the Enforcement orders page.', 'عقد فرص ← دفعاته ← فواتير تحصيل، وطلبات تنفيذ سند المرتبطة برقم العقد. تُعرض مبالغ التنفيذ على مستوى العقد ولا تُضاف إلى المديونية غير المحصلة مرة ثانية. أوامر الإنفاذ لا تقتصر على العقود: تُطابَق الأوامر على أي نوع من الفواتير في صفحة أوامر الإنفاذ.')}</div>
+          <div className="page-sub">{L('Contracts, their payments and invoices, and the enforcement requests tied to them. Enforcement amounts are shown separately and never added to the debt again.', 'العقود ودفعاتها وفواتيرها وطلبات التنفيذ المرتبطة بها. وتُعرض مبالغ التنفيذ منفصلة ولا تُضاف إلى المديونية مرة ثانية.')}</div>
         </div>
       </div>
 

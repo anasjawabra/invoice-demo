@@ -87,7 +87,7 @@ export const EXCLUSION_RULES = [
     note: { en: 'Not confirmed in the latest meeting. Default OFF: an objection is a follow-up state, not an exclusion. Configurable.', ar: 'غير مؤكد في آخر اجتماع. الافتراضي: معطّل؛ الاعتراض حالة متابعة وليس استبعاداً. قابل للضبط.' } },
   { id: 'ENF-1', category: 'enforcement', version: 1, priority: 99, defaultEnabled: false, locked: true, basis: 'not_an_exclusion', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
     label: { en: 'Referred to enforcement (reported as a separate dimension)', ar: 'محال إلى التنفيذ (يُعرض كبُعد منفصل)' },
-    note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: 'تصحيح الاجتماع: الفواتير المحالة للتنفيذ (وتظهر غالباً "ملغاة" في المصدر) تُحتسب غير محصّلة وليست مستبعدة. مغلقة.' } }
+    note: { en: 'Not applied: a source-cancelled invoice referred to enforcement stays cancelled (conditions and approver unconfirmed); enforcement is reported as a separate dimension.', ar: 'غير مطبّقة: الفاتورة الملغاة في المصدر والمحالة للتنفيذ تبقى ملغاة (الشروط وجهة الاعتماد غير مؤكدة)؛ ويُعرض الإنفاذ بُعداً منفصلاً.' } }
 ];
 export const EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
 export const ruleById = (id) => EXCLUSION_RULES.find((r) => r.id === id);

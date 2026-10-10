@@ -6,7 +6,7 @@ import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
-import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference, recordManualReferences } from '../data/orderMatching';
+import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference, recordManualReferences, restoreLegacyRecord } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
@@ -180,6 +180,7 @@ export function RevenueProvider({ children }) {
     recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o)),
     restoreFile: (en, docId, name) => enfAct(en, (st, o) => recordFileRestored(st, en, docId, { ...o, name })),
     recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o)),
+    restoreLegacy: (oldId, targetId) => { if (!canReview) return { ok: false, error: 'no_permission' }; const r = restoreLegacyRecord(enfRef.current, oldId, targetId, { by: user?.nameEn || user?.name || 'Reviewer', at: new Date().toISOString() }); if (r.error) return { ok: false, error: r.error }; enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); return { ok: true }; },
     addManual: (en, extraction) => enfAct(en, (st, o) => recordManualReferences(st, en, extraction, o)),
     propose: (en, input) => enfAct(en, (st, o) => proposeLink(st, en, input, o)),
     confirm: (en, invoiceId, args = {}) => enfAct(en, (st, o) => confirmLink(st, en, invoiceId, { ...args, ...o })),
@@ -191,7 +192,7 @@ export function RevenueProvider({ children }) {
     // the references of an order, resolved against the invoices by the data service (reference matching only — never by amount)
     resolve: (refs) => api.orderMatch(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { refs })),
     debtorInvoices: (debtor, excludeIds) => api.orderDebtorInvoices(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { debtor, excludeIds }))
-  }), [enfAct, requestFor]);
+  }), [enfAct, requestFor, canReview, user]);
 
   /* ---------- analyst notes (analytical layer only) ---------- */
   const addNote = useCallback((invoiceId, text) => {
@@ -310,7 +311,7 @@ export function RevenueProvider({ children }) {
     targets, setTargets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,
     decideExclusion,
-    cases, enforcement, enf1Decisions: enfStore?.enf1 || {},
+    cases, enforcement, enf1Decisions: enfStore?.enf1 || {}, legacyRecords: enfStore?.legacy || {},
     uploads, commitUpload, clearUploads, notes, addNote,
     scenario, setScenario,
     forecastVersions, saveForecastVersion,

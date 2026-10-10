@@ -17,7 +17,7 @@
 
 export const AMOUNT_TOLERANCE = 1; // SAR — rounding only; anything larger is a real difference
 import { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap } from './relations';
-import { adaptSourceCase, isCorruptedNumber } from './sanadSource';
+import { adaptSourceCase, isCorruptedNumber, recoverableIdentifier } from './sanadSource';
 export { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap };
 
 export const INVOICE_KINDS = ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no', 'invoice_corrupted']; // invoice_corrupted: a structured value a spreadsheet turned into scientific notation — listed, never matched
@@ -146,7 +146,12 @@ export function collectReferences(order, docs = []) {
     if (!m.has(k)) m.set(k, { key: k, kind, value: String(value).trim(), origins: [] });
     m.get(k).origins.push(origin);
   };
-  for (const r of order.refs || []) add(isCorruptedNumber(r.value) ? 'invoice_corrupted' : r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
+  for (const r of order.refs || []) {
+    if (!isCorruptedNumber(r.value)) { add(r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) }); continue; }
+    const id = recoverableIdentifier(r.value); // exact notation: the complete identifier, from the string — the raw value is kept as the evidence; anything rounded stays UNRELIABLE and is never matched
+    if (id) add(id.length === 14 ? 'violation_no' : 'sadad_no', id, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value), recoveredFromNotation: true });
+    else add('invoice_corrupted', r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
+  }
   for (const r of orderTextRefs(order)) if (isInvoiceKind(r.kind)) add(r.kind, r.value, { type: r.origin, field: r.field, raw: r.raw, snippet: r.snippet });
   for (const d of docs) for (const r of d.extraction?.refs || []) {
     const byMethod = new Map(); // text found by the PDF reader, by imported OCR text, or typed by a person are different kinds of evidence
@@ -319,7 +324,28 @@ export function orderMatchState(order) {
 
 /* ------------------------------------------------------------------ effective cases = Sanad/anchor base + the user's overlay */
 const LINK_STATUS_OUT = { proposed: 'candidate', confirmed: 'confirmed', rejected: 'rejected', removed: 'rejected' };
-export const emptyStore = () => ({ v: 1, orders: {}, enf1: {} });
+export const ID_SCHEME = 3; // 3 = stable generated order ids (docs/stable-ids.md)
+export const emptyStore = () => ({ v: 1, idScheme: ID_SCHEME, orders: {}, enf1: {} });
+
+// STABLE IDS. The ids of the generated demo orders EN-6000…EN-6199 were renumbered between earlier builds (the same id meant different orders), and a stored record does not say which build wrote it.
+// A record kept under such an id by a store WITHOUT the current id scheme is therefore AMBIGUOUS: it is moved — untouched — to `store.legacy` and NOT applied to any order, until the person explicitly
+// restores it to an order they choose. Nothing is deleted, merged or guessed. Ids outside that range (hand-anchored, first-batch, contract-level) never changed and are not touched.
+export const isGeneratedRangeId = (id) => /^EN-6[01]\d{2}$/.test(String(id));
+export function migrateIdScheme(store) {
+  if (!store || store.idScheme === ID_SCHEME) return store;
+  const orders = {}; const legacy = { ...(store.legacy || {}) };
+  for (const [id, rec] of Object.entries(store.orders || {})) { if (isGeneratedRangeId(id)) legacy[id] = rec; else orders[id] = rec; }
+  return { ...store, idScheme: ID_SCHEME, orders, legacy };
+}
+// restore a quarantined record to the order the person chose (refused if that order already has its own record)
+export function restoreLegacyRecord(store, oldId, targetId, { by, at }) {
+  const rec = store.legacy?.[oldId]; if (!rec) return { store, error: 'legacy_not_found' };
+  if (store.orders?.[targetId]) return { store, error: 'target_has_record' };
+  if (!/^EN-\d+$/.test(String(targetId))) return { store, error: 'bad_target' };
+  const legacy = { ...store.legacy }; delete legacy[oldId];
+  const o = { ...rec, history: [{ at, by, action: 'restored_from_legacy_id', detail: { from: oldId, to: targetId } }, ...(rec.history || [])] };
+  return { store: { ...store, orders: { ...store.orders, [targetId]: o }, legacy }, error: null };
+}
 const ord = (store, en) => store.orders[en] || { links: {}, docs: {}, history: [], dismissedRefs: [], contractReviews: {}, statusSeen: null };
 
 export function buildEffectiveCases(baseCases, store) {

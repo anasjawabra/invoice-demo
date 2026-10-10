@@ -128,8 +128,8 @@ export default function Noncollection() {
         <Pager page={page} total={states?.total ?? 0} size={PS} onPage={setPage} label={L('Invoice states', 'حالات الفواتير')} />
       </div>
 
-      <div className="card card-pad">
-        <h2 className="rv-sec-title">{L('Exclusion register', 'سجل الاستبعادات')}</h2>
+      <details className="card card-pad rv-more">
+        <summary><h2 className="rv-sec-title" style={{ display: 'inline' }}>{L('Exclusion register', 'سجل الاستبعادات')}</h2></summary>
         <p className="rv-sec-sub">{L('Each exclusion keeps its rule, evidence, review state, reviewer, effective period and reassessment status. Only APPROVED exclusions under ENABLED rules reduce net billed. Review decisions update this solution\'s analytical layer only.', 'يحتفظ كل استبعاد بقاعدته ودليله وحالة مراجعته والمراجع وفترة السريان وحالة إعادة التقييم. فقط الاستبعادات المعتمدة وفق قواعد مفعّلة تخفض صافي المفوتر. وتحدّث قرارات المراجعة الطبقة التحليلية لهذه المنصة فقط.')}</p>
         {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" style={{ marginBottom: 8 }}>{msg.text}</div>}
         {!canReview && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}>{L('Your role is read-only: you can inspect exclusions but not approve or reject them.', 'دورك للقراءة فقط: يمكنك الاطلاع على الاستبعادات دون اعتمادها أو رفضها.')}</div>}
@@ -178,13 +178,13 @@ export default function Noncollection() {
           </table>
         </div>
         <Pager page={regPage} total={reg?.total ?? 0} size={15} onPage={setRegPage} label={L('Exclusion register', 'سجل الاستبعادات')} />
-      </div>
+      </details>
 
       <div className="card card-pad">
         <div className="rv-card__head">
           <div>
             <h2 className="rv-sec-title">{L('Exclusion rule registry', 'سجل قواعد الاستبعاد')}</h2>
-            <p className="rv-sec-sub"><span dir="ltr">{EXCLUSION_RULE_SET_VERSION}</span> · {L('Each rule is versioned and configurable. A report name alone never becomes an automatic rule. Rules marked “غير معتمدة” still run when enabled, but every figure they move is labelled unapproved.', 'كل قاعدة مُرقَّمة وقابلة للضبط. واسم التقرير وحده لا يتحول إلى قاعدة آلية. القواعد الموسومة «غير معتمدة» تعمل عند تفعيلها لكن كل رقم تؤثر فيه يُوسم غير معتمد.')}</p>
+            <p className="rv-sec-sub">{L('Each rule is versioned and configurable. A report name alone never becomes an automatic rule. Rules marked “غير معتمدة” still run when enabled, but every figure they move is labelled unapproved.', 'كل قاعدة مُرقَّمة وقابلة للضبط. واسم التقرير وحده لا يتحول إلى قاعدة آلية. القواعد الموسومة «غير معتمدة» تعمل عند تفعيلها لكن كل رقم تؤثر فيه يُوسم غير معتمد.')}</p>
           </div>
           <button type="button" className="btn btn-sm btn-ghost" onClick={() => setRegOpen((v) => !v)} aria-expanded={regOpen}>{regOpen ? L('Hide details', 'إخفاء التفاصيل') : L('Show full definitions', 'عرض التعريفات الكاملة')}</button>
         </div>
@@ -239,10 +239,10 @@ export default function Noncollection() {
       <div className="rv-two">
         <div className="card card-pad">
           <h2 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h2>
-          <p className="rv-sec-sub">{L('Enforcement is a SEPARATE dimension. The collection categories above follow the invoice’s payment state only: an order — in execution, suspended or closed — never moves an invoice in or out of the uncollected view. Only confirmed links count; a suspended order is open but NOT proceeding.', 'الإنفاذ بُعد منفصل. فئات التحصيل أعلاه تتبع حالة سداد الفاتورة وحدها: الأمر — قيد التنفيذ أو موقوفاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه. وتُحتسب الروابط المؤكدة فقط؛ والأمر الموقوف مفتوح لكنه غير ماضٍ.')}</p>
+          <p className="rv-sec-sub">{L('Enforcement is separate from collection: an order — open or closed — never moves an invoice in or out of the uncollected view. Only confirmed links count.', 'الإنفاذ منفصل عن التحصيل: الأمر — مفتوحاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه. وتُحتسب الروابط المؤكدة فقط.')}</p>
           {snapshot.stock.enforcement && (
             <ul className="rv-list" aria-label={L('Enforcement counts — unique invoices', 'أعداد الإنفاذ — فواتير فريدة')}>
-              {[['inExecution', L('Under an order in execution', 'تحت أمر قيد التنفيذ')], ['suspended', L('Only suspended orders (not proceeding)', 'أوامرها موقوفة فقط (غير ماضية)')], ['closedOnly', L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')], ['everReferred', L('Ever referred (the three above)', 'سبقت إحالتها (الثلاث أعلاه)')]].map(([k, label]) => (
+              {[['inExecution', L('With an order that is not closed', 'لها أمر غير مغلق')], ['closedOnly', L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')], ['everReferred', L('Ever referred (the two above)', 'سبقت إحالتها (المجموعتان أعلاه)')]].map(([k, label]) => (
                 <li key={k}>{label}: <b>{snapshot.stock.enforcement[k].count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement[k].outstanding)}</span> {L('remaining (their payment state is judged on its own)', 'متبقٍ (وتُقيَّم حالة سدادها منفصلة)')}</li>
               ))}
             </ul>

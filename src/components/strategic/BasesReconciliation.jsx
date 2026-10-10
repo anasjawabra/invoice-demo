@@ -27,7 +27,7 @@ export default function BasesReconciliation({ plan, scopeLabel, s, today, fy, sn
   const closeEnough = measure != null && Math.abs(measure) < 0.5; // any non-zero difference is shown, never absorbed
 
   return (
-    <details className="rv-more st-card card" id="bases" open style={{ minWidth: 0, overflow: "hidden", gridTemplateColumns: "minmax(0, 1fr)" }}>
+    <details className="rv-more st-card card" id="bases" style={{ minWidth: 0, overflow: "hidden", gridTemplateColumns: "minmax(0, 1fr)" }}>
       <summary><b>{L('ما الذي يقيسه كل رقم؟ وكيف تتسق أرقام هذه الصفحة؟', 'What does each figure measure, and how do the figures on this page fit together?')}</b></summary>
       <p className="muted" style={{ fontSize: 13, margin: '6px 0' }}>{L('رقمان يبدوان متشابهين يقيسان شيئين مختلفين: «المحصّل» يتتبع فواتير فترة الخطة، و«المقبوضات» تتتبع تواريخ الدفع. لا يُجمع تنبؤ أو سيناريو إلى رقم فعلي في هذا الجدول.', 'Two figures that look alike measure different things: «collected» follows the plan period\'s invoices, «receipts» follow payment dates. No forecast or scenario is added to an actual in this table.')}</p>
       <div className="st-table-wrap" tabIndex={0}>

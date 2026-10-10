@@ -1,6 +1,6 @@
 // Pure helpers behind the order page's three-step journey: which reviewed references may be selected, what is preselected, the selected total against the order amount,
 // and the one-line summaries. No React here, so the rules are unit-tested.
-import { isHardConflict } from './orderMatching';
+import { isHardConflict, collectReferences } from './orderMatching';
 
 // row = a row of buildRows(); returns { kind, selectable, preselect, candidate }
 //   kind: confirmed · ready · weak · needs_evidence · ambiguous · unmatched · rejected · duplicate · pending
@@ -58,17 +58,49 @@ export function summaryLines(comp, rows) {
   return { refs, ext, fin };
 }
 
-// The matching-review status shown in the orders LIST: one concise line plus short extras, from the three completeness states (no matching rows needed).
-export function listReviewStatus(comp, order) {
-  const r = comp.references; const e = comp.extraction; const f = comp.finance; const open = r.unresolved + r.proposed;
-  const contractLevel = !!order.contractNo && !(order.refs || []).length && !r.confirmedLinks;
-  const main = r.state === 'none'
-    ? (contractLevel ? { ar: 'على مستوى العقد — فواتيره غير محددة', en: 'Contract level — invoices not identified', tone: 'warn' } : { ar: NOT_IDENTIFIED.ar, en: NOT_IDENTIFIED.en, tone: 'warn' })
-    : r.state === 'complete' ? { ar: `${AR_INV(r.confirmedLinks)} مربوطة`, en: `${r.confirmedLinks} invoice(s) linked`, tone: 'ok' }
-      : { ar: `${r.confirmedLinks ? `${AR_INV(r.confirmedLinks)} مربوطة — ` : ''}${AR_REFS(open)} ${open === 1 ? 'يحتاج' : open === 2 ? 'يحتاجان' : open <= 10 ? 'تحتاج' : 'يحتاج'} مراجعة`, en: `${r.confirmedLinks ? `${r.confirmedLinks} linked — ` : ''}${open} reference(s) need review`, tone: 'warn' };
-  const extras = [];
-  if (e.unreadPages) extras.push({ ar: `${AR_PAGES(e.unreadPages)} ${e.unreadPages === 2 ? 'لم تُقرآ' : 'لم تُقرأ'}`, en: `${e.unreadPages} page(s) not read`, tone: 'warn' });
-  else if (e.attachmentsPending) extras.push({ ar: 'مرفقات لم تُضَف', en: 'Attachments not added', tone: 'warn' });
-  if (f.state === 'short' || f.state === 'over') extras.push({ ar: 'يوجد فرق في المبلغ', en: 'Amount difference', tone: 'warn' });
-  return { main, extras };
+// The matching-review status of an order — ONE value for the list and its filter (the other two completeness states stay separate and appear as alerts):
+//   not_identified (no invoice reference found anywhere) · contract_level · needs_review (a reference is open, proposed, conflicting or unreliable) · complete (every reference found is decided)
+const REVIEW_REASONS = ['unresolved_references', 'proposals_pending', 'conflicts', 'corrupted_reference'];
+export function reviewStatusOf(comp, order, exceptions = []) {
+  const r = comp.references;
+  if (r.state === 'none') return !!order.contractNo && !(order.refs || []).length && !r.confirmedLinks ? 'contract_level' : 'not_identified';
+  return r.state === 'incomplete' || exceptions.some((x) => REVIEW_REASONS.includes(x)) ? 'needs_review' : 'complete';
+}
+export const REVIEW_LABEL = {
+  not_identified: { ar: 'أرقام الفواتير غير محددة', en: 'Invoice numbers not identified', tone: 'warn' },
+  contract_level: { ar: 'على مستوى العقد', en: 'Contract level', tone: 'warn' },
+  needs_review: { ar: 'تحتاج مراجعة', en: 'Needs review', tone: 'warn' },
+  complete: { ar: 'مكتملة', en: 'Complete', tone: 'ok' }
+};
+// small contextual alerts beside the status (explained in the details page)
+export function orderAlerts(comp, exceptions = []) {
+  const out = [];
+  if (exceptions.includes('corrupted_reference')) out.push({ key: 'unreliable', ar: 'رقم غير موثوق', en: 'Unreliable number', why: { ar: 'رقم فاتورة وصل بصيغة علمية ناقصة الأرقام: لا يُطابق.', en: 'An invoice number arrived in scientific notation with missing digits: it is not matched.' } });
+  if (comp.extraction.unreadPages) out.push({ key: 'unread', ar: 'مستند لم يُقرأ', en: 'Unread document', why: { ar: 'صفحة أو ملف لم يُقرأ؛ أضف نصه أو مستنداً آخر.', en: 'A page or file was not read; supply its text or another document.' } });
+  else if (comp.extraction.attachmentsPending) out.push({ key: 'attachments', ar: 'مرفق لم يُضَف', en: 'Attachment not added', why: { ar: 'مرفق مدرج في سند لم يُجلب هنا؛ أضفه يدوياً.', en: 'An attachment listed by Sanad was not retrieved here; add it by hand.' } });
+  if (comp.finance.state === 'short' || comp.finance.state === 'over') out.push({ key: 'gap', ar: 'فرق مالي', en: 'Financial gap', why: { ar: 'الفواتير المربوطة لا تساوي مبلغ الطلب: يستدعي بحثاً، ولا يثبت وجود فاتورة أخرى.', en: 'The linked invoices do not add up to the request amount: it calls for a search; it does not prove another invoice exists.' } });
+  return out;
+}
+// the ONE next action offered at the top of an order (what the person should do now)
+export function nextActionOf(comp, order, exceptions = []) {
+  const st = reviewStatusOf(comp, order, exceptions); const gap = comp.finance.state === 'short' || comp.finance.state === 'over';
+  if (st === 'not_identified' || st === 'contract_level') return { key: 'add_document', ar: `${NOT_IDENTIFIED.ar}.`, en: `${NOT_IDENTIFIED.en}.`, cta: { ar: 'إضافة مستند', en: 'Add a document' } };
+  if (exceptions.includes('corrupted_reference')) return { key: 'unreliable', ar: 'رقم فاتورة وصل بصيغة ناقصة الأرقام ولا يمكن مطابقته. راجع بقية الأرقام، وابحث عن الرقم الكامل في الوصف أو في مستند.', en: 'An invoice number arrived with missing digits and cannot be matched. Review the other numbers and look for the full number in the description or a document.', cta: { ar: 'مراجعة المراجع', en: 'Review the references' } };
+  if (st === 'needs_review') return { key: 'review', ar: 'هناك مراجع تحتاج مراجعتك قبل التأكيد.', en: 'Some references need your review before confirming.', cta: { ar: 'مراجعة المراجع', en: 'Review the references' } };
+  if (comp.extraction.unreadPages) return { key: 'unread', ar: 'صفحة لم تُقرأ. أضف نصها أو مستنداً آخر.', en: 'A page was not read. Supply its text or another document.', cta: { ar: 'إضافة مستند', en: 'Add a document' } };
+  if (gap) return { key: 'gap', ar: 'الفواتير المربوطة لا تغطي مبلغ الطلب. قد تكون هناك مراجع ناقصة — والفرق وحده لا يثبت وجود فاتورة أخرى.', en: 'The linked invoices do not cover the request amount. References may be missing — the gap alone does not prove another invoice exists.', cta: { ar: 'إضافة مستند', en: 'Add a document' } };
+  return { key: 'done', ar: 'لا إجراء مطلوب الآن.', en: 'No action needed now.', cta: null };
+}
+
+// the counts of requests by what the SOURCE STATUS text supports: «closed» only where the text says «مغلق»; everything else is unclassified (never counted as active or suspended)
+export function statusGroupCounts(cases) {
+  const closed = cases.filter((c) => c.orderStatus === 'closed' || c.requestStatus === 'مغلق').length;
+  return { total: cases.length, closed, unclassified: cases.length - closed };
+}
+const norm = (v) => String(v ?? '').toLowerCase().replace(/[\s\-_/]/g, '');
+export const normalizeSearch = norm;
+// what the list search looks in: the request / claim / enforcement numbers, the demo reference, every invoice reference found (as written and normalised) and the linked invoices
+export function orderSearchBlob(c) {
+  const refs = collectReferences(c, c.docs || []);
+  return norm([c.source?.requestNo, c.enforceNum, c.source?.claimNo, c.source?.enforcementNo, ...refs.flatMap((r) => [r.value, ...r.origins.map((o) => o.raw)]), ...(c.links || []).map((l) => l.invoiceId)].filter(Boolean).join(' '));
 }

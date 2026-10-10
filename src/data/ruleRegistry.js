@@ -60,7 +60,7 @@ export const RULE_DETAILS = {
     scope: BI('الغرامات', 'Fines'), evidence: BI('سجل الاعتراض', 'Objection record')
   },
   'ENF-1': {
-    definition: BI('محال للتنفيذ: يُحتسب غير محصل ولا يُستبعد (قاعدة مقفلة). الفاتورة الملغاة في المصدر مع تنفيذ مرتبط تبقى غير محصلة.', 'Referred to enforcement: counted uncollected, never excluded (locked rule). A source-cancelled invoice with linked enforcement stays uncollected.'),
+    definition: BI('محال للتنفيذ: بُعد منفصل وليس استبعاداً. القاعدة التي تعدّ الفاتورة الملغاة في المصدر والمحالة غير محصّلة غير مطبّقة: شروطها وجهة اعتمادها غير مؤكدة، وتبقى الفاتورة ملغاة مع تعليم التعارض.', 'Referred to enforcement: a separate dimension, not an exclusion. The rule that would count a source-cancelled, referred invoice as uncollected is NOT applied: its conditions and approver are unconfirmed; the invoice stays cancelled and the disagreement is flagged.'),
     sources: [BI('سند', 'Sanad')], fields: ['رقم العقد/الفاتورة', 'رقم طلب التنفيذ'],
     scope: BI('كل المصادر', 'All sources'), evidence: BI('رابط تنفيذ مؤكد', 'Confirmed enforcement link')
   }

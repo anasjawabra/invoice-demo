@@ -7,6 +7,7 @@ import path from 'node:path';
 import { loadStore } from '../server/store.js';
 import { invoiceIdOf, payerName, sadadOf, violationOf, beneficiaryIdOf } from '../server/names.js';
 import { ENTITIES, SOURCES, isoOf } from '../src/data/catalog.js';
+import { adaptSourceCase } from '../src/data/sanadSource.js';
 
 const OUT = path.resolve('public/samples/enforcement-orders');
 const esc = (s) => String(s).replace(/[\\()]/g, '\\$&');
@@ -40,7 +41,7 @@ for (const f of fs.readdirSync(OUT)) if (f.endsWith('.pdf') && !f.startsWith('ar
 const head = (q, title) => [
   { text: 'SYNTHETIC DEMO DOCUMENT - not an official record', size: 8 }, { gap: 6 },
   { text: title, size: 15 }, { gap: 6 },
-  { text: `Enforcement order no: ${q.enforceNum}` }, { text: `Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${q.status === 'قيد التنفيذ' ? 'In execution' : q.status === 'موقوف' ? 'Suspended' : 'Closed'}` },
+  { text: `Enforcement order no: ${q.enforceNum}` }, { text: `Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${adaptSourceCase(q).status === 'مغلق' ? 'Closed' : 'In execution'}` },
   { text: `Municipality: ${ENTITIES[q.ent].en}` }, { text: `Debtor: ${payerName(q.debtor).en} (Beneficiary ID ${beneficiaryIdOf(q.debtor)})` }, { gap: 6 }
 ];
 const refRow = (i) => ({ text: `${invoiceIdOf(st.idKey[i])}   |   ${SOURCES[st.src[i]].en || SOURCES[st.src[i]].key}   |   Issued ${isoOf(st.issue[i])}   |   ${num(st.gross[i])} SAR` });

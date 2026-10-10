@@ -3,12 +3,12 @@ import { useL } from '../../utils/bi';
 
 // Shared labels and chips for enforcement orders — used by the order list, the order page and the invoice view.
 export const CURRENT_ENFORCEMENT_LABEL = {
-  in_execution: { en: 'An order is in execution', ar: 'أمر قيد التنفيذ الآن', cls: 'rv-cat--enforcement' },
+  in_execution: { en: 'An order that is not closed', ar: 'أمر غير مغلق', cls: 'rv-cat--enforcement' },
   suspended: { en: 'Only suspended orders — not proceeding', ar: 'أوامر موقوفة فقط — غير ماضية', cls: 'rv-cat--partial' },
   none: { en: 'No open order', ar: 'لا أمر مفتوح', cls: '' }
 };
 export const ORDER_STATUS_LABEL = {
-  open: { en: 'In execution', ar: 'قيد التنفيذ', cls: 'rv-cat--enforcement' },
+  open: { en: 'Not closed', ar: 'غير مغلق', cls: 'rv-cat--enforcement' },
   suspended: { en: 'Suspended (not proceeding)', ar: 'موقوف (غير ماضٍ)', cls: 'rv-cat--partial' },
   closed: { en: 'Closed', ar: 'مغلق', cls: 'rv-cat--excluded' }
 };
@@ -83,17 +83,16 @@ export function IntegrationNotice() {
   );
 }
 
-// What «ENF-1 treatment» means — documented rule vs implementation assumptions, and its calculation effect (shown wherever the cancelled-vs-enforcement conflict appears)
+// Why an invoice that is cancelled in the source and referred to enforcement stays cancelled (plain wording; the rule's name and history are in the documentation)
 export function Enf1Explainer() {
   const { L } = useL();
   return (
     <details className="oj-marker">
-      <summary>{L('What is the ENF-1 treatment?', 'ما هي معالجة ENF-1؟')}</summary>
+      <summary>{L('Why does the invoice stay cancelled?', 'لماذا تبقى الفاتورة ملغاة؟')}</summary>
       <ul>
-        <li><b>{L('The rule (documented).', 'القاعدة (موثّقة).')}</b> {L('ENF-1 is in the platform’s rule registry: locked, approved, effective 2026-07-01, owner “Revenue data steward”. Its recorded wording is a “meeting correction”: invoices referred to enforcement — often shown “cancelled” in the source — are counted UNCOLLECTED, not excluded. The handover document repeats it.', 'ENF-1 في سجل قواعد المنصة: مقفلة ومعتمدة وسارية من 2026-07-01 ومالكها «أمين بيانات الإيرادات». وصيغتها المسجّلة «تصحيح اجتماع»: الفواتير المحالة للتنفيذ — وتظهر غالباً «ملغاة» في المصدر — تُحتسب غير محصّلة وليست مستبعدة. وتكررها وثيقة التسليم.')}</li>
-        <li><b>{L('Calculation effect.', 'الأثر الحسابي.')}</b> {L('Where the rule is applied to a source-cancelled invoice, the cancellation is NOT deducted: the invoice stays in net billed and its remaining balance (billed − received) counts in net uncollected; it is not a rule exclusion. Where it is not applied, the cancelled amount (billed − received) leaves net billed once.', 'حيث تُطبَّق القاعدة على فاتورة ملغاة في المصدر لا يُخصم الإلغاء: تبقى في صافي المفوتر ويُحتسب رصيدها المتبقي (المفوتر − المقبوض) في صافي غير المحصّل؛ وليست استبعاداً بقاعدة. وحيث لا تُطبَّق يخرج المبلغ الملغى (المفوتر − المقبوض) من صافي المفوتر مرة واحدة.')}</li>
-        <li><b>{L('Not documented — implementation assumptions.', 'غير موثّق — افتراضات تنفيذ.')}</b> {L('The minutes themselves are not in this repository, so the exact conditions cannot be verified. Which links count as “enforcement” (including links found in documents), whether any order status qualifies (open, suspended, closed, withdrawn) and whether the rule applies automatically are assumptions.', 'محاضر الاجتماع نفسها ليست في المستودع، فلا يمكن التحقق من الشروط بدقة. وما الروابط التي تُعدّ «تنفيذاً» (ومنها الروابط المستخرجة من مستندات)، وهل تؤهّل أي حالة أمر (مفتوح، موقوف، مغلق، مسحوب)، وهل تُطبَّق القاعدة تلقائياً — كلها افتراضات.')}</li>
-        <li><b>{L('What this demo does.', 'ما يفعله هذا العرض.')}</b> {L('Enforcement — active, historical, closed or withdrawn — never overrides a source cancellation, reinstates collectibility or changes a total, and no review action does either: the established treatment is kept (the invoice stays cancelled) and the conflict stays visible and flagged. ENF-1 is NOT applied until its conditions and authority are confirmed (EQ3 stays unresolved); no new financial policy is introduced. Decisions recorded by earlier builds are kept in the history with their policy basis flagged unresolved.', 'التنفيذ — نشطاً كان أو تاريخياً أو مغلقاً أو مسحوباً — لا يلغي إلغاءً في المصدر ولا يعيد قابلية التحصيل ولا يغيّر أي إجمالي، ولا يفعل ذلك أي إجراء مراجعة: المعالجة المقررة محفوظة (تبقى الفاتورة ملغاة) ويبقى التعارض ظاهراً ومعلَّماً. ولا تُطبَّق ENF-1 قبل تأكيد شروطها وجهة اعتمادها (يبقى EQ3 غير محسوم)؛ ولا تُستحدث سياسة مالية جديدة. وقرارات سجّلتها إصدارات سابقة تبقى في السجل مع تعليم أساسها السياسي غير محسوم.')}</li>
+        <li>{L('The source system shows it as cancelled. A request, an order, its closing or its withdrawal — or a reviewer’s note — never changes that by itself, never makes the invoice collectible again and never changes a total.', 'يُظهرها النظام المصدر ملغاة. والطلب أو الأمر أو إغلاقه أو سحبه — أو ملاحظة مراجع — لا يغيّر ذلك بذاته، ولا يعيد الفاتورة قابلة للتحصيل، ولا يغيّر أي إجمالي.')}</li>
+        <li>{L('A rule that would count such invoices as uncollected exists, but its conditions and who approves it are not confirmed, so it is not applied. The conflict stays visible for review.', 'توجد قاعدة تعدّ مثل هذه الفواتير غير محصّلة، لكن شروطها وجهة اعتمادها لم تُؤكَّد، لذلك لا تُطبَّق. ويبقى التعارض ظاهراً للمراجعة.')}</li>
+        <li>{L('A decision recorded by an earlier build is kept in the history only; it has no effect.', 'وأي قرار سجّلته إصدارات سابقة يبقى في السجل فقط ولا أثر له.')}</li>
       </ul>
     </details>
   );

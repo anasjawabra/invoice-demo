@@ -4,6 +4,8 @@ Synthetic-data demonstration; not production-ready. **No record of the real extr
 
 Source reviewed: `New Qadaya View_Tab 1 …_20260901_1425.csv` (UTF-8 with BOM, 20 columns, ≈48.8 thousand rows; 51.4 thousand physical lines because some descriptions span several lines). Code: `src/data/sanadSource.js` (field dictionary, status vocabulary, deterministic adaptation).
 
+> **Round 14 supersedes §3 (status classes), §5 (scientific notation) and §7 (the orders list) — see §11.** Sections 1, 2, 4, 6, 8 and 10 still stand.
+
 ## 1. Record grain
 
 * **One row = one enforcement request.** «رقم طلب التنفيذ» is unique per row — it is the Sanad key.
@@ -88,3 +90,31 @@ The instruction that enforcement must not independently override a cancellation 
 ## 10. Open questions for Sanad / the business
 
 Meaning of «رقم الانفاذ» and why it is shared; whether a debtor identity exists elsewhere in Sanad; the official class of each status (open / closed / suspended) and what «تم إصدار أمر إيقاف خدمات» and «خدمات البنك المركزي» mean for the invoice; the format of the invoice number in the structured column (numeric SADAD-type?) and an export that does not use scientific notation; contract-number formats; ENF-1's conditions and authority (EQ3). Still pending: live Sanad retrieval and attachments, actual OCR, legacy `.doc`.
+
+## 11. Round 14 — corrections and simplification (supersede §3, §5, §7)
+
+### 11.1 Statuses: show the source status, classify only what is stated
+* The 33 statuses are shown **exactly as written** everywhere (list, order page, search). Only «مغلق …» is a stated closure (class `closed`). **Every other status is «غير مصنّف»** (unclassified): it is never counted as definitively active, suspended or closed, and no status is called «suspended» — in particular «… تم إصدار امر بوقف المهل» is **not** a suspension (the earlier inference is withdrawn).
+* The landing page's expandable breakdown shows two request groups — *closed (the source text says «مغلق»)* and *not classified* — and the order list filters by the exact source status; the demo's synthetic cases use the same vocabulary (a legacy «موقوف» in a synthetic case is folded into «قيد التنفيذ», with the group and its basis recorded in `sourceMeta`).
+* Four facts stay separate and independent: **source status**, **current enforcement** (a confirmed link on a non-closed order), **historical referral** (an invoice was ever on an order), and **payment status**. Closing or withdrawing an order never implies payment, never removes the referral history and never changes any balance.
+
+### 11.2 Scientific notation: the exact raw string decides
+Decided by string handling only (never `Number`, which cannot hold 12–17 digits exactly):
+
+| Raw value | Verdict | Handling |
+|---|---|---|
+| `4.08380122907E+11` (mantissa writes all 12 digits) | **exact** — recoverable | raw string preserved; normalised to the 12 digits (SADAD) and matched like any other reference |
+| `2.414E+11`, `9.9E+11` (fewer digits than the exponent needs) | **rounded** — digits missing | flagged «رقم غير موثوق»; **never padded, completed, repaired or matched** |
+| `1.23456789012346E+17` (longer than the identifier lengths) | **unreliable** | flagged; not matched |
+| `0.5E+11`, `1.5E+0`-style forms | not normalised / fractional | flagged; not matched |
+
+* Only an exact value of a known identifier length (12 = SADAD, 14 = violation) is used. A flagged value never creates, confirms or removes a link by itself; the reviewer can look for the full number in the description or a document.
+* Quality detail (raw string, how many digits were written vs needed) is on the order page; the list shows only a small alert («رقم غير موثوق»).
+* **Limit:** an export that rounded the *last* digit but still wrote all of them cannot be told apart from an exact one by the string alone; the open question for Sanad (an export that keeps the identifier as text) covers it.
+* Tests: exact, rounded, long, unreliable, and the generated archetypes `corrupted_structured` (rounded) and `notation_exact` (recoverable — **EN-6298**).
+
+### 11.3 The orders list and the order page (simplified)
+* **List** — one row per request: request number (with the demo reference), Amanah · municipality, source status, amount, linked invoices, **one** matching-review status («تحتاج إجراء / تحتاج مراجعة / أرقام غير محددة / مكتملة») and «فتح»; small alerts for an unreliable identifier, an attachment not yet added, an unread page or a financial gap.
+* **Filters** — visible: search (request number or invoice reference — **never by debtor identity**), Amanah, matching-review status. Everything else (source status, debtor type, review reason, document read/not read, reconciliation) under «فلاتر إضافية». Active filters appear as removable chips with one «reset all». Filter, sort, page and scroll position are restored when the reviewer returns from an order, an invoice or a contract (and when returning to an order that was itself opened from the list).
+* **Landing** — at most four cards, each with its counting unit stated (requests · requests needing action · referred invoices · cancelled-and-referred invoices; they are different units and are never added); the full breakdown is in an expandable section.
+* **Order page** — leads with a compact summary (request number, amount, source status, Amanah · municipality, referral date, debtor type), then linked invoices, a financial-discrepancy notice if any, and the next action; the original description is under «الوصف الأصلي»; all 20 source columns are secondary under «بيانات المصدر».

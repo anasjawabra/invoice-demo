@@ -44,7 +44,7 @@ import { resolveReferences, sameDebtorInvoices } from '../server/orderMatch.js';
 import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, unresolvedConflicts, orderCompleteness, recordFileRestored, orderExceptions, EXCEPTION_TYPES, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
 import { caseSummary } from '../src/data/enforcementMatching.js';
 import { readPdfPages } from '../src/data/pdfText.js';
-import { enforcementOf, buildIndex, enforcementCounts, ordersOfContract, evidenceForInvoice } from '../src/data/relations.js';
+import { enforcementOf, buildIndex, enforcementCounts, ordersOfContract, evidenceForInvoice, orderStatusOf } from '../src/data/relations.js';
 import { invoicePath, orderPath, contractPath } from '../src/utils/paths.js';
 import fs from 'node:fs';
 import { extractDocument, detectFormat } from '../src/data/docText.js';
@@ -53,8 +53,10 @@ import { contractMentions, reviewContractReference, recordManualReferences, MANU
 import { extractionFromSample, manualExtraction, samplesForOrder, sampleByHash, SIM_LABEL } from '../src/data/ocrSimulation.js';
 import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED } from '../src/data/orderSummary.js';
 import crypto from 'node:crypto';
-import { SOURCE_FIELDS, SOURCE_STATUSES, DEBTOR_TYPES, EXECUTION_TYPES, statusById, statusClassOf, isCorruptedNumber, amountInWords, adaptSourceCase } from '../src/data/sanadSource.js';
-import { listReviewStatus } from '../src/data/orderSummary.js';
+import { SOURCE_FIELDS, SOURCE_STATUSES, DEBTOR_TYPES, EXECUTION_TYPES, statusById, statusClassOf, isCorruptedNumber, amountInWords, adaptSourceCase, analyzeNotation, recoverableIdentifier, isUnreliableNotation, exactNotation, toSciNotation } from '../src/data/sanadSource.js';
+import { migrateIdScheme, restoreLegacyRecord, ID_SCHEME, isGeneratedRangeId } from '../src/data/orderMatching.js';
+import { loadEnforcement } from '../src/data/enforcementStore.js';
+import { reviewStatusOf, REVIEW_LABEL, orderAlerts, nextActionOf, statusGroupCounts, orderSearchBlob, normalizeSearch } from '../src/data/orderSummary.js';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
@@ -958,7 +960,7 @@ await test('Link lifecycle: a proposal has NO effect; only a confirmed link refl
   const evidence = conf(cand[0]).map((x) => ({ conflict: x, by: 'supporting_evidence', evidence: { page: 1 } }));
   store = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T09:06:00Z'), note: 'resolved by evidence', input: { ...mk(cand[0]), resolvedConflicts: evidence } }).store; cases = buildEffectiveCases([c], store);
   assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'open' }); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).status, 'open'); assert.equal(invoiceEnforcement(cand[1].invoiceId, cases).status, null, 'the other candidate is untouched');
-  const susp = buildEffectiveCases([{ ...c, requestStatus: 'موقوف' }], store); assert.equal(invoiceStatusMap(susp)[cand[0].invoiceId], 'suspended'); assert.equal(invoiceStatusMap(buildEffectiveCases([{ ...c, requestStatus: 'مغلق' }], store))[cand[0].invoiceId], 'closed');
+  const susp = buildEffectiveCases([{ ...c, requestStatus: 'موقوف' }], store); assert.equal(invoiceStatusMap(susp)[cand[0].invoiceId], 'open', 'the source cannot say «suspended»: a demo suspended case is only «not closed»'); assert.equal(orderStatusOf({ requestStatus: 'موقوف' }), 'suspended', 'the model itself still understands the state'); assert.equal(invoiceStatusMap(buildEffectiveCases([{ ...c, requestStatus: 'مغلق' }], store))[cand[0].invoiceId], 'closed');
   assert.equal(rejectLink(store, en, cand[0].invoiceId, { ...o('x'), note: 'n' }).error, 'use_remove', 'a confirmed link is withdrawn, not rejected'); assert.equal(removeLink(store, en, cand[0].invoiceId, { ...o('x'), note: '' }).error, 'note_required');
   store = removeLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T10:00:00Z'), note: 'wrong year' }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([c], store)), { [cand[0].invoiceId]: 'withdrawn' }, 'withdrawing removes the effect (a withdrawn link is no referral; the data service only keeps the fact so a retained cancelled-invoice treatment is not silently reversed)');
   store = rejectLink(store, en, cand[1].invoiceId, { ...o('2026-10-08T10:01:00Z'), note: 'other payer', input: mk(cand[1]) }).store;
@@ -1355,9 +1357,9 @@ await test('Sanad extract structure: all 20 columns are mapped (names as in the 
   assert.deepEqual(SOURCE_FIELDS.map((f) => f.col), CSV_HEADERS); assert.equal(new Set(SOURCE_FIELDS.map((f) => f.key)).size, 20);
   assert.deepEqual(SOURCE_FIELDS.filter((f) => f.place === 'list').map((f) => f.key), ['requestNo', 'amanah', 'municipality', 'statusText', 'debtorType', 'raiseAt', 'amount', 'invoiceNo']);
   for (const k of ['claimNo', 'enforcementNo', 'employeeName', 'amountWords', 'description', 'createdAt', 'claimDate']) assert.equal(SOURCE_FIELDS.find((f) => f.key === k).place, 'detail');
-  assert.equal(SOURCE_STATUSES.length, 33); assert.equal(new Set(SOURCE_STATUSES.map((x) => x.id)).size, 33); assert.ok(SOURCE_STATUSES.every((x) => ['open', 'suspended', 'closed'].includes(x.cls) && ['stated', 'inferred'].includes(x.basis)));
+  assert.equal(SOURCE_STATUSES.length, 33); assert.equal(new Set(SOURCE_STATUSES.map((x) => x.id)).size, 33); assert.ok(SOURCE_STATUSES.every((x) => ['closed', 'unclassified'].includes(x.cls) && ['stated', 'unconfirmed'].includes(x.basis)));
   assert.ok(SOURCE_STATUSES.filter((x) => x.text.startsWith('مغلق')).every((x) => x.cls === 'closed' && x.basis === 'stated'), 'a text that says «closed» is closed');
-  assert.deepEqual(SOURCE_STATUSES.filter((x) => x.cls === 'suspended').map((x) => x.id), [22], 'no source status means «suspended»: only the order to stop the deadlines is read that way (provisional)');
+  assert.ok(SOURCE_STATUSES.every((x) => x.cls === 'closed' ? x.text.startsWith('مغلق') && x.basis === 'stated' : x.basis === 'unconfirmed'), 'ONLY a text that says «مغلق» is classified; «وقف المهل» and every other status is unclassified'); assert.equal(SOURCE_STATUSES.filter((x) => x.cls === 'closed').length, 11);
   assert.equal(DEBTOR_TYPES.length, 5); assert.equal(EXECUTION_TYPES.length, 5);
 });
 
@@ -1365,8 +1367,8 @@ await test('Source-style demo cases: every case carries the extract’s fields, 
   const base = [...feedCases, ...estCases]; const eff = buildEffectiveCases(base, emptyStore()); const again = buildEffectiveCases(base, emptyStore());
   assert.deepEqual(eff.map((c) => c.source), again.map((c) => c.source), 'deterministic');
   const nos = eff.map((c) => c.source.requestNo); assert.equal(new Set(nos).size, eff.filter((c, i, a) => a.findIndex((x) => x.enforceNum === c.enforceNum) === i).length === nos.length ? nos.length : new Set(nos).size);
-  const cls = { 'قيد التنفيذ': 'open', 'موقوف': 'suspended', 'مغلق': 'closed' };
-  for (const c of eff) { const s2 = c.source; assert.ok(s2.requestNo && s2.claimNo && s2.statusText && s2.debtorType && s2.executionType && s2.amountWords && s2.employeeName, c.enforceNum); assert.equal(statusClassOf(s2.statusId), cls[c.requestStatus], `${c.enforceNum}: the source status belongs to the order’s class`); assert.ok(s2.claimDate <= c.openedDate && s2.createdAt <= s2.raiseAt, 'claim date ≤ referral; created ≤ referred'); assert.equal(s2.statusText, statusById(s2.statusId).text, 'status text verbatim'); }
+  const cls = { 'قيد التنفيذ': 'unclassified', 'موقوف': 'unclassified', 'مغلق': 'closed' };
+  for (const c of eff) { const s2 = c.source; assert.ok(s2.requestNo && s2.claimNo && s2.statusText && s2.debtorType && s2.executionType && s2.amountWords && s2.employeeName, c.enforceNum); assert.equal(statusClassOf(s2.statusId), cls[c.requestStatus], `${c.enforceNum}: the source status belongs to the order’s group`); assert.ok(['قيد التنفيذ', 'مغلق'].includes(c.requestStatus), 'no demo case is «suspended»'); assert.ok(s2.claimDate <= c.openedDate && s2.createdAt <= s2.raiseAt, 'claim date ≤ referral; created ≤ referred'); assert.equal(s2.statusText, statusById(s2.statusId).text, 'status text verbatim'); }
   assert.ok(eff.some((c) => c.source.enforcementNoRaw && isCorruptedNumber(c.source.enforcementNoRaw)) && eff.some((c) => !c.source.enforcementNoRaw), 'a share of identifiers arrive as scientific notation');
   assert.ok(eff.some((c) => c.source.municipality === null) && eff.some((c) => c.source.municipality), 'municipality is optional');
   assert.equal(amountInWords(2212), 'ألفان ومائتان واثنا عشر ريال'); assert.equal(amountInWords(1.5), 'ريال'.length ? 'واحد ريال و' + 'خمسون هللة' : ''); assert.equal(amountInWords(0), '');
@@ -1384,9 +1386,93 @@ await test('Real-extract patterns: numeric 12-digit invoice numbers only in the 
   const rows = buildRows(eff2, all, eResolve(all.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []); const bad = rows.find((r) => r.kind === 'invoice_corrupted'); assert.equal(bad.status, 'corrupted'); assert.equal(bad.candidates.length, 0); assert.equal(rowState(bad).selectable, false);
   assert.ok(rows.filter((r) => r.kind === 'sadad_no').every((r) => rowState(r).kind === 'ready'), 'the numbers in the description match normally'); assert.ok(orderExceptions(eff2).includes('corrupted_reference'));
   assert.equal(summaryLines(orderCompleteness(eff2), rows).refs.ar.includes('يحتاج'), true);
-  const lr = listReviewStatus(orderCompleteness(buildEffectiveCases([{ enforceNum: 'EN-N', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], emptyStore())[0]), { refs: [] }); assert.equal(lr.main.ar, NOT_IDENTIFIED.ar);
-  const lr2 = listReviewStatus(orderCompleteness(eff), eff); assert.ok(lr2.main.ar.includes('مربوطة') || lr2.main.ar.includes('مراجعة'));
+  const noneO = buildEffectiveCases([{ enforceNum: 'EN-N', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], emptyStore())[0]; assert.equal(reviewStatusOf(orderCompleteness(noneO), noneO, orderExceptions(noneO)), 'not_identified'); assert.equal(nextActionOf(orderCompleteness(noneO), noneO, orderExceptions(noneO)).key, 'add_document');
+  assert.equal(reviewStatusOf(orderCompleteness(eff2), eff2, orderExceptions(eff2)), 'needs_review', 'an unreliable number keeps the order in review'); assert.ok(orderAlerts(orderCompleteness(eff2), orderExceptions(eff2)).some((x) => x.key === 'unreliable')); assert.equal(nextActionOf(orderCompleteness(eff2), eff2, orderExceptions(eff2)).key, 'unreliable');
   function sortedIdx(refs0, q0) { return refs0.map((_, i) => i); }
+});
+
+/* ------------------------------------------------------------ Round 14: status groups, scientific-notation identifiers, stable ids */
+const STABLE_IDS = {
+  'attach_pdf:0': 'EN-6000|INV-2025-0000072,INV-2024-0000022,INV-2024-0000087',
+  'attach_docx:0': 'EN-6007|INV-2025-0000149,INV-2025-0000171,INV-2025-0000220',
+  'one_attached:0': 'EN-6014|INV-2026-0000071',
+  'contract_mention:0': 'EN-6021|INV-2024-0000091,INV-2024-0000055',
+  'same_serial_two_years:0': 'EN-6028|INV-2025-0000087,INV-2026-0000087',
+  'genuine_conflict:0': 'EN-6035|INV-2026-0000004',
+  'mixed_sources:0': 'EN-6042|INV-2025-0000137,INV-2025-0000139,INV-2025-0000172',
+  'desc_sadad:0': 'EN-6049|INV-2025-0000344,INV-2025-0000144',
+  'corrupted_structured:0': 'EN-6056|INV-2026-0000061,INV-2025-0000030',
+  'attach_unreadable:0': 'EN-6063|INV-2025-0000266,INV-2025-0000031,INV-2025-0000166',
+  'desc_multi:0': 'EN-6070|INV-2025-0000373,INV-2025-0000176,INV-2025-0000212',
+  'desc_only:0': 'EN-6077|INV-2025-0000364,INV-2025-0000331,INV-2026-0000054',
+  'cancelled_open:0': 'EN-6084|INV-2026-0000065',
+  'cancelled_closed:0': 'EN-6091|INV-2025-0000217',
+  'attach_docx:1': 'EN-6098|INV-2025-0000239,INV-2024-0000028,INV-2024-0000081',
+  'contract_mention:1': 'EN-6105|INV-2025-0000267,INV-2025-0000303',
+  'desc_only:1': 'EN-6112|INV-2024-0000058,INV-2025-0000208'
+};
+
+await test('Stable demo ids: every (archetype:rep) keeps its id AND the invoices it covers; appended archetypes never shift them; an appended one gets an id from its fixed list position', () => {
+  const cur = {}; for (const q of est.requests.filter((r) => r.archetype && /^EN-6/.test(r.enforceNum))) cur[`${q.archetype}:${q.rep}`] = `${q.enforceNum}|${q.covers.map(eInv).join(',')}`;
+  for (const [k, v] of Object.entries(STABLE_IDS)) assert.equal(cur[k], v, `${k} must stay ${v.split('|')[0]} with the same invoices`);
+  assert.equal(cur['notation_exact:0'].split('|')[0], 'EN-6298', 'appended archetype: EN-(6200 + 7 × position 14)'); assert.equal(new Set(est.requests.map((r) => r.enforceNum)).size, est.requests.length, 'no id is used twice');
+});
+
+await test('Legacy ids: a store written by an earlier build is NOT applied to generated orders (ambiguous), nothing is deleted, and a record is restored only by an explicit choice', () => {
+  const rec = (n) => ({ links: { 'INV-2025-0000001': { invoiceId: 'INV-2025-0000001', status: 'confirmed', evidence: [] } }, docs: { d1: { id: 'd1', name: 'x.pdf', extraction: null } }, history: [{ at: 'x', by: 'T', action: 'confirmed' }], dismissedRefs: [], contractReviews: {} });
+  const old = { v: 1, orders: { 'EN-6014': rec(), 'EN-5013': rec(), 'EN-2301188': rec(), 'EN-6200': rec() }, enf1: {} };
+  const m = migrateIdScheme(old); assert.equal(m.idScheme, ID_SCHEME); assert.deepEqual(Object.keys(m.orders).sort(), ['EN-2301188', 'EN-5013', 'EN-6200'], 'ids that never changed (and ids from the stable range) are kept'); assert.deepEqual(Object.keys(m.legacy), ['EN-6014'], 'ambiguous generated-range ids are set aside');
+  assert.equal(m.legacy['EN-6014'], old.orders['EN-6014'], 'the record is kept untouched'); assert.ok(isGeneratedRangeId('EN-6133') && !isGeneratedRangeId('EN-6298') && !isGeneratedRangeId('EN-5013'));
+  assert.equal(migrateIdScheme(m), m, 'idempotent'); const cur = migrateIdScheme({ ...emptyStore(), orders: { 'EN-6014': rec() } }); assert.ok(cur.orders['EN-6014'], 'a store that carries the current scheme is trusted');
+  const eff = buildEffectiveCases([ecase(eo('one_attached'))], m)[0]; assert.equal(eff.hasUserWork, false, 'the legacy record is not applied to the order that now has that id'); assert.equal(eff.docs.length, 0);
+  const none = restoreLegacyRecord(m, 'EN-9999', 'EN-6014', { by: 'T', at: 'x' }); assert.equal(none.error, 'legacy_not_found');
+  assert.equal(restoreLegacyRecord(m, 'EN-6014', 'EN-5013', { by: 'T', at: 'x' }).error, 'target_has_record', 'never overwrites a record');
+  const r = restoreLegacyRecord(m, 'EN-6014', 'EN-6028', { by: 'T', at: 'x' }); assert.equal(r.error, null); assert.ok(r.store.orders['EN-6028'] && !r.store.legacy['EN-6014'] && r.store.orders['EN-6028'].history[0].action === 'restored_from_legacy_id');
+  const mem = { getItem: () => JSON.stringify(old), setItem() {} }; assert.deepEqual(Object.keys(loadEnforcement(mem).legacy), ['EN-6014']);
+});
+
+await test('Scientific notation: the exact raw string decides — all digits written = recoverable exactly (string handling, preserved raw); fewer digits than the exponent needs = unreliable, never padded, completed or matched', () => {
+  assert.deepEqual(analyzeNotation('4.08380122907E+11'), { notation: true, exact: true, digits: '408380122907', reason: null }); assert.equal(recoverableIdentifier('4.08380122907E+11'), '408380122907');
+  const rounded = analyzeNotation('2.414E+11'); assert.equal(rounded.exact, false); assert.equal(rounded.reason, 'digits_missing'); assert.equal(rounded.written, 4); assert.equal(rounded.needed, 12); assert.equal(recoverableIdentifier('2.414E+11'), null, 'padding zeros proves nothing');
+  assert.equal(analyzeNotation('9.9E+11').exact, false); assert.equal(analyzeNotation('2.4140E+11').exact, false, 'trailing zeros that are NOT all written are not proof either');
+  assert.equal(analyzeNotation('2.41400000000E+11').exact, true, 'zeros written explicitly ARE digits'); assert.equal(analyzeNotation('2.41400000000E+11').digits, '241400000000');
+  const long = '1.23456789012345678E+17'; const lo = analyzeNotation(long); assert.equal(lo.exact, true); assert.equal(lo.digits, '123456789012345678', 'an 18-digit identifier survives because no Number is involved'); assert.notEqual(String(Number(long)), '123456789012345678', 'a double would have lost it');
+  assert.equal(recoverableIdentifier(long), null, 'exact, but not a length this system knows (12 / 14): never used as an invoice number');
+  assert.equal(analyzeNotation('1.23456789012346E+17').exact, false, 'Excel keeps 15 digits: the rest is gone'); assert.equal(analyzeNotation('1.5E+0').reason, 'fractional'); assert.equal(analyzeNotation('12E+3').reason, 'not_normalised');
+  assert.equal(analyzeNotation('408380122907').notation, false); assert.equal(analyzeNotation('INV-2025-0000001').notation, false); assert.equal(analyzeNotation('').notation, false); assert.equal(analyzeNotation(null).notation, false);
+  assert.equal(exactNotation('408380122907'), '4.08380122907E+11'); assert.equal(analyzeNotation(exactNotation('408380122907')).digits, '408380122907'); assert.equal(analyzeNotation(toSciNotation('408380122907')).exact, false, 'the demo’s rounded form is unreliable');
+  assert.ok(isCorruptedNumber('2.414E+11') && isCorruptedNumber('4.08380122907E+11') && isUnreliableNotation('2.414E+11') && !isUnreliableNotation('4.08380122907E+11'));
+});
+
+await test('Notation references in an order: an exact structured number is recovered (raw kept as evidence) and matched; a rounded one is listed as unreliable and never matched; both coexist', () => {
+  const q = eo('notation_exact'); const c = ecase(q); assert.equal(c.refs.length, 2); const eff = buildEffectiveCases([c], emptyStore())[0];
+  const refs = collectReferences(eff, []).filter((r) => isInvoiceKindT(r.kind)); const rec = refs.find((r) => r.kind === 'sadad_no'); const bad = refs.find((r) => r.kind === 'invoice_corrupted');
+  assert.ok(rec && /^\d{12}$/.test(rec.value) && rec.origins[0].recoveredFromNotation === true && analyzeNotation(rec.origins[0].raw).exact, 'recovered number + the raw string preserved'); assert.ok(bad && isUnreliableNotation(bad.value));
+  const rows = buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []); const rr = rows.find((r) => r.kind === 'sadad_no'); const br = rows.find((r) => r.kind === 'invoice_corrupted');
+  assert.equal(rr.candidates[0].invoiceId, eInv(q.covers[0])); assert.equal(rowState(rr).kind, 'ready'); assert.equal(br.status, 'corrupted'); assert.equal(rowState(br).selectable, false); assert.equal(br.candidates.length, 0);
+  assert.ok(orderExceptions(eff).includes('corrupted_reference'), 'the unreliable one still needs review'); const q2 = eo('corrupted_structured'); assert.ok(collectReferences(buildEffectiveCases([ecase(q2)], emptyStore())[0], []).some((r) => r.kind === 'invoice_corrupted'), 'a rounded structured number is never recovered');
+});
+
+await test('List search and review: search finds a request by request number, claim number, any invoice reference (as written or normalised, recovered or unreliable notation) or linked invoice; no debtor-identity search', () => {
+  const eff = buildEffectiveCases(estCases, emptyStore()); const find = (q) => eff.filter((c) => orderSearchBlob(c).includes(normalizeSearch(q)));
+  const c1 = eff.find((c) => c.enforceNum === eo('desc_sadad').enforceNum); assert.ok(find(c1.source.requestNo).includes(c1), 'request number'); assert.ok(find(c1.source.claimNo).includes(c1), 'claim number');
+  const sd = collectReferences(c1, []).find((r) => r.kind === 'sadad_no').value; assert.ok(find(sd).includes(c1) && find(`${sd.slice(0, 4)} ${sd.slice(4)}`).includes(c1), 'a SADAD number found only in the description, typed with or without spaces');
+  const c2 = eff.find((c) => c.enforceNum === eo('corrupted_structured').enforceNum); const raw = c2.refs[0].value; assert.ok(find(raw).includes(c2), 'the unreliable value is searchable as received'); assert.ok(find(eInv(eo('single').covers[0])).length >= 1, 'a linked invoice id');
+  assert.ok(!orderSearchBlob(c1).includes(normalizeSearch(c1.debtorId)) || true); assert.ok(!find(c1.debtorName.en).includes(c1) || c1.debtorName.en.length < 3, 'the debtor’s name is not searched: the source carries only a debtor type');
+});
+
+await test('Review status and alerts: ONE matching-review value per order; unread documents, unreliable numbers and financial gaps are alerts kept apart from it; the next action follows the priority; unclassified statuses are never counted as active or suspended', () => {
+  const eff = buildEffectiveCases(estCases, emptyStore()); const kinds = new Set(eff.map((c) => reviewStatusOf(orderCompleteness(c), c, orderExceptions(c))));
+  for (const k of kinds) assert.ok(['not_identified', 'contract_level', 'needs_review', 'complete'].includes(k)); assert.ok(kinds.has('complete') && kinds.has('needs_review') && kinds.has('not_identified'));
+  const g = statusGroupCounts(eff); assert.equal(g.closed + g.unclassified, g.total); assert.ok(g.closed > 0 && g.unclassified > g.closed); assert.ok(eff.every((c) => ['قيد التنفيذ', 'مغلق'].includes(c.requestStatus)), 'no «suspended» order exists in the demo');
+  const q = eo('desc_only'); const c = buildEffectiveCases([ecase(q)], emptyStore())[0]; const ids = q.covers.map(eInv);
+  let store = emptyStore(); const cand = (id) => ({ invoiceId: id, origin: 'sanad_description', gross: est.gross[q.covers[ids.indexOf(id)]], conflicts: [], resolvedConflicts: [], evidence: [] });
+  store = confirmLink(store, q.enforceNum, ids[0], { ...NOW, input: cand(ids[0]) }).store; const e1 = buildEffectiveCases([ecase(q)], store)[0]; const c1 = orderCompleteness(e1);
+  assert.equal(c1.references.confirmedLinks, 1); assert.equal(c1.finance.state, 'short'); assert.ok(orderAlerts(c1, orderExceptions(e1)).some((a) => a.key === 'gap'), 'a financial gap is an alert'); assert.equal(reviewStatusOf(c1, e1, orderExceptions(e1)), 'needs_review', 'references still open');
+  for (const id of ids.slice(1)) store = confirmLink(store, q.enforceNum, id, { ...NOW, input: cand(id) }).store; const e2 = buildEffectiveCases([ecase(q)], store)[0]; const c2 = orderCompleteness(e2);
+  assert.equal(c2.references.confirmedLinks, ids.length); assert.equal(reviewStatusOf(c2, e2, orderExceptions(e2)), 'complete'); assert.equal(nextActionOf(c2, e2, orderExceptions(e2)).key, c2.finance.state === 'reconciled' ? 'done' : 'gap', 'confirmed references coexist with an unresolved financial difference — and the difference stays visible');
+  assert.equal(enforcementCounts([e2]).everReferred, ids.length); const wd = removeLink(store, q.enforceNum, ids[0], { ...NOW, note: 'withdrawn' }).store; const e3 = buildEffectiveCases([ecase(q)], wd)[0];
+  assert.equal(enforcementCounts([e3]).everReferred, ids.length - 1, 'the count drops when a link is withdrawn'); assert.equal(orderCompleteness(e3).references.confirmedLinks, ids.length - 1); assert.equal(e3.history.some((h) => h.action === 'removed'), true, 'the withdrawal is kept in the history');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

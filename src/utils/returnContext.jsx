@@ -31,7 +31,16 @@ export function useRestoreScroll(ready) {
     }
   }, [ready, restore, loc.pathname, loc.search]);
 }
-const saveScroll = (loc) => { try { sessionStorage.setItem(SC(loc.pathname + loc.search), String(window.scrollY)); } catch { /* none */ } };
+const OR = (path) => `ib_origin_${path}`;
+// a record page remembers where it was itself opened from, so that coming BACK to it (from a record it opened) keeps its own way back
+const saveScroll = (loc) => {
+  try {
+    sessionStorage.setItem(SC(loc.pathname + loc.search), String(window.scrollY));
+    if (loc.state?.from) sessionStorage.setItem(OR(loc.pathname + loc.search), JSON.stringify(loc.state.from));
+    else sessionStorage.removeItem(OR(loc.pathname + loc.search)); // opened afresh (menu, address): no stale origin
+  } catch { /* none */ }
+};
+const readOrigin = (path) => { try { const raw = sessionStorage.getItem(OR(path)); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } };
 
 export function usePageLabel() {
   const { L } = useL(); const loc = useLocation();
@@ -66,6 +75,6 @@ export function useReturnTarget(fallback) {
   const loc = useLocation(); const nav = useNavigate();
   const from = loc.state?.from || null;
   const target = from ? { path: from.path + (from.search || ''), label: from.label, restore: true } : { path: fallback.path, label: fallback.label, restore: false };
-  const go = useCallback(() => nav(target.path, { state: { restore: true, from: undefined } }), [nav, target.path]); // eslint-disable-line react-hooks/exhaustive-deps
+  const go = useCallback(() => nav(target.path, { state: { restore: true, from: readOrigin(target.path) } }), [nav, target.path]); // eslint-disable-line react-hooks/exhaustive-deps
   return { ...target, go };
 }

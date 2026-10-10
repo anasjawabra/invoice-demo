@@ -29,28 +29,45 @@ export const SOURCE_FIELDS = [
   { col: 'الوصف', key: 'description', ar: 'الوصف', en: 'Description', place: 'detail', note: { ar: 'نص حر طويل أحياناً متعدد الأسطر؛ فيه أرقام فواتير (غالباً 12 رقماً) وأرقام عقود ومبالغ — يُقرأ كله.', en: 'Free text, sometimes multi-line; carries invoice numbers (mostly 12 digits), contract numbers and amounts — read in full.' } }
 ];
 
-// Status vocabulary: code + text VERBATIM from the source (spelling kept). `cls` is the demo's PROVISIONAL class (open / suspended / closed): 'stated' = the text says «مغلق»; 'inferred' = the demo's
-// reading of the text (to be confirmed with Sanad). There is NO source status that means «suspended»: the only candidate is the order to stop the deadlines («أمر بوقف المهل»).
+// Status vocabulary: code + text VERBATIM from the source (spelling kept). `cls`: 'closed' ONLY where the text itself says «مغلق» (basis 'stated'); every other status is 'unclassified'
+// (basis 'unconfirmed'): its operational meaning — active, on hold, ended — has no confirmed Sanad definition (e.g. «وقف المهل» is NOT read as suspended). Source status, active enforcement,
+// historical referral and payment status stay separate.
 const S = (id, text, cls, basis) => ({ id, text, cls, basis });
 export const SOURCE_STATUSES = [
-  S(1, 'لم يتم التحقق', 'open', 'inferred'), S(2, 'مراجعة الطلب', 'open', 'inferred'), S(3, 'تحت الإجراء لدى الدائرة القضائية', 'open', 'inferred'), S(4, 'طلب استكمال نواقص', 'open', 'inferred'),
-  S(8, 'طلب محفوظ', 'open', 'inferred'), S(9, 'مسودة محذوفة', 'closed', 'inferred'), S(11, 'تم إصدار قرار باثبات ترك طلب التنفيذ', 'closed', 'inferred'), S(13, 'مغلق - تم التنفيذ', 'closed', 'stated'),
-  S(17, 'تم إصدار أمر تنفيذ', 'open', 'inferred'), S(20, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر منع من السفر', 'open', 'inferred'), S(22, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر بوقف المهل', 'suspended', 'inferred'),
-  S(25, 'تم إصدار قرار برفض طلب وقف المهل', 'open', 'inferred'), S(27, 'خدمات البنك المركزي', 'open', 'inferred'), S(28, 'خدمات هيئة السوق المالية', 'open', 'inferred'), S(29, 'تم إصدار أمر إيقاف خدمات', 'open', 'inferred'),
-  S(32, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر تمديد منع من السفر', 'open', 'inferred'), S(33, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار قرار إلغاء األومر الصادرة', 'open', 'inferred'),
-  S(36, 'الإجراء لدى الدائرة القضائية - تم إصدار قرار برفض طلب فرض الغرامة', 'open', 'inferred'), S(38, 'طلب مقبول', 'open', 'inferred'), S(39, 'طلب غير مقبول', 'closed', 'inferred'),
-  S(40, 'مغلق - لعدم استكمال النواقص خلال المهلة', 'closed', 'stated'), S(41, 'مغلق - حكم بعدم الاختصاص', 'closed', 'stated'), S(42, 'تم إصدار حكم بعدم القبول الكلي', 'closed', 'inferred'),
-  S(43, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار حكم بعدم القبول الجزئي', 'open', 'inferred'), S(44, 'مغلق – تعذر التنفيذ', 'closed', 'stated'), S(45, 'مغلق - لعدم استكمال النواقص', 'closed', 'stated'),
+  S(1, 'لم يتم التحقق', 'unclassified', 'unconfirmed'), S(2, 'مراجعة الطلب', 'unclassified', 'unconfirmed'), S(3, 'تحت الإجراء لدى الدائرة القضائية', 'unclassified', 'unconfirmed'), S(4, 'طلب استكمال نواقص', 'unclassified', 'unconfirmed'),
+  S(8, 'طلب محفوظ', 'unclassified', 'unconfirmed'), S(9, 'مسودة محذوفة', 'unclassified', 'unconfirmed'), S(11, 'تم إصدار قرار باثبات ترك طلب التنفيذ', 'unclassified', 'unconfirmed'), S(13, 'مغلق - تم التنفيذ', 'closed', 'stated'),
+  S(17, 'تم إصدار أمر تنفيذ', 'unclassified', 'unconfirmed'), S(20, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر منع من السفر', 'unclassified', 'unconfirmed'), S(22, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر بوقف المهل', 'unclassified', 'unconfirmed'),
+  S(25, 'تم إصدار قرار برفض طلب وقف المهل', 'unclassified', 'unconfirmed'), S(27, 'خدمات البنك المركزي', 'unclassified', 'unconfirmed'), S(28, 'خدمات هيئة السوق المالية', 'unclassified', 'unconfirmed'), S(29, 'تم إصدار أمر إيقاف خدمات', 'unclassified', 'unconfirmed'),
+  S(32, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار امر تمديد منع من السفر', 'unclassified', 'unconfirmed'), S(33, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار قرار إلغاء األومر الصادرة', 'unclassified', 'unconfirmed'),
+  S(36, 'الإجراء لدى الدائرة القضائية - تم إصدار قرار برفض طلب فرض الغرامة', 'unclassified', 'unconfirmed'), S(38, 'طلب مقبول', 'unclassified', 'unconfirmed'), S(39, 'طلب غير مقبول', 'unclassified', 'unconfirmed'),
+  S(40, 'مغلق - لعدم استكمال النواقص خلال المهلة', 'closed', 'stated'), S(41, 'مغلق - حكم بعدم الاختصاص', 'closed', 'stated'), S(42, 'تم إصدار حكم بعدم القبول الكلي', 'unclassified', 'unconfirmed'),
+  S(43, 'تحت الإجراء لدى الدائرة القضائية - تم إصدار حكم بعدم القبول الجزئي', 'unclassified', 'unconfirmed'), S(44, 'مغلق – تعذر التنفيذ', 'closed', 'stated'), S(45, 'مغلق - لعدم استكمال النواقص', 'closed', 'stated'),
   S(48, 'مغلق – تم إصدار قرار اإليقاف الدائم', 'closed', 'stated'), S(49, 'مغلق – تم إصدار أمر اإليقاف مؤقتا', 'closed', 'stated'), S(51, 'مغلق – تم ترك الطلب', 'closed', 'stated'),
-  S(52, 'مغلق – تم ترك الطلب جزئيا', 'closed', 'stated'), S(53, 'مغلق - في انتظار تحويل األموال', 'closed', 'stated'), S(54, 'ستكمال إجراءات التنفيذ', 'open', 'inferred'), S(55, 'مغلق - إتمام التنفيذ', 'closed', 'stated')
+  S(52, 'مغلق – تم ترك الطلب جزئيا', 'closed', 'stated'), S(53, 'مغلق - في انتظار تحويل األموال', 'closed', 'stated'), S(54, 'ستكمال إجراءات التنفيذ', 'unclassified', 'unconfirmed'), S(55, 'مغلق - إتمام التنفيذ', 'closed', 'stated')
 ];
 export const statusById = (id) => SOURCE_STATUSES.find((s) => s.id === Number(id)) || null;
-export const statusClassOf = (id) => statusById(id)?.cls || null; // provisional
+export const statusClassOf = (id) => statusById(id)?.cls || null; // 'closed' (stated by the text) | 'unclassified'
 export const DEBTOR_TYPES = [{ id: 1, text: 'شركة مسجلة في المملكة' }, { id: 4, text: 'مؤسسة اهلية' }, { id: 5, text: 'جمعية أهلية' }, { id: 6, text: 'فرد (مستثمر)' }, { id: 7, text: 'جهة إدارية' }];
 export const EXECUTION_TYPES = [{ id: 1, text: 'حكم نهائي أو عاجل صادر من ديوان المظالم' }, { id: 2, text: 'حكم نهائي او عاجل جهة الإدارة طرفًا فيه' }, { id: 3, text: 'عقود او محررات موثقة' }, { id: 4, text: 'احكام محكمين' }, { id: 5, text: 'أوراق تجارية' }];
 
-// A number a spreadsheet turned into scientific notation («2.414E+11», «9.9E+11»): the original digits are lost — it can never be matched, padded or «repaired».
-export const isCorruptedNumber = (v) => /^\s*\d+(?:\.\d+)?E\+?\d+\s*$/i.test(String(v ?? ''));
+// Scientific notation is a FORMAT, not by itself proof that digits were lost. The exact raw string decides, by string handling only (never Number — a double cannot hold a 17+ digit identifier):
+//   «4.08380122907E+11» → the mantissa writes all 12 integer digits → EXACT: the identifier is recoverable («408380122907»), the raw string is preserved beside it.
+//   «2.414E+11» / «9.9E+11» / «1.23456789012346E+17» → fewer mantissa digits than the exponent needs → digits are MISSING (rounded): expanding it would only pad zeros, which proves nothing → UNRELIABLE,
+//   never padded, completed, repaired or matched.
+export function analyzeNotation(raw) {
+  const m = /^\s*(\d+)(?:\.(\d+))?[eE]\+?(\d+)\s*$/.exec(String(raw ?? ''));
+  if (!m) return { notation: false, exact: false };
+  const lead = m[1]; const frac = m[2] || ''; const exp = Number(m[3]);
+  if (lead.length !== 1 || lead === '0') return { notation: true, exact: false, reason: 'not_normalised' };
+  if (frac.length > exp) return { notation: true, exact: false, reason: 'fractional' };
+  if (frac.length < exp) return { notation: true, exact: false, reason: 'digits_missing', written: 1 + frac.length, needed: exp + 1 };
+  return { notation: true, exact: true, digits: lead + frac, reason: null };
+}
+export const isCorruptedNumber = (v) => analyzeNotation(v).notation; // «is in scientific notation» (see analyzeNotation for whether it is recoverable)
+export const isUnreliableNotation = (v) => { const a = analyzeNotation(v); return a.notation && !a.exact; };
+export const exactNotation = (digits) => `${digits[0]}.${digits.slice(1)}E+${digits.length - 1}`; // the complete form (all digits written), as a tool that keeps precision would export it
+// the identifier a notation value really carries, or null when it cannot be relied on (only an EXACT value of a known length — 12 SADAD, 14 violation — is used)
+export function recoverableIdentifier(raw) { const a = analyzeNotation(raw); return a.exact && (a.digits.length === 12 || a.digits.length === 14) ? a.digits : null; }
 
 /* ------------------------------------------------------------------ deterministic synthetic values */
 const hash = (s) => { let h = 2166136261; for (const ch of String(s)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -86,7 +103,7 @@ export function amountInWords(amount) {
   const r = `${parts.join(' و')} ريال`; return halala ? `${r} و${below1000(halala)} هللة` : r;
 }
 
-const SEED_STATUS = { open: [27, 27, 27, 17, 3, 54, 2, 28, 29, 38], suspended: [22], closed: [55, 55, 13, 51, 51, 40, 45, 53] };
+const SEED_STATUS = { unclassified: [27, 27, 27, 17, 3, 54, 2, 28, 29, 38, 22, 1], closed: [55, 55, 13, 51, 51, 40, 45, 53] };
 const CLOSE_TO_STATUS = { withdrawn_by_authority: 51, order_expired: 40, replaced_by_other_order: 51 }; // the demo's own closure reasons, mapped to the nearest source text
 
 // The source fields of a demo case, derived deterministically from what the case already has (never random across loads). A field the case already carries (`c.source.*`) is kept.
@@ -94,7 +111,7 @@ const CLOSE_TO_STATUS = { withdrawn_by_authority: 51, order_expired: 40, replace
 export function adaptSourceCase(c) {
   if (c.source?.requestNo) return c;
   const h = hash(c.enforceNum); const num = Number(String(c.enforceNum).replace(/\D/g, '')) || h;
-  const cls = c.requestStatus === 'مغلق' ? 'closed' : c.requestStatus === 'موقوف' ? 'suspended' : 'open';
+  const cls = c.requestStatus === 'مغلق' ? 'closed' : 'unclassified'; // a demo «suspended» case is only «not closed» here: no source status means suspended
   const statusId = cls === 'closed' && c.closeReason && CLOSE_TO_STATUS[c.closeReason] ? CLOSE_TO_STATUS[c.closeReason] : pick(SEED_STATUS[cls], h, 'st');
   const st = statusById(statusId);
   const opened = String(c.openedDate || '2025-01-01'); const od = new Date(`${opened}T00:00:00Z`);
@@ -116,5 +133,6 @@ export function adaptSourceCase(c) {
   // a share of the numeric identifiers arrive corrupted by a spreadsheet, as in the extract; the demo reproduces that (the original digits are NOT recoverable)
   if (hash(`${c.enforceNum}|sci1`) % 100 < 45) source.enforcementNoRaw = toSciNotation(enforcementNo);
   if (hash(`${c.enforceNum}|sci2`) % 100 < 25) source.claimNoRaw = toSciNotation(claimNo);
-  return { ...c, source, description: c.description || kindTemplate, sourceMeta: { derived: true, provisionalClass: st.cls, classBasis: st.basis } };
+  // the demo's own three-state field is folded onto what the source can support: closed (stated) or not closed. (The original demo value is kept in sourceMeta.)
+  return { ...c, requestStatus: cls === 'closed' ? 'مغلق' : 'قيد التنفيذ', source, description: c.description || kindTemplate, sourceMeta: { derived: true, group: st.cls, groupBasis: st.basis, demoRequestStatus: c.requestStatus } };
 }

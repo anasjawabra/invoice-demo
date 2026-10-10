@@ -57,6 +57,7 @@ export default function Invoices() {
   const amanahOptions = useMemo(() => amanahOptionsOf().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
   const amanahLabel = (o) => (lang === 'zh' ? o.zh : lang === 'ar' ? o.ar : o.en);
   const muniOptions = useMemo(() => (amanahFilter === 'all' ? [] : municipalitiesOf(amanahFilter)), [amanahFilter]);
+  const moreActive = [scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter].filter((v) => v !== 'all').length + (allPeriods ? 1 : 0);
   const activeFilterCount = [amanahFilter, collectionFilter, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter].filter((v) => v !== 'all').length + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
 
   // any filter change returns to the first page
@@ -124,14 +125,29 @@ export default function Invoices() {
         <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Collected ÷ net billed', 'المحصّل ÷ صافي المفوتر')}</span><DefinitionButton metric="collectedOverNet" /></div><div className="rv-tile__value" dir="ltr">{ratioText(rev.snapshot.totals.collectedOverNet, bi.ar)}</div></div>
       </div>
 
-      <div className="card card-pad" style={{ padding: '10px 14px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }} role="search" aria-label={bi.L('Invoice filters', 'مرشحات الفواتير')}>
+      <div className="card card-pad" style={{ padding: '10px 14px' }} role="search" aria-label={bi.L('Invoice filters', 'مرشحات الفواتير')}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <input id="inv_search" className="input" style={{ flex: '1 1 220px', height: 32, minWidth: 180 }} placeholder={bi.L('Invoice, SADAD, subscription, violation, CR, payer or contract', 'فاتورة أو سداد أو اشتراك أو مخالفة أو سجل تجاري أو دافع أو عقد')} aria-label={bi.L('Search', 'بحث')} value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select id="f_scope" className="select" aria-label={bi.L('Central / internal', 'مركزي / داخلي')} style={selStyle} value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
-          <option value="all">{bi.L('Central & internal', 'المركزي والداخلي')}</option><option value="central">{bi.L('Central', 'مركزي')}</option><option value="internal">{bi.L('Internal', 'داخلي')}</option>
-        </select>
         <select id="f_amanah" className="select" aria-label={bi.L('Amanah', 'الأمانة')} style={{ ...selStyle, minWidth: 170 }} value={amanahFilter} onChange={(e) => { setAmanahFilter(e.target.value); setMuniFilter('all'); }}>
           <option value="all">{t('inv_filter_amanah_all')}</option>
           {amanahOptions.map((o) => (<option key={o.key} value={o.key}>{amanahLabel(o)}</option>))}
+        </select>
+        <select id="f_state" className="select" aria-label={bi.L('Collection state', 'حالة التحصيل')} style={{ ...selStyle, minWidth: 180 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
+          <option value="all">{t('inv_filter_status_all')}</option>
+          <option value="open">{bi.L('Any outstanding balance', 'أي رصيد متبقٍ')}</option>
+          <option value="collected">{bi.L('Collected', 'محصّلة')}</option>
+          {NONCOLLECTION_CATEGORIES.map((k) => (<option key={k} value={k}>{pickBi(CATEGORY_LABELS[k], lang)}</option>))}
+        </select>
+        {activeFilterCount > 0 && (
+          <button type="button" className="btn btn-sm btn-ghost" onClick={clearAll}>{t('inv_filter_clear')} ({activeFilterCount}) ×</button>
+        )}
+        <a className="btn btn-sm" href={exportHref} download>{bi.L('Export CSV', 'تصدير CSV')}</a>
+        </div>
+        <details className="oj-more" open={moreActive > 0}>
+          <summary>{bi.L('More filters', 'فلاتر إضافية')}{moreActive ? ` (${moreActive})` : ''}</summary>
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBlockStart: 6 }}>
+        <select id="f_scope" className="select" aria-label={bi.L('Central / internal', 'مركزي / داخلي')} style={selStyle} value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
+          <option value="all">{bi.L('Central & internal', 'المركزي والداخلي')}</option><option value="central">{bi.L('Central', 'مركزي')}</option><option value="internal">{bi.L('Internal', 'داخلي')}</option>
         </select>
         <select id="f_muni" className="select" aria-label={bi.L('Municipality', 'البلدية')} style={{ ...selStyle, minWidth: 150 }} value={muniFilter} onChange={(e) => setMuniFilter(e.target.value)} disabled={amanahFilter === 'all'}>
           <option value="all">{bi.L('All municipalities', 'كل البلديات')}</option>
@@ -140,12 +156,6 @@ export default function Invoices() {
         <select id="f_item" className="select" aria-label={bi.L('Revenue item', 'بند الإيراد')} style={{ ...selStyle, minWidth: 150 }} value={itemFilter} onChange={(e) => setItemFilter(e.target.value)}>
           <option value="all">{bi.L('All revenue items', 'كل بنود الإيراد')}</option>
           {ITEMS.map((i) => (<option key={i.key} value={i.key}>{bi.ar ? i.ar : i.en}</option>))}
-        </select>
-        <select id="f_state" className="select" aria-label={bi.L('Collection state', 'حالة التحصيل')} style={{ ...selStyle, minWidth: 180 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
-          <option value="all">{t('inv_filter_status_all')}</option>
-          <option value="open">{bi.L('Any outstanding balance', 'أي رصيد متبقٍ')}</option>
-          <option value="collected">{bi.L('Collected', 'محصّلة')}</option>
-          {NONCOLLECTION_CATEGORIES.map((k) => (<option key={k} value={k}>{pickBi(CATEGORY_LABELS[k], lang)}</option>))}
         </select>
         <select id="f_excl" className="select" aria-label={bi.L('Exclusion reason', 'سبب الاستبعاد')} style={{ ...selStyle, minWidth: 150 }} value={exFilter} onChange={(e) => setExFilter(e.target.value)}>
           <option value="all">{bi.L('Any exclusion reason', 'أي سبب استبعاد')}</option><option value="none">{bi.L('No exclusion record', 'بلا سجل استبعاد')}</option>
@@ -159,13 +169,11 @@ export default function Invoices() {
           <option value="all">{bi.L('Any contract state', 'أي حالة عقد')}</option><option value="linked">{bi.L('Contract linked', 'عقد مرتبط')}</option><option value="unmatched">{bi.L('Contract not matched', 'لم تتم مطابقة العقد')}</option><option value="confirmed_none">{bi.L('No contract (confirmed)', 'بدون عقد (مؤكد)')}</option><option value="not_applicable">{bi.L('Not a contract invoice', 'ليست فاتورة عقد')}</option>
         </select>
         <select id="f_exec" className="select" aria-label={bi.L('Enforcement', 'الإنفاذ')} style={selStyle} value={execFilter} onChange={(e) => setExecFilter(e.target.value)}>
-          <option value="all">{bi.L('Enforcement: any', 'الإنفاذ: أي')}</option><option value="inexec">{bi.L('An order in execution', 'أمر قيد التنفيذ')}</option><option value="suspended">{bi.L('Suspended (not proceeding)', 'موقوف (غير ماضٍ)')}</option><option value="closed">{bi.L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')}</option><option value="ever">{bi.L('Ever referred (any order status)', 'سبقت إحالتها (أي حالة أمر)')}</option><option value="none">{bi.L('Never referred', 'لم تُحَل إلى التنفيذ')}</option><option value="conflict">{bi.L('Source/enforcement conflict (cancelled in the source, order confirmed)', 'تعارض المصدر/الإنفاذ (ملغاة في المصدر وعليها أمر مؤكد)')}</option>
+          <option value="all">{bi.L('Enforcement: any', 'الإنفاذ: أي')}</option><option value="inexec">{bi.L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{bi.L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')}</option><option value="ever">{bi.L('Ever referred (any order status)', 'سبقت إحالتها (أي حالة أمر)')}</option><option value="none">{bi.L('Never referred', 'لم تُحَل إلى التنفيذ')}</option><option value="conflict">{bi.L('Cancelled yet referred (stays cancelled)', 'ملغاة ومحالة (تبقى ملغاة)')}</option>
         </select>
         <label className="rv-inline"><input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)} /> {bi.L('Ignore the period above', 'تجاهل الفترة أعلاه')}</label>
-        {activeFilterCount > 0 && (
-          <button type="button" className="btn btn-sm btn-ghost" onClick={clearAll}>{t('inv_filter_clear')} ({activeFilterCount}) ×</button>
-        )}
-        <a className="btn btn-sm" href={exportHref} download>{bi.L('Export CSV', 'تصدير CSV')}</a>
+          </div>
+        </details>
       </div>
 
       <div className="grid grid-3" role="group" aria-label={bi.L('Totals of the matching invoices', 'إجماليات الفواتير المطابقة')}>
@@ -237,8 +245,8 @@ export default function Invoices() {
                   <td style={{ fontSize: 12 }}>{r.statusRawTahseel || '—'}{r.statusRawEfaa && r.statusRawEfaa !== r.statusRawTahseel && <div className="muted">{bi.L('Efaa', 'إيفاء')}: {r.statusRawEfaa}</div>}</td>
                   <td>
                     <span className={`rv-cat rv-cat--${r.cls}`}>{r.cls === 'collected' ? (lang === 'ar' ? 'محصّلة' : 'Collected') : pickBi(CATEGORY_LABELS[r.cls], lang)}</span>
-                    {r.enforcement >= 2 && <span className={`rv-tag${r.enforcement === 3 ? ' rv-tag--warn' : ''}`} style={{ marginInlineStart: 4 }} title={bi.L('Enforcement is a separate dimension: it does not change the payment state', 'الإنفاذ بُعد منفصل: لا يغيّر حالة السداد')}>{r.enforcement === 2 ? bi.L('order in execution', 'أمر قيد التنفيذ') : r.enforcement === 3 ? bi.L('order suspended', 'أمر موقوف') : bi.L('referred before', 'سبقت إحالتها')}</span>}
-                    {r.enfConflict && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }} title={bi.L('Cancelled in the source, yet an enforcement order is confirmed against it. The documented treatment (ENF-1) is retained, pending EQ3.', 'ملغاة في المصدر ومع ذلك أُكِّد عليها أمر تنفيذ. المعالجة الموثقة (ENF-1) محتفظ بها بانتظار EQ3.')}>{bi.L('source/enforcement conflict — review required', 'تعارض المصدر/الإنفاذ — يلزم مراجعة')}</span>}
+                    {r.enforcement >= 2 && <span className={`rv-tag${r.enforcement === 3 ? ' rv-tag--warn' : ''}`} style={{ marginInlineStart: 4 }} title={bi.L('Enforcement is a separate dimension: it does not change the payment state', 'الإنفاذ بُعد منفصل: لا يغيّر حالة السداد')}>{r.enforcement === 2 ? bi.L('order not closed', 'أمر غير مغلق') : r.enforcement === 3 ? bi.L('order on hold', 'أمر معلّق') : bi.L('referred before', 'سبقت إحالتها')}</span>}
+                    {r.enfConflict && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }} title={bi.L('Cancelled in the source and referred to enforcement: it stays cancelled; review the disagreement.', 'ملغاة في المصدر ومحالة للتنفيذ: تبقى ملغاة؛ راجع التعارض.')}>{bi.L('cancelled yet referred', 'ملغاة ومحالة')}</span>}
                     {r.tags.includes('amount_conflict') && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'تعارض مبلغ' : 'amount conflict'}</span>}
                     {r.tags.includes('contract_unmatched') && <span className="rv-tag rv-tag--warn" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'عقد غير مطابق' : 'contract not matched'}</span>}
                     {r.tags.includes('exclusion_pending') && <span className="rv-tag" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'استبعاد قيد المراجعة' : 'exclusion pending'}</span>}

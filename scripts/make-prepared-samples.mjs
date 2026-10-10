@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { loadStore } from '../server/store.js';
 import { invoiceIdOf, payerName, beneficiaryIdOf } from '../server/names.js';
 import { ENTITIES, SOURCES, isoOf } from '../src/data/catalog.js';
+import { adaptSourceCase } from '../src/data/sanadSource.js';
 
 const OUT = path.resolve('public/samples/prepared'); const TMP = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'prepared-'));
 const have = (c) => { try { execFileSync('which', [c], { stdio: 'ignore' }); return true; } catch { return false; } };
@@ -17,7 +18,8 @@ if (!have('soffice') || !have('pdftoppm')) { console.log('soffice / pdftoppm not
 const st = loadStore(process.argv[2] || '2026-10-09', { size: 'compact' });
 const num = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const SRC_AR = { investment: 'استثمار', fines: 'مخالفات', municipal_fees: 'رسوم بلدية', licenses: 'رخص', accommodation: 'إيواء', tobacco: 'تبغ', white_lands: 'أراضٍ بيضاء', furas: 'فرص' };
-const ST_EN = { 'قيد التنفيذ': 'In execution', 'موقوف': 'Suspended', 'مغلق': 'Closed' };
+// the source model has no «suspended» status: anything not stated as closed is shown as in execution
+const ST_EN = { 'قيد التنفيذ': 'In execution', 'مغلق': 'Closed' };
 
 /* ---- page model: blocks → HTML (what is drawn) and transcript lines (what a clean OCR would read) ---- */
 const P = (text, o = {}) => ({ t: 'p', text, ...o }); const R = (...cells) => ({ t: 'row', cells }); const STAMP = { t: 'stamp' };
@@ -59,7 +61,7 @@ function scan(name, pages, ar) {
 const inv = (i) => invoiceIdOf(st.idKey[i]);
 const rowOf = (i, ar) => R(inv(i), ar ? (SRC_AR[SOURCES[st.src[i]].key] || SOURCES[st.src[i]].key) : (SOURCES[st.src[i]].en || SOURCES[st.src[i]].key), isoOf(st.issue[i]), num(st.gross[i]));
 const THEAD = (ar) => ({ ...(ar ? R('رقم الفاتورة', 'النوع', 'تاريخ الإصدار', 'المبلغ (ريال)') : R('Invoice No', 'Type', 'Issue date', 'Amount (SAR)')), head: true });
-const headEn = (q) => [P('SYNTHETIC DEMO DOCUMENT - not an official record', { size: 9 }), P('ENFORCEMENT ORDER - schedule of invoices', { size: 17 }), P(`Enforcement order no: ${q.enforceNum}`), P(`Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${ST_EN[q.status] || q.status}`), P(`Municipality: ${ENTITIES[q.ent].en}`), P(`Debtor: ${payerName(q.debtor).en} (Beneficiary ID ${beneficiaryIdOf(q.debtor)})`), P(`Total amount: ${num(q.amount)} SAR`)];
+const headEn = (q) => [P('SYNTHETIC DEMO DOCUMENT - not an official record', { size: 9 }), P('ENFORCEMENT ORDER - schedule of invoices', { size: 17 }), P(`Enforcement order no: ${q.enforceNum}`), P(`Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${ST_EN[adaptSourceCase(q).status] || 'In execution'}`), P(`Municipality: ${ENTITIES[q.ent].en}`), P(`Debtor: ${payerName(q.debtor).en} (Beneficiary ID ${beneficiaryIdOf(q.debtor)})`), P(`Total amount: ${num(q.amount)} SAR`)];
 const headAr = (q) => [P('مستند تجريبي اصطناعي — ليس سجلاً رسمياً', { size: 9 }), P('أمر تنفيذ — جدول الفواتير', { size: 17 }), P(`رقم أمر التنفيذ: ${q.enforceNum}`), P(`${ENTITIES[q.ent].ar} — المدين: ${payerName(q.debtor).ar} (رقم الهوية ${beneficiaryIdOf(q.debtor)})`), P(`المبلغ الإجمالي: ${num(q.amount)} ريال`)];
 const ord = (arch, nth) => st.requests.filter((r) => r.archetype === arch)[nth];
 

@@ -9,13 +9,14 @@ import { invoicePath, orderPath, contractPath } from '../utils/paths';
 import { IntegrationNotice, PayStatusChip, OrderStatusChip, EnforcementChips, SOURCE_LABEL, CompletenessMarks } from '../components/revenue/EnforcementUI';
 import { buildIndex } from '../data/relations';
 import { orderExceptions, orderCompleteness, EXCEPTION_TYPES } from '../data/orderMatching';
+import { reviewStatusOf, statusGroupCounts } from '../data/orderSummary';
 import { useDocFiles } from '../components/record/PdfPreview';
 import { amanahName } from './Contracts';
 import OrdersView from './EnforcementOrders';
 import { Section } from '../components/record/RecordPage';
 import { loadPreparedSamples, SIM_LABEL } from '../data/ocrSimulation';
 
-const VIEWS = ['orders', 'invoices', 'contracts', 'exceptions'];
+const VIEWS = ['orders', 'invoices', 'contracts'];
 const EXC_LABEL = {
   no_references: { en: 'Invoice numbers not identified — needs review', ar: 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة', def: { en: 'No invoice reference in the structured fields, the description, the notes or any document added. This is NOT «no related invoices».', ar: 'لا مرجع فاتورة في الحقول المهيكلة ولا الوصف ولا الملاحظات ولا أي مستند مضاف. وهذا ليس «لا فواتير مرتبطة».' } },
   corrupted_reference: { en: 'Corrupted invoice number (scientific notation)', ar: 'رقم فاتورة مشوّه (صيغة علمية)', def: { en: 'The structured invoice number arrived as scientific notation (digits lost): it cannot be matched. The description or a document may carry the full number.', ar: 'وصل رقم الفاتورة المهيكل بصيغة علمية (ضاعت أرقامه): لا يمكن مطابقته. وقد يحمل الوصف أو مستند الرقم الكامل.' } },
@@ -38,9 +39,9 @@ export default function EnforcementHome() {
   const view = VIEWS.includes(sp.get('view')) ? sp.get('view') : 'orders';
   const cases = rev.cases;
   const idx = useMemo(() => buildIndex(cases), [cases]);
-  const comps = useMemo(() => cases.map((c) => ({ c, ex: orderExceptions(c), comp: orderCompleteness(c) })), [cases]);
-  const statusN = (k) => cases.filter((c) => c.orderStatus === k).length;
-  const inv = useMemo(() => { const r = { inExec: 0, suspendedOnly: 0, closedOnly: 0, ever: 0, proposedOnly: 0 }; for (const e of idx.values()) { if (e.current === 'in_execution') r.inExec += 1; else if (e.current === 'suspended') r.suspendedOnly += 1; else if (e.closedOnly) r.closedOnly += 1; else if (e.proposed.length) r.proposedOnly += 1; if (e.referredEver) r.ever += 1; } return r; }, [idx]);
+  const comps = useMemo(() => cases.map((c) => { const comp = orderCompleteness(c); const ex = orderExceptions(c); return { c, ex, comp, review: reviewStatusOf(comp, c, ex) }; }), [cases]);
+  const grp = useMemo(() => statusGroupCounts(cases), [cases]); const closedN = grp.closed;
+  const inv = useMemo(() => { const r = { notClosed: 0, closedOnly: 0, ever: 0 }; for (const e of idx.values()) { if (e.current !== 'none') r.notClosed += 1; else if (e.closedOnly) r.closedOnly += 1; if (e.referredEver) r.ever += 1; } return r; }, [idx]);
   const scopeReq = useMemo(() => ({ amanah: rev.scopeEff.amanah, source: 'investment', from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff.amanah, rev.cfg.cutoff]);
   const { data: cd } = useAsync(() => rev.data.contracts(scopeReq), [rev.data, scopeReq]);
   const contracts = useMemo(() => {
@@ -59,73 +60,89 @@ export default function EnforcementHome() {
   const { data: conflictRes } = useAsync(() => rev.data.list(conflictReq, { filters: { exec: 'conflict', allPeriods: true }, page: 0, pageSize: 1 }), [rev.data, conflictReq, rev.dataVersion, cases]);
   const conflictN = conflictRes?.total ?? null;
   const contractsDirect = contracts.filter((x) => x.direct.length).length; const contractsWithInv = contracts.filter((x) => x.referred.length).length;
-  const excCount = (t) => comps.filter((x) => x.ex.includes(t)).length; const needing = comps.filter((x) => x.ex.length).length;
+  const excCount = (t) => comps.filter((x) => x.ex.includes(t)).length;
+  const needing = comps.filter((x) => x.review !== 'complete').length;
   const allDocs = useMemo(() => cases.flatMap((c) => c.docs || []), [cases]); const files = useDocFiles(allDocs.map((d) => d.id));
   const missing = allDocs.filter((d) => files[d.id] === false).length;
-
   const [samples, setSamples] = useState([]);
   useEffect(() => { let off = false; loadPreparedSamples().then((x) => { if (!off) setSamples(x); }); return () => { off = true; }; }, []);
-  const go = (v) => setSp({ view: v });
-  const stat = (n, label, def, tone) => <div className="rp-compl__cell"><div className={`rp-compl__big${tone ? ` rp-${tone}` : ''}`} dir="ltr">{fmt(n)}</div><h3>{label}</h3><div className="rp-compl__d">{def}</div></div>;
+
+  const go = (v, extra = {}) => setSp({ view: v, ...extra });
+  const card = (n, label, unit, o = {}) => {
+    const body = <><span className={`oj-card__n${o.warn && n ? ' rp-warn' : ''}`} dir="ltr">{typeof n === 'number' ? fmt(n) : n}</span><span className="oj-card__l">{label}</span><span className="oj-card__u">{unit}</span></>;
+    return o.onClick ? <button type="button" className="oj-card" onClick={o.onClick}>{body}</button> : <div className="oj-card">{body}</div>;
+  };
   return (
     <div className="rp">
       <header className="rp-head"><div className="rp-titlebar"><div className="rp-title"><h1 className="page-title">{L('Enforcement management', 'إدارة التنفيذ')}</h1>
-        <div className="page-sub">{L('Orders from Sanad over ALL invoice types, the invoices they refer to, the contracts involved, and what still needs review. One order can cover several invoices; one invoice can carry several orders.', 'أوامر سند على كل أنواع الفواتير، والفواتير التي تشير إليها، والعقود المعنية، وما يحتاج مراجعة. قد يشمل الأمر الواحد عدة فواتير، وقد تحمل الفاتورة الواحدة عدة أوامر.')}</div></div></div></header>
-      <IntegrationNotice compact />
-      {missing > 0 && <div className="rp-limit rp-limit--warn" role="status">{L(`${missing} order document(s) have no original file in this browser (for example after a restore: backups do not contain the document files). Extracted references, evidence and history are kept; open the order to add the file again.`, `${missing} مستند أمر بلا ملف أصلي في هذا المتصفح (مثلاً بعد استعادة: النسخ الاحتياطية لا تتضمن ملفات المستندات). تبقى المراجع المستخرجة والأدلة والسجل؛ افتح الأمر لإعادة إضافة الملف.`)}</div>}
+        <div className="page-sub">{L('Sanad enforcement requests, the invoices they refer to and what needs your review.', 'طلبات التنفيذ في سند، والفواتير التي تشير إليها، وما يحتاج مراجعتك.')}</div></div></div></header>
+      <IntegrationNotice />
+      {missing > 0 && <div className="rp-limit rp-limit--warn" role="status">{L(`${missing} document(s) have no original file in this browser (backups keep the extracted evidence but not the files). Open the order to add the file again.`, `${missing} مستند بلا ملف أصلي في هذا المتصفح (تحتفظ النسخ الاحتياطية بالأدلة المستخرجة دون الملفات). افتح الأمر لإضافة الملف من جديد.`)}</div>}
+      <LegacyRecords />
 
-      <section className="rp-section" aria-labelledby="counts-h">
-        <div className="rp-sec-head"><h2 id="counts-h" className="rp-h2">{L('Counts and what each one means', 'الأعداد وما يعنيه كل عدد')}</h2></div>
-        <div className="rp-body">
-          <h3 className="rp-h3">{L('Orders (each order once)', 'الأوامر (كل أمر مرة)')}</h3>
-          <div className="rp-compl">
-            {stat(cases.length, L('All orders', 'كل الأوامر'), L('Every order from Sanad in your access.', 'كل أمر من سند ضمن صلاحيتك.'))}
-            {stat(statusN('open'), L('In execution', 'قيد التنفيذ'), L('The order is proceeding.', 'الأمر ماضٍ.'))}
-            {stat(statusN('suspended'), L('Suspended', 'موقوف'), L('Open but NOT proceeding.', 'مفتوح لكنه غير ماضٍ.'), 'warn')}
-            {stat(statusN('closed'), L('Closed', 'مغلق'), L('Ended. Says nothing about payment.', 'منتهٍ. ولا يدل على السداد.'))}
-          </div>
-          <h3 className="rp-h3">{L('Invoices (each invoice once, even with several orders)', 'الفواتير (كل فاتورة مرة، ولو حملت عدة أوامر)')}</h3>
-          <div className="rp-compl">
-            {stat(inv.inExec, L('Under an order in execution', 'تحت أمر قيد التنفيذ'), L('At least one confirmed order in execution.', 'أمر مؤكد واحد على الأقل قيد التنفيذ.'))}
-            {stat(inv.suspendedOnly, L('Only suspended orders', 'أوامرها موقوفة فقط'), L('No order in execution; at least one suspended (not proceeding).', 'لا أمر قيد التنفيذ؛ وواحد موقوف على الأقل (غير ماضٍ).'), 'warn')}
-            {stat(inv.closedOnly, L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة'), L('The historical referral stays; payment is judged on its own.', 'تبقى الإحالة التاريخية؛ ويُحكم على السداد منفصلاً.'))}
-            {stat(inv.ever, L('Ever referred (total)', 'سبقت إحالتها (الإجمالي)'), L('The three groups above. Confirmed links only; proposals and withdrawn links are not counted.', 'المجموعات الثلاث أعلاه. بالروابط المؤكدة فقط؛ ولا تُحتسب المقترحة ولا المسحوبة.'))}
-          </div>
-          <div className="rp-compl">
-            {stat(conflictN == null ? '…' : conflictN, L('Source/enforcement conflicts', 'تعارضات المصدر/الإنفاذ'), L('Invoices cancelled in the source that an enforcement order is (or was) linked to. They stay cancelled in every total — the established treatment is kept; ENF-1 is not applied (conditions and authority unconfirmed, EQ3); no order event or review action moves an amount. Review required. (Invoices → Enforcement → Source/enforcement conflict.)', 'فواتير ملغاة في المصدر وبها (أو كان) أمر تنفيذ مرتبط. تبقى ملغاة في كل الإجماليات — المعالجة المقررة محفوظة؛ ولا تُطبَّق ENF-1 (شروطها وجهة اعتمادها غير مؤكدة، EQ3)؛ ولا يحرّك أي حدث للأمر أو إجراء مراجعة مبلغاً. يلزم مراجعة. (الفواتير ← الإنفاذ ← تعارض المصدر/الإنفاذ.)'), conflictN ? 'warn' : undefined)}
-          </div>
-          <div className="rp-limit">{L('Uncollected status follows the invoice’s payment state only: an order — open, suspended or closed — never moves an invoice in or out of the uncollected view.', 'حالة عدم التحصيل تتبع حالة سداد الفاتورة وحدها: الأمر — مفتوحاً أو موقوفاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه.')}</div>
-          <h3 className="rp-h3">{L('Contracts (three different facts)', 'العقود (ثلاث حقائق مختلفة)')}</h3>
-          <div className="rp-compl">
-            {stat(contractsMentioned, L('Mentioned in an order (unreviewed)', 'مذكورة في أمر (دون مراجعة)'), L('An order’s description or a document mentions the contract, with no structured field and no reviewed document behind THAT mention. A mention is not a direct referral (the same contract can also be directly referred by another order).', 'يذكر وصف أمر أو مستند العقد دون حقل مهيكل ولا مستند مراجَع وراء هذا الذكر. والذكر ليس إحالة مباشرة (وقد يكون العقد نفسه محالاً مباشرة بأمر آخر).'), contractsMentioned ? 'warn' : undefined)}
-            {stat(contractsDirect, L('Directly referred', 'محالة مباشرة'), L('Sanad’s structured field names the contract, or a reviewer confirmed that a document EXPLICITLY states the contract itself is referred (a mention is not enough). It does NOT mean its invoices are referred.', 'حقل سند المهيكل يذكر العقد، أو أكّد مراجع أن مستنداً ينص صراحة على إحالة العقد نفسه (الذكر لا يكفي). ولا يعني أن فواتيره محالة.'))}
-            {stat(contractsWithInv, L('With referred invoices', 'بفواتير محالة'), L('At least one of the contract’s invoices carries a confirmed order. It does NOT mean the contract itself is referred, nor that all its invoices are.', 'فاتورة واحدة على الأقل من فواتير العقد عليها أمر مؤكد. ولا يعني أن العقد نفسه محال ولا أن كل فواتيره محالة.'))}
-          </div>
-          <h3 className="rp-h3">{L('Review exceptions (orders, an order can have several)', 'استثناءات المراجعة (أوامر، وقد يحمل الأمر عدة استثناءات)')}</h3>
-          <div className="rp-compl">
-            {stat(needing, L('Orders needing review', 'أوامر تحتاج مراجعة'), L('At least one exception below.', 'استثناء واحد على الأقل مما يلي.'), needing ? 'warn' : undefined)}
-          </div>
+      <section aria-label={L('Summary', 'الملخص')}>
+        <div className="oj-cards">
+          {card(cases.length, L('Enforcement requests', 'طلبات التنفيذ'), L('count of requests', 'عدد الطلبات'), { onClick: () => go('orders') })}
+          {card(needing, L('Need action', 'تحتاج إجراء'), L('requests', 'طلب'), { warn: true, onClick: () => go('orders', { review: 'open' }) })}
+          {card(inv.ever, L('Referred invoices', 'فواتير محالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('invoices') })}
+          {card(conflictN == null ? '…' : conflictN, L('Cancelled yet referred', 'ملغاة ومحالة'), L('invoices — kept cancelled', 'فاتورة — تبقى ملغاة'), { warn: true })}
         </div>
+        <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>
+        <details className="oj-more" style={{ marginBlockStart: 6 }}>
+          <summary>{L('Breakdown of the counts', 'تفاصيل الأعداد')}</summary>
+          <div className="rp-tablewrap" tabIndex={0} style={{ marginBlockStart: 6 }}>
+            <table aria-label={L('Counts', 'الأعداد')}>
+              <thead><tr><th>{L('Unit', 'الوحدة')}</th><th>{L('Count', 'العدد')}</th><th className="num">{L('Number', 'العدد')}</th></tr></thead>
+              <tbody>
+                <tr><td>{L('Requests', 'طلبات')}</td><td>{L('Closed (the source text says «مغلق»)', 'مغلقة (نص الحالة في سند «مغلق»)')}</td><td className="num">{fmt(closedN)}</td></tr>
+                <tr><td>{L('Requests', 'طلبات')}</td><td>{L('Not classified (the meaning of the other statuses is not confirmed)', 'غير مصنّفة (معنى بقية الحالات غير مؤكد)')}</td><td className="num">{fmt(cases.length - closedN)}</td></tr>
+                <tr><td>{L('Invoices', 'فواتير')}</td><td>{L('Referred, with an order that is not closed', 'محالة ولها طلب غير مغلق')}</td><td className="num">{fmt(inv.notClosed)}</td></tr>
+                <tr><td>{L('Invoices', 'فواتير')}</td><td>{L('Referred, all orders closed (the referral stays; payment is judged on its own)', 'محالة وكل طلباتها مغلقة (تبقى الإحالة؛ والسداد يُحكم عليه منفصلاً)')}</td><td className="num">{fmt(inv.closedOnly)}</td></tr>
+                <tr><td>{L('Contracts', 'عقود')}</td><td>{L('Directly referred / mentioned only / with referred invoices (overlapping groups)', 'محالة مباشرة / مذكورة فقط / بفواتير محالة (مجموعات متداخلة)')}</td><td className="num" dir="ltr">{contractsDirect} / {contractsMentioned} / {contractsWithInv}</td></tr>
+                <tr><td colSpan={3} className="muted" style={{ fontSize: 12 }}>{L('A request can have several reasons for review, so the reasons below are not added together either.', 'قد يحمل الطلب الواحد أكثر من سبب للمراجعة، فلا تُجمع الأسباب أدناه أيضاً.')}</td></tr>
+                {EXCEPTION_TYPES.map((k) => <tr key={k}><td>{L('Requests', 'طلبات')}</td><td>{B(EXC_LABEL[k])}</td><td className="num">{fmt(excCount(k))}</td></tr>)}
+              </tbody>
+            </table>
+          </div>
+        </details>
       </section>
 
-      <Section id="samples" secondary title={L('Prepared demo samples', 'عينات العرض المعدّة')} count={samples.length}
-        note={<div className="rp-limit"><span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span> {L('Each sample is a scanned-style document prepared for ONE demo order; open the order, choose the sample in step 1 and press «Analyse and link invoices». The reading is a labelled simulation that replays the sample’s own transcript — not real OCR.', 'كل عينة مستند بشكل ممسوح ضوئياً معدّ لأمر واحد في العرض؛ افتح الأمر واختر العينة في الخطوة 1 ثم اضغط «تحليل وربط الفواتير». القراءة محاكاة معلّمة تعيد نص العينة نفسه — وليست OCR حقيقياً.')}</div>}>
-        <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Prepared samples', 'العينات المعدّة')}>
-          <thead><tr><th>{L('Scenario', 'السيناريو')}</th><th>{L('Order', 'الأمر')}</th><th>{L('What it shows', 'ما تُظهره')}</th></tr></thead>
-          <tbody>{samples.map((x) => <tr key={x.id}><td><b>{B(x.title)}</b></td><td><RecordLink to={orderPath(x.orderNo)} dir="ltr">{x.orderNo}</RecordLink></td><td style={{ fontSize: 12 }}>{B(x.what)}</td></tr>)}{!samples.length && <tr><td colSpan={3} className="muted">{L('No prepared samples are available.', 'لا توجد عينات معدّة.')}</td></tr>}</tbody>
-        </table></div>
-      </Section>
-
       <nav className="rp-tabs" aria-label={L('Enforcement views', 'عروض الإنفاذ')}>
-        {[['orders', L('Orders', 'الأوامر'), cases.length], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length], ['exceptions', L('Review exceptions', 'استثناءات المراجعة'), needing]].map(([k, label, n]) => (
+        {[['orders', L('Requests', 'الطلبات'), cases.length], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length]].map(([k, label, n]) => (
           <button key={k} type="button" className={`rp-tab${view === k ? ' rp-tab--on' : ''}`} aria-current={view === k ? 'page' : undefined} onClick={() => go(k)}>{label} <span className="rp-count">{fmt(n)}</span></button>
         ))}
       </nav>
       {view === 'orders' && <OrdersView />}
       {view === 'invoices' && <ReferredInvoices idx={idx} />}
       {view === 'contracts' && <RelatedContracts items={contracts} />}
-      {view === 'exceptions' && <Exceptions comps={comps} />}
+
+      <Section id="samples" secondary title={L('Prepared demo samples', 'عينات العرض المعدّة')} count={samples.length}
+        note={<div className="rp-limit"><span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span> {L('Each sample is a scanned-style document prepared for one demo request: open it, choose the sample in step 1, then analyse. A labelled simulation — not real OCR.', 'كل عينة مستند ممسوح معدّ لطلب واحد في العرض: افتحه واختر العينة في الخطوة 1 ثم حلّل. محاكاة معلّمة — وليست OCR حقيقياً.')}</div>}>
+        <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Prepared samples', 'العينات المعدّة')}>
+          <thead><tr><th>{L('Scenario', 'السيناريو')}</th><th>{L('Request', 'الطلب')}</th><th>{L('What it shows', 'ما تُظهره')}</th></tr></thead>
+          <tbody>{samples.map((x) => { const c = cases.find((k) => k.enforceNum === x.orderNo); return <tr key={x.id}><td><b>{B(x.title)}</b></td><td><RecordLink to={orderPath(x.orderNo)} dir="ltr">{c?.source?.requestNo || x.orderNo}</RecordLink></td><td style={{ fontSize: 12 }}>{B(x.what)}</td></tr>; })}{!samples.length && <tr><td colSpan={3} className="muted">{L('No prepared samples are available.', 'لا توجد عينات معدّة.')}</td></tr>}</tbody>
+        </table></div>
+      </Section>
     </div>
+  );
+}
+
+// Records stored by an earlier build under a generated order id that was later renumbered are AMBIGUOUS: they were set aside (never applied). The person may restore one to an order they choose.
+function LegacyRecords() {
+  const rev = useRevenue(); const { L } = useL();
+  const [target, setTarget] = useState({}); const [msg, setMsg] = useState(null);
+  const ids = Object.keys(rev.legacyRecords || {}); if (!ids.length) return null;
+  const targets = rev.cases.filter((c) => /^EN-6[0-2]\d{2}$/.test(c.enforceNum) && !c.hasUserWork);
+  return (
+    <details className="rp-limit rp-limit--warn" open>
+      <summary><b>{L(`${ids.length} saved record(s) under an old order number were not applied`, `${ids.length} سجل محفوظ بأرقام أوامر قديمة لم يُطبَّق على أي أمر`)}</b></summary>
+      <div style={{ fontSize: 13 }}>{L('Order numbers of the demo samples were renumbered after these were saved, so they cannot be matched to an order safely. Nothing was deleted. Restore a record only to the order you know it belongs to.', 'أُعيد ترقيم بعض أوامر العرض بعد حفظ هذه السجلات، فلا يمكن ربطها بأمر بأمان. لم يُحذف شيء. استعد السجل فقط إلى الأمر الذي تعرف أنه يخصه.')}</div>
+      {msg && <div role="status" className={msg.ok ? 'rp-ok' : 'rp-bad'}>{msg.t}</div>}
+      <ul style={{ margin: '6px 0 0', paddingInlineStart: 18 }}>{ids.map((id) => { const r = rev.legacyRecords[id]; const docs = Object.values(r.docs || {}); const links = Object.values(r.links || {}); return (
+        <li key={id} style={{ marginBlockEnd: 6 }}><b dir="ltr">{id}</b> · {L(`${docs.length} document(s), ${links.length} link(s)`, `${docs.length} مستند، ${links.length} رابط`)}{docs[0] ? <span dir="ltr" className="muted"> · {docs[0].name}</span> : null}
+          <div className="oj-row" style={{ marginBlockStart: 3 }}><label style={{ fontSize: 12 }}>{L('Restore to', 'استعادة إلى')} <select className="input" value={target[id] || ''} onChange={(e) => setTarget((m) => ({ ...m, [id]: e.target.value }))}><option value="">—</option>{targets.map((c) => <option key={c.enforceNum} value={c.enforceNum}>{c.source?.requestNo || ''} · {c.enforceNum}</option>)}</select></label>
+            <button type="button" className="btn btn-sm" disabled={!target[id] || !rev.canReview} onClick={() => { const r = rev.enforcement.restoreLegacy(id, target[id]); setMsg(r.ok ? { ok: true, t: L('Restored.', 'تمت الاستعادة.') } : { ok: false, t: L('Could not restore (the order already has its own record).', 'تعذّرت الاستعادة (للأمر سجل خاص به بالفعل).') }); }}>{L('Restore', 'استعادة')}</button></div></li>); })}</ul>
+    </details>
   );
 }
 
@@ -144,7 +161,7 @@ function ReferredInvoices({ idx }) {
       <div className="rp-limit">{L('Invoices with at least one CONFIRMED order. Payment status and remaining balance are the invoice’s own; the enforcement columns are separate.', 'فواتير عليها أمر مؤكد واحد على الأقل. حالة السداد والمتبقي من الفاتورة نفسها؛ وأعمدة الإنفاذ منفصلة.')}</div>
       <div className="rv-form" role="search" style={{ margin: '8px 0' }}>
         <label style={{ flex: '1 1 200px' }}>{L('Search invoice number', 'بحث برقم الفاتورة')}<input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} dir="ltr" placeholder="INV-2025" /></label>
-        <label>{L('Enforcement', 'الإنفاذ')}<select className="input" value={f} onChange={(e) => { setF(e.target.value); setPage(0); }}><option value="all">{L('Ever referred', 'سبقت إحالتها')}</option><option value="inexec">{L('An order in execution', 'أمر قيد التنفيذ')}</option><option value="suspended">{L('Only suspended (not proceeding)', 'موقوفة فقط (غير ماضية)')}</option><option value="closed">{L('All orders closed', 'كل الأوامر مغلقة')}</option></select></label>
+        <label>{L('Enforcement', 'الإنفاذ')}<select className="input" value={f} onChange={(e) => { setF(e.target.value); setPage(0); }}><option value="all">{L('Ever referred', 'سبقت إحالتها')}</option><option value="inexec">{L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{L('All orders closed', 'كل الأوامر مغلقة')}</option></select></label>
       </div>
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Referred invoices', 'الفواتير المحالة')}>
         <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Payer', 'الدافع')}</th><th>{L('Payment status', 'حالة السداد')}</th><th className="num">{L('Remaining', 'المتبقي')}</th><th>{L('Enforcement status', 'حالة الإنفاذ')}</th><th>{L('Orders', 'الأوامر')}</th></tr></thead>
@@ -186,27 +203,4 @@ function RelatedContracts({ items }) {
   );
 }
 
-function Exceptions({ comps }) {
-  const { L, B, sar } = useL();
-  const [t, setT] = useState('all'); const [page, setPage] = useState(0);
-  const rows = comps.filter((x) => x.ex.length && (t === 'all' || x.ex.includes(t)));
-  const view = rows.slice(page * 25, (page + 1) * 25);
-  return (
-    <section className="rp-section" aria-label={L('Review exceptions', 'استثناءات المراجعة')}>
-      <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Exception types', 'أنواع الاستثناءات')}>
-        <thead><tr><th>{L('Exception', 'الاستثناء')}</th><th>{L('Meaning', 'المعنى')}</th><th className="num">{L('Orders', 'الأوامر')}</th></tr></thead>
-        <tbody>{EXCEPTION_TYPES.map((k) => <tr key={k}><td><button type="button" className={`rv-link${t === k ? ' rp-ok' : ''}`} onClick={() => { setT(t === k ? 'all' : k); setPage(0); }} aria-pressed={t === k}>{B(EXC_LABEL[k])}</button></td><td style={{ fontSize: 12 }}>{B(EXC_LABEL[k].def)}</td><td className="num">{comps.filter((x) => x.ex.includes(k)).length}</td></tr>)}</tbody>
-      </table></div>
-      <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Orders with exceptions', 'أوامر باستثناءات')}>
-        <thead><tr><th>{L('Order', 'الأمر')}</th><th>{L('Status', 'الحالة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Exceptions', 'الاستثناءات')}</th><th>{L('Completeness', 'الاكتمال')}</th></tr></thead>
-        <tbody>{view.map(({ c, ex, comp }) => <tr key={c.enforceNum}>
-          <td><RecordLink to={orderPath(c.enforceNum)} dir="ltr"><b>{c.enforceNum}</b></RecordLink><div className="muted" style={{ fontSize: 12 }} dir="auto">{B(c.debtorName)}</div></td>
-          <td><OrderStatusChip status={c.orderStatus} /></td><td className="num" dir="ltr">{sar(c.amount)}</td>
-          <td style={{ fontSize: 12 }}>{ex.map((k) => <div key={k}>• {B(EXC_LABEL[k])}</div>)}</td><td><CompletenessMarks comp={comp} /></td></tr>)}
-          {!view.length && <tr><td colSpan={5} className="muted">{L('No order has this exception.', 'لا أمر بهذا الاستثناء.')}</td></tr>}</tbody>
-      </table></div>
-      <Pager page={page} total={rows.length} size={25} onPage={setPage} />
-    </section>
-  );
-}
 void Link;

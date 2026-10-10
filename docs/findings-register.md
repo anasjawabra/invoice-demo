@@ -579,3 +579,26 @@ Mapping, data review and open questions: `docs/sanad-csv-mapping.md`.
 
 **Tests:** 124. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
 
+
+
+---
+
+# Round 14 — status semantics, identifier quality, stable demo ids, enforcement simplification (branch `enforcement-order-matching`)
+
+Details: `docs/sanad-csv-mapping.md` §11 and `docs/stable-demo-ids.md`.
+
+**E-24 — a status was classified without a source (fixed).** The earlier build inferred «suspended» from «… تم إصدار امر بوقف المهل» and «open» for every other status. Now the source status is shown verbatim everywhere; only «مغلق …» is a stated closure; every other status is **unclassified** and is never counted as definitively active, suspended or closed. Source status, current enforcement, historical referral and payment status stay four separate facts; closing never implies payment, never removes the referral and never changes a balance.
+
+**E-25 — scientific notation treated as one defect (refined).** Whether an identifier is recoverable is decided from the exact raw string: all digits written → preserved raw + normalised by string handling and matched; digits missing (rounded) or longer than the identifier lengths → «رقم غير موثوق», never padded, completed, repaired or matched. Detail on the order page, a small alert in the list. **Limit:** a value whose last digit was rounded but fully written cannot be told apart by the string — needs an export that keeps text (open question for Sanad).
+
+**E-26 — demo ids could change meaning between builds (fixed and documented).** Scenario ids are fixed per scenario, the scenario list is append-only (new: `notation_exact` → EN-6298), and saved work is stamped `idScheme: 3`. Records saved by earlier builds under the shifted range EN-60xx/61xx are **set aside, never applied**, listed on the landing page, and restored by the reviewer to the order they choose (logged in the history). Old → new table: `docs/stable-demo-ids.md`. `cd27e3c` → current: all 17 ids identical.
+
+**E-27 — the enforcement area was heavy to read (simplified).** Landing: four cards with stated counting units, breakdown on demand. List: request number, Amanah · municipality, source status, amount, linked invoices, one review status; three visible filters (search by request number or invoice reference — never by debtor identity; Amanah; review status), the rest under «فلاتر إضافية»; chips + one reset; filter/sort/page/scroll restored on return. Order page: compact summary first, then linked invoices, the financial-difference notice and the next action; the 20 source columns and the original description are secondary.
+
+**E-28 — return path lost one level (fixed).** Returning from a contract to an invoice opened from an order sent the reader to the invoices list instead of the order. Each record page now remembers where it was opened from. **E-29 — mobile overflow (fixed):** a visually-hidden table header cell widened the page in right-to-left layout (enforcement landing, noncollection); the table wrappers now contain it, and the two-column section no longer sizes to its widest word.
+
+**E-30 — sample documents printed «Suspended» (fixed):** the generators print «In execution» for anything not stated as closed (six PDFs changed in that line only).
+
+**Wording:** internal terms (ENF-1, EQ numbers, audit ids) removed from user-facing screens; ENF-1 stays disabled — history only, no effect on any amount. **Unchanged:** financial calculations, cancellation treatment, approval policy, confirmed relationships.
+
+**Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved.
