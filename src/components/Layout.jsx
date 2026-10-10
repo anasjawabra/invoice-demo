@@ -41,6 +41,13 @@ function Icon({ name }) {
           <path d="M12 16h.01" />
         </svg>
       );
+    case 'settings':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+        </svg>
+      );
     case 'collection':
       return (
         <svg {...common}>
@@ -142,12 +149,13 @@ function LayoutInner() {
       { to: '/noncollection', icon: 'what-if', label: t('nav_noncollection') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
-      { to: '/risk', icon: 'risk', label: t('nav_risk_quality') },
-      { to: '/data-sources', icon: 'smart-reports', label: t('nav_data_sources') },
-      { to: '/metrics', icon: 'dashboard', label: t('nav_metrics') }
+      { to: '/risk', icon: 'risk', label: t('nav_risk_deviations') }
     ],
     [t, lang]
   );
+  // system configuration and administration (source status, record-level data quality, metric definitions) is its own, rarely used area — not one of the daily operational pages
+  const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
+  const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
 
   const primaryTabs = tabs.slice(0, 3); const opsTabs = tabs.slice(3); // the three management areas: dashboards & reports · planning · enforcement management
   const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
@@ -166,11 +174,13 @@ function LayoutInner() {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
     if (p.startsWith('/noncollection')) return t('nav_noncollection');
-    if (p.startsWith('/data-sources')) return t('nav_data_sources');
+    if (p.startsWith('/settings/data-sources')) return t('nav_data_sources');
+    if (p.startsWith('/settings/data-quality')) return t('nav_data_quality');
+    if (p.startsWith('/settings/metrics')) return t('nav_metrics');
+    if (p.startsWith('/settings')) return t('nav_system_settings');
     if (p.startsWith('/contracts')) return t('nav_contracts');
-    if (p.startsWith('/metrics')) return t('nav_metrics');
     if (p.startsWith('/invoices')) return t('invoices');
-    if (p.startsWith('/risk')) return t('nav_risk_quality');
+    if (p.startsWith('/risk')) return t('nav_risk_deviations');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
@@ -206,7 +216,7 @@ function LayoutInner() {
             </details>
           </div>
 
-          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'الإعدادات والحساب' : 'Settings and account'} <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span></button>
+          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'التفضيلات والحساب' : 'Preferences and account'} <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span></button>
           <div className="topbar-right" id="topbar-controls" data-open={moreOpen ? 'true' : undefined}>
             <button
               type="button"
@@ -361,6 +371,10 @@ function LayoutInner() {
               </ul>
             )}
           </div>
+          <NavLink to={settingsTab.to} className={`tab tab--settings${settingsActive ? ' active' : ''}`} aria-current={settingsActive ? 'page' : undefined}>
+            <span className="tab__icon"><Icon name={settingsTab.icon} /></span>
+            <span className="tab__text">{settingsTab.label}</span>
+          </NavLink>
         </nav>
 
         <section className="content" id="main-content" tabIndex={-1}>

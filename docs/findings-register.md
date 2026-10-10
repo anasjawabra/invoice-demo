@@ -602,3 +602,14 @@ Details: `docs/sanad-csv-mapping.md` §11 and `docs/stable-demo-ids.md`.
 **Wording:** internal terms (ENF-1, EQ numbers, audit ids) removed from user-facing screens; ENF-1 stays disabled — history only, no effect on any amount. **Unchanged:** financial calculations, cancellation treatment, approval policy, confirmed relationships.
 
 **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved.
+
+
+---
+
+# Round 15 — navigation: operations vs system settings (branch `enforcement-order-matching`)
+
+Details: `docs/navigation-structure.md`.
+
+**N-01 — administration pages sat among daily operational pages (restructured).** «مصادر البيانات» and «قاموس المقاييس» moved to a new **إعدادات النظام** area with a breadcrumb and sub-navigation; old addresses redirect. **N-02 — one list, two jobs (split by function).** «جودة البيانات والمخاطر» is now **«المخاطر والانحرافات»** (risks: duplicate, struck-off registry, deceased debtor; deviations: value anomaly, amount conflict, payment on excluded invoice) and record-level data-quality monitoring (missing fields, contracts not linked or matched, pending links and exclusions) moved to **«جودة البيانات»** under system settings. **N-03 — name clash (fixed).** The topbar «الإعدادات والحساب» is «التفضيلات والحساب» (personal preferences). No figure, formula, workflow or permission changed; no role gating exists or was added (open point in the document). **Tests:** 131.
+
+**Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved.

@@ -11,6 +11,7 @@ import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
 import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
+import DataQuality from './pages/DataQuality';
 import Collection from './pages/Collection';
 import EnforcementHome from './pages/EnforcementHome';
 import EnforcementOrderPage from './pages/EnforcementOrderPage';
@@ -50,9 +51,13 @@ export default function App() {
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
         <Route path="what-if" element={<Navigate to="/planning" replace />} />
         <Route path="noncollection" element={<Noncollection />} />
-        <Route path="data-sources" element={<DataSources />} />
+        <Route path="settings" element={<Navigate to="/settings/data-sources" replace />} />
+        <Route path="settings/data-sources" element={<DataSources />} />
+        <Route path="settings/data-quality" element={<DataQuality />} />
+        <Route path="settings/metrics" element={<Metrics />} />
+        <Route path="data-sources" element={<Navigate to="/settings/data-sources" replace />} />
         <Route path="contracts" element={<Contracts />} />
-        <Route path="metrics" element={<Metrics />} />
+        <Route path="metrics" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />

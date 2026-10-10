@@ -236,17 +236,20 @@ export function anomalies(st, req) {
   const ctx = makeCtx(st, req); const sc = resolveScope(ctx, req.scope); const D = ctx.D; const limit = Math.min(300, req.limit || 100);
   const top = new TopK(limit); const counts = {}; let total = 0;
   const bump = (k) => { counts[k] = (counts[k] || 0) + 1; };
+  const group = Array.isArray(req.codes) && req.codes.length ? new Set(req.codes) : null; // a page may ask for one GROUP of issue codes (Risks & Deviations vs Data quality): only those count toward the total and the ranking
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || st.issue[i] < sc.fromN || st.issue[i] > sc.toN || !inScope(st, sc, i)) continue;
     derive(ctx, i, ctx.cutoffN);
-    const f = st.flags[i]; let sev = 0; const codes = [];
-    if (f & F.AMT_CONFLICT) { codes.push('amount_conflict'); sev = 3; }
-    if (D.pendingMask) { codes.push('exclusion_pending'); sev = Math.max(sev, 2); }
-    if (f & F.MISSING_ID) { codes.push('missing_fields'); sev = Math.max(sev, 2); }
-    if (st.src[i] === 0 && st.cstat[i] === 4) { codes.push('contract_unlinked'); sev = Math.max(sev, 2); }
-    if (st.src[i] === 0 && st.cstat[i] === 2) { codes.push('contract_unmatched'); sev = Math.max(sev, 2); }
-    if (D.link === 1) { codes.push('enforcement_candidate'); sev = Math.max(sev, 2); }
-    if (D.excluded && D.received > 0) { codes.push('receipts_on_excluded'); sev = 3; }
+    const f = st.flags[i]; const found = []; // [code, severity]
+    if (f & F.AMT_CONFLICT) found.push(['amount_conflict', 3]);
+    if (D.pendingMask) found.push(['exclusion_pending', 2]);
+    if (f & F.MISSING_ID) found.push(['missing_fields', 2]);
+    if (st.src[i] === 0 && st.cstat[i] === 4) found.push(['contract_unlinked', 2]);
+    if (st.src[i] === 0 && st.cstat[i] === 2) found.push(['contract_unmatched', 2]);
+    if (D.link === 1) found.push(['enforcement_candidate', 2]);
+    if (D.excluded && D.received > 0) found.push(['receipts_on_excluded', 3]);
+    const inGroup = group ? found.filter(([c]) => group.has(c)) : found;
+    let sev = 0; const codes = []; for (const [c, v] of inGroup) { codes.push(c); sev = Math.max(sev, v); }
     for (const c of codes) bump(c);
     if (sev && (!req.code || req.code === 'all' || codes.includes(req.code))) { total += 1; top.push(i, sev * 1e12 + st.gross[i]); }
   }

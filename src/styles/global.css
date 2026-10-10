@@ -1525,6 +1525,8 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
 .tab-menu { position: relative; }
 .tab-menu > .tab { cursor: pointer; font-family: inherit; background: transparent; }
 .tab__chev { font-size: 12px; margin-inline-start: 2px; }
+/* system settings: rarely used, so it sits apart at the far end of the main bar */
+.tab--settings { margin-inline-start: auto; }
 .tab-menu__list { position: absolute; z-index: 70; inset-inline-start: 0; top: calc(100% + 6px); min-width: 220px; margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); display: grid; gap: 2px; }
 .tab-menu__item { display: flex; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--txt); }
 .tab-menu__item:hover { background: var(--bg-0); }
@@ -1544,6 +1546,7 @@ td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-it
   .tabbar { top: 0; padding: 6px 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
   .tabbar .tab, .tab-menu > .tab { flex-direction: column; gap: 2px; justify-content: center; text-align: center; padding: 6px 4px; font-size: 12px; white-space: normal; width: 100%; min-height: 52px; }
   .tab-menu { position: static; }
+  .tabbar .tab--settings { margin-inline-start: 0; }
   .tab-menu__list { inset-inline: 8px; top: auto; margin-top: 4px; }
   .sr-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
   .sr-tab { padding: 8px 4px; text-align: center; font-size: 13px; }

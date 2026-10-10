@@ -52,8 +52,11 @@ export function usePageLabel() {
   if (p.startsWith('/contracts')) return L('Contracts', 'العقود');
   if (p.startsWith('/noncollection')) return L('Noncollection and exclusions', 'عدم التحصيل والاستبعادات');
   if (p.startsWith('/collection')) return L('Collection worklist', 'قائمة التحصيل');
-  if (p.startsWith('/risk')) return L('Data quality and risks', 'جودة البيانات والمخاطر');
-  if (p.startsWith('/data-sources')) return L('Data sources', 'مصادر البيانات');
+  if (p.startsWith('/risk')) return L('Risks and deviations', 'المخاطر والانحرافات');
+  if (p.startsWith('/settings/data-sources')) return L('Data sources', 'مصادر البيانات');
+  if (p.startsWith('/settings/data-quality')) return L('Data quality', 'جودة البيانات');
+  if (p.startsWith('/settings/metrics')) return L('Metric dictionary', 'قاموس المقاييس');
+  if (p.startsWith('/settings')) return L('System settings', 'إعدادات النظام');
   if (p.startsWith('/planning')) return L('Planning', 'التخطيط');
   if (p.startsWith('/analysis')) return L('Analysis result', 'نتيجة التحليل');
   return L('Dashboards and reports', 'لوحة المعلومات والتقارير');

@@ -36,6 +36,8 @@ import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisL
 import { planScopeOf, cfgHash, DEFAULT_PLAN_SCOPE, scopeLabelOf } from '../src/data/planStore.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
 import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
+import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
+import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
 import { detail } from '../server/materialize.js';
 import { sourcesReport } from '../server/sourcesReport.js';
 import { sanadCases } from '../server/contracts.js';
@@ -290,6 +292,19 @@ await test('worklist and anomalies return ranked top rows without carrying the p
   const w = worklist(st, { scope: YTD, cfg, limit: 50 }); assert.equal(w.rows.length, 50); assert.ok(w.total > 50000);
   assert.ok(w.rows.every((r) => r.outstanding > 0 && r.cls !== 'collected' && r.cls !== 'excluded'));
   const a = anomalies(st, { scope: YTD, cfg, limit: 40 }); assert.ok(a.total > 0 && a.rows.length <= 40);
+});
+await test('findings are split by function: every issue code and risk category belongs to exactly one page; a group request changes nothing but the group', () => {
+  const all = anomalies(st, { scope: YTD, cfg, limit: 100 });
+  const mine = new Set([...DEVIATION_CODES, ...QUALITY_CODES]);
+  assert.equal(mine.size, DEVIATION_CODES.length + QUALITY_CODES.length, 'no code is on both pages');
+  for (const c of Object.keys(all.counts)) assert.ok(mine.has(c), `${c} must belong to a page`);
+  assert.deepEqual([...RISK_FLAG_CATEGORIES, ...DEVIATION_RISK_CATEGORIES].sort(), [...RISK_CATEGORIES].sort(), 'every risk-radar category is on the risks & deviations page');
+  const dev = anomalies(st, { scope: YTD, cfg, limit: 100, codes: DEVIATION_CODES }); const q = anomalies(st, { scope: YTD, cfg, limit: 100, codes: QUALITY_CODES });
+  for (const c of Object.keys(dev.counts)) { assert.ok(DEVIATION_CODES.includes(c)); assert.equal(dev.counts[c], all.counts[c], `${c}: same count as the ungrouped request`); }
+  for (const c of Object.keys(q.counts)) { assert.ok(QUALITY_CODES.includes(c)); assert.equal(q.counts[c], all.counts[c], `${c}: same count as the ungrouped request`); }
+  assert.ok(dev.total <= all.total && q.total <= all.total && dev.total + q.total >= all.total, 'an invoice may carry findings of both groups, never fewer than the whole');
+  assert.equal(anomalies(st, { scope: YTD, cfg, limit: 100, codes: [] }).total, all.total, 'an empty group means no restriction');
+  assert.equal(issuePage('missing_fields'), '/settings/data-quality'); assert.equal(issuePage('contract_unlinked'), '/settings/data-quality'); assert.equal(issuePage('amount_conflict'), '/risk'); assert.equal(issuePage('risk_duplicate'), '/risk');
 });
 await test('export streams in chunks, keeps exact SAR and a separately named abbreviated column', () => {
   const it = exportChunks(st, { scope: { ...YTD, source: 'white_lands' }, cfg, filters: {} }, 1000);

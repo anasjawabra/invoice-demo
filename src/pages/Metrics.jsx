@@ -5,6 +5,7 @@ import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
 import { metricDictionary } from '../data/metricDictionary';
 import { targetAchievementFrom, coverageFrom } from '../data/revenueMetrics';
 import { useAsync } from '../utils/useAsync';
+import SettingsNav from '../components/settings/SettingsNav';
 
 const KIND = {
   flow: { ar: 'تدفق لفترة', en: 'Period flow' },
@@ -34,6 +35,7 @@ export default function Metrics() {
   };
   return (
     <div className="rv-page">
+      <SettingsNav current="/settings/metrics" />
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Metric dictionary', 'قاموس المقاييس')}</h1>

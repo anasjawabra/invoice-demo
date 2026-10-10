@@ -12,7 +12,7 @@ import { REVENUE_SOURCES } from '../data/revenueLedger';
 
 // Outstanding collection worklist. Only invoices with a balance still to collect
 // appear here; collected and excluded invoices never do. Data-quality and anomaly
-// follow-up lives on its own screen (Data Quality & Risk).
+// follow-up lives on its own screens (Risks & Deviations; Data Quality under system settings).
 export default function Collection() {
   const rev = useRevenue();
   const { snapshot } = rev;
@@ -92,7 +92,7 @@ export default function Collection() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with data problems (amount conflicts, missing fields, risk flags) are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات مشكلات البيانات (تعارض مبلغ، حقول ناقصة، تنبيهات مخاطر) فتُراجع في ')}<Link className="xref" to="/risk">{L('Data Quality & Risk', 'جودة البيانات والمخاطر')}</Link>.</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with risk flags or amount conflicts are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات تنبيهات المخاطر أو تعارض المبالغ فتُراجع في ')}<Link className="xref" to="/risk">{L('Risks & Deviations', 'المخاطر والانحرافات')}</Link>{L('; missing fields and unlinked contracts in ', '، والحقول الناقصة والعقود غير المرتبطة في ')}<Link className="xref" to="/settings/data-quality">{L('Data quality', 'جودة البيانات')}</Link>.</p>
       </div>
     </div>
   );

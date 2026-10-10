@@ -9,6 +9,7 @@ import { SOURCE_ROLES, buildImportLog, freshnessOf, FRESHNESS_LEVELS, buildMatch
 import { api } from '../api/client';
 import SourceCoverage from '../components/revenue/SourceCoverage';
 import { fmtRiyadh } from '../data/clock';
+import SettingsNav from '../components/settings/SettingsNav';
 
 const REASON_TEXT = {
   missing_invoice_id: ['Missing invoice id', 'رقم الفاتورة مفقود'],
@@ -125,6 +126,7 @@ export default function DataSources() {
 
   return (
     <div className="rv-page">
+      <SettingsNav current="/settings/data-sources" />
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Data sources', 'مصادر البيانات')}</h1>
@@ -205,6 +207,7 @@ export default function DataSources() {
           </table>
         </div>
         <h3 className="rv-sec-title" style={{ fontSize: 13, marginTop: 14 }}>{L('Records that need treatment', 'سجلات تحتاج معالجة')}</h3>
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 6px' }}>{L('Invoice-level worklist: ', 'قائمة العمل على مستوى الفاتورة: ')}<Link to="/settings/data-quality">{L('Data quality', 'جودة البيانات')}</Link></p>
         <ul className="rv-list">
           {treat.map((t) => (
             <li key={t.k}>
