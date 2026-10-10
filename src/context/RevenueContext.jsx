@@ -6,7 +6,7 @@ import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
 import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
-import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference } from '../data/orderMatching';
+import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
@@ -185,6 +185,8 @@ export function RevenueProvider({ children }) {
     reject: (en, invoiceId, args = {}) => enfAct(en, (st, o) => rejectLink(st, en, invoiceId, { ...args, ...o })),
     remove: (en, invoiceId, args = {}) => enfAct(en, (st, o) => removeLink(st, en, invoiceId, { ...args, ...o })),
     dismiss: (en, key, args = {}) => enfAct(en, (st, o) => dismissReference(st, en, key, { ...args, ...o })),
+    // a contract number MENTIONED in an order's text/document: a reviewer confirms it as a direct referral (with evidence) or rejects it
+    reviewContract: (en, contractNo, args = {}) => enfAct(en, (st, o) => reviewContractReference(st, en, contractNo, { ...args, ...o })),
     // the references of an order, resolved against the invoices by the data service (reference matching only — never by amount)
     resolve: (refs) => api.orderMatch(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { refs })),
     debtorInvoices: (debtor, excludeIds) => api.orderDebtorInvoices(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { debtor, excludeIds }))

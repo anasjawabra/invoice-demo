@@ -55,10 +55,12 @@ export function extractFromText(rawText, page = 1) {
     }
     const used = [];
     const take = (re, fn) => { for (const m of line.matchAll(re)) { if (used.some(([a, b]) => m.index < b && m.index + m[0].length > a)) continue; used.push([m.index, m.index + m[0].length]); fn(m); } };
-    take(/\bSA\d{22}\b/gi, (m) => out.push({ kind: 'bank_account', value: m[0].toUpperCase(), label: 'IBAN', page, snippet: clip(line) }));
-    take(/\bINV-\d{4}-\d{1,7}\b/gi, (m) => out.push({ kind: 'invoice_no', value: m[0].toUpperCase(), label: 'pattern', page, snippet: clip(line) }));
-    take(/\b(?:EN|WLX)-\d{4,8}\b/gi, (m) => out.push({ kind: 'order_no', value: m[0].toUpperCase(), label: 'pattern', page, snippet: clip(line) }));
-    take(/\b(?:CT|CNT)-\d{4}-\d{3,6}\b|\bCO-\d{4,6}\b/gi, (m) => out.push({ kind: 'contract_no', value: m[0].toUpperCase(), label: 'pattern', page, snippet: clip(line) }));
+    const around = (m) => clip(line.length > 190 ? line.slice(Math.max(0, m.index - 70), m.index + m[0].length + 70) : line); // the words around the match (a long description line is not repeated for each number)
+    take(/\bSA\d{22}\b/gi, (m) => out.push({ kind: 'bank_account', value: m[0].toUpperCase(), raw: m[0], label: 'IBAN', page, snippet: around(m) }));
+    // an invoice number as people really type it: any case, spaces / dashes / slashes between the parts. The ORIGINAL text is kept (`raw`); the value is the canonical INV-YYYY-NNNNNNN (leading zeros kept; a short serial is left as typed and marked weak by the matcher)
+    take(/\bINV[\s_\u2013\u2014\/-]*(\d{4})[\s_\u2013\u2014\/-]*(\d{1,7})\b/gi, (m) => out.push({ kind: 'invoice_no', value: `INV-${m[1]}-${m[2]}`, raw: m[0], label: 'pattern', page, snippet: around(m) }));
+    take(/\b(?:EN|WLX)-\d{4,8}\b/gi, (m) => out.push({ kind: 'order_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
+    take(/\b(?:CT|CNT)-\d{4}-\d{3,6}\b|\bCO-\d{4,6}\b/gi, (m) => out.push({ kind: 'contract_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
     take(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![\d.,])\d+\.\d{1,2}(?![\d])/g, () => {}); // amounts: consumed, never a reference
     take(/(?<![\d.,-])\d{7,16}(?![\d])/g, (m) => {
       const v = m[0]; const nonInv = NON_INVOICE_LABELS.find(hasLabel); const inv = hasLabel('invoice') || hasLabel('sadad') || hasLabel('violation') || section === 'invoice' || section === 'sadad' || section === 'violation';
@@ -66,7 +68,7 @@ export function extractFromText(rawText, page = 1) {
       if (v.length === 12 && !(nonInv && !hasLabel('sadad') && !hasLabel('invoice'))) { kind = 'sadad_no'; label = 'sadad'; }
       else if (v.length === 14 && !(nonInv && !hasLabel('violation') && !hasLabel('invoice'))) { kind = 'violation_no'; label = 'violation'; }
       else if (v.length === 7 && !nonInv && (hasLabel('invoice') || (inv && v.startsWith('0')))) { kind = 'invoice_serial'; label = 'invoice'; } // a bare 7-digit amount under an «Invoice» heading is not taken for a serial
-      out.push({ kind, value: v, label, page, snippet: clip(line) });
+      out.push({ kind, value: v, raw: v, label, page, snippet: around(m) });
     });
   }
   return out;
@@ -79,24 +81,25 @@ export function documentStatedAmount(text) {
 }
 
 // Pages → one extraction record. `pages`: [{ page, text, hasTextLayer }]; method: 'text_layer' | 'ocr_import' | 'manual_entry'
-export function buildExtraction(pages, method, { orderNo = null } = {}) {
+export function buildExtraction(pages, method, { orderNo = null, format = null, reason = null } = {}) {
   const refs = new Map();
   const others = [];
   let docOrderNos = [];
   const pageInfo = pages.map((p) => ({ page: p.page, chars: String(p.text || '').trim().length, textLayer: p.hasTextLayer !== false, needsOcr: method === 'text_layer' && String(p.text || '').trim().length < 10 }));
+  for (const pi of pageInfo) pi.reason = pi.needsOcr ? (reason || 'no_text_layer') : null; // why a page counts as unread: no text layer (scan) · unsupported format (legacy .doc, image) …
   for (const p of pages) {
     for (const r of extractFromText(p.text || '', p.page)) {
       if (r.kind === 'order_no') { docOrderNos.push(r.value); continue; }
       if (!isInvoiceKind(r.kind)) { others.push(r); continue; }
       const k = refKey(r.kind, r.value);
       if (!refs.has(k)) refs.set(k, { kind: r.kind, value: r.value, occurrences: [] });
-      refs.get(k).occurrences.push({ page: r.page, snippet: r.snippet });
+      refs.get(k).occurrences.push({ page: r.page, snippet: r.snippet, raw: r.raw });
     }
   }
   docOrderNos = [...new Set(docOrderNos)];
   const stated = pages.map((p) => documentStatedAmount(p.text || '')).find((x) => x != null) ?? null;
   return {
-    method, pages: pageInfo, refs: [...refs.values()], others: dedupeOthers(others), orderNumbersInDocument: docOrderNos,
+    method, format, pages: pageInfo, refs: [...refs.values()], others: dedupeOthers(others), orderNumbersInDocument: docOrderNos,
     orderNumberMismatch: !!(orderNo && docOrderNos.length && !docOrderNos.includes(String(orderNo).toUpperCase())),
     statedAmount: stated, extractedAt: new Date().toISOString()
   };
@@ -122,6 +125,17 @@ export function splitOcrText(text) {
 
 /* ------------------------------------------------------------------ the references an order carries, and how they resolved */
 // Sanad's structured references + every document extraction (one record per distinct reference, with where it came from)
+// The free-text fields of a Sanad record in which people type invoice numbers (human data entry): the description and the notes.
+export const ORDER_TEXT_FIELDS = ['description', 'notes'];
+const FIELD_ORIGIN = { description: 'sanad_description', notes: 'sanad_notes' };
+export function orderTextRefs(order) {
+  const out = [];
+  for (const field of ORDER_TEXT_FIELDS) { const text = order?.[field]; if (!text) continue; for (const r of extractFromText(text, 1)) out.push({ ...r, field, origin: FIELD_ORIGIN[field] }); }
+  return out;
+}
+
+// EVERY source is read — never "the first match wins": the structured invoice-reference field, the description, the notes and every attached document (each page, each table).
+// One record per distinct reference (the canonical value; the text as originally typed is kept in each origin) with every place it was found.
 export function collectReferences(order, docs = []) {
   const m = new Map();
   const add = (kind, value, origin) => {
@@ -129,16 +143,43 @@ export function collectReferences(order, docs = []) {
     if (!m.has(k)) m.set(k, { key: k, kind, value: String(value).trim(), origins: [] });
     m.get(k).origins.push(origin);
   };
-  for (const r of order.refs || []) add(r.kind, r.value, { type: 'sanad_structured' });
+  for (const r of order.refs || []) add(r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
+  for (const r of orderTextRefs(order)) if (isInvoiceKind(r.kind)) add(r.kind, r.value, { type: r.origin, field: r.field, raw: r.raw, snippet: r.snippet });
   for (const d of docs) for (const r of d.extraction?.refs || []) {
     const byMethod = new Map(); // text found by the PDF reader, by imported OCR text, or typed by a person are different kinds of evidence
-    for (const o of r.occurrences) { const m = o.via || d.extraction.method; if (!byMethod.has(m)) byMethod.set(m, []); byMethod.get(m).push(o); }
-    for (const [m, occ] of byMethod) add(r.kind, r.value, { type: `document_${m}`, docId: d.id, docName: d.name, pages: [...new Set(occ.map((o) => o.page))], snippet: occ[0]?.snippet });
+    for (const o of r.occurrences) { const mm = o.via || d.extraction.method; if (!byMethod.has(mm)) byMethod.set(mm, []); byMethod.get(mm).push(o); }
+    for (const [mm, occ] of byMethod) add(r.kind, r.value, { type: `document_${mm}`, docId: d.id, docName: d.name, pages: [...new Set(occ.map((o) => o.page))], snippet: occ[0]?.snippet, raw: occ[0]?.raw || r.value });
   }
   return [...m.values()];
 }
+
+// CONTRACT numbers are kept apart from invoice references. A number MENTIONED in the description or a document is only a mention; a direct referral of the contract
+// is established by the structured source (Sanad's contract field) or by a REVIEWED document / description mention.
+export function contractMentions(order, docs = []) {
+  const m = new Map();
+  const add = (no, origin) => { const k = String(no).toUpperCase(); if (!m.has(k)) m.set(k, { contractNo: k, origins: [] }); m.get(k).origins.push(origin); };
+  if (order.contractNo) add(order.contractNo, { type: 'sanad_structured', field: 'contract_number' });
+  for (const r of orderTextRefs(order)) if (r.kind === 'contract_no') add(r.value, { type: r.origin, field: r.field, snippet: r.snippet });
+  for (const d of docs) for (const o of d.extraction?.others || []) if (o.kind === 'contract_no') add(o.value, { type: `document_${d.extraction.method}`, docId: d.id, docName: d.name, pages: o.pages || [], snippet: o.snippet });
+  return [...m.values()].map((c) => {
+    const review = order.contractReviews?.[c.contractNo] || null;
+    const structured = c.origins.some((o) => o.type === 'sanad_structured');
+    const status = structured ? 'supported_by_source' : review?.decision === 'confirmed' ? 'confirmed_by_review' : review?.decision === 'rejected' ? 'rejected' : 'mentioned';
+    return { ...c, structured, review, status, direct: status === 'supported_by_source' || status === 'confirmed_by_review' };
+  });
+}
+
+// Two references that share the 7-digit serial but not the year («INV-2025-0000111» in one place, «INV-2026-0000111» in another): sources that CONTRADICT each other.
+export function sourceConflictsOf(order, docs = []) {
+  const bySerial = new Map();
+  for (const r of collectReferences(order, docs)) { if (r.kind !== 'invoice_no') continue; const mm = /^INV-(\d{4})-(\d+)$/i.exec(r.value); if (!mm) continue; const ser = mm[2].padStart(7, '0'); if (!bySerial.has(ser)) bySerial.set(ser, []); bySerial.get(ser).push(r); }
+  return [...bySerial.entries()].filter(([, list]) => new Set(list.map((r) => r.value.toUpperCase().replace(/-(\d+)$/, (x, d) => `-${d.padStart(7, '0')}`))).size > 1).map(([serial, refs]) => ({ serial, refs }));
+}
 export const ORIGIN_LABEL = {
-  sanad_structured: { en: 'Sanad structured data', ar: 'بيانات سند المهيكلة' },
+  sanad_structured: { en: 'Sanad structured field', ar: 'حقل سند المهيكل' },
+  sanad_description: { en: 'Sanad description (free text)', ar: 'وصف سند (نص حر)' },
+  sanad_notes: { en: 'Sanad notes (free text)', ar: 'ملاحظات سند (نص حر)' },
+  document_docx_text: { en: 'Word document (text and tables, read by this system)', ar: 'مستند Word (النص والجداول، قرأها النظام)' },
   document_text_layer: { en: 'Order PDF (text layer)', ar: 'ملف الأمر (طبقة النص)' },
   document_ocr_import: { en: 'Order document (OCR text imported)', ar: 'مستند الأمر (نص OCR مستورد)' },
   document_manual_entry: { en: 'Order document (typed by a person)', ar: 'مستند الأمر (أدخله شخص)' },
@@ -157,11 +198,11 @@ export function conflictsFor(order, cand, { otherOrders = [], weak = false, ambi
   if (docMismatch) c.push('document_other_order');
   if (ambiguous) c.push('ambiguous_reference');
   if (otherOrders.length) c.push('linked_to_other_order');
-  if (cand.cancelled) c.push('invoice_cancelled'); else if (cand.excluded) c.push('invoice_excluded'); else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
+  if (cand.cancelled || cand.sourceCancelled) c.push('invoice_cancelled'); else if (cand.excluded) c.push('invoice_excluded'); else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
   if (weak && !ambiguous) c.push('weak_reference');
   return c;
 }
-export const HARD_CONFLICTS = new Set(['debtor_mismatch', 'amanah_mismatch', 'invoice_issued_after_order', 'document_other_order', 'ambiguous_reference']);
+export const HARD_CONFLICTS = new Set(['debtor_mismatch', 'amanah_mismatch', 'invoice_issued_after_order', 'document_other_order', 'ambiguous_reference', 'source_conflict']);
 export const isHardConflict = (x) => HARD_CONFLICTS.has(x);
 // the hard conflicts still standing after the evidence that resolves some of them (`resolved`: [{ conflict, by, evidence }])
 export const unresolvedConflicts = (conflicts = [], resolved = []) => conflicts.filter((x) => HARD_CONFLICTS.has(x) && !resolved.some((r) => r.conflict === x));
@@ -201,6 +242,18 @@ export function buildRows(order, refs, results, links, otherOrdersByInvoice = ne
     const linkIds = row.candidates.map((c) => c.invoiceId);
     row.link = links.find((l) => linkIds.includes(l.invoiceId) && l.status !== 'rejected') || null;
     row.rejected = !row.link && links.some((l) => linkIds.includes(l.invoiceId) && l.status === 'rejected');
+  }
+  // references from different sources that CONTRADICT each other (same serial, different year): every member is a hard conflict; it is resolved by data evidence only
+  // when exactly one member belongs to the order's debtor (the others then also carry «payer is not the order debtor»)
+  for (const g of sourceConflictsOf(order, docs)) {
+    const members = rows.filter((r) => r.kind === 'invoice_no' && g.refs.some((x) => x.key === r.key) && r.candidates.length);
+    if (members.length < 2) continue;
+    const clean = members.filter((r) => !(r.conflicts[r.candidates[0].invoiceId] || []).includes('debtor_mismatch'));
+    for (const r of members) {
+      const id = r.candidates[0].invoiceId; r.conflicts[id] = [...r.conflicts[id], 'source_conflict']; r.sourceConflict = { serial: g.serial, with: members.filter((x) => x !== r).map((x) => x.value) };
+      if (clean.length === 1 && clean[0] === r) r.resolved[id] = [...r.resolved[id], { conflict: 'source_conflict', by: 'only_candidate_of_order_debtor', evidence: { serial: g.serial } }];
+      r.unresolved[id] = unresolvedConflicts(r.conflicts[id], r.resolved[id]);
+    }
   }
   return rows;
 }
@@ -250,9 +303,14 @@ export const documentGaps = (order) => (order.docs || []).flatMap((d) => (d.extr
 export function orderCompleteness(order) {
   const rec = reconcile(order); const unresolved = unresolvedReferences(order); const gaps = documentGaps(order); const docs = order.docs || [];
   const total = collectReferences(order, docs).filter((r) => isInvoiceKind(r.kind)).length;
-  const references = { total, unresolved: unresolved.length, proposed: rec.proposedCount, confirmedLinks: rec.confirmedCount, state: !total && !rec.confirmedCount && !rec.proposedCount ? 'none' : unresolved.length || rec.proposedCount ? 'incomplete' : 'complete' };
+  const all = collectReferences(order, docs).filter((r) => isInvoiceKind(r.kind)); const bySource = (t) => all.filter((r) => r.origins.some((o) => o.type === t)).length;
+  const sources = { structured: bySource('sanad_structured'), description: bySource('sanad_description'), notes: bySource('sanad_notes'), documents: all.filter((r) => r.origins.some((o) => o.docId)).length, hasDescription: !!String(order.description || '').trim(), hasNotes: !!String(order.notes || '').trim(), attachmentsListed: (order.attachments || []).length, documentsAdded: docs.length };
+  const conflicts = sourceConflictsOf(order, docs);
+  // «complete» = every reference FOUND (in any source) is decided. It does NOT prove that every invoice covered by the order was found: extraction and reconciliation say whether anything may be missing.
+  const references = { total, unresolved: unresolved.length, proposed: rec.proposedCount, confirmedLinks: rec.confirmedCount, sourceConflicts: conflicts.length, sources, state: !total && !rec.confirmedCount && !rec.proposedCount ? 'none' : unresolved.length || rec.proposedCount ? 'incomplete' : 'complete' };
   const suppliedPages = docs.reduce((n, d) => n + (d.ocrCovered || []).length, 0); // pages whose text was supplied from outside (imported OCR) or typed — not read by this system
-  const extraction = { documents: docs.length, unreadPages: gaps.length, suppliedPages, state: !docs.length ? 'no_document' : gaps.length ? 'incomplete' : 'complete' };
+  const attachmentsPending = Math.max(0, (order.attachments || []).length - docs.length); // listed by Sanad, not yet added here (retrieval is not connected)
+  const extraction = { documents: docs.length, unreadPages: gaps.length, suppliedPages, attachmentsPending, state: attachmentsPending && !gaps.length && docs.length ? 'incomplete' : !docs.length ? 'no_document' : gaps.length ? 'incomplete' : 'complete' };
   const finance = { state: { none: 'no_links', unconfirmed: 'no_confirmed', unknown: 'not_checkable', reconciled: 'reconciled', short: 'short', over: 'over' }[rec.state], difference: rec.difference, confirmedTotal: rec.confirmedTotal, orderAmount: order.amount, proposedTotal: rec.proposedTotal, wouldReconcile: rec.wouldReconcile };
   return { references, extraction, finance, unresolved, gaps, reconciliation: rec };
 }
@@ -276,7 +334,7 @@ export function orderMatchState(order) {
 /* ------------------------------------------------------------------ effective cases = Sanad/anchor base + the user's overlay */
 const LINK_STATUS_OUT = { proposed: 'candidate', confirmed: 'confirmed', rejected: 'rejected', removed: 'rejected' };
 export const emptyStore = () => ({ v: 1, orders: {} });
-const ord = (store, en) => store.orders[en] || { links: {}, docs: {}, history: [], dismissedRefs: [], statusSeen: null };
+const ord = (store, en) => store.orders[en] || { links: {}, docs: {}, history: [], dismissedRefs: [], contractReviews: {}, statusSeen: null };
 
 export function buildEffectiveCases(baseCases, store) {
   return baseCases.map((c) => {
@@ -284,7 +342,9 @@ export function buildEffectiveCases(baseCases, store) {
     const base = (c.links || []).map((l) => ({ ...l, origin: l.origin || (l.reviewedBy ? 'sanad_structured' : 'sanad_structured'), appliedStatus: orderStatusOf(c) }));
     const merged = new Map(base.map((l) => [l.invoiceId, l]));
     if (o) for (const l of Object.values(o.links)) merged.set(l.invoiceId, { ...l, status: LINK_STATUS_OUT[l.status] || l.status, ledgerStatus: l.status, appliedStatus: l.status === 'confirmed' ? orderStatusOf(c) : null });
-    return { ...c, orderStatus: orderStatusOf(c), links: [...merged.values()], docs: o ? Object.values(o.docs) : [], dismissedRefs: o?.dismissedRefs || [], history: [...(o?.history || []), ...(c.history || [])], hasUserWork: !!o };
+    const eff = { ...c, orderStatus: orderStatusOf(c), links: [...merged.values()], docs: o ? Object.values(o.docs) : [], dismissedRefs: o?.dismissedRefs || [], contractReviews: o?.contractReviews || {}, history: [...(o?.history || []), ...(c.history || [])], hasUserWork: !!o };
+    eff.contractFacts = contractMentions(eff, eff.docs); // contract numbers mentioned / directly referred, with their review status
+    return eff;
   });
 }
 
@@ -403,16 +463,32 @@ export function recordFileRestored(store, en, docId, { by, at, orderStatus, name
 }
 
 // The matching-review EXCEPTIONS of an order: what a person still has to look at. An order can carry several (counted once per type).
-export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'unread_pages', 'amount_difference', 'contract_level_only'];
+export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'source_conflict', 'attachments_not_retrieved', 'unread_pages', 'amount_difference', 'contract_mention_unreviewed', 'contract_level_only'];
 export function orderExceptions(order) {
   const comp = orderCompleteness(order); const out = [];
   const contractLevel = !!order.contractNo && !(order.refs || []).length && !(order.links || []).length;
   if (contractLevel) out.push('contract_level_only');
   else if (comp.references.state === 'none') out.push('no_references');
   if (comp.references.unresolved > 0) out.push('unresolved_references');
+  if (comp.references.sourceConflicts > 0) out.push('source_conflict');
+  if (comp.extraction.attachmentsPending > 0) out.push('attachments_not_retrieved');
+  if (contractMentions(order, order.docs || []).some((c) => c.status === 'mentioned')) out.push('contract_mention_unreviewed');
   if (comp.references.proposed > 0) out.push('proposals_pending');
   if ((order.links || []).some((l) => l.status === 'candidate' && unresolvedConflicts(l.conflicts, l.resolvedConflicts).length)) out.push('conflicts');
   if (comp.extraction.state === 'incomplete') out.push('unread_pages');
   if (comp.finance.state === 'short' || comp.finance.state === 'over') out.push('amount_difference');
   return out;
+}
+
+
+// A reviewer decides whether a contract number MENTIONED in the description or a document is a direct referral of that contract. The structured field never needs this;
+// a mention alone never establishes a referral. `exists` = the contract number exists in the data (checked by the caller); a number that does not exist cannot be confirmed.
+export function reviewContractReference(store, en, contractNo, { decision, note = '', evidence = null, by, at, orderStatus, exists = false }) {
+  if (!['confirmed', 'rejected'].includes(decision)) return { store, error: 'bad_decision' };
+  if (decision === 'confirmed' && !exists) return { store, error: 'contract_not_found' };
+  if (decision === 'confirmed' && !evidence) return { store, error: 'evidence_required' };
+  let o = noteOrderStatus(ord(store, en), orderStatus, at, by);
+  o = { ...o, contractReviews: { ...(o.contractReviews || {}), [contractNo]: { decision, note: String(note).trim(), evidence, by, at } } };
+  o = hist(o, { at, by, action: decision === 'confirmed' ? 'contract_reference_confirmed' : 'contract_reference_rejected', detail: { contractNo, evidence, note: String(note).trim() } });
+  return { store: put(store, en, o), error: null };
 }

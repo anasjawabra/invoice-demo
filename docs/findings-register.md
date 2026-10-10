@@ -521,3 +521,24 @@ Description and evidence: `docs/enforcement-management.md`; old OCR review: `doc
 **Old OCR code (reviewed):** the earlier upload-and-link flow was entirely **simulated** (file-name digits, canned fields, hard-coded «OCR complete» text); no OCR or PDF-text capability existed to reuse. **OCR performed by this system remains pending**; marking a scan «not read» verifies the fallback only.
 
 **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+
+
+---
+
+# Round 11 — every source of invoice references, cancelled invoices vs enforcement, contract mentions (branch `enforcement-order-matching`)
+
+Description, evidence and demo script: `docs/all-sources-and-cancelled-invoices.md`.
+
+**E-11 — references were collected from the structured field and one PDF only (fixed).** Humans type invoice numbers in the description, the notes or only in attachments. The order page now reads **every** source (structured · description · notes · digital PDF · Word `.docx` paragraphs and tables), normalises typed variants without losing the typed text, de-duplicates across sources keeping every occurrence, matches each reference independently and lists a *Sources examined* table. Scanned PDFs, images, legacy `.doc` and unknown formats are **kept but flagged unread** with the reason — never treated as read; no OCR is performed.
+
+**E-12 — «no reference yet» read as «no related invoices» (fixed).** Wording is now «Invoice references not identified — review required» everywhere (order page, list, landing exception); «complete» is stated to mean *every reference found is decided*, not *every covered invoice was found*.
+
+**E-13 — contradicting references across sources (added).** The same serial with different years in different sources is a hard conflict on each member, resolved only by data evidence (one candidate belongs to the order's debtor), never by a typed reason.
+
+**E-14 — cancelled invoices vs enforcement (clarified, flagged).** Source cancellation, effective treatment, remaining balance, payment status and enforcement (active / historical) are shown as separate facts. A cancelled invoice with a confirmed referral (any order status, or a link later withdrawn) keeps the documented ENF-1 treatment and is flagged «source/enforcement conflict — review required», **pending EQ3**; no order event moves an amount (tested). Landing count, Invoices filter/tag, invoice finding.
+
+**E-15 — contract mention vs referral (added).** *Mentioned* · *directly referred* (structured field or reviewer-confirmed from a document) · *invoices referred* are three facts on the order, contract and landing pages; a mention alone is never a referral and a directly referred contract never implies all its invoices are referred.
+
+**Tests:** 114 (10 new). **Open dependencies:** live Sanad retrieval and attachment retrieval; **actual OCR**; legacy `.doc` support; approximate `.docx` pagination; EQ3 decision on the treatment; Sanad's real description/attachment conventions.
+
+**Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.

@@ -82,7 +82,7 @@ export function rowOut(st, ctx, i, D) {
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), gross: D.gross, billed: D.billed, collected: D.collected, received: D.received, outstanding: D.outstanding, cancelledAmount: D.cancelledAmount, exclusionAmount: D.exclusionAmount, exclusions: D.exclTotal, net: D.net,
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
-    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, rules, nReasons: D.nReasons,
+    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED)
   };
 }
@@ -116,8 +116,8 @@ export function candidates(st, req) {
     if (cs >= 0 && st.cstat[i] !== cs) return;
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
     if (f.exec && f.exec !== 'all') { // ENFORCEMENT dimension (from confirmed links only): inexec = an order in execution · suspended = none in execution, one suspended · closed = referred before, every order closed · ever = any of the three · none = never referred
-      const lk = ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0;
-      const ok = f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
+      const lk = ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0; const srcCancelled = st.cancelDay[i] !== 0 && st.cancelDay[i] <= ctx.cutoffN;
+      const ok = f.exec === 'conflict' ? srcCancelled && (lk >= 2 || lk === 5) : f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
         : f.exec === 'yes' ? (st.exec[i] >= 0 || lk >= 2) : f.exec === 'no' ? (st.exec[i] < 0 && lk < 2) : true; // «yes» / «no»: the older two-value filter
       if (!ok) return;
     }

@@ -47,6 +47,9 @@ import { readPdfPages } from '../src/data/pdfText.js';
 import { enforcementOf, buildIndex, enforcementCounts, ordersOfContract, evidenceForInvoice } from '../src/data/relations.js';
 import { invoicePath, orderPath, contractPath } from '../src/utils/paths.js';
 import fs from 'node:fs';
+import { extractDocument, detectFormat } from '../src/data/docText.js';
+import { parseWordXml } from '../src/data/docxText.js';
+import { contractMentions, sourceConflictsOf, reviewContractReference } from '../src/data/orderMatching.js';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
@@ -915,7 +918,7 @@ await test('Reference resolution: exact invoice numbers match; a bare serial is 
   const amb = orderOf('serial_ambiguous'); const sa = resolveFor(amb.refs).results[0]; assert.equal(sa.status, 'ambiguous'); assert.ok(sa.candidates.length >= 2 && sa.weak); assert.ok(sa.candidates.some((k) => k.invoiceId === idOfInv(amb.covers[0])));
   const typo = orderOf('multi_typo_ref'); const rt = resolveFor(typo.refs); assert.deepEqual(rt.results.map((x) => x.status), ['matched', 'unmatched']); assert.equal(rt.results[1].candidates.length, 0, 'no “similar” invoice is substituted');
   const some = idOfInv(multi.covers[0]); const i0 = lookupId(st, some); const sad = resolveFor([{ kind: 'sadad_no', value: sadadOf(st.idKey[i0]) }, { kind: 'violation_no', value: '00000000000001' }, { kind: 'contract_no', value: 'CT-2026-0087' }, { kind: 'invoice_id_exact', value: 'INV-2026-0722' }]);
-  assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'not_invoice_reference'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, 'INV-2026-0722', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
+  assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'contract_not_found'); assert.equal(sad.results[2].candidates.length, 0, 'a contract number never resolves to invoices'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, 'INV-2026-0722', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
   const sum = r.results[0].candidates[0]; assert.ok(['overdue', 'partial', 'collected', 'not_due', 'cancelled', 'excluded'].includes(sum.paymentStatus) && sum.grossAmount > 0 && sum.payerName);
 });
 
@@ -952,12 +955,12 @@ await test('Link lifecycle: a proposal has NO effect; only a confirmed link refl
   assert.deepEqual(invoiceStatusMap(cases), { [cand[0].invoiceId]: 'open' }); assert.equal(invoiceEnforcement(cand[0].invoiceId, cases).status, 'open'); assert.equal(invoiceEnforcement(cand[1].invoiceId, cases).status, null, 'the other candidate is untouched');
   const susp = buildEffectiveCases([{ ...c, requestStatus: 'موقوف' }], store); assert.equal(invoiceStatusMap(susp)[cand[0].invoiceId], 'suspended'); assert.equal(invoiceStatusMap(buildEffectiveCases([{ ...c, requestStatus: 'مغلق' }], store))[cand[0].invoiceId], 'closed');
   assert.equal(rejectLink(store, en, cand[0].invoiceId, { ...o('x'), note: 'n' }).error, 'use_remove', 'a confirmed link is withdrawn, not rejected'); assert.equal(removeLink(store, en, cand[0].invoiceId, { ...o('x'), note: '' }).error, 'note_required');
-  store = removeLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T10:00:00Z'), note: 'wrong year' }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([c], store)), {}, 'withdrawing removes the effect');
+  store = removeLink(store, en, cand[0].invoiceId, { ...o('2026-10-08T10:00:00Z'), note: 'wrong year' }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([c], store)), { [cand[0].invoiceId]: 'withdrawn' }, 'withdrawing removes the effect (a withdrawn link is no referral; the data service only keeps the fact so a retained cancelled-invoice treatment is not silently reversed)');
   store = rejectLink(store, en, cand[1].invoiceId, { ...o('2026-10-08T10:01:00Z'), note: 'other payer', input: mk(cand[1]) }).store;
   const hist = buildEffectiveCases([c], store)[0].history.map((h) => h.action); assert.deepEqual(hist, ['rejected', 'removed', 'confirmed', 'proposed'], 'every step is kept, newest first');
   const chg = confirmLink(store, en, cand[0].invoiceId, { ...o('2026-10-09T10:00:00Z'), note: 'again', orderStatus: 'suspended' }).store; assert.ok(chg.orders[en].history.some((h) => h.action === 'order_status_changed' && h.detail.from === 'open' && h.detail.to === 'suspended'), 'a change of the order status since the last record is logged');
   const fed = caseOf(orderOf('single')); const fedId = fed.links[0].invoiceId; assert.equal(removeLink(emptyStore(), fed.enforceNum, fedId, { ...o('x'), note: 'r' }).error, 'not_confirmed');
-  const wd = removeLink(emptyStore(), fed.enforceNum, fedId, { ...o('2026-10-08T11:00:00Z'), note: 'the reference is a typing error', base: fed.links[0] }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([fed], wd)), {}, 'a link from the Sanad feed can be withdrawn; the withdrawal is recorded over it');
+  const wd = removeLink(emptyStore(), fed.enforceNum, fedId, { ...o('2026-10-08T11:00:00Z'), note: 'the reference is a typing error', base: fed.links[0] }).store; assert.deepEqual(invoiceStatusMap(buildEffectiveCases([fed], wd)), { [fedId]: 'withdrawn' }, 'a link from the Sanad feed can be withdrawn; the withdrawal is recorded over it');
   assert.equal(unresolvedReferences(buildEffectiveCases([fed], wd)[0]).length, 0, 'the withdrawn reference stays accounted for by that decision');
   assert.ok(validStoreShape(store)); assert.equal(validStoreShape({ v: 1, orders: { x: { links: { a: { invoiceId: 'a', status: 'weird' } }, history: [] } } }), false);
 });
@@ -1106,6 +1109,144 @@ await test('Arabic presentation-form text (as a PDF text layer returns it) is no
   assert.deepEqual(extractFromText('ﺭﻗﻢ ﺍﻟﻔﺎﺗﻮﺭﺓ ١٢٣٤٥٦٧').map((r) => [r.kind, r.value]), [['invoice_serial', '1234567']], 'presentation forms of «رقم الفاتورة» are recognised as an invoice label');
   const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec);
   const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync('public/samples/invoice_normal_alrajhi.pdf')), lib); const ex = buildExtraction(pages, 'text_layer'); assert.deepEqual(ex.refs.map((r) => r.value), ['INV-2026-0731']); assert.equal(ex.pages[0].needsOcr, false);
+});
+
+/* ------------------------------------------------------------ Brief 4: every source is read (structured · description · notes · attachments), cancelled invoices vs enforcement, contract mentions */
+// The samples and the demo run on the compact world at the demo's reference date; the references in the sample files are those of THIS world.
+const E_DATE = '2026-10-09'; const ecfg = { cutoff: E_DATE };
+const est = loadStore(E_DATE, { size: 'compact' }); const estCases = sanadCases(est);
+const eo = (arch, nth = 0) => est.requests.filter((r) => r.archetype === arch)[nth];
+const ecase = (q) => estCases.find((c) => c.enforceNum === q.enforceNum);
+const eInv = (i) => `INV-${Math.floor(est.idKey[i] / 1e8)}-${String(est.idKey[i] % 1e8).padStart(7, '0')}`;
+const eResolve = (refs) => resolveReferences(est, { refs, cfg: ecfg }).results;
+const SPEC = 'pdfjs-dist/legacy/build/pdf.mjs'; const pdfLib = await import(SPEC);
+const sampleBytes = (f) => new Uint8Array(fs.readFileSync(`public/samples/enforcement-orders/${f}`));
+const NOW = { by: 'Tester', at: '2026-10-10T08:00:00.000Z', orderStatus: 'open' };
+const ESC = { from: '2000-01-01', to: E_DATE, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
+const sortedIds = (list) => [...list].map((x) => String(x).toUpperCase()).sort();
+
+await test('Brief 4 · structured field holds one invoice, the description holds the others: every reference is collected (never stops at the first), kept as typed, each matched on its own', () => {
+  const q = eo('desc_multi'); const c = ecase(q); assert.equal(c.refs.length, 1, 'the structured field names only the first invoice');
+  const refs = collectReferences(c, []).filter((r) => r.kind === 'invoice_no');
+  assert.deepEqual(sortedIds(refs.map((r) => r.value)), sortedIds(q.covers.map(eInv)), 'the description’s references are found in every typed variant (lowercase, spaces, dashes, slash)');
+  assert.ok(refs.some((r) => r.origins.some((o) => o.type === 'sanad_description' && o.raw && o.raw !== r.value)), 'the text as typed is preserved beside the canonical value');
+  const first = refs.find((r) => r.origins.some((o) => o.type === 'sanad_structured')); assert.ok(first.origins.some((o) => o.type === 'sanad_description'), 'the same invoice typed again in the description keeps BOTH occurrences, as one reference');
+  const res = eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))); assert.ok(res.every((x, k) => x.status === 'matched' && x.candidates[0].invoiceId === refs[k].value.toUpperCase()), 'each reference is matched independently');
+  assert.equal(orderCompleteness(c).references.sources.description, q.covers.length, 'the sources table counts what the description yielded');
+});
+
+await test('Brief 4 · references only in the description or notes: found, flagged for review, and NOT reported as «no related invoices»', () => {
+  const q = eo('desc_only'); const c = ecase(q); assert.equal(c.refs.length, 0);
+  const refs = collectReferences(c, []).filter((r) => r.kind === 'invoice_no'); assert.deepEqual(sortedIds(refs.map((r) => r.value)), sortedIds(q.covers.map(eInv)));
+  assert.ok(refs.every((r) => r.origins.every((o) => o.type === 'sanad_description' || o.type === 'sanad_notes')));
+  const eff = buildEffectiveCases([c], emptyStore())[0]; const comp = orderCompleteness(eff);
+  assert.equal(comp.references.state, 'incomplete', 'found but undecided'); const ex = orderExceptions(eff); assert.ok(ex.includes('unresolved_references') && !ex.includes('no_references'));
+  assert.equal(invoiceStatusMap([eff])[eInv(q.covers[0])], undefined, 'a text mention alone changes no invoice status');
+});
+
+await test('Brief 4 · a multi-page PDF that is the ONLY source: all pages and table rows are read, a repeated invoice is one reference with several occurrences', async () => {
+  const q = eo('attach_pdf'); const c = ecase(q); assert.equal(c.refs.length, 0); assert.ok(c.attachments.length >= 1 && c.attachments.every((a) => a.retrieved === false), 'Sanad lists the attachment; retrieval is not connected');
+  const ex = await extractDocument(sampleBytes(`${q.enforceNum}-attachment.pdf`), { orderNo: q.enforceNum, lib: pdfLib });
+  assert.equal(ex.format, 'pdf'); assert.ok(ex.pages.length >= 2); assert.deepEqual(sortedIds(ex.refs.map((r) => r.value)), sortedIds(q.covers.map(eInv)));
+  const rep = ex.refs.find((r) => r.occurrences.length > 1); assert.ok(rep && new Set(rep.occurrences.map((o) => o.page)).size >= 2, 'the repeat is on another page and is kept as an occurrence, not a second reference');
+  let store = recordDocument(emptyStore(), q.enforceNum, { id: 'h-pdf', name: `${q.enforceNum}-attachment.pdf`, size: 1, kind: 'uploaded', format: 'pdf', extraction: ex }, NOW).store;
+  const eff = buildEffectiveCases([c], store)[0]; const refs = collectReferences(eff, eff.docs).filter((r) => r.kind === 'invoice_no');
+  assert.equal(refs.length, q.covers.length, 'no duplicate reference'); assert.ok(refs.every((r) => r.origins.every((o) => o.docId === 'h-pdf')));
+  assert.equal(orderCompleteness(eff).extraction.attachmentsPending, 0, 'the listed attachment is now added');
+});
+
+await test('Brief 4 · a Word document: paragraphs AND table rows are read, page breaks give pages, a contract named in it is a mention (not a referral)', async () => {
+  const q = eo('attach_docx'); const bytes = sampleBytes(`${q.enforceNum}-attachment.docx`); assert.equal(await detectFormat(bytes), 'docx');
+  const ex = await extractDocument(bytes, { orderNo: q.enforceNum }); assert.equal(ex.format, 'docx'); assert.equal(ex.method, 'docx_text'); assert.ok(ex.tables >= 2 && ex.pages.length >= 2, 'tables on both parts of the document');
+  assert.deepEqual(sortedIds(ex.refs.map((r) => r.value)), sortedIds(q.covers.map(eInv)), 'the invoice numbers exist ONLY in the tables'); assert.ok(ex.pages.every((p) => !p.needsOcr));
+  assert.ok(ex.others.some((o) => o.kind === 'contract_no'), 'the contract number is set apart from the invoice references');
+  const c = ecase(q); const eff = buildEffectiveCases([c], recordDocument(emptyStore(), q.enforceNum, { id: 'h-docx', name: 'a.docx', size: 1, format: 'docx', extraction: ex }, NOW).store)[0];
+  const cm = contractMentions(eff, eff.docs); assert.equal(cm.length, 1); assert.equal(cm[0].status, 'mentioned'); assert.equal(cm[0].direct, false); assert.equal(cm[0].origins[0].type, 'document_docx_text');
+  const w = parseWordXml('<w:body><w:p><w:r><w:t>Intro</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>INV-2025-0000001</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>Next &amp; last</w:t></w:r></w:p></w:body>');
+  assert.equal(w.pages.length, 2); assert.equal(w.tables, 1); assert.deepEqual(w.pages[0], ['Intro', '[table 1, row 1] INV-2025-0000001 | 10']); assert.deepEqual(w.pages[1], ['Next & last']);
+});
+
+await test('Brief 4 · a scanned PDF, a legacy .doc and an unknown file are kept but flagged UNREAD with a reason; nothing is treated as read; empty fields ≠ «no related invoices»', async () => {
+  const q = eo('attach_unreadable'); const c = ecase(q); assert.equal(c.refs.length, 0); assert.equal(c.attachments.length, 2);
+  const scan = await extractDocument(sampleBytes(`${q.enforceNum}-scan.pdf`), { orderNo: q.enforceNum, lib: pdfLib }); assert.ok(scan.pages.some((p) => p.needsOcr && p.reason === 'no_text_layer') && scan.pages.filter((p) => p.needsOcr).every((p) => p.reason === 'no_text_layer'), 'image-only pages are flagged unread with the reason (the sample carries only a one-line «synthetic» caption on page 1)'); assert.equal(scan.refs.length, 0);
+  const doc = await extractDocument(sampleBytes(`${q.enforceNum}-legacy.doc`), { orderNo: q.enforceNum }); assert.equal(doc.format, 'doc'); assert.equal(doc.unsupported, true); assert.equal(doc.pages[0].needsOcr, true); assert.equal(doc.pages[0].reason, 'unsupported_format');
+  const img = await extractDocument(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]), {}); assert.equal(img.format, 'image'); assert.equal(img.pages[0].reason, 'needs_ocr', 'an image needs OCR, which this system does not perform');
+  assert.equal((await extractDocument(new Uint8Array([1, 2, 3, 4, 5, 6]), {})).pages[0].reason, 'unknown_format');
+  const eff0 = buildEffectiveCases([c], emptyStore())[0]; assert.equal(orderCompleteness(eff0).references.state, 'none'); assert.ok(orderExceptions(eff0).includes('no_references') && orderExceptions(eff0).includes('attachments_not_retrieved'));
+  let store = recordDocument(emptyStore(), q.enforceNum, { id: 'h-scan', name: 'scan.pdf', size: 1, format: 'pdf', extraction: scan }, NOW).store; store = recordDocument(store, q.enforceNum, { id: 'h-doc', name: 'legacy.doc', size: 1, format: 'doc', extraction: doc }, NOW).store;
+  const eff = buildEffectiveCases([c], store)[0]; const comp = orderCompleteness(eff);
+  assert.equal(comp.references.state, 'none', 'still «not identified»'); assert.equal(comp.extraction.state, 'incomplete'); assert.ok(comp.extraction.unreadPages >= 2); assert.ok(orderExceptions(eff).includes('unread_pages'));
+});
+
+await test('Brief 4 · the same invoice typed in several fields and documents is ONE reference (every occurrence kept) and one link: the amount is counted once', () => {
+  const q = eo('desc_multi'); const c = ecase(q); const id0 = eInv(q.covers[0]);
+  const ex = buildExtraction([{ page: 1, text: `Invoice ${id0}` }, { page: 2, text: `rows ${id0.toLowerCase()}` }], 'text_layer', { orderNo: q.enforceNum });
+  const eff = buildEffectiveCases([{ ...c, notes: `see ${id0}` }], recordDocument(emptyStore(), q.enforceNum, { id: 'h-r', name: 'r.pdf', size: 1, format: 'pdf', extraction: ex }, NOW).store)[0];
+  const refs = collectReferences(eff, eff.docs).filter((r) => r.kind === 'invoice_no'); const r0 = refs.find((r) => r.value.toUpperCase() === id0);
+  assert.equal(refs.length, q.covers.length, 'no duplicate rows'); assert.ok(['sanad_structured', 'sanad_description', 'sanad_notes', 'document_text_layer'].every((t) => r0.origins.some((o) => o.type === t)), 'structured, description, notes and the document all kept');
+  const res = eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))); const rows = buildRows(eff, refs, res, eff.links, new Map(), new Set(), eff.docs);
+  const matched = rows.filter((r) => r.status === 'matched'); assert.equal(new Set(matched.map((r) => r.candidates[0].invoiceId)).size, matched.length, 'one row per invoice');
+  let store = emptyStore(); for (const row of rows) { const k = row.candidates[0]; store = confirmLink(store, q.enforceNum, k.invoiceId, { ...NOW, input: { invoiceId: k.invoiceId, origin: 'sanad_description', gross: k.grossAmount, conflicts: [], resolvedConflicts: [], evidence: [] } }).store; }
+  const eff2 = buildEffectiveCases([c], store)[0]; const rec = orderCompleteness(eff2).reconciliation;
+  assert.equal(rec.confirmedCount, q.covers.length); assert.equal(rec.confirmedTotal, q.covers.reduce((s, i) => s + est.gross[i], 0), 'each invoice counted once'); assert.ok(Math.abs(rec.difference) <= 1, 'several confirmed invoices reconcile the order amount');
+  assert.equal(orderCompleteness(eff2).references.state, 'complete'); assert.ok(orderCompleteness(eff2).references.total === q.covers.length);
+});
+
+await test('Brief 4 · conflicting references across sources (same serial, different year): hard conflict resolved ONLY by data evidence, never by a written reason', () => {
+  const run = (arch) => {
+    const q = eo(arch); const c = ecase(q); const eff = buildEffectiveCases([c], emptyStore())[0]; const conf = sourceConflictsOf(eff, []); assert.equal(conf.length, 1, `${arch}: the two sources disagree`);
+    const refs = collectReferences(eff, []).filter((r) => r.kind === 'invoice_no'); assert.equal(refs.length, 2);
+    const rows = buildRows(eff, refs, eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []);
+    return { q, eff, rows };
+  };
+  const a = run('source_conflict'); assert.ok(a.rows.every((r) => r.conflicts[r.candidates[0].invoiceId].includes('source_conflict')));
+  const settled = a.rows.filter((r) => !r.unresolved[r.candidates[0].invoiceId].includes('source_conflict')); assert.equal(settled.length, 1, 'exactly one candidate belongs to the order debtor'); assert.ok(settled[0].resolved[settled[0].candidates[0].invoiceId].some((x) => x.by === 'only_candidate_of_order_debtor'));
+  const b = run('source_conflict_unresolved'); assert.ok(b.rows.every((r) => r.unresolved[r.candidates[0].invoiceId].includes('source_conflict')), 'nothing in the data tells them apart');
+  const k = b.rows[0].candidates[0]; const res = confirmLink(emptyStore(), b.q.enforceNum, k.invoiceId, { ...NOW, note: 'the reviewer is sure', input: { invoiceId: k.invoiceId, origin: 'manual_selection', gross: k.grossAmount, conflicts: b.rows[0].conflicts[k.invoiceId], resolvedConflicts: [], evidence: [] } });
+  assert.equal(res.error, 'unresolved_conflict', 'a written reason never overrides'); assert.ok(orderExceptions(b.eff).includes('source_conflict'));
+});
+
+await test('Brief 4 · cancelled invoices vs enforcement: source cancellation, remaining balance and enforcement are separate; closing/withdrawing an order never moves an amount; a proposal changes nothing', () => {
+  for (const q of [eo('cancelled_open'), eo('cancelled_closed')]) {
+    const i = q.covers[0]; const id = eInv(i); const det = (links) => detail(est, i, makeCtx(est, { cfg: ecfg, links })).derived;
+    const none = det({}); assert.equal(none.sourceCancelled, true); assert.equal(none.cancelled, true); assert.equal(none.payStatus, 'cancelled'); assert.equal(none.outstanding, 0);
+    assert.equal(det({ [id]: 'candidate' }).cancelled, true, 'a proposal has no effect');
+    const states = ['open', 'suspended', 'closed', 'withdrawn'].map((s) => det({ [id]: s }));
+    for (const d of states) { assert.equal(d.sourceCancelled, true, 'the source fact is kept'); assert.equal(d.cancelled, false); assert.equal(d.enfConflict, true, 'flagged: source/enforcement conflict — review required'); assert.ok(d.outstanding > 0, 'stays uncollected under the documented treatment'); }
+    assert.ok(states.every((d) => d.outstanding === states[0].outstanding && d.net === states[0].net), 'open → suspended → closed → withdrawn never changes an amount');
+    assert.equal(det({ [id]: 'open' }).payStatus === 'collected', false, 'an order never implies payment');
+  }
+  const q = eo('cancelled_open'); const ids = q.covers.map(eInv); const base = snapshot(est, { scope: ESC, cfg: ecfg, links: {} }); const links = Object.fromEntries(ids.map((x) => [x, 'open'])); const withL = snapshot(est, { scope: ESC, cfg: ecfg, links });
+  assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold with and without the referral'); assert.equal(withL.stock.enforcement.sourceConflict.count, base.stock.enforcement.sourceConflict.count + ids.length);
+  const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.ok(ids.every((x) => rows.some((r) => r.id === x && r.enfConflict && r.sourceCancelled)), 'the conflict is listed and countable');
+  assert.equal(list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links: {}, page: 0, pageSize: 100 }).rows.some((r) => ids.includes(r.id)), false);
+  const closedQ = eo('cancelled_closed'); assert.equal(closedQ.status, 'مغلق'); const wd = removeLink(confirmLink(emptyStore(), 'EN-X', ids[0], { ...NOW, input: { invoiceId: ids[0], origin: 'sanad_structured', gross: 1, conflicts: [], resolvedConflicts: [], evidence: [] } }).store, 'EN-X', ids[0], { ...NOW, note: 'withdrawn by the issuer' }).store;
+  assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'a withdrawn link keeps the retained treatment (code “withdrawn”), it does not reinstate the cancellation');
+});
+
+await test('Brief 4 · status reflects CONFIRMED links only: text-found and proposed references change nothing, a confirmation does', () => {
+  const q = eo('desc_multi'); const c = ecase(q); const ids = q.covers.map(eInv);
+  const eff = buildEffectiveCases([c], emptyStore())[0]; const m0 = invoiceStatusMap([eff]); assert.ok(m0[ids[0]], 'the structured reference is the feed’s own confirmed link'); assert.ok(ids.slice(1).every((x) => m0[x] === undefined), 'description-only references are not links');
+  const store = proposeLink(emptyStore(), q.enforceNum, { invoiceId: ids[1], origin: 'sanad_description', gross: 1, evidence: [], conflicts: [] }, NOW).store;
+  assert.equal(invoiceStatusMap(buildEffectiveCases([c], store))[ids[1]], 'candidate', 'a proposal is not an effect');
+  const st2 = confirmLink(store, q.enforceNum, ids[1], { ...NOW }).store; assert.ok(['open', 'suspended', 'closed'].includes(invoiceStatusMap(buildEffectiveCases([c], st2))[ids[1]]));
+});
+
+await test('Brief 4 · a contract MENTIONED in an order is not a direct referral; a structured field or a reviewed document makes it one; neither says all its invoices are referred', () => {
+  const [q0, q1] = [eo('contract_mention', 0), eo('contract_mention', 1)]; const c0 = ecase(q0); const c1 = ecase(q1); const eff0 = buildEffectiveCases([c0], emptyStore())[0]; const eff1 = buildEffectiveCases([c1], emptyStore())[0];
+  const m0 = contractMentions(eff0, []); assert.equal(m0.length, 1); assert.equal(m0[0].status, 'mentioned'); assert.equal(m0[0].direct, false); assert.deepEqual(m0[0].origins.map((o) => o.type), ['sanad_description']);
+  const found = eResolve([{ kind: 'contract_no', value: m0[0].contractNo }, { kind: 'contract_no', value: 'CT-2099-0001' }]); assert.equal(found[0].status, 'contract_found'); assert.equal(found[1].status, 'contract_not_found');
+  assert.ok(orderExceptions(eff0).includes('contract_mention_unreviewed'));
+  const idsOf = (c) => c.links.map((l) => l.invoiceId); const orders0 = ordersOfContract(m0[0].contractNo, [], [eff0]); assert.equal(orders0[0].mentionedOnly, true); assert.equal(orders0[0].contractLevel, false, 'not a direct referral');
+  assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: null }).error, 'evidence_required', 'a mention alone cannot be confirmed');
+  assert.equal(reviewContractReference(emptyStore(), q1.enforceNum, 'CT-2099-0001', { ...NOW, decision: 'confirmed', exists: false, evidence: { type: 'document_text_layer' } }).error, 'contract_not_found');
+  const ev = { type: 'document_docx_text', docId: 'h', docName: 'a.docx', pages: [1], snippet: 'contract' };
+  const store = reviewContractReference(emptyStore(), q0.enforceNum, m0[0].contractNo, { ...NOW, decision: 'confirmed', exists: true, evidence: ev }).store; const eff0b = buildEffectiveCases([c0], store)[0];
+  const m0b = contractMentions(eff0b, []); assert.equal(m0b[0].status, 'confirmed_by_review'); assert.equal(m0b[0].direct, true);
+  const orders0b = ordersOfContract(m0b[0].contractNo, [], [eff0b]); assert.equal(orders0b[0].contractLevel, true); assert.deepEqual(orders0b[0].invoices, [], 'a directly referred contract does not make its invoices referred');
+  assert.ok(!orderExceptions(eff0b).includes('contract_mention_unreviewed')); assert.equal(buildEffectiveCases([c1], reviewContractReference(emptyStore(), q1.enforceNum, 'CT-2099-0001', { ...NOW, decision: 'rejected' }).store)[0].contractFacts[0].status, 'rejected');
+  const structured = feedCases.find((c) => c.contractNo && !c.refs.length); if (structured) { const e = buildEffectiveCases([structured], emptyStore())[0]; assert.equal(e.contractFacts.find((f) => f.contractNo === structured.contractNo).status, 'supported_by_source'); }
+  assert.equal(idsOf(eff0).length, q0.identified.length, 'invoices without a contract-level fact stay linked on their own');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

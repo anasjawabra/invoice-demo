@@ -36,7 +36,7 @@ function pdf(pages) {
 
 const st = loadStore(process.argv[2] || '2026-10-09');
 fs.mkdirSync(OUT, { recursive: true });
-for (const f of fs.readdirSync(OUT)) if (f.endsWith('.pdf')) fs.unlinkSync(path.join(OUT, f));
+for (const f of fs.readdirSync(OUT)) if (f.endsWith('.pdf') && !f.startsWith('ar-')) fs.unlinkSync(path.join(OUT, f));
 const head = (q, title) => [
   { text: 'SYNTHETIC DEMO DOCUMENT - not an official record', size: 8 }, { gap: 6 },
   { text: title, size: 15 }, { gap: 6 },
@@ -46,7 +46,8 @@ const head = (q, title) => [
 const refRow = (i) => ({ text: `${invoiceIdOf(st.idKey[i])}   |   ${SOURCES[st.src[i]].en || SOURCES[st.src[i]].key}   |   Issued ${isoOf(st.issue[i])}   |   ${num(st.gross[i])} SAR` });
 const wrote = [];
 const write = (name, pages) => { fs.writeFileSync(path.join(OUT, name), pdf(pages)); wrote.push(name); };
-for (const q of st.requests.filter((r) => r.archetype)) {
+const FIRST = new Set(['single', 'multi_exact', 'multi_partial_refs', 'multi_no_refs', 'multi_typo_ref', 'serial_ambiguous', 'amount_discrepancy', 'duplicate_across_orders']);
+for (const q of st.requests.filter((r) => r.archetype && FIRST.has(r.archetype))) {
   // an amount-discrepancy order's document lists only the invoices it names; the remaining invoice behind the order amount is NOT written anywhere
   const all = q.archetype === 'amount_discrepancy' ? [...q.covers] : [...q.covers, ...(q.hidden || [])];
   const title = 'ENFORCEMENT ORDER - schedule of invoices';
@@ -60,6 +61,17 @@ for (const q of st.requests.filter((r) => r.archetype)) {
     write(`${q.enforceNum}-serial-only.pdf`, [{ lines: [...head(q, title), { text: `Total amount: ${num(q.amount)} SAR`, size: 11 }, { gap: 6 }, { text: `Invoice number: ${String(st.idKey[i] % 1e8).padStart(7, '0')}` }, { text: '(The year prefix is missing from the order text.)' }] }]);
   } else {
     write(`${q.enforceNum}-${q.archetype}.pdf`, [{ lines: [...head(q, title), { text: `Total amount: ${num(q.amount)} SAR`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.map(refRow)] }]);
+  }
+}
+// E2 (human data entry): an attached multi-page PDF (the only place the references are), a scanned PDF (image only) and a legacy .doc stub (cannot be read)
+for (const q of st.requests.filter((r) => ['attach_pdf', 'attach_unreadable'].includes(r.archetype))) {
+  if (q.archetype === 'attach_pdf') {
+    const all = [...q.covers]; const p1 = [...head(q, 'ENFORCEMENT ORDER - attached schedule'), { text: `Total amount: ${num(q.amount)} SAR`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.slice(0, 1).map(refRow)];
+    const p2 = [{ text: `Enforcement order ${q.enforceNum} - page 2`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.slice(1).map(refRow), { gap: 8 }, { text: `Invoice ${invoiceIdOf(st.idKey[all[0]])} is repeated here (same invoice, second occurrence).` }];
+    write(`${q.enforceNum}-attachment.pdf`, [{ lines: p1 }, { lines: p2 }]);
+  } else {
+    write(`${q.enforceNum}-scan.pdf`, [{ lines: [{ text: 'SYNTHETIC DEMO DOCUMENT - scanned image (no text layer)', size: 8 }] }, { blank: true }]);
+    fs.writeFileSync(path.join(OUT, `${q.enforceNum}-legacy.doc`), Buffer.concat([Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]), Buffer.from('SYNTHETIC STUB: legacy Word (.doc) binary - this demo cannot read it', 'latin1'), Buffer.alloc(512)])); wrote.push(`${q.enforceNum}-legacy.doc`);
   }
 }
 // an image-only (scanned) order: no text layer — needs OCR, which is not connected

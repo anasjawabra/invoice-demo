@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useL } from '../../utils/bi';
-import { loadPdfLib, sha256Hex, isPdf } from '../../data/pdfText';
+import { loadPdfLib, sha256Hex } from '../../data/pdfText';
+import { detectFormat, FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
+import { readDocxPages } from '../../data/docxText';
 import { getFile, putFile } from '../../data/enforcementStore';
 
 // Is the original PDF stored in THIS browser? (A backup keeps the extracted references and history but never the file.)
@@ -23,29 +25,85 @@ export function RestoreDocument({ doc, onRestored, compact = false }) {
     if (!file) return;
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
-      if (!isPdf(bytes)) { setMsg({ bad: true, t: L('This is not a PDF file.', 'هذا ليس ملف PDF.') }); return; }
       const hash = await sha256Hex(bytes);
       if (hash !== doc.id) { setMsg({ bad: true, t: L(`Not the same document: the file's SHA-256 (${hash.slice(0, 10)}…) differs from the recorded one (${doc.id.slice(0, 10)}…). It was NOT associated. To use a different file, add it as a new document on the order.`, `ليس المستند نفسه: بصمة الملف (${hash.slice(0, 10)}…) تختلف عن المسجّلة (${doc.id.slice(0, 10)}…). لم يُربط. لاستخدام ملف مختلف أضفه كمستند جديد على الأمر.`) }); return; }
-      const ok = await putFile(doc.id, { name: file.name, size: file.size, type: 'application/pdf', bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), at: Date.now() });
+      const ok = await putFile(doc.id, { name: file.name, size: file.size, type: file.type || 'application/octet-stream', bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), at: Date.now() });
       if (!ok) { setMsg({ bad: true, t: L('The browser could not store the file.', 'تعذّر على المتصفح حفظ الملف.') }); return; }
-      setMsg({ bad: false, t: L('Identity confirmed (same SHA-256). The original PDF is available again.', 'تأكدت الهوية (البصمة نفسها). عاد ملف PDF الأصلي متاحاً.') });
+      setMsg({ bad: false, t: L('Identity confirmed (same SHA-256). The original file is available again.', 'تأكدت الهوية (البصمة نفسها). عاد الملف الأصلي متاحاً.') });
       onRestored?.(file.name);
     } finally { if (ref.current) ref.current.value = ''; }
   };
   return (
-    <div className="rp-limit rp-limit--warn" role="group" aria-label={L('Original PDF unavailable', 'ملف PDF الأصلي غير متاح')}>
-      <b>{L('The original PDF is not available in this browser', 'ملف PDF الأصلي غير متاح في هذا المتصفح')}</b>
-      {!compact && <div>{L('The extracted references, page numbers, evidence and the confirmed-link history are kept; only the file itself is missing (backups do not include PDF files).', 'تبقى المراجع المستخرجة وأرقام الصفحات والأدلة وسجل الروابط المؤكدة؛ والمفقود هو الملف نفسه فقط (النسخ الاحتياطية لا تتضمن ملفات PDF).')}</div>}
+    <div className="rp-limit rp-limit--warn" role="group" aria-label={L('Original file unavailable', 'الملف الأصلي غير متاح')}>
+      <b>{L('The original file is not available in this browser', 'الملف الأصلي غير متاح في هذا المتصفح')}</b>
+      {!compact && <div>{L('The extracted references, page numbers, evidence and the confirmed-link history are kept; only the file itself is missing (backups do not include the document files).', 'تبقى المراجع المستخرجة وأرقام الصفحات والأدلة وسجل الروابط المؤكدة؛ والمفقود هو الملف نفسه فقط (النسخ الاحتياطية لا تتضمن ملفات المستندات).')}</div>}
       <label style={{ display: 'inline-grid', gap: 3, marginTop: 6 }}>{L('Add the file again (its identity is checked)', 'أعد إضافة الملف (يُتحقق من هويته)')}
-        <input ref={ref} className="input" type="file" accept="application/pdf,.pdf" onChange={(e) => pick(e.target.files?.[0])} />
+        <input ref={ref} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
       {msg && <div role="status" className={msg.bad ? 'rp-bad' : 'rp-ok'} style={{ marginTop: 4 }}>{msg.t}</div>}
     </div>
   );
 }
 
+// The preview of a stored document, by what the file really is: a PDF page drawn by pdf.js, the text and tables of a Word file, or — for files this system
+// cannot read (scans/images, legacy .doc) — an explicit notice that nothing was read.
+export default function PdfPreview(props) {
+  const fmt = props.doc.extraction?.format || 'pdf';
+  if (fmt === 'docx') return <DocxPreview {...props} />;
+  if (fmt !== 'pdf') return <UnreadPreview {...props} fmt={fmt} />;
+  return <PdfCanvas {...props} />;
+}
+
+function UnreadPreview({ doc, fmt, onRestored, tick = 0 }) {
+  const { L, B } = useL();
+  const files = useDocFiles([doc.id], tick);
+  const reason = doc.extraction?.pages?.[0]?.reason || (fmt === 'image' ? 'needs_ocr' : fmt === 'doc' ? 'unsupported_format' : 'unknown_format');
+  return (
+    <div className="rp-pdf">
+      <div className="rp-pdf__bar"><b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b><span className="rv-tag">{B(FORMAT_LABEL[fmt] || FORMAT_LABEL.unknown)}</span></div>
+      <div className="rp-limit rp-limit--warn" role="alert"><b>{B(UNREAD_REASON[reason])}</b><div>{L('The file is kept with the order, but nothing was read from it. Its invoice references stay unidentified until a person reads it or supplies its text.', 'يبقى الملف محفوظاً مع الأمر لكن لم يُقرأ منه شيء. تبقى مراجع الفواتير فيه غير محددة حتى يقرأه شخص أو يُزوَّد نصه.')}</div></div>
+      {files[doc.id] === false && <RestoreDocument doc={doc} onRestored={onRestored} compact />}
+    </div>
+  );
+}
+
+// a Word file: the text and tables it holds, page by page (pages = explicit page breaks, else Word's saved ones — approximate)
+function DocxPreview({ doc, page = 1, onRestored, tick = 0 }) {
+  const { L } = useL();
+  const [state, setState] = useState({ status: 'loading', pages: [] });
+  const [pg, setPg] = useState(page);
+  useEffect(() => { setPg(page || 1); }, [page, doc.id]);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      const rec = await getFile(doc.id);
+      if (!rec) { if (!off) setState({ status: 'missing', pages: [] }); return; }
+      try { const r = await readDocxPages(new Uint8Array(rec.bytes.slice(0))); if (!off) setState({ status: 'ready', pages: r.pages }); } catch (e) { if (!off) setState({ status: 'error', pages: [], msg: String(e?.message || e) }); }
+    })();
+    return () => { off = true; };
+  }, [doc.id, tick]);
+  if (state.status === 'missing') return <RestoreDocument doc={doc} onRestored={onRestored} />;
+  const n = state.pages.length || doc.extraction?.pages?.length || 1; const cur = state.pages[Math.min(Math.max(1, pg), n) - 1];
+  return (
+    <div className="rp-pdf">
+      <div className="rp-pdf__bar">
+        <b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b>
+        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}>‹</button>
+          <span dir="ltr">{Math.min(pg, n)} / {n}</span>
+          <button type="button" className="btn btn-sm" disabled={pg >= n} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}>›</button>
+        </span>
+      </div>
+      {state.status === 'loading' && <div role="status" className="muted">{L('Reading the Word file…', 'جارٍ قراءة ملف Word…')}</div>}
+      {state.status === 'error' && <div role="alert" className="rp-bad">{L('The Word file could not be read.', 'تعذّرت قراءة ملف Word.')} {state.msg}</div>}
+      {cur && <pre dir="auto" tabIndex={0} aria-label={`${doc.name} — ${L('page', 'صفحة')} ${Math.min(pg, n)}`} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit', fontSize: 13, margin: 0, padding: 10, border: '1px solid var(--line)', borderRadius: 6, maxHeight: 460, overflow: 'auto' }}>{cur.text}</pre>}
+      <div className="muted" style={{ fontSize: 12 }}>{L('Text and tables as read from the Word file. Page boundaries come from the file (page breaks) and are approximate: Word paginates when it displays.', 'النص والجداول كما قُرئت من ملف Word. حدود الصفحات من الملف (فواصل الصفحات) وهي تقريبية: يرقّم Word الصفحات عند العرض.')}</div>
+    </div>
+  );
+}
+
 // One page of the stored PDF, drawn by pdf.js (the real file, not a mock-up).
-export default function PdfPreview({ doc, page = 1, onRestored, tick = 0 }) {
+function PdfCanvas({ doc, page = 1, onRestored, tick = 0 }) {
   const { L } = useL();
   const canvas = useRef(null);
   const [state, setState] = useState({ status: 'loading', pages: 0 });

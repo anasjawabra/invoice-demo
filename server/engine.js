@@ -103,10 +103,10 @@ export function makeCtx(st, req = {}) {
       const i = lookupId(st, id); if (i < 0) continue;
       const o = ctx.ov.get(i) || { set: 0, clr: 0, rej: 0, link: 0 };
       // enforcement link codes: 1 = proposed (NOT confirmed: never changes a status or a category), 2 = confirmed, order in execution, 3 = confirmed, order suspended, 4 = confirmed, order closed
-      o.link = status === 'confirmed' || status === 'open' ? 2 : status === 'suspended' ? 3 : status === 'closed' ? 4 : status === 'candidate' ? 1 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1;
+      o.link = status === 'confirmed' || status === 'open' ? 2 : status === 'suspended' ? 3 : status === 'closed' ? 4 : status === 'candidate' ? 1 : status === 'withdrawn' ? 5 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1; // 5 = a confirmed link was withdrawn: no referral, but a retained cancelled-invoice treatment is not silently reversed
     }
   }
-  ctx.D = { payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
+  ctx.D = { sourceCancelled: false, enfConflict: false, payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
   return ctx;
 }
 function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit) return r.bit; return 0; }
@@ -127,7 +127,11 @@ export function derive(ctx, i, asOfN) {
   let received = 0; const ps = st.payStart[i]; const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  const cancelled = cd !== 0 && cd <= asOfN && link < 2; // an invoice with a CONFIRMED enforcement link (any order status, closed included) is not treated as cancelled: closing an order never removes an unpaid invoice from the uncollected view
+  // SOURCE cancellation is a fact kept apart from everything else. The documented treatment (meeting correction ENF-1: an enforcement-referred invoice that the source shows
+  // as cancelled is counted UNCOLLECTED) is RETAINED for a confirmed referral — an order in execution, suspended or closed, or a link withdrawn afterwards (code 5) — so that
+  // closing or withdrawing an order never moves an amount in or out of the balance. It is a pending business decision (EQ3), flagged «source/enforcement conflict — review required».
+  const sourceCancelled = cd !== 0 && cd <= asOfN; const retained = sourceCancelled && (link >= 2 || link === 5);
+  const cancelled = sourceCancelled && !retained;
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -136,7 +140,7 @@ export function derive(ctx, i, asOfN) {
   const overpayment = excluded ? 0 : Math.max(0, received - base);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
   const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
-  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
+  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.enfConflict = retained; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
   // every exclusion (cancelled or rule-excluded) leaves gross exactly once, whatever the number of reasons: exclTotal = billed - net
   D.mask = m; D.nReasons = m ? popcount(m) : 0; D.primaryBit = primaryBit; D.primaryApproved = primaryApproved; D.excluded = excluded;
   D.exclusionAmount = excluded ? billed : 0; D.net = excluded ? 0 : billed - cancelledAmount;
@@ -236,7 +240,7 @@ export function snapshot(st, req) {
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
   const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
   const q = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
-  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 } }; // unique invoices by the state of their CONFIRMED enforcement orders at the reference date
+  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 }, sourceConflict: { count: 0, outstanding: 0 } }; // unique invoices by the state of their CONFIRMED enforcement orders at the reference date
   let ledgerInScope = 0; let issued = 0;
   const { fromN, toN } = sc; const periodAsOf = ctx.periodEndMode ? Math.min(toN, ctx.cutoffN) : ctx.cutoffN;
   const n = st.n; const D = ctx.D;
@@ -249,6 +253,7 @@ export function snapshot(st, req) {
     const okCut = !sc.statusSet || sc.statusSet[D.cls]; // invoice-status filter (standing balance and receipts use the status at the reference date)
     // ---- standing balance (everything issued up to the cutoff)
     if (okCut) { stk.tot.add(0, D); stk.ent.add(e, D); stk.src.add(s, D); }
+    if (okCut && D.enfConflict) { enfStock.sourceConflict.count += 1; enfStock.sourceConflict.outstanding += D.outstanding; }
     if (okCut && D.link >= 2) { const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly; b.count += 1; b.outstanding += D.outstanding; }
     if (okCut && D.outstanding > 0) { const b = agingBucket(D.daysOverdue); aging[b * 2] += D.outstanding; aging[b * 2 + 1] += 1; const dd = D.daysOverdue; const cb = dd <= 0 ? 0 : dd <= 30 ? 1 : dd <= 60 ? 2 : dd <= 90 ? 3 : 4; agingC[cb * 2] += D.outstanding; agingC[cb * 2 + 1] += 1; if (dd > 0) { ageSum += dd; ageN += 1; } if (D.cls === C.objection) objAmt += D.outstanding; }
     const hasReason = D.mask !== 0;

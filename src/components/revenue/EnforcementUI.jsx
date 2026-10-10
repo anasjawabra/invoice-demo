@@ -29,13 +29,14 @@ export const CONFLICT_LABEL = {
   debtor_mismatch: { en: 'The invoice payer is not the order debtor', ar: 'دافع الفاتورة ليس مدين الأمر' },
   amanah_mismatch: { en: 'Different Amanah', ar: 'أمانة مختلفة' },
   linked_to_other_order: { en: 'Also linked to another order', ar: 'مرتبطة أيضاً بأمر آخر' },
-  invoice_cancelled: { en: 'Invoice is cancelled', ar: 'الفاتورة ملغاة' },
+  invoice_cancelled: { en: 'Cancelled in the source — a confirmed link raises a source/enforcement conflict to review', ar: 'ملغاة في المصدر — الرابط المؤكد يُنشئ تعارضاً بين المصدر والإنفاذ يلزم مراجعته' },
   invoice_excluded: { en: 'Invoice is excluded', ar: 'الفاتورة مستبعدة' },
   invoice_collected: { en: 'Invoice already collected in full', ar: 'الفاتورة محصّلة بالكامل' },
   invoice_issued_after_order: { en: 'Invoice issued after the order opened', ar: 'الفاتورة صدرت بعد فتح الأمر' },
   ambiguous_reference: { en: 'Reference matches several invoices', ar: 'المرجع يطابق عدة فواتير' },
   document_other_order: { en: 'Found only in a document that names a different order', ar: 'وردت فقط في مستند يذكر أمراً آخر' },
-  weak_reference: { en: 'Weak reference (no year / padded)', ar: 'مرجع ضعيف (بلا سنة / مُكمَّل)' }
+  weak_reference: { en: 'Weak reference (no year / padded)', ar: 'مرجع ضعيف (بلا سنة / مُكمَّل)' },
+  source_conflict: { en: 'Sources disagree (same serial, different year)', ar: 'المصادر متعارضة (التسلسل نفسه بسنة مختلفة)' }
 };
 export const KIND_LABEL = {
   invoice_no: { en: 'Invoice number', ar: 'رقم فاتورة' }, invoice_serial: { en: 'Invoice serial (no year)', ar: 'تسلسل فاتورة (بلا سنة)' },
@@ -88,8 +89,8 @@ export function CompletenessMarks({ comp }) {
   const m = (ok, text) => <div className={ok ? 'rp-ok' : 'rp-warn'} style={{ fontSize: 12 }}>{ok ? '✓' : '!'} {text}</div>;
   return (
     <div>
-      {m(comp.references.state === 'complete', comp.references.state === 'complete' ? L('references complete', 'المراجع مكتملة') : comp.references.state === 'none' ? L('no references yet', 'لا مراجع بعد') : L(`${comp.references.unresolved + comp.references.proposed} reference(s) open`, `${comp.references.unresolved + comp.references.proposed} مرجع مفتوح`))}
-      {m(comp.extraction.state === 'complete', comp.extraction.state === 'complete' ? L('all pages have text', 'لكل الصفحات نص') : comp.extraction.state === 'incomplete' ? L(`${comp.extraction.unreadPages} page(s) unread`, `${comp.extraction.unreadPages} صفحة لم تُقرأ`) : L('no document', 'لا مستند'))}
+      {m(comp.references.state === 'complete', comp.references.state === 'complete' ? L('references complete', 'المراجع مكتملة') : comp.references.state === 'none' ? L('invoice references not identified — review required', 'لم تُحدَّد مراجع الفواتير — يلزم مراجعة') : L(`${comp.references.unresolved + comp.references.proposed} reference(s) open`, `${comp.references.unresolved + comp.references.proposed} مرجع مفتوح`))}
+      {m(comp.extraction.state === 'complete', comp.extraction.state === 'complete' ? L('all pages have text', 'لكل الصفحات نص') : comp.extraction.state === 'incomplete' ? (comp.extraction.unreadPages ? L(`${comp.extraction.unreadPages} page(s) unread`, `${comp.extraction.unreadPages} صفحة لم تُقرأ`) : L(`${comp.extraction.attachmentsPending} attachment(s) not added`, `${comp.extraction.attachmentsPending} مرفق لم يُضَف`)) : L('no document', 'لا مستند'))}
       {m(comp.finance.state === 'reconciled', comp.finance.state === 'reconciled' ? L('amount reconciled', 'المبلغ متطابق') : comp.finance.state === 'short' || comp.finance.state === 'over' ? L('amount difference', 'فرق في المبلغ') : L('amount not checkable', 'المبلغ غير قابل للفحص'))}
     </div>
   );

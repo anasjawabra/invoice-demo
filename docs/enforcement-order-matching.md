@@ -83,3 +83,5 @@ Screenshots: `docs/screenshots/after-o1-order-amount-discrepancy.jpg`, `after-o2
 5. **Data is kept in one browser**; a server-side store with identity, roles and audit (F-19) remains blocked. The "by" in the history is the demo account name.
 6. In the `full` (≈1.6 M invoice) mode the links map sent with each request grows with the number of confirmed orders (≈2,000 links ≈ 100 KB); the compact demo (default) is unaffected.
 7. Unchanged and still open: EQ2, EQ3, EQ4, EQ5, EQ6, EQ9, logo / Figma / icon licence; F-05, F-19, F-23, F-27, D-13, G-01 statuses; screen-reader verification.
+
+8. Later rounds on this branch: `docs/full-page-records.md`, `docs/enforcement-management.md`, and `docs/all-sources-and-cancelled-invoices.md` (every source of references incl. Word, cancelled invoices vs enforcement, contract mentions).

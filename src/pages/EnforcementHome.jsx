@@ -15,11 +15,14 @@ import OrdersView from './EnforcementOrders';
 
 const VIEWS = ['orders', 'invoices', 'contracts', 'exceptions'];
 const EXC_LABEL = {
-  no_references: { en: 'No invoice reference yet', ar: 'لا مرجع فاتورة بعد', def: { en: 'Sanad supplied no invoice reference and none was found in a document.', ar: 'لم تزوّد سند بمرجع فاتورة ولم يوجد في مستند.' } },
+  no_references: { en: 'Invoice references not identified — review required', ar: 'لم تُحدَّد مراجع الفواتير — يلزم مراجعة', def: { en: 'No invoice reference in the structured fields, the description, the notes or any document added. This is NOT «no related invoices».', ar: 'لا مرجع فاتورة في الحقول المهيكلة ولا الوصف ولا الملاحظات ولا أي مستند مضاف. وهذا ليس «لا فواتير مرتبطة».' } },
   unresolved_references: { en: 'References not yet accounted for', ar: 'مراجع لم تُحسم', def: { en: 'A reference was found (Sanad or document) that no link or decision accounts for.', ar: 'وُجد مرجع (من سند أو مستند) لا يحسمه رابط أو قرار.' } },
   proposals_pending: { en: 'Proposals awaiting confirmation', ar: 'اقتراحات بانتظار التأكيد', def: { en: 'A proposed link has no effect until a person confirms it.', ar: 'الرابط المقترح بلا أثر حتى يؤكده شخص.' } },
   conflicts: { en: 'Conflicts no evidence resolves', ar: 'تعارضات لا يحسمها دليل', def: { en: 'A proposed link conflicts with the data (other debtor, other Amanah, issued after the order…) and no evidence resolves it.', ar: 'رابط مقترح يتعارض مع البيانات (مدين آخر، أمانة أخرى، صدر بعد الأمر…) ولا دليل يحسمه.' } },
   unread_pages: { en: 'Document pages not read', ar: 'صفحات مستند لم تُقرأ', def: { en: 'A document page has no text layer and no text was supplied for it (this system performs no OCR).', ar: 'صفحة مستند بلا طبقة نص ولم يُزوَّد نص لها (لا يجري هذا النظام OCR).' } },
+  source_conflict: { en: 'Sources disagree on an invoice number', ar: 'المصادر تختلف على رقم فاتورة', def: { en: 'The same serial appears with different years in different sources of the order. Resolved only by supporting data evidence, never by a written reason.', ar: 'يظهر التسلسل نفسه بسنوات مختلفة في مصادر الأمر. يُحسم بدليل من البيانات فقط، لا بسبب مكتوب.' } },
+  attachments_not_retrieved: { en: 'Attachments listed but not added', ar: 'مرفقات مدرجة لم تُضَف', def: { en: 'Sanad lists attachments that this system cannot retrieve (not connected). The invoices they name are not identified until the files are added by hand.', ar: 'تدرج سند مرفقات لا يستطيع هذا النظام جلبها (غير متصل). وتبقى الفواتير التي تذكرها غير محددة حتى تُضاف الملفات يدوياً.' } },
+  contract_mention_unreviewed: { en: 'Contract mentioned, not reviewed', ar: 'عقد مذكور دون مراجعة', def: { en: 'A contract number appears in the description or a document. A mention alone is not a direct referral: confirm it only with supporting evidence.', ar: 'يظهر رقم عقد في الوصف أو مستند. والذكر وحده ليس إحالة مباشرة: يُؤكَّد فقط بدليل داعم.' } },
   amount_difference: { en: 'Amount difference', ar: 'فرق في المبلغ', def: { en: 'The confirmed invoices do not add up to the order amount (reported, never forced).', ar: 'الفواتير المؤكدة لا تساوي مبلغ الأمر (يُعرض ولا يُفرض).' } },
   contract_level_only: { en: 'Contract-level request, invoices not identified', ar: 'طلب على مستوى العقد، فواتيره غير محددة', def: { en: 'Sanad names a contract number but no invoice; it is not spread over the contract’s invoices.', ar: 'تذكر سند رقم عقد دون فاتورة؛ ولا يُوزَّع على فواتير العقد.' } }
 };
@@ -41,12 +44,18 @@ export default function EnforcementHome() {
   const contracts = useMemo(() => {
     const out = [];
     for (const k of cd?.cards || []) {
-      const direct = cases.filter((c) => c.contractNo === k.contractNo);
+      const fact = (c) => (c.contractFacts || []).find((f) => f.contractNo === k.contractNo);
+      const direct = cases.filter((c) => c.contractNo === k.contractNo || fact(c)?.direct);
+      const mentioned = cases.filter((c) => !direct.includes(c) && fact(c)?.status === 'mentioned');
       const ids = k.invoiceIds || []; const referred = ids.filter((id) => idx.get(id)?.referredEver); const open = ids.filter((id) => idx.get(id)?.current && idx.get(id).current !== 'none');
-      if (direct.length || referred.length) out.push({ k, direct, ids, referred, open });
+      if (direct.length || mentioned.length || referred.length) out.push({ k, direct, mentioned, ids, referred, open });
     }
     return out;
   }, [cd, cases, idx]);
+  const contractsMentioned = contracts.filter((x) => x.mentioned.length).length;
+  const conflictReq = useMemo(() => ({ ...rev.scopeEff, from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff, rev.cfg.cutoff]);
+  const { data: conflictRes } = useAsync(() => rev.data.list(conflictReq, { filters: { exec: 'conflict', allPeriods: true }, page: 0, pageSize: 1 }), [rev.data, conflictReq, rev.dataVersion, cases]);
+  const conflictN = conflictRes?.total ?? null;
   const contractsDirect = contracts.filter((x) => x.direct.length).length; const contractsWithInv = contracts.filter((x) => x.referred.length).length;
   const excCount = (t) => comps.filter((x) => x.ex.includes(t)).length; const needing = comps.filter((x) => x.ex.length).length;
   const allDocs = useMemo(() => cases.flatMap((c) => c.docs || []), [cases]); const files = useDocFiles(allDocs.map((d) => d.id));
@@ -78,10 +87,14 @@ export default function EnforcementHome() {
             {stat(inv.closedOnly, L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة'), L('The historical referral stays; payment is judged on its own.', 'تبقى الإحالة التاريخية؛ ويُحكم على السداد منفصلاً.'))}
             {stat(inv.ever, L('Ever referred (total)', 'سبقت إحالتها (الإجمالي)'), L('The three groups above. Confirmed links only; proposals and withdrawn links are not counted.', 'المجموعات الثلاث أعلاه. بالروابط المؤكدة فقط؛ ولا تُحتسب المقترحة ولا المسحوبة.'))}
           </div>
-          <div className="rp-limit">{L('Uncollected status follows the invoice’s payment state only: an order — open, suspended or closed — never moves an invoice in or out of the uncollected view.', 'حالة عدم التحصيل تتبع حالة سداد الفاتورة وحدها: الأمر — مفتوحاً أو موقوفاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه.')}</div>
-          <h3 className="rp-h3">{L('Contracts (two different facts)', 'العقود (حقيقتان مختلفتان)')}</h3>
           <div className="rp-compl">
-            {stat(contractsDirect, L('Directly referred', 'محالة مباشرة'), L('A Sanad order names the contract number (source evidence). It does NOT mean its invoices are referred.', 'أمر من سند يذكر رقم العقد (دليل من المصدر). ولا يعني أن فواتيره محالة.'))}
+            {stat(conflictN == null ? '…' : conflictN, L('Source/enforcement conflicts', 'تعارضات المصدر/الإنفاذ'), L('Invoices cancelled in the source that carry a confirmed order. The documented treatment (ENF-1) is retained and marked pending EQ3; nothing is reinstated or removed because an order exists, closes or is withdrawn. Review required. (Invoices → Enforcement → Source/enforcement conflict.)', 'فواتير ملغاة في المصدر وعليها أمر مؤكد. تبقى المعالجة الموثقة (ENF-1) موسومة بانتظار EQ3؛ ولا يُعاد ولا يُزال شيء لمجرد وجود أمر أو إغلاقه أو سحبه. يلزم مراجعة. (الفواتير ← الإنفاذ ← تعارض المصدر/الإنفاذ.)'), conflictN ? 'warn' : undefined)}
+          </div>
+          <div className="rp-limit">{L('Uncollected status follows the invoice’s payment state only: an order — open, suspended or closed — never moves an invoice in or out of the uncollected view.', 'حالة عدم التحصيل تتبع حالة سداد الفاتورة وحدها: الأمر — مفتوحاً أو موقوفاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه.')}</div>
+          <h3 className="rp-h3">{L('Contracts (three different facts)', 'العقود (ثلاث حقائق مختلفة)')}</h3>
+          <div className="rp-compl">
+            {stat(contractsMentioned, L('Mentioned in an order (unreviewed)', 'مذكورة في أمر (دون مراجعة)'), L('An order’s description or a document mentions the contract, with no structured field and no reviewed document behind THAT mention. A mention is not a direct referral (the same contract can also be directly referred by another order).', 'يذكر وصف أمر أو مستند العقد دون حقل مهيكل ولا مستند مراجَع وراء هذا الذكر. والذكر ليس إحالة مباشرة (وقد يكون العقد نفسه محالاً مباشرة بأمر آخر).'), contractsMentioned ? 'warn' : undefined)}
+            {stat(contractsDirect, L('Directly referred', 'محالة مباشرة'), L('A Sanad order names the contract number in its structured field, or a reviewer confirmed a mention from a document. It does NOT mean its invoices are referred.', 'أمر من سند يذكر رقم العقد في حقله المهيكل، أو أكّد مراجع ذكراً من مستند. ولا يعني أن فواتيره محالة.'))}
             {stat(contractsWithInv, L('With referred invoices', 'بفواتير محالة'), L('At least one of the contract’s invoices carries a confirmed order. It does NOT mean the contract itself is referred, nor that all its invoices are.', 'فاتورة واحدة على الأقل من فواتير العقد عليها أمر مؤكد. ولا يعني أن العقد نفسه محال ولا أن كل فواتيره محالة.'))}
           </div>
           <h3 className="rp-h3">{L('Review exceptions (orders, an order can have several)', 'استثناءات المراجعة (أوامر، وقد يحمل الأمر عدة استثناءات)')}</h3>
@@ -144,14 +157,14 @@ function RelatedContracts({ items }) {
   const view = items.slice(page * 25, (page + 1) * 25);
   return (
     <section className="rp-section" aria-label={L('Related contracts', 'العقود ذات الصلة')}>
-      <div className="rp-limit">{L('Two different facts, never merged: «directly referred» comes from a Sanad order that names the contract number; «invoices referred» counts the contract’s own invoices that carry a confirmed order. Neither implies the other, and a contract is never linked by an amount or a payer name.', 'حقيقتان مختلفتان لا تُدمجان: «محالة مباشرة» تأتي من أمر في سند يذكر رقم العقد؛ و«فواتير محالة» تعدّ فواتير العقد نفسه التي عليها أمر مؤكد. لا تدل إحداهما على الأخرى، ولا يُربط عقد بمبلغ أو اسم دافع.')}</div>
+      <div className="rp-limit">{L('Three different facts, never merged: «mentioned» (an order’s text or a document names the contract, unreviewed); «directly referred» (Sanad’s structured field, or a mention a reviewer confirmed from a document); «invoices referred» (the contract’s own invoices that carry a confirmed order). None implies another, and a contract is never linked by an amount or a payer name.', 'ثلاث حقائق مختلفة لا تُدمج: «مذكورة» (نص أمر أو مستند يذكر العقد دون مراجعة)؛ و«محالة مباشرة» (حقل سند المهيكل أو ذكر أكّده مراجع من مستند)؛ و«فواتير محالة» (فواتير العقد نفسه التي عليها أمر مؤكد). لا تدل إحداها على أخرى، ولا يُربط عقد بمبلغ أو اسم دافع.')}</div>
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Related contracts', 'العقود ذات الصلة')}>
-        <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Directly referred (source evidence)', 'محالة مباشرة (دليل المصدر)')}</th><th>{L('Invoices referred', 'فواتير محالة')}</th></tr></thead>
-        <tbody>{view.map(({ k, direct, ids, referred, open }) => (
+        <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Order and the contract', 'الأمر والعقد')}</th><th>{L('Invoices referred', 'فواتير محالة')}</th></tr></thead>
+        <tbody>{view.map(({ k, direct, mentioned, ids, referred, open }) => (
           <tr key={k.contractNo}>
             <td><RecordLink to={contractPath(k.contractNo)} dir="ltr"><b>{k.contractNo}</b></RecordLink><div className="muted" style={{ fontSize: 12 }}>{amanahName(k.amanahEn, ar)}</div></td>
             <td dir="auto">{ar ? k.tenantAr : k.tenantEn}</td>
-            <td style={{ fontSize: 12 }}>{direct.length ? direct.map((c) => <div key={c.enforceNum}><RecordLink to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</RecordLink> <OrderStatusChip status={c.orderStatus} /> <span className="muted">{L('names the contract', 'يذكر العقد')}</span></div>) : <span className="muted">{L('no order names this contract', 'لا أمر يذكر هذا العقد')}</span>}</td>
+            <td style={{ fontSize: 12 }}>{direct.length ? direct.map((c) => <div key={c.enforceNum}><RecordLink to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</RecordLink> <OrderStatusChip status={c.orderStatus} /> <span className="rv-tag rv-tag--ok">{L('directly referred', 'محال مباشرة')}</span></div>) : <span className="muted">{L('no direct referral', 'لا إحالة مباشرة')}</span>}{mentioned.map((c) => <div key={c.enforceNum}><RecordLink to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</RecordLink> <OrderStatusChip status={c.orderStatus} /> <span className="rv-tag rv-tag--warn">{L('mentioned only — review', 'مذكور فقط — مراجعة')}</span></div>)}</td>
             <td style={{ fontSize: 12 }}>{referred.length ? <><b>{referred.length}</b> {L('of', 'من')} {ids.length} {L('invoiced installments', 'دفعات مفوترة')}{open.length ? <> · {open.length} {L('with an open order', 'بأمر مفتوح')}</> : null}</> : <span className="muted">{L(`none of ${ids.length}`, `لا شيء من ${ids.length}`)}</span>}</td>
           </tr>))}
           {!view.length && <tr><td colSpan={4} className="muted">{L('No contract is referred directly or through its invoices.', 'لا عقد محال مباشرة أو عبر فواتيره.')}</td></tr>}</tbody>

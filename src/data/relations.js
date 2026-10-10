@@ -19,18 +19,18 @@ export const STATUS_RANK = { open: 3, suspended: 2, closed: 1 };
 
 // → { confirmed:[order…], proposed:[order…], referredEver, current: 'in_execution'|'suspended'|'none', closedOnly, orders }
 export function enforcementOf(invoiceId, cases) {
-  const confirmed = []; const proposed = [];
+  const confirmed = []; const proposed = []; const withdrawn = [];
   for (const c of cases) for (const l of c.links || []) {
     if (l.invoiceId !== invoiceId) continue;
     const item = { enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null };
-    if (l.status === 'confirmed') confirmed.push(item); else if (l.status === 'candidate') proposed.push(item);
+    if (l.status === 'confirmed') confirmed.push(item); else if (l.status === 'candidate') proposed.push(item); else if (l.ledgerStatus === 'removed') withdrawn.push(item);
   }
-  return summarize(confirmed, proposed);
+  return summarize(confirmed, proposed, withdrawn);
 }
-function summarize(confirmed, proposed) {
+function summarize(confirmed, proposed, withdrawn = []) {
   const open = confirmed.filter((o) => o.orderStatus === 'open'); const susp = confirmed.filter((o) => o.orderStatus === 'suspended');
   return {
-    confirmed, proposed, orders: [...confirmed, ...proposed],
+    confirmed, proposed, withdrawn, orders: [...confirmed, ...proposed],
     referredEver: confirmed.length > 0,
     current: open.length ? 'in_execution' : susp.length ? 'suspended' : 'none',
     closedOnly: confirmed.length > 0 && !open.length && !susp.length,
@@ -41,21 +41,21 @@ export const invoiceEnforcement = enforcementOf;
 
 // invoice → enforcement summary, built once for a whole set of orders
 export function buildIndex(cases) {
-  const conf = new Map(); const prop = new Map();
+  const conf = new Map(); const prop = new Map(); const wd = new Map();
   for (const c of cases) for (const l of c.links || []) {
-    const bucket = l.status === 'confirmed' ? conf : l.status === 'candidate' ? prop : null; if (!bucket) continue;
+    const bucket = l.status === 'confirmed' ? conf : l.status === 'candidate' ? prop : l.ledgerStatus === 'removed' ? wd : null; if (!bucket) continue;
     if (!bucket.has(l.invoiceId)) bucket.set(l.invoiceId, []);
     bucket.get(l.invoiceId).push({ enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null });
   }
   const out = new Map();
-  for (const id of new Set([...conf.keys(), ...prop.keys()])) out.set(id, summarize(conf.get(id) || [], prop.get(id) || []));
+  for (const id of new Set([...conf.keys(), ...prop.keys(), ...wd.keys()])) out.set(id, summarize(conf.get(id) || [], prop.get(id) || [], wd.get(id) || []));
   return out;
 }
 
 // what the data service receives: invoice → the strongest status of its confirmed orders (open > suspended > closed); proposals as «candidate» (no effect)
 export function invoiceStatusMap(cases) {
   const m = {};
-  for (const [id, e] of buildIndex(cases)) { if (e.status) m[id] = e.status; else if (e.proposed.length) m[id] = 'candidate'; }
+  for (const [id, e] of buildIndex(cases)) { if (e.status) m[id] = e.status; else if (e.withdrawn.length) m[id] = 'withdrawn'; else if (e.proposed.length) m[id] = 'candidate'; }
   return m;
 }
 
@@ -64,10 +64,13 @@ export function invoiceStatusMap(cases) {
 export function ordersOfContract(contractNo, invoiceIds, cases) {
   const ids = new Set(invoiceIds.filter(Boolean)); const out = new Map();
   for (const c of cases) {
-    const viaContract = c.contractNo && c.contractNo === contractNo;
+    // three DIFFERENT facts: the contract is named in the structured source / by a reviewed mention (direct referral) · only MENTIONED (text or document, not reviewed) · some of its invoices are linked
+    const fact = (c.contractFacts || []).find((f) => f.contractNo === String(contractNo).toUpperCase());
+    const viaContract = !!(c.contractNo && c.contractNo === contractNo) || !!fact?.direct;
+    const mentionedOnly = !viaContract && fact?.status === 'mentioned';
     const via = (c.links || []).filter((l) => ids.has(l.invoiceId) && (l.status === 'confirmed' || l.status === 'candidate'));
-    if (!viaContract && !via.length) continue;
-    out.set(c.enforceNum, { enforceNum: c.enforceNum, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, amount: c.amount, contractLevel: !!viaContract, invoices: via.map((l) => ({ invoiceId: l.invoiceId, link: l.status === 'confirmed' ? 'confirmed' : 'proposed' })) });
+    if (!viaContract && !mentionedOnly && !via.length) continue;
+    out.set(c.enforceNum, { enforceNum: c.enforceNum, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, amount: c.amount, contractLevel: viaContract, mentionedOnly, factStatus: fact?.status || (viaContract ? 'supported_by_source' : null), factOrigins: fact?.origins || [], invoices: via.map((l) => ({ invoiceId: l.invoiceId, link: l.status === 'confirmed' ? 'confirmed' : 'proposed' })) });
   }
   return [...out.values()];
 }

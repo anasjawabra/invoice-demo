@@ -24,7 +24,7 @@ function summary(st, ctx, i) {
     invoiceId: idOf(st, i), source: SOURCES[st.src[i]]?.key || null, amanahEn: ENTITIES[st.ent[i]]?.en || null,
     payerName: generated ? payerName(st.payer[i]) : null, payerId: generated ? beneficiaryIdOf(st.payer[i]) : null, payerIdx: generated ? st.payer[i] : null,
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), grossAmount: D.billed, netAmount: D.net, outstanding: D.outstanding, collected: D.collected,
-    paymentStatus: D.payStatus, daysOverdue: D.daysOverdue, excluded: D.excluded, cancelled: D.cancelled,
+    paymentStatus: D.payStatus, daysOverdue: D.daysOverdue, excluded: D.excluded, cancelled: D.cancelled, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict,
     contractNo: st.contract[i] >= 0 && st.contracts[st.contract[i]] ? st.contracts[st.contract[i]].contractNo : null, // only the contract the invoice itself carries — never inferred
     serverIdentifiedOrder: exec ? exec.enforceNum : null
   };
@@ -51,6 +51,9 @@ export function resolveReferences(st, req) {
       const key = idKeyFromSadad(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupId(st, invoiceIdOf(key)); if (i >= 0) idx = [i];
     } else if (kind === 'violation_no') {
       const key = idKeyFromViolation(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupId(st, invoiceIdOf(key)); if (i >= 0) idx = [i];
+    } else if (kind === 'contract_no') { // a contract number MENTIONED by an order: only says whether such a contract exists (never a referral by itself)
+      const ct = (st.contracts || []).find((c) => c && c.contractNo === value.toUpperCase());
+      out.push({ ref, status: ct ? 'contract_found' : 'contract_not_found', weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null }); continue;
     } else { out.push({ ref, status: 'not_invoice_reference', weak: false, normalized: null, candidates: [] }); continue; }
     idx = idx.filter((i) => i >= 0 && st.issue[i] <= ctx.cutoffN);
     out.push({ ref, status: idx.length === 0 ? 'unmatched' : idx.length === 1 ? 'matched' : 'ambiguous', weak, normalized, candidates: idx.map((i) => summary(st, ctx, i)) });
