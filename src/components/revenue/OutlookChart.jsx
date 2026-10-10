@@ -1,10 +1,11 @@
 import { fmtMoney, fmtSar, chartUnit, unitOfValues } from '../../utils/money';
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Tooltip, Legend, Filler } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 import { useL } from '../../utils/bi';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Tooltip, Legend, Filler);
+// the controllers are registered explicitly: a mixed line/bar chart needs both, and the production bundle does not keep the registration that react-chartjs-2 only performs as an import side effect in development
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, BarController, LineController, Tooltip, Legend, Filler);
 
 /* Monthly receipts: ACTUAL vs APPROVED TARGET vs INDEPENDENT FORECAST (+ indicative range),
    with an optional user SCENARIO drawn as a separate series. The four are never merged. */

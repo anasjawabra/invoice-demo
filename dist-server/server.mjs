@@ -1462,6 +1462,54 @@ var nationalIdOf = (seed) => `1${String(mix(82, seed) % 1e9).padStart(9, "0")}`;
 var mobileOf = (seed) => `05${String(mix(83, seed) % 1e8).padStart(8, "0")}`;
 var hash = (...a) => mix(90, ...a);
 
+// src/data/sanadSource.js
+var S = (id, text, cls, basis) => ({ id, text, cls, basis });
+var SOURCE_STATUSES = [
+  S(1, "\u0644\u0645 \u064A\u062A\u0645 \u0627\u0644\u062A\u062D\u0642\u0642", "unclassified", "unconfirmed"),
+  S(2, "\u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0637\u0644\u0628", "unclassified", "unconfirmed"),
+  S(3, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629", "unclassified", "unconfirmed"),
+  S(4, "\u0637\u0644\u0628 \u0627\u0633\u062A\u0643\u0645\u0627\u0644 \u0646\u0648\u0627\u0642\u0635", "unclassified", "unconfirmed"),
+  S(8, "\u0637\u0644\u0628 \u0645\u062D\u0641\u0648\u0638", "unclassified", "unconfirmed"),
+  S(9, "\u0645\u0633\u0648\u062F\u0629 \u0645\u062D\u0630\u0648\u0641\u0629", "unclassified", "unconfirmed"),
+  S(11, "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0642\u0631\u0627\u0631 \u0628\u0627\u062B\u0628\u0627\u062A \u062A\u0631\u0643 \u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "unclassified", "unconfirmed"),
+  S(13, "\u0645\u063A\u0644\u0642 - \u062A\u0645 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "closed", "stated"),
+  S(17, "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0623\u0645\u0631 \u062A\u0646\u0641\u064A\u0630", "unclassified", "unconfirmed"),
+  S(20, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0627\u0645\u0631 \u0645\u0646\u0639 \u0645\u0646 \u0627\u0644\u0633\u0641\u0631", "unclassified", "unconfirmed"),
+  S(22, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0627\u0645\u0631 \u0628\u0648\u0642\u0641 \u0627\u0644\u0645\u0647\u0644", "unclassified", "unconfirmed"),
+  S(25, "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0642\u0631\u0627\u0631 \u0628\u0631\u0641\u0636 \u0637\u0644\u0628 \u0648\u0642\u0641 \u0627\u0644\u0645\u0647\u0644", "unclassified", "unconfirmed"),
+  S(27, "\u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0628\u0646\u0643 \u0627\u0644\u0645\u0631\u0643\u0632\u064A", "unclassified", "unconfirmed"),
+  S(28, "\u062E\u062F\u0645\u0627\u062A \u0647\u064A\u0626\u0629 \u0627\u0644\u0633\u0648\u0642 \u0627\u0644\u0645\u0627\u0644\u064A\u0629", "unclassified", "unconfirmed"),
+  S(29, "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0623\u0645\u0631 \u0625\u064A\u0642\u0627\u0641 \u062E\u062F\u0645\u0627\u062A", "unclassified", "unconfirmed"),
+  S(32, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0627\u0645\u0631 \u062A\u0645\u062F\u064A\u062F \u0645\u0646\u0639 \u0645\u0646 \u0627\u0644\u0633\u0641\u0631", "unclassified", "unconfirmed"),
+  S(33, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0642\u0631\u0627\u0631 \u0625\u0644\u063A\u0627\u0621 \u0627\u0623\u0644\u0648\u0645\u0631 \u0627\u0644\u0635\u0627\u062F\u0631\u0629", "unclassified", "unconfirmed"),
+  S(36, "\u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0642\u0631\u0627\u0631 \u0628\u0631\u0641\u0636 \u0637\u0644\u0628 \u0641\u0631\u0636 \u0627\u0644\u063A\u0631\u0627\u0645\u0629", "unclassified", "unconfirmed"),
+  S(38, "\u0637\u0644\u0628 \u0645\u0642\u0628\u0648\u0644", "unclassified", "unconfirmed"),
+  S(39, "\u0637\u0644\u0628 \u063A\u064A\u0631 \u0645\u0642\u0628\u0648\u0644", "unclassified", "unconfirmed"),
+  S(40, "\u0645\u063A\u0644\u0642 - \u0644\u0639\u062F\u0645 \u0627\u0633\u062A\u0643\u0645\u0627\u0644 \u0627\u0644\u0646\u0648\u0627\u0642\u0635 \u062E\u0644\u0627\u0644 \u0627\u0644\u0645\u0647\u0644\u0629", "closed", "stated"),
+  S(41, "\u0645\u063A\u0644\u0642 - \u062D\u0643\u0645 \u0628\u0639\u062F\u0645 \u0627\u0644\u0627\u062E\u062A\u0635\u0627\u0635", "closed", "stated"),
+  S(42, "\u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u062D\u0643\u0645 \u0628\u0639\u062F\u0645 \u0627\u0644\u0642\u0628\u0648\u0644 \u0627\u0644\u0643\u0644\u064A", "unclassified", "unconfirmed"),
+  S(43, "\u062A\u062D\u062A \u0627\u0644\u0625\u062C\u0631\u0627\u0621 \u0644\u062F\u0649 \u0627\u0644\u062F\u0627\u0626\u0631\u0629 \u0627\u0644\u0642\u0636\u0627\u0626\u064A\u0629 - \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u062D\u0643\u0645 \u0628\u0639\u062F\u0645 \u0627\u0644\u0642\u0628\u0648\u0644 \u0627\u0644\u062C\u0632\u0626\u064A", "unclassified", "unconfirmed"),
+  S(44, "\u0645\u063A\u0644\u0642 \u2013 \u062A\u0639\u0630\u0631 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "closed", "stated"),
+  S(45, "\u0645\u063A\u0644\u0642 - \u0644\u0639\u062F\u0645 \u0627\u0633\u062A\u0643\u0645\u0627\u0644 \u0627\u0644\u0646\u0648\u0627\u0642\u0635", "closed", "stated"),
+  S(48, "\u0645\u063A\u0644\u0642 \u2013 \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0642\u0631\u0627\u0631 \u0627\u0625\u0644\u064A\u0642\u0627\u0641 \u0627\u0644\u062F\u0627\u0626\u0645", "closed", "stated"),
+  S(49, "\u0645\u063A\u0644\u0642 \u2013 \u062A\u0645 \u0625\u0635\u062F\u0627\u0631 \u0623\u0645\u0631 \u0627\u0625\u0644\u064A\u0642\u0627\u0641 \u0645\u0624\u0642\u062A\u0627", "closed", "stated"),
+  S(51, "\u0645\u063A\u0644\u0642 \u2013 \u062A\u0645 \u062A\u0631\u0643 \u0627\u0644\u0637\u0644\u0628", "closed", "stated"),
+  S(52, "\u0645\u063A\u0644\u0642 \u2013 \u062A\u0645 \u062A\u0631\u0643 \u0627\u0644\u0637\u0644\u0628 \u062C\u0632\u0626\u064A\u0627", "closed", "stated"),
+  S(53, "\u0645\u063A\u0644\u0642 - \u0641\u064A \u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u062D\u0648\u064A\u0644 \u0627\u0623\u0644\u0645\u0648\u0627\u0644", "closed", "stated"),
+  S(54, "\u0633\u062A\u0643\u0645\u0627\u0644 \u0625\u062C\u0631\u0627\u0621\u0627\u062A \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "unclassified", "unconfirmed"),
+  S(55, "\u0645\u063A\u0644\u0642 - \u0625\u062A\u0645\u0627\u0645 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "closed", "stated")
+];
+var exactNotation = (digits) => `${digits[0]}.${digits.slice(1)}E+${digits.length - 1}`;
+var hash2 = (s) => {
+  let h = 2166136261;
+  for (const ch of String(s)) {
+    h ^= ch.codePointAt(0);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+};
+var toSciNotation = (digits) => Number(digits).toExponential(2 + hash2(digits) % 3).replace("e+", "E+");
+
 // server/world.js
 var SEED = 20261008;
 var GEN_START = "2024-10-01";
@@ -2282,6 +2330,7 @@ function generateWorld(today, { scale = 1 } = {}) {
       });
       const amount = all.reduce((sum, i) => sum + st.gross[i], 0);
       const idOfi = (i) => invoiceIdOf(st.idKey[i]);
+      const est_idKey = (i) => st.idKey[i];
       const typo = (id) => `${id.slice(0, 9)}${String(Number(id.slice(9)) + 4e6).padStart(7, "0")}`;
       let refs = [];
       let identified = [];
@@ -2309,6 +2358,146 @@ function generateWorld(today, { scale = 1 } = {}) {
       reqCount += 1;
       for (const i of identified) if (st.exec[i] < 0) st.exec[i] = req.idx;
       if (arch === "single" && firstSingle == null) firstSingle = covers[0];
+    }
+    {
+      const E2 = ["attach_pdf", "attach_docx", "one_attached", "contract_mention", "same_serial_two_years", "genuine_conflict", "mixed_sources", "desc_sadad", "corrupted_structured", "attach_unreadable", "desc_multi", "desc_only", "cancelled_open", "cancelled_closed", "notation_exact"];
+      const eligSet = new Set(elig);
+      const partnerOk = (x) => eligSet.has(x) || st.exec[x] < 0 && !st.cancelDay[x] && st.exMask[x] === 0 && grpOf(st.flags[x]) === 0 && st.due[x] + 150 <= ORDER_GEN_CUTOFF && st.scope[x] === 0;
+      const cancelledPool = [];
+      for (let i = 0; i < st.nGen; i += 1) if (st.cancelDay[i] && st.cancelDay[i] <= ORDER_GEN_CUTOFF && st.payCount[i] === 0 && st.exMask[i] === 0 && st.exec[i] < 0 && grpOf(st.flags[i]) === 0 && !used.has(i)) cancelledPool.push(i);
+      const idOfi = (i) => invoiceIdOf(st.idKey[i]);
+      const fmt = (id, v) => v === 0 ? id : v === 1 ? id.toLowerCase() : v === 2 ? id.replace(/-/g, " ") : id.replace("INV-", "INV \u2013 ").replace(/-(\d{7})$/, " / $1");
+      const contracts2 = st.contracts.filter(Boolean);
+      const E2_IDS = { "attach_pdf:0": "EN-6000", "attach_docx:0": "EN-6007", "one_attached:0": "EN-6014", "contract_mention:0": "EN-6021", "same_serial_two_years:0": "EN-6028", "genuine_conflict:0": "EN-6035", "mixed_sources:0": "EN-6042", "desc_sadad:0": "EN-6049", "corrupted_structured:0": "EN-6056", "attach_unreadable:0": "EN-6063", "desc_multi:0": "EN-6070", "desc_only:0": "EN-6077", "cancelled_open:0": "EN-6084", "cancelled_closed:0": "EN-6091", "attach_docx:1": "EN-6098", "contract_mention:1": "EN-6105", "desc_only:1": "EN-6112" };
+      const E2_BASE = 14;
+      const E2_PASSES = [];
+      for (let rep = 0; rep < 2; rep += 1) for (let a = 0; a < E2_BASE; a += 1) E2_PASSES.push([rep, a]);
+      for (let a = E2_BASE; a < E2.length; a += 1) for (let rep = 0; rep < 2; rep += 1) E2_PASSES.push([rep, a]);
+      for (const [rep, a] of E2_PASSES) {
+        const arch = E2[a];
+        if (rep === 1 && (arch === "notation_exact" || arch === "desc_sadad" || arch === "corrupted_structured" || arch === "attach_unreadable" || arch === "mixed_sources" || arch === "one_attached" || arch === "same_serial_two_years" || arch === "genuine_conflict" || arch === "attach_pdf" || arch === "cancelled_closed" || arch === "desc_multi")) continue;
+        const k = rep * 20 + a;
+        const r = rC.reset(mix(16, k));
+        const cancelled = arch.startsWith("cancelled");
+        const pool = cancelled ? cancelledPool : elig;
+        let lead = -1;
+        for (let t = 0; t < pool.length && lead < 0; t += 1) {
+          const j = pool[(k * 29 + t * 13 + 5) % pool.length];
+          if (used.has(j)) continue;
+          if (arch === "same_serial_two_years" && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue;
+          if (!cancelled && !["same_serial_two_years", "genuine_conflict", "one_attached"].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && st.ent[x] === st.ent[j])) continue;
+          if (arch === "genuine_conflict" && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue;
+          lead = j;
+        }
+        if (lead < 0) {
+          continue;
+        }
+        let covers = [lead];
+        let other = -1;
+        if (arch === "cancelled_closed") covers = [lead];
+        else if (arch === "cancelled_open") {
+          covers = [lead];
+          for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && st.ent[j] === st.ent[lead]) covers.push(j);
+        } else if (arch === "same_serial_two_years") {
+          other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[lead]);
+          covers = [lead, other];
+        } else if (arch === "genuine_conflict") {
+          covers = [lead];
+          other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && st.ent[x] === st.ent[lead]);
+        } else if (arch === "one_attached") covers = [lead];
+        else {
+          covers = pickMore(lead, arch === "contract_mention" || arch === "desc_sadad" || arch === "corrupted_structured" || arch === "notation_exact" ? 2 : 3, false);
+        }
+        covers = [...new Set(covers)];
+        if (!cancelled && arch !== "genuine_conflict" && arch !== "one_attached" && covers.length < 2) {
+          continue;
+        }
+        const owner = st.payer[lead];
+        const lastDue = Math.max(...covers.map((i) => st.due[i]));
+        const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
+        if (opened > todayN) {
+          covers.forEach((i) => used.add(i));
+          continue;
+        }
+        covers.forEach((i) => {
+          used.add(i);
+          st.payer[i] = owner;
+        });
+        if (arch === "genuine_conflict" && other >= 0) used.add(other);
+        const amount = covers.reduce((sum, i) => sum + st.gross[i], 0);
+        const ids = covers.map(idOfi);
+        let refs = [];
+        let identified = [];
+        let description = "";
+        let notes = "";
+        let attachments = [];
+        let status = ["\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630", "\u0645\u0648\u0642\u0648\u0641", "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630"][(k + 1) % 3];
+        const enforceNum = E2_IDS[`${arch}:${rep}`] || `EN-${6200 + 7 * k}`;
+        if (arch === "desc_multi") {
+          refs = [{ kind: "invoice_no", value: ids[0] }];
+          identified = [covers[0]];
+          description = `\u0625\u062D\u0627\u0644\u0629 \u0644\u0644\u062A\u0646\u0641\u064A\u0630 \u2014 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0641\u064A \u0627\u0644\u062D\u0642\u0644 \u0627\u0644\u0645\u062E\u0635\u0635\u060C \u0648\u0643\u0630\u0644\u0643 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631: ${fmt(ids[1], 1)} \u0648 ${fmt(ids[2] || ids[1], 2)}. \u0648\u0644\u0644\u062A\u0623\u0643\u064A\u062F \u0646\u0643\u0631\u0631 ${fmt(ids[0], 3)}.`;
+        } else if (arch === "one_attached") {
+          description = "\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0645\u062D\u0627\u0644\u0629 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0627\u0644\u0645\u0631\u0641\u0642.";
+          attachments = [{ name: `${enforceNum}-attachment.pdf`, type: "pdf" }];
+        } else if (arch === "desc_sadad") {
+          const sd = covers.map((i) => sadadOf(st.idKey[i]));
+          description = `\u0625\u0644\u0632\u0627\u0645 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u0628\u0633\u062F\u0627\u062F \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0631\u0642\u0645 ${sd[0]} \u0648 ${sd[1]}${sd[2] ? ` \u0648 ${sd[2]}` : ""} \u0648\u0641\u0642 \u0627\u0644\u0633\u0646\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630\u064A.`;
+        } else if (arch === "notation_exact") {
+          const sd = covers.map((i) => sadadOf(st.idKey[i]));
+          refs = [{ kind: "invoice_no", value: exactNotation(sd[0]) }, { kind: "invoice_no", value: toSciNotation(sd[1]) }];
+        } else if (arch === "corrupted_structured") {
+          const sd = covers.map((i) => sadadOf(st.idKey[i]));
+          refs = [{ kind: "invoice_no", value: toSciNotation(sd[0]) }];
+          description = `\u0633\u062F\u0627\u062F \u0641\u0627\u062A\u0648\u0631\u0629 \u0631\u0642\u0645 ${sd[0]} \u0628\u0645\u0628\u0644\u063A ${st.gross[covers[0]].toFixed(2)} \u0648\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0631\u0642\u0645 ${sd[1]}.`;
+        } else if (arch === "desc_only") {
+          description = `Referral to enforcement for invoices ${fmt(ids[0], 0)}, ${fmt(ids[1], 2)} and ${fmt(ids[2] || ids[1], 1)}. \u0628\u062F\u0648\u0646 \u062A\u0639\u0628\u0626\u0629 \u062D\u0642\u0644 \u0627\u0644\u0645\u0631\u0627\u062C\u0639.`;
+          notes = `\u062A\u0645\u062A \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629 \u0645\u0639 \u0627\u0644\u062C\u0647\u0629\u061B \u0627\u0644\u0645\u0631\u062C\u0639 ${fmt(ids[0], 1)}.`;
+        } else if (arch === "attach_pdf") {
+          description = "\u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0645\u0634\u0645\u0648\u0644\u0629 \u0645\u0630\u0643\u0648\u0631\u0629 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0627\u0644\u0645\u0631\u0641\u0642.";
+          attachments = [{ name: `${enforceNum}-attachment.pdf`, type: "pdf" }];
+        } else if (arch === "attach_docx") {
+          description = "\u0627\u0644\u062A\u0641\u0627\u0635\u064A\u0644 \u0641\u064A \u0645\u0644\u0641 Word \u0627\u0644\u0645\u0631\u0641\u0642 (\u062C\u062F\u0648\u0644 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631).";
+          attachments = [{ name: `${enforceNum}-attachment.docx`, type: "docx" }];
+        } else if (arch === "mixed_sources") {
+          refs = [{ kind: "invoice_no", value: ids[0] }];
+          identified = [covers[0]];
+          description = `\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0623\u0648\u0644\u0649 \u0641\u064A \u0627\u0644\u062D\u0642\u0644 \u0627\u0644\u0645\u062E\u0635\u0635\u060C \u0648\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 ${fmt(ids[1], 1)} \u0641\u064A \u0627\u0644\u0648\u0635\u0641\u060C \u0648\u0627\u0644\u0628\u0642\u064A\u0629 \u0641\u064A \u0627\u0644\u0645\u0633\u062A\u0646\u062F \u0627\u0644\u0645\u0631\u0641\u0642.`;
+          attachments = [{ name: `${enforceNum}-attachment.pdf`, type: "pdf" }];
+        } else if (arch === "same_serial_two_years") {
+          refs = [{ kind: "invoice_no", value: ids[0] }];
+          identified = [covers[0]];
+          description = `\u0648\u0643\u0630\u0644\u0643 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 ${ids[1]} (\u0627\u0644\u062A\u0633\u0644\u0633\u0644 \u0646\u0641\u0633\u0647\u060C \u0633\u0646\u0629 \u0645\u062E\u062A\u0644\u0641\u0629).`;
+          attachments = [{ name: `${enforceNum}-attachment.pdf`, type: "pdf" }];
+        } else if (arch === "genuine_conflict") {
+          refs = [{ kind: "invoice_no", value: ids[0] }];
+          identified = [covers[0]];
+          description = `\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0645\u062D\u0627\u0644\u0629 ${ids[0]} \u0648\u0643\u0630\u0644\u0643 ${other >= 0 ? idOfi(other) : ids[0]}.`;
+          attachments = [{ name: `${enforceNum}-attachment.pdf`, type: "pdf" }];
+        } else if (arch === "attach_unreadable") {
+          description = "";
+          attachments = [{ name: `${enforceNum}-scan.pdf`, type: "pdf" }, { name: `${enforceNum}-legacy.doc`, type: "doc" }];
+        } else if (arch === "cancelled_open") {
+          refs = covers.map((i) => ({ kind: "invoice_no", value: idOfi(i) }));
+          identified = covers.slice();
+          status = rep === 0 ? "\u0642\u064A\u062F \u0627\u0644\u062A\u0646\u0641\u064A\u0630" : "\u0645\u0648\u0642\u0648\u0641";
+          description = "\u0623\u0645\u0631 \u0625\u0646\u0641\u0627\u0630 \u0639\u0644\u0649 \u0641\u0648\u0627\u062A\u064A\u0631 \u0645\u0644\u063A\u0627\u0629 \u0641\u064A \u0627\u0644\u0645\u0635\u062F\u0631 \u2014 \u064A\u062D\u062A\u0627\u062C \u0645\u0631\u0627\u062C\u0639\u0629.";
+        } else if (arch === "cancelled_closed") {
+          refs = covers.map((i) => ({ kind: "invoice_no", value: idOfi(i) }));
+          identified = covers.slice();
+          status = "\u0645\u063A\u0644\u0642";
+        } else if (arch === "contract_mention") {
+          refs = ids.map((id) => ({ kind: "invoice_no", value: id }));
+          identified = covers.slice();
+          const ctNo = rep === 0 && contracts2.length ? contracts2[Math.min(1, contracts2.length - 1)].contractNo : "CT-2099-0001";
+          description = `\u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0623\u0639\u0644\u0627\u0647 \u0636\u0645\u0646 \u0627\u0644\u0639\u0642\u062F \u0631\u0642\u0645 ${ctNo} (\u0630\u0643\u0631 \u0641\u064A \u0627\u0644\u0648\u0635\u0641 \u0641\u0642\u0637).`;
+        }
+        const closeReason = status === "\u0645\u063A\u0644\u0642" ? [null, "withdrawn_by_authority", "order_expired"][k % 3] : null;
+        const req = { idx: reqCount, enforceNum, system: "sanad", ent: st.ent[lead], amount, openedDay: opened, contractIdx: -1, contractNo: null, status, identified, crNo: null, method: 0, confidence: 1, refs, description, notes, attachments, covers, hidden: [], archetype: arch, rep, debtor: owner, closeReason, conflictWith: other >= 0 ? other : null };
+        st.requests.push(req);
+        reqCount += 1;
+        for (const i of identified) if (st.exec[i] < 0) st.exec[i] = req.idx;
+      }
     }
   }
   for (const w of wlEnforce) {
@@ -2546,7 +2735,7 @@ var EXCLUSION_RULES = [
     effectiveFrom: "2026-07-01",
     owner: { en: "Revenue data steward", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A" },
     label: { en: "Referred to enforcement (reported as a separate dimension)", ar: "\u0645\u062D\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 (\u064A\u064F\u0639\u0631\u0636 \u0643\u0628\u064F\u0639\u062F \u0645\u0646\u0641\u0635\u0644)" },
-    note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: '\u062A\u0635\u062D\u064A\u062D \u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639: \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0645\u062D\u0627\u0644\u0629 \u0644\u0644\u062A\u0646\u0641\u064A\u0630 (\u0648\u062A\u0638\u0647\u0631 \u063A\u0627\u0644\u0628\u0627\u064B "\u0645\u0644\u063A\u0627\u0629" \u0641\u064A \u0627\u0644\u0645\u0635\u062F\u0631) \u062A\u064F\u062D\u062A\u0633\u0628 \u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629 \u0648\u0644\u064A\u0633\u062A \u0645\u0633\u062A\u0628\u0639\u062F\u0629. \u0645\u063A\u0644\u0642\u0629.' }
+    note: { en: "Not applied: a source-cancelled invoice referred to enforcement stays cancelled (conditions and approver unconfirmed); enforcement is reported as a separate dimension.", ar: "\u063A\u064A\u0631 \u0645\u0637\u0628\u0651\u0642\u0629: \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0645\u0644\u063A\u0627\u0629 \u0641\u064A \u0627\u0644\u0645\u0635\u062F\u0631 \u0648\u0627\u0644\u0645\u062D\u0627\u0644\u0629 \u0644\u0644\u062A\u0646\u0641\u064A\u0630 \u062A\u0628\u0642\u0649 \u0645\u0644\u063A\u0627\u0629 (\u0627\u0644\u0634\u0631\u0648\u0637 \u0648\u062C\u0647\u0629 \u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F \u063A\u064A\u0631 \u0645\u0624\u0643\u062F\u0629)\u061B \u0648\u064A\u064F\u0639\u0631\u0636 \u0627\u0644\u0625\u0646\u0641\u0627\u0630 \u0628\u064F\u0639\u062F\u0627\u064B \u0645\u0646\u0641\u0635\u0644\u0627\u064B." }
   }
 ];
 var EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
@@ -2609,6 +2798,8 @@ var RULES = EXCLUSION_RULES.map((r, i) => ({ id: r.id, bit: 1 << i, priority: r.
 if (RULES.some((r, i) => r.id !== RULE_IDS[i])) throw new Error("rule order mismatch between catalog and revenueMetrics");
 var OBJ_BIT = RULE_BIT["OBJ-1"];
 var CR_BIT = RULE_BIT["CR-1"];
+var DUP_BIT = RULE_BIT["DUP-1"];
+var DEC_BIT = RULE_BIT["DEC-1"];
 var BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 var NBITS = RULES.length;
 var K = 22;
@@ -2777,12 +2968,12 @@ function makeCtx(st, req = {}) {
       const i = lookupId(st, id);
       if (i < 0) continue;
       const o = ctx.ov.get(i) || { set: 0, clr: 0, rej: 0, link: 0 };
-      o.link = status === "confirmed" || status === "open" ? 2 : status === "suspended" ? 3 : status === "closed" ? 4 : status === "candidate" ? 1 : 0;
+      o.link = status === "confirmed" || status === "open" ? 2 : status === "suspended" ? 3 : status === "closed" ? 4 : status === "candidate" ? 1 : status === "withdrawn" ? 5 : 0;
       ctx.ov.set(i, o);
       ctx.mark[i] = 1;
     }
   }
-  ctx.D = { payStatus: "not_due", gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
+  ctx.D = { sourceCancelled: false, enfConflict: false, payStatus: "not_due", gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
   return ctx;
 }
 function primaryBitOfMask(mask) {
@@ -2797,6 +2988,22 @@ var popcount = (x) => {
   }
   return n;
 };
+function recordRiskFlags(st, ctx, i) {
+  const out = {};
+  const f = st.flags[i];
+  const fx = i >= st.nGen ? st.fixtures.get(i) : null;
+  const invalid = !!(fx?.debtorInvalid || fx?.invalidDebtor);
+  const crBad = st.crSt[i] === 2 || st.crSt[i] === 4;
+  if (!(f & F.DUPLICATE_WF) && !invalid && !crBad) return out;
+  const D = derive(ctx, i, ctx.cutoffN) || ctx.D;
+  const applied = (bit) => (D.mask & bit) !== 0;
+  if (f & F.DUPLICATE_WF) out.duplicate = applied(DUP_BIT) ? "settled" : "open";
+  if (invalid) {
+    const c = fx.debtorInvalidReason === "deceased_person" ? "deceased_person" : "struck_off_registry";
+    out[c] = applied(c === "deceased_person" ? DEC_BIT : CR_BIT) ? "settled" : "open";
+  } else if (crBad && D.outstanding > 0) out.struck_off_registry = "open";
+  return out;
+}
 function derive(ctx, i, asOfN) {
   const st = ctx.st;
   const D = ctx.D;
@@ -2832,7 +3039,9 @@ function derive(ctx, i, asOfN) {
   const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  const cancelled = cd !== 0 && cd <= asOfN && link < 2;
+  const sourceCancelled = cd !== 0 && cd <= asOfN;
+  const conflict = sourceCancelled && (link >= 2 || link === 5);
+  const cancelled = sourceCancelled;
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -2846,6 +3055,8 @@ function derive(ctx, i, asOfN) {
   D.billed = billed;
   D.received = received;
   D.cancelled = cancelled;
+  D.sourceCancelled = sourceCancelled;
+  D.enfConflict = conflict;
   D.overlaps = overlaps;
   D.cancelledAmount = cancelledAmount;
   D.mask = m;
@@ -2964,7 +3175,7 @@ function snapshot(st, req) {
   let objAmt = 0;
   const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
   const q2 = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
-  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 } };
+  const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 }, sourceConflict: { count: 0, outstanding: 0 } };
   let ledgerInScope = 0;
   let issued = 0;
   const { fromN, toN } = sc;
@@ -2983,6 +3194,10 @@ function snapshot(st, req) {
       stk.tot.add(0, D);
       stk.ent.add(e, D);
       stk.src.add(s, D);
+    }
+    if (okCut && D.enfConflict) {
+      enfStock.sourceConflict.count += 1;
+      enfStock.sourceConflict.outstanding += D.outstanding;
     }
     if (okCut && D.link >= 2) {
       const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly;
@@ -4165,9 +4380,10 @@ var structuredCloneSafe = (o) => typeof structuredClone === "function" ? structu
 function detail(st, i, ctx) {
   const rec = materialize(st, i, ctx);
   const D = derive(ctx, i, ctx.cutoffN);
-  const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
+  const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
-  return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec };
+  const riskFlags = recordRiskFlags(st, ctx, i);
+  return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
 
 // server/lists.js
@@ -4354,6 +4570,8 @@ function rowOut(st, ctx, i, D) {
     executionIdx: st.exec[i],
     enforcement: ctx.mark ? ctx.ov.get(i)?.link || 0 : 0,
     payStatus: D.payStatus,
+    sourceCancelled: D.sourceCancelled,
+    enfConflict: D.enfConflict,
     rules,
     nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null,
@@ -4409,7 +4627,8 @@ function candidates(st, req) {
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
     if (f.exec && f.exec !== "all") {
       const lk = ctx.mark ? ctx.ov.get(i)?.link || 0 : 0;
-      const ok = f.exec === "inexec" ? lk === 2 : f.exec === "suspended" ? lk === 3 : f.exec === "closed" ? lk === 4 : f.exec === "ever" ? lk >= 2 : f.exec === "none" ? lk < 2 : f.exec === "yes" ? st.exec[i] >= 0 || lk >= 2 : f.exec === "no" ? st.exec[i] < 0 && lk < 2 : true;
+      const srcCancelled = st.cancelDay[i] !== 0 && st.cancelDay[i] <= ctx.cutoffN;
+      const ok = f.exec === "conflict" ? srcCancelled && (lk >= 2 || lk === 5) : f.exec === "inexec" ? lk === 2 : f.exec === "suspended" ? lk === 3 : f.exec === "closed" ? lk === 4 : f.exec === "ever" ? lk >= 2 : f.exec === "none" ? lk < 2 : f.exec === "yes" ? st.exec[i] >= 0 || lk >= 2 : f.exec === "no" ? st.exec[i] < 0 && lk < 2 : true;
       if (!ok) return;
     }
     if (f.rule === "none" && st.exMask[i]) return;
@@ -4590,39 +4809,25 @@ function anomalies(st, req) {
   const bump = (k) => {
     counts[k] = (counts[k] || 0) + 1;
   };
+  const group = Array.isArray(req.codes) && req.codes.length ? new Set(req.codes) : null;
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || st.issue[i] < sc.fromN || st.issue[i] > sc.toN || !inScope(st, sc, i)) continue;
     derive(ctx, i, ctx.cutoffN);
     const f = st.flags[i];
+    const found = [];
+    if (f & F.AMT_CONFLICT) found.push(["amount_conflict", 3]);
+    if (D.pendingMask) found.push(["exclusion_pending", 2]);
+    if (f & F.MISSING_ID) found.push(["missing_fields", 2]);
+    if (st.src[i] === 0 && st.cstat[i] === 4) found.push(["contract_unlinked", 2]);
+    if (st.src[i] === 0 && st.cstat[i] === 2) found.push(["contract_unmatched", 2]);
+    if (D.link === 1) found.push(["enforcement_candidate", 2]);
+    if (D.excluded && D.received > 0) found.push(["receipts_on_excluded", 3]);
+    const inGroup = group ? found.filter(([c]) => group.has(c)) : found;
     let sev = 0;
     const codes = [];
-    if (f & F.AMT_CONFLICT) {
-      codes.push("amount_conflict");
-      sev = 3;
-    }
-    if (D.pendingMask) {
-      codes.push("exclusion_pending");
-      sev = Math.max(sev, 2);
-    }
-    if (f & F.MISSING_ID) {
-      codes.push("missing_fields");
-      sev = Math.max(sev, 2);
-    }
-    if (st.src[i] === 0 && st.cstat[i] === 4) {
-      codes.push("contract_unlinked");
-      sev = Math.max(sev, 2);
-    }
-    if (st.src[i] === 0 && st.cstat[i] === 2) {
-      codes.push("contract_unmatched");
-      sev = Math.max(sev, 2);
-    }
-    if (D.link === 1) {
-      codes.push("enforcement_candidate");
-      sev = Math.max(sev, 2);
-    }
-    if (D.excluded && D.received > 0) {
-      codes.push("receipts_on_excluded");
-      sev = 3;
+    for (const [c, v] of inGroup) {
+      codes.push(c);
+      sev = Math.max(sev, v);
     }
     for (const c of codes) bump(c);
     if (sev && (!req.code || req.code === "all" || codes.includes(req.code))) {
@@ -4653,25 +4858,11 @@ function risk(st, req) {
   const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, deceased_person: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const f = st.flags[i];
-    if (f & F.DUPLICATE_WF) {
-      cat.duplicate.n += 1;
-      cat.duplicate.amt += st.gross[i];
-      cat.duplicate.top.push(i, 90);
-    }
-    const fx = i >= st.nGen ? st.fixtures.get(i) : null;
-    if (fx?.debtorInvalid || fx?.invalidDebtor) {
-      const c = fx.debtorInvalidReason === "deceased_person" ? "deceased_person" : "struck_off_registry";
+    const rf = recordRiskFlags(st, ctx, i);
+    for (const [c, state] of Object.entries(rf)) if (state === "open") {
       cat[c].n += 1;
       cat[c].amt += st.gross[i];
-      cat[c].top.push(i, 85);
-    } else if (st.crSt[i] === 2 || st.crSt[i] === 4) {
-      derive(ctx, i, ctx.cutoffN);
-      if (D.outstanding > 0) {
-        cat.struck_off_registry.n += 1;
-        cat.struck_off_registry.amt += st.gross[i];
-        cat.struck_off_registry.top.push(i, 85);
-      }
+      cat[c].top.push(i, c === "duplicate" ? 90 : 85);
     }
     const g = st.ent[i] * SOURCES.length + st.src[i];
     if (cnt[g] >= 30) {
@@ -4818,6 +5009,9 @@ function sanadCases(st) {
       debtorIdx: q2.debtor ?? null,
       debtorName: q2.debtor != null ? payerName(q2.debtor) : null,
       debtorId: q2.debtor != null ? beneficiaryIdOf(q2.debtor) : null,
+      description: q2.description || "",
+      notes: q2.notes || "",
+      attachments: (q2.attachments || []).map((x) => ({ ...x, retrieved: false })),
       closeReason: q2.status === "\u0645\u063A\u0644\u0642" ? q2.closeReason || null : null,
       orderDocument: { retrievable: false, reason: "sanad_document_integration_not_connected" },
       feed: "synthetic_demo",
@@ -5045,6 +5239,8 @@ function summary(st, ctx, i) {
     daysOverdue: D.daysOverdue,
     excluded: D.excluded,
     cancelled: D.cancelled,
+    sourceCancelled: D.sourceCancelled,
+    enfConflict: D.enfConflict,
     contractNo: st.contract[i] >= 0 && st.contracts[st.contract[i]] ? st.contracts[st.contract[i]].contractNo : null,
     // only the contract the invoice itself carries — never inferred
     serverIdentifiedOrder: exec ? exec.enforceNum : null
@@ -5059,6 +5255,10 @@ function resolveReferences(st, req) {
     let idx = [];
     let weak = false;
     let normalized = null;
+    if (kind === "invoice_corrupted") {
+      out.push({ ref, status: "corrupted", weak: false, normalized: null, candidates: [] });
+      continue;
+    }
     if (kind === "invoice_id_exact") {
       const i = lookupId(st, value);
       if (i >= 0) idx = [i];
@@ -5084,6 +5284,10 @@ function resolveReferences(st, req) {
       const key = idKeyFromViolation(value.replace(/\D/g, ""));
       const i = key == null ? -1 : lookupId(st, invoiceIdOf(key));
       if (i >= 0) idx = [i];
+    } else if (kind === "contract_no") {
+      const ct = (st.contracts || []).find((c) => c && c.contractNo === value.toUpperCase());
+      out.push({ ref, status: ct ? "contract_found" : "contract_not_found", weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null });
+      continue;
     } else {
       out.push({ ref, status: "not_invoice_reference", weak: false, normalized: null, candidates: [] });
       continue;
