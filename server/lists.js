@@ -82,7 +82,7 @@ export function rowOut(st, ctx, i, D) {
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), gross: D.gross, billed: D.billed, collected: D.collected, received: D.received, outstanding: D.outstanding, cancelledAmount: D.cancelledAmount, exclusionAmount: D.exclusionAmount, exclusions: D.exclTotal, net: D.net,
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
-    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], rules, nReasons: D.nReasons,
+    contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, rules, nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED)
   };
 }
@@ -90,6 +90,7 @@ export function rowOut(st, ctx, i, D) {
 /* ------------------------------------------------------------------ list */
 const SORT_KEYS = { issue: 'issue', gross: 'gross', outstanding: 'outstanding', daysOverdue: 'daysOverdue', collected: 'collected', id: 'id' };
 const cache = new Map();
+const hashOf = (str) => { let h = 5381; for (let i = 0; i < str.length; i += 1) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0; return `${str.length}.${h.toString(36)}`; };
 function lruGet(k) { if (!cache.has(k)) return null; const v = cache.get(k); cache.delete(k); cache.set(k, v); return v; }
 function lruSet(k, v) { cache.set(k, v); if (cache.size > 8) cache.delete(cache.keys().next().value); }
 let epoch = 0; export const bumpEpoch = () => { epoch += 1; cache.clear(); };
@@ -114,8 +115,12 @@ export function candidates(st, req) {
     if (periodFilter && (st.issue[i] < sc.fromN || st.issue[i] > sc.toN)) return;
     if (cs >= 0 && st.cstat[i] !== cs) return;
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
-    if (f.exec === 'yes' && st.exec[i] < 0 && !(ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2)) return;
-    if (f.exec === 'no' && (st.exec[i] >= 0 || (ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2))) return;
+    if (f.exec && f.exec !== 'all') { // ENFORCEMENT dimension (from confirmed links only): inexec = an order in execution · suspended = none in execution, one suspended · closed = referred before, every order closed · ever = any of the three · none = never referred
+      const lk = ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0;
+      const ok = f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
+        : f.exec === 'yes' ? (st.exec[i] >= 0 || lk >= 2) : f.exec === 'no' ? (st.exec[i] < 0 && lk < 2) : true; // «yes» / «no»: the older two-value filter
+      if (!ok) return;
+    }
     if (f.rule === 'none' && st.exMask[i]) return;
     if (f.rule === 'any' && !st.exMask[i]) return;
     if (ruleBit && !(st.exMask[i] & ruleBit)) return;
@@ -144,7 +149,7 @@ export function candidates(st, req) {
 export function list(st, req) {
   const page = Math.max(0, Number(req.page) || 0); const size = Math.min(500, Math.max(1, Number(req.pageSize) || 50));
   const sortKey = SORT_KEYS[req.sort?.key] || 'issue'; const dir = req.sort?.dir === 'asc' ? 1 : -1;
-  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && Object.keys(req.decisions).length, req.links && Object.keys(req.links).length, req.owner, sortKey, dir]);
+  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && hashOf(JSON.stringify(req.decisions)), req.links && hashOf(JSON.stringify(req.links)), req.owner, sortKey, dir]); // the CONTENT of the review overlay (not just its size): a link moving from proposed to confirmed, or open to closed, must not return a cached page
   let hit = lruGet(ck);
   if (!hit) {
     const { ctx, cand, sums } = candidates(st, req);

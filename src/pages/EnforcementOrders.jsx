@@ -2,19 +2,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Pager from '../components/Pager';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
-import { MetricTile } from '../components/revenue/RevenueUI';
-import { OrderStatusChip, IntegrationNotice } from '../components/revenue/EnforcementUI';
+import { OrderStatusChip } from '../components/revenue/EnforcementUI';
 import { orderCompleteness, orderStatusOf } from '../data/orderMatching';
-import { enforcementCounts, CLOSE_REASON_LABEL } from '../data/relations';
+import { CLOSE_REASON_LABEL } from '../data/relations';
 import { RecordLink, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { orderPath } from '../utils/paths';
-import { useDocFiles } from '../components/record/PdfPreview';
 
 const PAGE = 25;
 const mark = (ok, text) => <span className={ok ? 'rp-ok' : 'rp-warn'}>{ok ? '✓' : '!'} {text}</span>;
 
-// إدارة أوامر التنفيذ — every order of Sanad, over ALL invoice types. Each order is judged on THREE separate completeness states, never one label.
-export default function EnforcementOrders() {
+// The ORDERS view of «إدارة التنفيذ»: every order of Sanad, over ALL invoice types. Each order is judged on THREE separate completeness states, never one label.
+export default function OrdersView() {
   const { cases } = useRevenue();
   const { L, B, sar, count: fmt } = useL();
   const restore = useShouldRestore();
@@ -28,8 +26,6 @@ export default function EnforcementOrders() {
   useEffect(() => { writeListMemory('orders', { page, fStatus, fRefs, fDoc, fFin, q }); }, [page, fStatus, fRefs, fDoc, fFin, q]);
 
   const rows = useMemo(() => cases.map((c) => ({ c, comp: orderCompleteness(c), status: orderStatusOf(c) })), [cases]);
-  const counts = useMemo(() => enforcementCounts(cases), [cases]);
-  const needs = (r) => r.comp.references.state === 'incomplete' || r.comp.extraction.state === 'incomplete' || ['short', 'over', 'not_checkable'].includes(r.comp.finance.state);
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
     return rows.filter((r) => (fStatus === 'all' || r.status === fStatus)
@@ -39,29 +35,12 @@ export default function EnforcementOrders() {
   }, [rows, fStatus, fRefs, fDoc, fFin, q]);
   const view = shown.slice(page * PAGE, (page + 1) * PAGE);
   useRestoreScroll(view.length > 0);
-  const allDocs = useMemo(() => cases.flatMap((c) => c.docs || []), [cases]);
-  const files = useDocFiles(allDocs.map((d) => d.id));
-  const missing = allDocs.filter((d) => files[d.id] === false).length;
   const sel = (id, label, v, set, opts) => (
     <label>{label}<select id={id} className="input" value={v} onChange={(e) => { set(e.target.value); setPage(0); }}>{opts.map(([k, en, ar]) => <option key={k} value={k}>{L(en, ar)}</option>)}</select></label>
   );
 
   return (
-    <div className="rp">
-      <header className="rp-head">
-        <div className="rp-titlebar"><div className="rp-title"><h1 className="page-title">{L('Enforcement orders management', 'إدارة أوامر التنفيذ')}</h1>
-          <div className="page-sub">{L('Sanad is the source. An order covers one or several invoices of ANY revenue type, and an invoice can carry several orders. Open an order to review its references, document and reconciliation.', 'سند هو المصدر. يشمل الأمر فاتورة أو عدة فواتير من أي نوع إيراد، وقد تحمل الفاتورة عدة أوامر. افتح الأمر لمراجعة مراجعه ومستنده وتسويته.')}</div></div></div>
-      </header>
-      <IntegrationNotice compact />
-      {missing > 0 && <div className="rp-limit rp-limit--warn" role="status">{L(`${missing} order document(s) have no original PDF in this browser (for example after a restore: backups do not contain PDF files). Their extracted references, evidence and history are kept; open the order to add the file again.`, `${missing} مستند أمر بلا ملف PDF أصلي في هذا المتصفح (مثلاً بعد استعادة: النسخ الاحتياطية لا تتضمن ملفات PDF). تبقى مراجعها المستخرجة وأدلتها وسجلها؛ افتح الأمر لإعادة إضافة الملف.`)}</div>}
-
-      <div className="rv-tiles" aria-label={L('Counts — stated explicitly; invoices are counted once', 'الأعداد — مصرَّح بها؛ وتُعدّ الفاتورة مرة واحدة')}>
-        <MetricTile label={L('Orders', 'الأوامر')} value={fmt(rows.length)} sub={L(`${rows.filter((r) => r.status === 'open').length} in execution · ${rows.filter((r) => r.status === 'suspended').length} suspended · ${rows.filter((r) => r.status === 'closed').length} closed`, `${rows.filter((r) => r.status === 'open').length} قيد التنفيذ · ${rows.filter((r) => r.status === 'suspended').length} موقوف · ${rows.filter((r) => r.status === 'closed').length} مغلق`)} />
-        <MetricTile label={L('Invoices under an OPEN order', 'فواتير تحت أمر مفتوح')} value={fmt(counts.open)} sub={L(`${counts.inExecution} in execution · ${counts.suspended} suspended — unique invoices`, `${counts.inExecution} قيد التنفيذ · ${counts.suspended} موقوف — فواتير فريدة`)} />
-        <MetricTile label={L('Invoices EVER referred', 'فواتير سبقت إحالتها')} value={fmt(counts.everReferred)} sub={L(`includes ${counts.closedOnly} whose orders are all closed — unique invoices`, `تشمل ${counts.closedOnly} أوامرها كلها مغلقة — فواتير فريدة`)} />
-        <MetricTile label={L('Orders needing action', 'أوامر تحتاج إجراء')} value={fmt(rows.filter(needs).length)} tone={rows.filter(needs).length ? 'warn' : undefined} sub={L('an incomplete state in at least one of the three', 'حالة غير مكتملة في واحدة على الأقل من الثلاث')} />
-      </div>
-
+    <>
       <section className="rp-section" aria-label={L('Orders', 'الأوامر')}>
         <div className="rv-form" role="search" aria-label={L('Order filters', 'مرشحات الأوامر')} style={{ marginBottom: 10 }}>
           <label style={{ flex: '1 1 220px' }}>{L('Search order number or debtor', 'بحث برقم الأمر أو المدين')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="EN-5013" dir="auto" /></label>
@@ -92,6 +71,6 @@ export default function EnforcementOrders() {
         </div>
         <Pager page={page} total={shown.length} size={PAGE} onPage={setPage} />
       </section>
-    </div>
+    </>
   );
 }

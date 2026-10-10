@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import Pager from '../components/Pager';
-import { RecordLink as Link } from '../utils/returnContext';
+import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
@@ -46,22 +46,27 @@ export default function Noncollection() {
   const rev = useRevenue();
   const { snapshot, cfg, canReview, decisions, cases } = rev;
   const { L, B, ar, short, lang, count, sar } = useL();
-  const [filter, setFilter] = useState('all');
+  const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('noncollection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [filter, setFilter] = useState(mem.filter ?? 'all');
   const [note, setNote] = useState({});
   const [msg, setMsg] = useState(null);
-  const [page, setPage] = useState(0);
-  const [regPage, setRegPage] = useState(0);
+  const [page, setPage] = useState(mem.page ?? 0);
+  const [regPage, setRegPage] = useState(mem.regPage ?? 0);
   const PS = 25;
   const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
-  useEffect(() => { setPage(0); setRegPage(0); }, [filter, scopeReq, rev.dataVersion]);
+  const resetKey = JSON.stringify([filter, scopeReq, rev.dataVersion]); const lastReset = React.useRef(resetKey);
+  useEffect(() => { if (lastReset.current !== resetKey) { lastReset.current = resetKey; setPage(0); setRegPage(0); } }, [resetKey]); // only a real change of the filters / data returns to page 1 (not a re-render, not a return from a record)
+  useEffect(() => { writeListMemory('noncollection', { filter, page, regPage }); }, [filter, page, regPage]);
 
   // server-side pages: invoice states and the exclusion register (with its evidence records) are paged by the data service
   const { data: states } = useAsync(() => rev.data.list(scopeReq, { filters: { state: filter === 'all' ? 'noncollected' : filter }, page, pageSize: PS, sort: { key: 'outstanding', dir: 'desc' } }), [rev.data, scopeReq, filter, page]);
   const { data: reg } = useAsync(() => rev.data.list(scopeReq, { filters: { rule: 'any' }, withExclusions: true, page: regPage, pageSize: 15, sort: { key: 'gross', dir: 'desc' } }), [rev.data, scopeReq, regPage]);
   const rows = states?.rows || [];
+  useRestoreScroll(rows.length > 0);
   const register = reg?.rows || [];
   const registry = useMemo(() => registryRows(snapshot, cfg), [snapshot, cfg]);
-  const [regOpen, setRegOpen] = useState(false);
+  const [regOpen, setRegOpen] = useState(mem.regOpen ?? false);
+  useEffect(() => { writeListMemory('noncollection', { filter, page, regPage, regOpen }); }, [filter, page, regPage, regOpen]);
   const T = snapshot.totals;
   const openInvoices = NONCOLLECTION_CATEGORIES.filter((c) => c !== 'excluded').reduce((n, c) => n + snapshot.noncollection[c].count, 0);
 
@@ -234,11 +239,12 @@ export default function Noncollection() {
       <div className="rv-two">
         <div className="card card-pad">
           <h2 className="rv-sec-title">{L('Enforcement linkage', 'ربط الإنفاذ')}</h2>
-          <p className="rv-sec-sub">{L('A CONFIRMED link to an order in execution or suspended puts an invoice under an OPEN enforcement order (still counted as uncollected; «ever referred» also keeps the history after an order closes). A proposed link, or a closed order, does not change the category, and the invoice\'s payment status is always separate. Order amounts are never spread across invoices.', 'الرابط «المؤكد» بأمر قيد التنفيذ أو موقوف يضع الفاتورة تحت أمر تنفيذ مفتوح (وتُحتسب غير محصّلة؛ وتبقى «سبقت إحالتها» بعد إغلاق الأمر). أما الرابط المقترح أو الأمر المغلق فلا يغيّران الفئة، وحالة سداد الفاتورة منفصلة دائماً. ولا تُوزّع مبالغ الأوامر على الفواتير.')}</p>
+          <p className="rv-sec-sub">{L('Enforcement is a SEPARATE dimension. The collection categories above follow the invoice’s payment state only: an order — in execution, suspended or closed — never moves an invoice in or out of the uncollected view. Only confirmed links count; a suspended order is open but NOT proceeding.', 'الإنفاذ بُعد منفصل. فئات التحصيل أعلاه تتبع حالة سداد الفاتورة وحدها: الأمر — قيد التنفيذ أو موقوفاً أو مغلقاً — لا يُدخل فاتورة إلى عرض غير المحصّل ولا يُخرجها منه. وتُحتسب الروابط المؤكدة فقط؛ والأمر الموقوف مفتوح لكنه غير ماضٍ.')}</p>
           {snapshot.stock.enforcement && (
             <ul className="rv-list" aria-label={L('Enforcement counts — unique invoices', 'أعداد الإنفاذ — فواتير فريدة')}>
-              <li>{L('Under an OPEN order (in execution or suspended)', 'تحت أمر مفتوح (قيد التنفيذ أو موقوف)')}: <b>{snapshot.stock.enforcement.open.count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement.open.outstanding)}</span> {L('remaining', 'متبقٍ')}</li>
-              <li>{L('EVER referred (also those whose orders are all closed)', 'سبقت إحالتها (وتشمل ما أُغلقت كل أوامرها)')}: <b>{snapshot.stock.enforcement.everReferred.count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement.everReferred.outstanding)}</span> {L('remaining', 'متبقٍ')}</li>
+              {[['inExecution', L('Under an order in execution', 'تحت أمر قيد التنفيذ')], ['suspended', L('Only suspended orders (not proceeding)', 'أوامرها موقوفة فقط (غير ماضية)')], ['closedOnly', L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')], ['everReferred', L('Ever referred (the three above)', 'سبقت إحالتها (الثلاث أعلاه)')]].map(([k, label]) => (
+                <li key={k}>{label}: <b>{snapshot.stock.enforcement[k].count}</b> {L('invoices', 'فاتورة')} · <span dir="ltr">{sar(snapshot.stock.enforcement[k].outstanding)}</span> {L('remaining (their payment state is judged on its own)', 'متبقٍ (وتُقيَّم حالة سدادها منفصلة)')}</li>
+              ))}
             </ul>
           )}
           <div className="rv-table-wrap" tabIndex={0}>
@@ -255,7 +261,7 @@ export default function Noncollection() {
               </tbody>
             </table>
           </div>
-          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/enforcement-orders">{L('Open enforcement orders', 'فتح أوامر الإنفاذ')}</Link></div>
+          <div style={{ marginTop: 8 }}><Link className="btn btn-sm" to="/enforcement">{L('Open enforcement management', 'فتح إدارة التنفيذ')}</Link></div>
         </div>
       </div>
     </div>

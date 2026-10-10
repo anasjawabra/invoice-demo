@@ -2,5 +2,6 @@
 export const invoicePath = (id) => `/invoices/${encodeURIComponent(id)}`;
 export const orderPath = (enforceNum) => `/enforcement-orders/${encodeURIComponent(enforceNum)}`;
 export const contractPath = (no) => `/contracts/${encodeURIComponent(no)}`;
-export const ordersListPath = '/enforcement-orders';
+export const enforcementPath = '/enforcement';
+export const ordersListPath = '/enforcement?view=orders';
 export const analysisPath = (taskId) => `/analysis/${encodeURIComponent(taskId)}`;

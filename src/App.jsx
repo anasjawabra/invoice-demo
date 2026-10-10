@@ -12,7 +12,7 @@ import Metrics from './pages/Metrics';
 import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import Collection from './pages/Collection';
-import EnforcementOrders from './pages/EnforcementOrders';
+import EnforcementHome from './pages/EnforcementHome';
 import EnforcementOrderPage from './pages/EnforcementOrderPage';
 import InvoicePage from './pages/InvoicePage';
 import ContractPage from './pages/ContractPage';
@@ -58,11 +58,12 @@ export default function App() {
         <Route path="collection" element={<Collection />} />
         <Route path="invoices/:id" element={<InvoicePage />} />
         <Route path="contracts/:no" element={<ContractPage />} />
-        <Route path="enforcement-orders" element={<EnforcementOrders />} />
+        <Route path="enforcement" element={<EnforcementHome />} />
+        <Route path="enforcement-orders" element={<Navigate to="/enforcement?view=orders" replace />} />
         <Route path="enforcement-orders/:enforceNum" element={<EnforcementOrderPage />} />
         <Route path="analysis/:taskId" element={<AnalysisResultPage />} />
         {/* superseded addresses keep working: they land on the single full-page experience */}
-        <Route path="sanad-orders" element={<Navigate to="/enforcement-orders" replace />} />
+        <Route path="sanad-orders" element={<Navigate to="/enforcement?view=orders" replace />} />
         <Route path="sanad-orders/:enforceNum" element={<Redirect make={(p) => `/enforcement-orders/${encodeURIComponent(p.enforceNum)}`} />} />
         <Route path="investment-invoices" element={<Navigate to="/invoices" replace />} />
         <Route path="investment-invoices/:id" element={<Redirect make={(p) => `/invoices/${encodeURIComponent(p.id)}`} />} />

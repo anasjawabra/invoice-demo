@@ -25,7 +25,10 @@ export function useRestoreScroll(ready) {
     if (!restore || done.current || !ready) return;
     done.current = true;
     let y = 0; try { y = Number(sessionStorage.getItem(SC(loc.pathname + loc.search))) || 0; } catch { /* none */ }
-    if (y > 0) window.requestAnimationFrame(() => window.scrollTo(0, y));
+    if (y > 0) { // the page may still be growing (rows arrive, sections load): try again for a moment until the saved position is reachable
+      let n = 0; const tick = () => { window.scrollTo(0, y); n += 1; if (n < 40 && Math.abs(window.scrollY - y) > 4) window.setTimeout(tick, 150); };
+      window.setTimeout(tick, 0); // (not requestAnimationFrame: it is paused while the tab is in the background)
+    }
   }, [ready, restore, loc.pathname, loc.search]);
 }
 const saveScroll = (loc) => { try { sessionStorage.setItem(SC(loc.pathname + loc.search), String(window.scrollY)); } catch { /* none */ } };
@@ -36,7 +39,7 @@ export function usePageLabel() {
   const rec = /^\/(invoices|enforcement-orders|contracts)\/([^/]+)/.exec(p);
   if (rec) return decodeURIComponent(rec[2]);
   if (p.startsWith('/invoices')) return L('Invoices', 'سجل الفواتير');
-  if (p.startsWith('/enforcement-orders')) return L('Enforcement orders', 'إدارة أوامر التنفيذ');
+  if (p.startsWith('/enforcement')) return L('Enforcement management', 'إدارة التنفيذ');
   if (p.startsWith('/contracts')) return L('Contracts', 'العقود');
   if (p.startsWith('/noncollection')) return L('Noncollection and exclusions', 'عدم التحصيل والاستبعادات');
   if (p.startsWith('/collection')) return L('Collection worklist', 'قائمة التحصيل');

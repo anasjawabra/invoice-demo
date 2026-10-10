@@ -33,7 +33,9 @@ Order ⟷ link ⟷ invoice ⟷ (optional) contract. An order covers several invo
 
 Four facts, never merged: **historical referral** (any confirmed link — true again after an order closes), **current enforcement** (a confirmed order in execution, or suspended), **each order's own status** (in execution / suspended / closed + closure reason or «unknown»), **payment status**. Closing an order neither implies payment nor cancels the balance nor erases the link or the referral. Withdrawing or closing one order never removes the effect of another confirmed order (tested). The data service now returns **explicit unique-invoice counts**: *under an open order* (in execution / suspended) and *ever referred* (also all-closed); the category label reads «under an open enforcement order», and the Noncollection page and the orders list show both counts.
 
-**Policy assumptions to confirm (not business decisions I may infer):** (1) a *suspended* order counts as «open» for the category and the open count; (2) a closed order no longer keeps the invoice in the non-collection category but remains in «ever referred»; (3) a withdrawn (wrongly made) link is not a referral, whereas history keeps it.
+> **Superseded by `docs/enforcement-management.md`:** enforcement no longer changes any collection category (the category follows the payment state only), and suspended orders are reported **separately** from orders in execution and are never described as proceeding.
+
+**Remaining policy assumption:** a withdrawn (wrongly made) link is not a referral, whereas the history keeps it.
 
 ## 4. Matching corrections
 

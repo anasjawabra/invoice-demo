@@ -35,6 +35,7 @@ function cardOf(st, ctx, ct) {
     tenantAr: payerName(ct.payer).ar, tenantEn: payerName(ct.payer).en, itemKey: ITEMS[ct.item].key, itemAr: ITEMS[ct.item].ar, itemEn: ITEMS[ct.item].en, start: isoOf(ct.start), end: isoOf(ct.end), intervalMonths: ct.intervalMonths,
     status: ct.status, crNo: ct.crNo, crStatusRaw: CR_STATUS[ct.crSt] || null, annualValue: ct.annualValue, totalValue: ct.totalValue,
     schedule,
+    invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo), // kept in the summary: which invoices belong to the contract (never inferred — taken from the contract's own schedule)
     totals: {
       contractValue: ct.totalValue, installments: schedule.length, invoiced: sum((x) => (x.invoiced ? x.amount : 0)), collected: sum((x) => x.collected), arrears, notDue,
       futureNotInvoiced: sum((x) => (x.state === 'future' ? x.amount : 0)), netUncollected: arrears + notDue,

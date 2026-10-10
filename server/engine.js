@@ -127,7 +127,7 @@ export function derive(ctx, i, asOfN) {
   let received = 0; const ps = st.payStart[i]; const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  const cancelled = cd !== 0 && cd <= asOfN && link !== 2 && link !== 3;
+  const cancelled = cd !== 0 && cd <= asOfN && link < 2; // an invoice with a CONFIRMED enforcement link (any order status, closed included) is not treated as cancelled: closing an order never removes an unpaid invoice from the uncollected view
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -150,7 +150,7 @@ export function derive(ctx, i, asOfN) {
   else {
     const isPartial = received > 0 && outstanding > 0; const isOverdue = daysOverdue > 0; const cs = st.cstat[i];
     if (flags & F.OBJECTION) cls = C.objection;
-    else if (link === 2 || link === 3) cls = C.enforcement; // a CONFIRMED link to an order in execution / suspended; a closed order (4) and a merely proposed link (1) never change the category
+    // the category follows the FINANCIAL / payment state only: an enforcement link (open, suspended or closed) never moves an invoice between uncollected categories
     else if ((flags & F.LEGACY_CANCELLED) || (st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue)) cls = C.linkage_unresolved;
     else if (isOverdue && (flags & F.MISSING_ID)) cls = C.ineligible_referral;
     else if (isPartial) cls = C.partial;
@@ -271,7 +271,7 @@ export function snapshot(st, req) {
     per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(st.scope[i], dd);
     { const ym = isoOf(st.issue[i]).slice(0, 7); let am = accMonth.get(ym); if (!am) { am = new Acc(1); accMonth.set(ym, am); } am.add(0, dd); }
     accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
-    const viol = s === 1; const enf = dd.link === 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
+    const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
     per.ent.addMeta(e, viol, enf); per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross; entSrcNet[e * NS + s] += dd.net;
     { const o = (e * NS + s) * MX; mxA[o] += 1; mxA[o + 1] += dd.gross; mxA[o + 2] += dd.exclTotal; mxA[o + 3] += dd.net; mxA[o + 4] += dd.collected; mxA[o + 5] += dd.outstanding; }
@@ -301,7 +301,7 @@ export function snapshot(st, req) {
   const entLabel = (g) => labelOfEnt(g);
   const totals = per.tot.toAgg(0);
   const noncollection = {};
-  for (const c of NONCOLLECTION_CATEGORIES) { const k = C[c]; let te = -1; let tv = 0; for (let e = 0; e < NE; e += 1) if (ncEnt[k * NE + e] > tv) { tv = ncEnt[k * NE + e]; te = e; } noncollection[c] = { count: ncCount[k], amount: ncAmt[k], invoices: ids(ncTop[k]), maxDaysOverdue: ncMaxDays[k], topAmanah: te >= 0 ? { key: ENTITIES[te].en, label: labelOfEnt(te), amount: tv } : null }; }
+  for (const c of [...NONCOLLECTION_CATEGORIES, 'enforcement']) { const k = C[c]; let te = -1; let tv = 0; for (let e = 0; e < NE; e += 1) if (ncEnt[k * NE + e] > tv) { tv = ncEnt[k * NE + e]; te = e; } noncollection[c] = { count: ncCount[k], amount: ncAmt[k], invoices: ids(ncTop[k]), maxDaysOverdue: ncMaxDays[k], topAmanah: te >= 0 ? { key: ENTITIES[te].en, label: labelOfEnt(te), amount: tv } : null }; }
   const exclusionsByCategory = {};
   for (const [cat, c] of exCat) exclusionsByCategory[cat] = { count: c.count, amount: c.amount, invoices: ids(c.top) };
   const exclusionReasonCounts = {}; reasonCounts.forEach((cnt, b) => { if (cnt) exclusionReasonCounts[RULES[b].id] = cnt; });

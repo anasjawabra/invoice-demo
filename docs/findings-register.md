@@ -499,4 +499,25 @@ Full description, drawer-to-page mapping, verification: `docs/full-page-records.
 
 **E-05 — PDF files not in backups (clarified, handled).** Stated in the backup panel and on every affected order; after a restore documents are reported as unavailable, provenance and links survive, and re-association checks the SHA-256.
 
-**Open dependencies (original requirement NOT fully delivered):** live Sanad retrieval; Sanad PDF retrieval; **real OCR** — none connected; the macOS Vision probe on an Arabic scan damaged the Latin invoice numbers and lost a whole table (so OCR output must always be reviewed); accuracy on real Arabic scans unmeasured. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen-reader verification open; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+**Open dependencies (original requirement NOT fully delivered):** live Sanad retrieval; Sanad PDF retrieval; **real OCR** — none connected; an exploratory macOS Vision probe on ONE synthetic Arabic page (not an accuracy assessment, not an integrated capability) mangled the Latin invoice numbers and lost a table — a reason to review any OCR output; accuracy on real Arabic scans is unmeasured. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen-reader verification open; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+
+
+---
+
+# Round 10 — independent enforcement management, status semantics, return journeys (branch `enforcement-order-matching`)
+
+Description and evidence: `docs/enforcement-management.md`; old OCR review: `docs/old-ocr-review.md`.
+
+**E-06 — enforcement management had no primary entry or landing (fixed).** «إدارة التنفيذ» is a third primary navigation entry (beside dashboards/reports and planning) with its own landing (`/enforcement`): explicit, defined counts (orders by status; unique invoices under an order in execution / only suspended / referred before with all orders closed / ever referred; contracts directly referred vs with referred invoices) and four views over the existing relationships — orders, referred invoices, related contracts, matching-review exceptions. No duplicate data or pages.
+
+**E-07 — enforcement changed the collection category (fixed).** An open or suspended order moved an invoice out of overdue/partial/not-due into an «enforcement» category, and a closed order moved it back. The category and `payStatus` now follow the payment state only; enforcement is a separate dimension (filters, tags, counts). A cancelled-in-source invoice with any confirmed referral stays an uncollected invoice also after the order closes. Suspended orders are shown separately and described as «open, not proceeding». **Unresolved:** the mapping of this demo's three feed statuses (قيد التنفيذ / موقوف / مغلق) to **Sanad's official order statuses** (finer states such as partly executed, settled, cancelled, suspended by whom) is not known — an integration dependency, not inferred.
+
+**E-08 — stale invoice list after a link changed (bug found and fixed).** The list cache was keyed by the NUMBER of review overlay entries, so changing a link's status (proposed → confirmed, open → closed) returned a cached page; it is now keyed by the overlay content.
+
+**E-09 — contract relationship (clarified).** «Directly referred» (a Sanad order names the contract number) and «invoices referred» (the contract's own invoices carrying a confirmed order) are shown as two separate facts on the contract page, the contracts list view and the landing; neither implies the other.
+
+**E-10 — return journeys (completed).** Collection, Risk, Noncollection (filter, page, scroll) now restore like Invoices, Contracts and Orders; a record page opens at its top; scroll restoration retries until the page has grown and no longer depends on animation frames.
+
+**Old OCR code (reviewed):** the earlier upload-and-link flow was entirely **simulated** (file-name digits, canned fields, hard-coded «OCR complete» text); no OCR or PDF-text capability existed to reuse. **OCR performed by this system remains pending**; marking a scan «not read» verifies the fallback only.
+
+**Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.

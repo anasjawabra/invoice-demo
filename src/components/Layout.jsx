@@ -137,11 +137,11 @@ function LayoutInner() {
     () => [
       { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
       { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
+      { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
       { to: '/noncollection', icon: 'what-if', label: t('nav_noncollection') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
-      { to: '/enforcement-orders', icon: 'collection', label: lang === 'ar' ? 'إدارة أوامر التنفيذ' : lang === 'zh' ? '执行令管理' : 'Enforcement orders' },
       { to: '/risk', icon: 'risk', label: t('nav_risk_quality') },
       { to: '/data-sources', icon: 'smart-reports', label: t('nav_data_sources') },
       { to: '/metrics', icon: 'dashboard', label: t('nav_metrics') }
@@ -149,7 +149,7 @@ function LayoutInner() {
     [t, lang]
   );
 
-  const primaryTabs = tabs.slice(0, 2); const opsTabs = tabs.slice(2);
+  const primaryTabs = tabs.slice(0, 3); const opsTabs = tabs.slice(3); // the three management areas: dashboards & reports · planning · enforcement management
   const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
   const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
   useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
@@ -173,7 +173,7 @@ function LayoutInner() {
     if (p.startsWith('/risk')) return t('nav_risk_quality');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/planning')) return t('nav_planning');
-    if (p.startsWith('/enforcement-orders')) return lang === 'ar' ? 'إدارة أوامر التنفيذ' : lang === 'zh' ? '执行令管理' : 'Enforcement orders';
+    if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
     if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';
     return 'INTELLIBILL';
   }, [loc.pathname, t, lang]);
@@ -342,7 +342,7 @@ function LayoutInner() {
 
         <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
           {primaryTabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
+            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) ? ' active' : ''}`}>
               <span className="tab__icon"><Icon name={tab.icon} /></span>
               <span className="tab__text">{tab.label}</span>
             </NavLink>

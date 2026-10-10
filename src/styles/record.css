@@ -90,3 +90,13 @@
 .rp-compl .rp-compl__d { font-size: 12px; color: var(--txt-mute); }
 .rp-ok { color: var(--ink-ok); } .rp-bad { color: var(--danger-text); } .rp-warn { color: var(--warning); }
 .rp-facts dd .rv-cat, .rp-status__v .rv-cat, .rp-tablewrap .rv-cat { white-space: normal; text-align: start; }
+.rp-tabs { display: flex; flex-wrap: wrap; gap: 6px; border-block-end: 1px solid var(--line); padding-block-end: 8px; }
+.rp-tab { appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--txt); border-radius: var(--radius-pill); padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+.rp-tab--on { background: var(--primary); border-color: var(--primary); color: #fff; }
+.rp-tab--on .rp-count { color: var(--heading); }
+.rp-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.rp-h3 { margin: 6px 0 2px; font-size: 13px; color: var(--txt-mute); }
+.rp-compl__cell { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--surface); display: grid; gap: 3px; align-content: start; }
+.rp-compl__cell h3 { margin: 0; font-size: 13px; color: var(--heading); }
+.rp-compl__big { font-size: 24px; font-weight: 700; color: var(--heading); font-variant-numeric: tabular-nums; }
+.rp-compl__big.rp-warn { color: var(--warning); }

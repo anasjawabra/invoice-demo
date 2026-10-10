@@ -8,6 +8,7 @@ export function RecordHeader({ crumbs = [], title, id = null, kind = null, statu
   const { L } = useL();
   // the browser tab names the record (history, bookmarks and screen readers announce it)
   useEffect(() => { const base = document.title.split(' | ').pop(); document.title = `${title} | ${base}`; }, [title]);
+  useEffect(() => { window.scrollTo(0, 0); }, []); // a record page opens at its top, whatever position the list had
   return (
     <header className="rp-head">
       <nav className="rp-crumbs" aria-label={L('Breadcrumb', 'مسار التنقل')}>

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import { useNavigate } from 'react-router-dom';
-import { RecordLink as Link } from '../utils/returnContext';
+import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
@@ -18,8 +18,10 @@ export default function Collection() {
   const { snapshot } = rev;
   const { L, B, ar, lang, short, count, sar } = useL();
   const nav = useNavigate();
-  const [cat, setCat] = useState('all');
-  const [detail, setDetail] = useState(null);
+  const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('collection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [cat, setCat] = useState(mem.cat ?? 'all');
+  const [detail, setDetail] = useState(mem.detail ?? null);
+  React.useEffect(() => { writeListMemory('collection', { cat, detail }); }, [cat, detail]);
   const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
   // the service ranks the whole population and returns the top of the list (never the entire set)
   const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100), [rev.data, scopeReq]);
@@ -32,6 +34,7 @@ export default function Collection() {
   const actionableN = nc.overdue.count + nc.partial.count;
   const maxAge = Math.max(nc.overdue.maxDaysOverdue || 0, nc.partial.maxDaysOverdue || 0);
   const totalN = wl?.total ?? 0;
+  useRestoreScroll(rows.length > 0);
 
   return (
     <div className="rv-page">

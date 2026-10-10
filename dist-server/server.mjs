@@ -2545,7 +2545,7 @@ var EXCLUSION_RULES = [
     approval: "approved",
     effectiveFrom: "2026-07-01",
     owner: { en: "Revenue data steward", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A" },
-    label: { en: "Under an open enforcement order", ar: "\u062A\u062D\u062A \u0623\u0645\u0631 \u062A\u0646\u0641\u064A\u0630 \u0645\u0641\u062A\u0648\u062D" },
+    label: { en: "Referred to enforcement (reported as a separate dimension)", ar: "\u0645\u062D\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 (\u064A\u064F\u0639\u0631\u0636 \u0643\u0628\u064F\u0639\u062F \u0645\u0646\u0641\u0635\u0644)" },
     note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: '\u062A\u0635\u062D\u064A\u062D \u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639: \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0645\u062D\u0627\u0644\u0629 \u0644\u0644\u062A\u0646\u0641\u064A\u0630 (\u0648\u062A\u0638\u0647\u0631 \u063A\u0627\u0644\u0628\u0627\u064B "\u0645\u0644\u063A\u0627\u0629" \u0641\u064A \u0627\u0644\u0645\u0635\u062F\u0631) \u062A\u064F\u062D\u062A\u0633\u0628 \u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629 \u0648\u0644\u064A\u0633\u062A \u0645\u0633\u062A\u0628\u0639\u062F\u0629. \u0645\u063A\u0644\u0642\u0629.' }
   }
 ];
@@ -2574,7 +2574,6 @@ var NONCOLLECTION_CATEGORIES = [
   "cancelled",
   "excluded",
   "objection",
-  "enforcement",
   "linkage_unresolved",
   "ineligible_referral",
   "partial",
@@ -2833,7 +2832,7 @@ function derive(ctx, i, asOfN) {
   const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  const cancelled = cd !== 0 && cd <= asOfN && link !== 2 && link !== 3;
+  const cancelled = cd !== 0 && cd <= asOfN && link < 2;
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -2872,7 +2871,6 @@ function derive(ctx, i, asOfN) {
     const isOverdue = daysOverdue > 0;
     const cs = st.cstat[i];
     if (flags & F.OBJECTION) cls = C.objection;
-    else if (link === 2 || link === 3) cls = C.enforcement;
     else if (flags & F.LEGACY_CANCELLED || st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue) cls = C.linkage_unresolved;
     else if (isOverdue && flags & F.MISSING_ID) cls = C.ineligible_referral;
     else if (isPartial) cls = C.partial;
@@ -3043,7 +3041,7 @@ function snapshot(st, req) {
     accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd);
     accStatus.add(dd.cls, dd);
     const viol = s === 1;
-    const enf = dd.link === 2 || pc > 0 && (() => {
+    const enf = dd.link >= 2 || pc > 0 && (() => {
       for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true;
       return false;
     })();
@@ -3139,7 +3137,7 @@ function snapshot(st, req) {
   const entLabel = (g) => labelOfEnt(g);
   const totals = per.tot.toAgg(0);
   const noncollection = {};
-  for (const c of NONCOLLECTION_CATEGORIES) {
+  for (const c of [...NONCOLLECTION_CATEGORIES, "enforcement"]) {
     const k = C[c];
     let te = -1;
     let tv = 0;
@@ -4354,6 +4352,8 @@ function rowOut(st, ctx, i, D) {
     contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null,
     contractStatus: CSTAT[st.cstat[i]],
     executionIdx: st.exec[i],
+    enforcement: ctx.mark ? ctx.ov.get(i)?.link || 0 : 0,
+    payStatus: D.payStatus,
     rules,
     nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null,
@@ -4364,6 +4364,11 @@ function rowOut(st, ctx, i, D) {
 }
 var SORT_KEYS = { issue: "issue", gross: "gross", outstanding: "outstanding", daysOverdue: "daysOverdue", collected: "collected", id: "id" };
 var cache = /* @__PURE__ */ new Map();
+var hashOf = (str) => {
+  let h = 5381;
+  for (let i = 0; i < str.length; i += 1) h = (h * 33 ^ str.charCodeAt(i)) >>> 0;
+  return `${str.length}.${h.toString(36)}`;
+};
 function lruGet(k) {
   if (!cache.has(k)) return null;
   const v = cache.get(k);
@@ -4402,8 +4407,11 @@ function candidates(st, req) {
     if (periodFilter && (st.issue[i] < sc.fromN || st.issue[i] > sc.toN)) return;
     if (cs >= 0 && st.cstat[i] !== cs) return;
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
-    if (f.exec === "yes" && st.exec[i] < 0 && !(ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2)) return;
-    if (f.exec === "no" && (st.exec[i] >= 0 || ctx.mark && (ctx.ov.get(i)?.link || 0) >= 2)) return;
+    if (f.exec && f.exec !== "all") {
+      const lk = ctx.mark ? ctx.ov.get(i)?.link || 0 : 0;
+      const ok = f.exec === "inexec" ? lk === 2 : f.exec === "suspended" ? lk === 3 : f.exec === "closed" ? lk === 4 : f.exec === "ever" ? lk >= 2 : f.exec === "none" ? lk < 2 : f.exec === "yes" ? st.exec[i] >= 0 || lk >= 2 : f.exec === "no" ? st.exec[i] < 0 && lk < 2 : true;
+      if (!ok) return;
+    }
     if (f.rule === "none" && st.exMask[i]) return;
     if (f.rule === "any" && !st.exMask[i]) return;
     if (ruleBit && !(st.exMask[i] & ruleBit)) return;
@@ -4447,7 +4455,7 @@ function list(st, req) {
   const size = Math.min(500, Math.max(1, Number(req.pageSize) || 50));
   const sortKey = SORT_KEYS[req.sort?.key] || "issue";
   const dir = req.sort?.dir === "asc" ? 1 : -1;
-  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && Object.keys(req.decisions).length, req.links && Object.keys(req.links).length, req.owner, sortKey, dir]);
+  const ck = JSON.stringify([epoch, req.scope, req.cfg, req.filters, req.decisions && hashOf(JSON.stringify(req.decisions)), req.links && hashOf(JSON.stringify(req.links)), req.owner, sortKey, dir]);
   let hit = lruGet(ck);
   if (!hit) {
     const { ctx: ctx2, cand, sums } = candidates(st, req);
@@ -4732,6 +4740,8 @@ function cardOf(st, ctx, ct) {
     annualValue: ct.annualValue,
     totalValue: ct.totalValue,
     schedule,
+    invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo),
+    // kept in the summary: which invoices belong to the contract (never inferred — taken from the contract's own schedule)
     totals: {
       contractValue: ct.totalValue,
       installments: schedule.length,

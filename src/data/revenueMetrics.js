@@ -86,7 +86,7 @@ export const EXCLUSION_RULES = [
     label: { en: 'Open objection / appeal', ar: 'اعتراض / استئناف مفتوح' },
     note: { en: 'Not confirmed in the latest meeting. Default OFF: an objection is a follow-up state, not an exclusion. Configurable.', ar: 'غير مؤكد في آخر اجتماع. الافتراضي: معطّل؛ الاعتراض حالة متابعة وليس استبعاداً. قابل للضبط.' } },
   { id: 'ENF-1', category: 'enforcement', version: 1, priority: 99, defaultEnabled: false, locked: true, basis: 'not_an_exclusion', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
-    label: { en: 'Under an open enforcement order', ar: 'تحت أمر تنفيذ مفتوح' },
+    label: { en: 'Referred to enforcement (reported as a separate dimension)', ar: 'محال إلى التنفيذ (يُعرض كبُعد منفصل)' },
     note: { en: 'Meeting correction: enforcement-referred invoices (often shown "cancelled" in the source) are counted UNCOLLECTED, not excluded. Locked off.', ar: 'تصحيح الاجتماع: الفواتير المحالة للتنفيذ (وتظهر غالباً "ملغاة" في المصدر) تُحتسب غير محصّلة وليست مستبعدة. مغلقة.' } }
 ];
 export const EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
@@ -221,7 +221,6 @@ export const NONCOLLECTION_CATEGORIES = [
   'cancelled',
   'excluded',
   'objection',
-  'enforcement',
   'linkage_unresolved',
   'ineligible_referral',
   'partial',
@@ -233,7 +232,7 @@ export const CATEGORY_LABELS = {
   cancelled: { en: 'Cancelled in the source (removed from the base)', ar: 'ملغاة في المصدر (خارج الأساس)' },
   excluded: { en: 'Excluded under a rule (review decision approved)', ar: 'مستبعدة وفق قاعدة (بقرار مراجعة معتمد)' },
   objection: { en: 'Under objection', ar: 'قيد الاعتراض' },
-  enforcement: { en: 'Under an open enforcement order (in execution or suspended)', ar: 'تحت أمر تنفيذ مفتوح (قيد التنفيذ أو موقوف)' },
+  enforcement: { en: 'Enforcement (a separate dimension — no longer a collection category)', ar: 'الإنفاذ (بُعد منفصل — لم يعد فئة تحصيل)' },
   linkage_unresolved: { en: 'Status or linkage unresolved', ar: 'حالة أو ربط غير محسوم' },
   ineligible_referral: { en: 'Ineligible for referral (incomplete data)', ar: 'غير مؤهلة للإحالة (بيانات ناقصة)' },
   partial: { en: 'Partially collected', ar: 'محصّلة جزئياً' },
@@ -250,7 +249,6 @@ export function classifyRecord(d, cfg) {
   if (d.excluded) return { primary: 'excluded', tags: d.reasons.length > 1 ? ['multi_reason'] : tags, collectible: null };
   if (d.outstanding <= 0) return { primary: 'collected', tags: d.overpayment > 0 ? ['overpaid'] : [], collectible: null };
 
-  const confirmedLinks = rec.enforcementLinks.filter((l) => l.status === 'confirmed');
   const isPartial = d.received > 0 && d.outstanding > 0;
   const isOverdue = d.daysOverdue > 0;
   if (isPartial) tags.push('partial');
@@ -269,10 +267,9 @@ export function classifyRecord(d, cfg) {
 
   let primary;
   if (rec.objection?.open) primary = 'objection';
-  else if (confirmedLinks.length) primary = 'enforcement';
+  // enforcement links never decide the category: it follows the financial / payment state (the enforcement dimension is reported apart)
   else if (
     rec.sourceStatus === 'cancelled' ||
-    hasCandidateLink ||
     (rec.contract.required && ['unlinked', 'unmatched'].includes(rec.contract.status) && isOverdue)
   ) primary = 'linkage_unresolved';
   else if (isOverdue && rec.missingFields.some((f) => REFERRAL_REQUIRED_FIELDS.includes(f))) primary = 'ineligible_referral';

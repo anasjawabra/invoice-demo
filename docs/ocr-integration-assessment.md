@@ -10,11 +10,13 @@
 | Python OCR libraries (EasyOCR etc.) | not installed | not assessed |
 | macOS Vision framework (`VNRecognizeTextRequest`, `ar-SA` + `en-US`, macOS 26.6.2) | present on this development Mac only | **assessed as evidence, not integrated** (host-specific; not deployable with the Node data service; not approved) |
 
-**Probe** (`docs/ocr-assessment/vision-probe.swift`, output in `vision-probe-output.txt`): the synthetic Arabic scanned sample `public/samples/enforcement-orders/ar-EN-5143-scanned.pdf` (2 image-only pages; no text layer — confirmed with `pdftotext` and `pdfimages`) was rendered to JPEG at 110 dpi and recognised.
+**Exploratory probe — one synthetic page, NOT an accuracy assessment and NOT an integrated capability** (`docs/ocr-assessment/vision-probe.swift`, output in `vision-probe-output.txt`): the synthetic Arabic scanned sample `public/samples/enforcement-orders/ar-EN-5143-scanned.pdf` (2 image-only pages; no text layer — confirmed with `pdftotext` and `pdfimages`) was rendered to JPEG at 110 dpi and recognised.
 
 * Arabic running text was recognised well (confidence 1.00 on headings, debtor line, order total «المبلغ الإجمالي»).
-* **The decisive finding — mixed-direction invoice numbers are unreliable.** The invoice number `INV-2025-0000054` came back as `0000054-2025-10` (reversed, «INV» lost, confidence 0.50); the order number as `رقم أمر التين ( 212` (0.30); an amount lost digits (`952,260.00` for `6,952,260.00`); **the whole table on page 2 was not recognised at all**.
+* **What this single sample suggests (not a measurement) — mixed-direction invoice numbers may be unreliable.** The invoice number `INV-2025-0000054` came back as `0000054-2025-10` (reversed, «INV» lost, confidence 0.50); the order number as `رقم أمر التين ( 212` (0.30); an amount lost digits (`952,260.00` for `6,952,260.00`); **the whole table on page 2 was not recognised at all**.
 * Consequence demonstrated in the app: importing this output as external OCR text yields only a weak serial (`0000054`) that matches **three invoices of three years** → *ambiguous*, not confirmed. The order stays unresolved until a person supplies the full invoice number from the page (typed), which then settles the weak reference. This is the intended behaviour: **OCR output on Arabic documents with embedded Latin invoice numbers cannot be trusted without human review**, and the amount (damaged here) is never used to match.
+
+Review of the earlier demo's OCR code: **`docs/old-ocr-review.md`** (it was entirely simulated; nothing reusable as OCR).
 
 ## What a production integration would need (concrete, to be decided and approved)
 
@@ -33,4 +35,5 @@
 
 * Digital Arabic PDF with a real text layer (`ar-EN-5013-digital.pdf`, made with LibreOffice): read across 2 pages and the table (3 invoice numbers of 3 types; contract and identity numbers set apart). Arabic *letters* come back with shaping/ordering artefacts, so **only pattern-identified numbers are relied on**; label-based classification of bare serials in Arabic text is not reliable.
 * Arabic scanned PDF (`ar-EN-5143-scanned.pdf`): no text layer → both pages flagged «NOT read»; external OCR text and typed references recorded with their true origin; links still require confirmation.
+* Flagging a scan as «not read» verifies the **fallback**, not OCR delivery.
 * **Not delivered:** OCR performed by this system; live Sanad retrieval; any claim about real-document accuracy.

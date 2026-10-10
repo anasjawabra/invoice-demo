@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
-import { RecordLink as Link } from '../utils/returnContext';
+import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
@@ -31,7 +31,9 @@ export default function Risk() {
   const rev = useRevenue();
   const { snapshot } = rev;
   const { L, B, ar, lang, short, count, sar } = useL();
-  const [code, setCode] = useState('all');
+  const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('risk', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const [code, setCode] = useState(mem.code ?? 'all');
+  React.useEffect(() => { writeListMemory('risk', { code }); }, [code]);
   const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
 
   // data-quality worklist and rule-based risk flags are computed by the data service over the whole scope; only the top rows travel
@@ -47,6 +49,7 @@ export default function Risk() {
   }, [radar, code, isRisk]);
   const items = useMemo(() => (isRisk ? riskItems : anomalyRows(code === 'all' ? all : byCode)), [isRisk, riskItems, all, byCode, code]);
   const filtered = items;
+  useRestoreScroll(items.length > 0);
   const counts = all?.counts || {};
   const radarCounts = radar ? Object.fromEntries(RISK_CATEGORIES.map((c) => [`risk_${c}`, radar.categories[c]?.count || 0])) : {};
   const codes = [...Object.keys(counts), ...Object.keys(radarCounts).filter((k) => radarCounts[k] > 0)].sort((a, b) => ((counts[b] ?? radarCounts[b]) || 0) - ((counts[a] ?? radarCounts[a]) || 0));

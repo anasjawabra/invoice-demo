@@ -401,3 +401,18 @@ export function recordFileRestored(store, en, docId, { by, at, orderStatus, name
   o = hist(o, { at, by, action: 'document_file_restored', detail: { docId, name: name || d.name, sha256: docId } });
   return { store: put(store, en, o), error: null };
 }
+
+// The matching-review EXCEPTIONS of an order: what a person still has to look at. An order can carry several (counted once per type).
+export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'unread_pages', 'amount_difference', 'contract_level_only'];
+export function orderExceptions(order) {
+  const comp = orderCompleteness(order); const out = [];
+  const contractLevel = !!order.contractNo && !(order.refs || []).length && !(order.links || []).length;
+  if (contractLevel) out.push('contract_level_only');
+  else if (comp.references.state === 'none') out.push('no_references');
+  if (comp.references.unresolved > 0) out.push('unresolved_references');
+  if (comp.references.proposed > 0) out.push('proposals_pending');
+  if ((order.links || []).some((l) => l.status === 'candidate' && unresolvedConflicts(l.conflicts, l.resolvedConflicts).length)) out.push('conflicts');
+  if (comp.extraction.state === 'incomplete') out.push('unread_pages');
+  if (comp.finance.state === 'short' || comp.finance.state === 'over') out.push('amount_difference');
+  return out;
+}

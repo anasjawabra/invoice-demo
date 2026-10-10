@@ -41,7 +41,7 @@ import { sourcesReport } from '../server/sourcesReport.js';
 import { sanadCases } from '../server/contracts.js';
 import { sadadOf } from '../server/names.js';
 import { resolveReferences, sameDebtorInvoices } from '../server/orderMatch.js';
-import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, unresolvedConflicts, orderCompleteness, recordFileRestored, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
+import { extractFromText, buildExtraction, splitOcrText, collectReferences, buildRows, reconcile, orderMatchState, buildEffectiveCases, invoiceStatusMap, invoiceEnforcement, proposeLink, confirmLink, rejectLink, removeLink, recordDocument, recordSupplementalExtraction, emptyStore, unresolvedConflicts, orderCompleteness, recordFileRestored, orderExceptions, EXCEPTION_TYPES, validStoreShape, unresolvedReferences } from '../src/data/orderMatching.js';
 import { caseSummary } from '../src/data/enforcementMatching.js';
 import { readPdfPages } from '../src/data/pdfText.js';
 import { enforcementOf, buildIndex, enforcementCounts, ordersOfContract, evidenceForInvoice } from '../src/data/relations.js';
@@ -962,16 +962,25 @@ await test('Link lifecycle: a proposal has NO effect; only a confirmed link refl
   assert.ok(validStoreShape(store)); assert.equal(validStoreShape({ v: 1, orders: { x: { links: { a: { invoiceId: 'a', status: 'weird' } }, history: [] } } }), false);
 });
 
-await test('Engine: only a CONFIRMED link (order in execution / suspended) changes the invoice category; a proposal or a closed order does not; the payment status is separate and never changes', () => {
+await test('Engine: the collection category and the payment status follow the FINANCIAL state only — an enforcement link (open, suspended, closed or merely proposed) never moves an invoice between uncollected categories; enforcement is its own dimension', () => {
   const q = orderOf('single'); const i = q.covers[0]; const id = idOfInv(i); const run = (links) => detail(st, i, makeCtx(st, { cfg, links }));
-  const base = run({}); assert.ok(!base.derived.cancelled);
-  const same = (x) => assert.deepEqual([x.derived.payStatus, x.derived.outstanding, x.derived.collected], [base.derived.payStatus, base.derived.outstanding, base.derived.collected]);
-  for (const s of ['candidate', 'closed']) { const x = run({ [id]: s }); assert.equal(JSON.stringify(x.cls), JSON.stringify(base.cls), s); same(x); }
-  for (const s of ['open', 'suspended', 'confirmed']) { const x = run({ [id]: s }); assert.equal(x.cls.key || x.cls.primary || JSON.stringify(x.cls), (run({ [id]: 'open' }).cls.key || run({ [id]: 'open' }).cls.primary || JSON.stringify(run({ [id]: 'open' }).cls)), s); assert.notEqual(JSON.stringify(x.cls), JSON.stringify(base.cls), `${s} changes the category`); same(x); }
-  const sn = (links) => snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all', status: 'enforcement' }, cfg, links }).totals.count;
-  assert.equal(sn({ [id]: 'candidate' }), sn({}), 'a proposal does not move any total'); assert.equal(sn({ [id]: 'closed' }), sn({})); assert.equal(sn({ [id]: 'open' }), sn({}) + 1); assert.equal(sn({ [id]: 'suspended' }), sn({}) + 1);
-  assert.ok(snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
-  assert.equal(run({}).derived.payStatus, 'overdue'); assert.equal(list(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, filters: { exec: 'yes' }, links: { [id]: 'candidate' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), false, 'a proposal is not an execution');
+  const base = run({});
+  for (const s of ['candidate', 'closed', 'open', 'suspended', 'confirmed']) {
+    const x = run({ [id]: s }); assert.equal(JSON.stringify(x.cls), JSON.stringify(base.cls), `${s}: category unchanged`);
+    assert.deepEqual([x.derived.payStatus, x.derived.outstanding, x.derived.collected], [base.derived.payStatus, base.derived.outstanding, base.derived.collected], `${s}: payment figures unchanged`);
+  }
+  const sc = { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const uncollected = (links) => snapshot(st, { scope: sc, cfg, links }).stock.netUncollected;
+  for (const s of ['candidate', 'closed', 'open', 'suspended']) assert.equal(uncollected({ [id]: s }), uncollected({}), `${s}: net uncollected unchanged`);
+  const cat = (links, status) => snapshot(st, { scope: { ...sc, status }, cfg, links }).totals.count;
+  assert.equal(cat({ [id]: 'open' }, 'overdue'), cat({}, 'overdue'), 'still in the overdue view while an order is open'); assert.equal(cat({ [id]: 'closed' }, 'overdue'), cat({}, 'overdue'), 'closing the order does not remove an unpaid invoice from the uncollected view'); assert.equal(cat({ [id]: 'open' }, 'enforcement'), 0, 'enforcement is no longer a collection category');
+  const e = (links) => snapshot(st, { scope: sc, cfg, links }).stock.enforcement; assert.deepEqual([e({ [id]: 'open' }).inExecution.count, e({ [id]: 'suspended' }).suspended.count, e({ [id]: 'closed' }).closedOnly.count], [1, 1, 1], 'the dimension is reported apart, suspended separately from in-execution');
+  assert.ok(snapshot(st, { scope: sc, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
+  // an invoice cancelled in the source but referred to enforcement stays an uncollected invoice — also after the order closes
+  let ci = -1; for (let k = 0; k < st.nGen; k += 1) if (st.cancelDay[k] && st.cancelDay[k] <= dayNum(TODAY)) { ci = k; break; }
+  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed']) assert.notEqual(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: a confirmed referral keeps the invoice uncollected`); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'candidate' } })).derived.payStatus, 'cancelled', 'a proposal changes nothing'); }
+  assert.equal(list(st, { scope: sc, cfg, filters: { exec: 'inexec' }, links: { [id]: 'open' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), true);
+  for (const [f, s2, expect] of [['suspended', 'suspended', true], ['inexec', 'suspended', false], ['closed', 'closed', true], ['ever', 'closed', true], ['none', 'closed', false], ['ever', 'candidate', false]]) assert.equal(list(st, { scope: sc, cfg, filters: { exec: f }, links: { [id]: s2 }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), expect, `filter ${f} with ${s2}`);
 });
 
 await test('Backup: enforcement work (links, document records, extracted references, history) is included and validated; an older backup never removes it; the PDF bytes are not part of the file', () => {
@@ -1082,6 +1091,21 @@ await test('Backup restore with missing PDFs: the extracted references, page evi
   assert.ok(!('bytes' in eff.docs[0]) && JSON.stringify(b).indexOf('%PDF') < 0, 'the backup holds no PDF content');
   const r = recordFileRestored(restored, q.enforceNum, 'f'.repeat(64), { ...o, name: 'order.pdf' }); assert.equal(r.error, null); assert.ok(r.store.orders[q.enforceNum].history.some((h) => h.action === 'document_file_restored'));
   assert.equal(recordFileRestored(restored, q.enforceNum, 'e'.repeat(64), o).error, 'document_not_found', 'a different identity is not associated');
+});
+
+await test('Enforcement management: matching-review exceptions are typed and counted per order; a contract-level request is an exception of its own and is never spread over invoices', () => {
+  const ex = (arch, nth = 0) => orderExceptions(buildEffectiveCases([caseOf(orderOf(arch, nth))], emptyStore())[0]);
+  assert.ok(ex('amount_discrepancy').includes('amount_difference')); assert.ok(ex('multi_no_refs').includes('no_references')); assert.ok(ex('multi_typo_ref').includes('unresolved_references')); assert.ok(ex('serial_ambiguous').includes('unresolved_references'));
+  assert.deepEqual(ex('multi_exact'), [], 'a fully referenced, reconciled order has no exception');
+  const contractLevel = feedCases.find((c) => c.contractNo && !c.refs.length); if (contractLevel) assert.deepEqual(orderExceptions(buildEffectiveCases([contractLevel], emptyStore())[0]), ['contract_level_only']);
+  const prop = { enforceNum: 'EN-P', amount: 5, links: [{ invoiceId: 'INV-Z', status: 'candidate', gross: 5, conflicts: ['debtor_mismatch'], resolvedConflicts: [] }], refs: [{ kind: 'invoice_no', value: 'INV-Z' }] };
+  const e = orderExceptions(prop); assert.ok(e.includes('conflicts') && e.includes('proposals_pending')); assert.ok(e.every((k) => EXCEPTION_TYPES.includes(k)));
+});
+
+await test('Arabic presentation-form text (as a PDF text layer returns it) is normalised before labels are looked for; the three sample invoice PDFs of the first demo are digital PDFs and are read', async () => {
+  assert.deepEqual(extractFromText('ﺭﻗﻢ ﺍﻟﻔﺎﺗﻮﺭﺓ ١٢٣٤٥٦٧').map((r) => [r.kind, r.value]), [['invoice_serial', '1234567']], 'presentation forms of «رقم الفاتورة» are recognised as an invoice label');
+  const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec);
+  const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync('public/samples/invoice_normal_alrajhi.pdf')), lib); const ex = buildExtraction(pages, 'text_layer'); assert.deepEqual(ex.refs.map((r) => r.value), ['INV-2026-0731']); assert.equal(ex.pages[0].needsOcr, false);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

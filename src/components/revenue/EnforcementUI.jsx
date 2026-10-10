@@ -4,12 +4,12 @@ import { useL } from '../../utils/bi';
 // Shared labels and chips for enforcement orders — used by the order list, the order page and the invoice view.
 export const CURRENT_ENFORCEMENT_LABEL = {
   in_execution: { en: 'An order is in execution', ar: 'أمر قيد التنفيذ الآن', cls: 'rv-cat--enforcement' },
-  suspended: { en: 'An order is suspended', ar: 'أمر موقوف', cls: 'rv-cat--partial' },
+  suspended: { en: 'Only suspended orders — not proceeding', ar: 'أوامر موقوفة فقط — غير ماضية', cls: 'rv-cat--partial' },
   none: { en: 'No open order', ar: 'لا أمر مفتوح', cls: '' }
 };
 export const ORDER_STATUS_LABEL = {
   open: { en: 'In execution', ar: 'قيد التنفيذ', cls: 'rv-cat--enforcement' },
-  suspended: { en: 'Suspended', ar: 'موقوف', cls: 'rv-cat--partial' },
+  suspended: { en: 'Suspended (not proceeding)', ar: 'موقوف (غير ماضٍ)', cls: 'rv-cat--partial' },
   closed: { en: 'Closed', ar: 'مغلق', cls: 'rv-cat--excluded' }
 };
 export const PAY_STATUS_LABEL = {

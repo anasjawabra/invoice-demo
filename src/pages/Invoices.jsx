@@ -158,8 +158,8 @@ export default function Invoices() {
         <select id="f_contract" className="select" aria-label={bi.L('Contract', 'العقد')} style={selStyle} value={contractFilter} onChange={(e) => setContractFilter(e.target.value)}>
           <option value="all">{bi.L('Any contract state', 'أي حالة عقد')}</option><option value="linked">{bi.L('Contract linked', 'عقد مرتبط')}</option><option value="unmatched">{bi.L('Contract not matched', 'لم تتم مطابقة العقد')}</option><option value="confirmed_none">{bi.L('No contract (confirmed)', 'بدون عقد (مؤكد)')}</option><option value="not_applicable">{bi.L('Not a contract invoice', 'ليست فاتورة عقد')}</option>
         </select>
-        <select id="f_exec" className="select" aria-label={bi.L('Execution', 'التنفيذ')} style={selStyle} value={execFilter} onChange={(e) => setExecFilter(e.target.value)}>
-          <option value="all">{bi.L('Execution: any', 'التنفيذ: أي')}</option><option value="yes">{bi.L('With execution', 'بتنفيذ')}</option><option value="no">{bi.L('No execution recorded', 'دون تنفيذ مسجل')}</option>
+        <select id="f_exec" className="select" aria-label={bi.L('Enforcement', 'الإنفاذ')} style={selStyle} value={execFilter} onChange={(e) => setExecFilter(e.target.value)}>
+          <option value="all">{bi.L('Enforcement: any', 'الإنفاذ: أي')}</option><option value="inexec">{bi.L('An order in execution', 'أمر قيد التنفيذ')}</option><option value="suspended">{bi.L('Suspended (not proceeding)', 'موقوف (غير ماضٍ)')}</option><option value="closed">{bi.L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')}</option><option value="ever">{bi.L('Ever referred (any order status)', 'سبقت إحالتها (أي حالة أمر)')}</option><option value="none">{bi.L('Never referred', 'لم تُحَل إلى التنفيذ')}</option>
         </select>
         <label className="rv-inline"><input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)} /> {bi.L('Ignore the period above', 'تجاهل الفترة أعلاه')}</label>
         {activeFilterCount > 0 && (
@@ -237,6 +237,7 @@ export default function Invoices() {
                   <td style={{ fontSize: 12 }}>{r.statusRawTahseel || '—'}{r.statusRawEfaa && r.statusRawEfaa !== r.statusRawTahseel && <div className="muted">{bi.L('Efaa', 'إيفاء')}: {r.statusRawEfaa}</div>}</td>
                   <td>
                     <span className={`rv-cat rv-cat--${r.cls}`}>{r.cls === 'collected' ? (lang === 'ar' ? 'محصّلة' : 'Collected') : pickBi(CATEGORY_LABELS[r.cls], lang)}</span>
+                    {r.enforcement >= 2 && <span className={`rv-tag${r.enforcement === 3 ? ' rv-tag--warn' : ''}`} style={{ marginInlineStart: 4 }} title={bi.L('Enforcement is a separate dimension: it does not change the payment state', 'الإنفاذ بُعد منفصل: لا يغيّر حالة السداد')}>{r.enforcement === 2 ? bi.L('order in execution', 'أمر قيد التنفيذ') : r.enforcement === 3 ? bi.L('order suspended', 'أمر موقوف') : bi.L('referred before', 'سبقت إحالتها')}</span>}
                     {r.tags.includes('amount_conflict') && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'تعارض مبلغ' : 'amount conflict'}</span>}
                     {r.tags.includes('contract_unmatched') && <span className="rv-tag rv-tag--warn" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'عقد غير مطابق' : 'contract not matched'}</span>}
                     {r.tags.includes('exclusion_pending') && <span className="rv-tag" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'استبعاد قيد المراجعة' : 'exclusion pending'}</span>}

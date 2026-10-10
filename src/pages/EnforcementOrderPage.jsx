@@ -42,7 +42,7 @@ export default function EnforcementOrderPage() {
   const { enforceNum: raw } = useParams(); const enforceNum = decodeURIComponent(raw || '');
   const rev = useRevenue();
   const { L, B, ar, sar } = useL();
-  const ret = useReturnTarget({ path: ordersListPath, label: L('Enforcement orders', 'إدارة أوامر التنفيذ') });
+  const ret = useReturnTarget({ path: ordersListPath, label: L('Enforcement management', 'إدارة التنفيذ') });
   const c = rev.cases.find((x) => x.enforceNum === enforceNum);
   const [msg, setMsg] = useState(null); const [notes, setNotes] = useState({}); const [debtor, setDebtor] = useState(null); const [tick, setTick] = useState(0); const [focus, setFocus] = useState(null);
   const docs = c?.docs || []; const links = c?.links || [];
@@ -61,8 +61,8 @@ export default function EnforcementOrderPage() {
   const byInvoice = useMemo(() => { const m = new Map(); for (const r of resolved?.results || []) for (const k of r.candidates) if (!m.has(k.invoiceId)) m.set(k.invoiceId, k); return m; }, [resolved]);
   const files = useDocFiles(docs.map((d) => d.id), tick);
 
-  const crumbs = [{ label: L('Dashboards and reports', 'لوحة المعلومات والتقارير'), to: '/insights' }, { label: L('Enforcement orders', 'إدارة أوامر التنفيذ'), to: ordersListPath }, { label: enforceNum, ltr: true }];
-  if (!c) return <div className="rp"><RecordHeader crumbs={crumbs} title={enforceNum} ret={ret} /><RecordState notFound kind={L('Enforcement order', 'أمر التنفيذ')} backTo={{ path: ordersListPath, label: L('Back to the enforcement orders', 'العودة إلى أوامر التنفيذ') }} /></div>;
+  const crumbs = [{ label: L('Dashboards and reports', 'لوحة المعلومات والتقارير'), to: '/insights' }, { label: L('Enforcement management', 'إدارة التنفيذ'), to: '/enforcement' }, { label: enforceNum, ltr: true }];
+  if (!c) return <div className="rp"><RecordHeader crumbs={crumbs} title={enforceNum} ret={ret} /><RecordState notFound kind={L('Enforcement order', 'أمر التنفيذ')} backTo={{ path: ordersListPath, label: L('Back to enforcement management', 'العودة إلى إدارة التنفيذ') }} /></div>;
 
   const status = orderStatusOf(c); const comp = orderCompleteness(c); const rec = comp.reconciliation;
   const say = (res, okEn, okAr) => setMsg(res.ok ? { ok: true, text: L(okEn, okAr) } : { ok: false, text: ERR[res.error] ? B(ERR[res.error]) : L('Could not record the change.', 'تعذّر تسجيل التغيير.') });

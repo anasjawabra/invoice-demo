@@ -28,6 +28,7 @@ export default function ContractPage() {
   }
   const t = c.totals; const invoiceIds = c.schedule.map((p) => p.invoiceNo).filter(Boolean);
   const orders = ordersOfContract(no, invoiceIds, rev.cases);
+  const direct = orders.filter((o) => o.contractLevel); const referredIds = invoiceIds.filter((id) => idx.get(id)?.referredEver);
   return (
     <div className="rp">
       <RecordHeader crumbs={crumbs} ret={ret} kind={L('Contract', 'عقد')} title={c.contractNo}
@@ -42,6 +43,23 @@ export default function ContractPage() {
       <section className="rp-section"><Facts items={[
         { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : c.tenantEn }, { k: L('Amanah', 'الأمانة'), v: amanahName(c.amanahEn, ar) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) }, { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }
       ]} /></section>
+
+      <Section id="relation" title={L('Enforcement relationship — two different facts', 'علاقة الإنفاذ — حقيقتان مختلفتان')}>
+        <div className="rp-compl">
+          <div>
+            <h3>{L('1 · The contract itself', '1 · العقد نفسه')}</h3>
+            <div className={`rp-compl__v ${direct.length ? 'rp-warn' : ''}`}>{direct.length ? L(`Directly referred by ${direct.length} order(s)`, `محال مباشرة بـ${direct.length} أمر`) : L('Not directly referred', 'غير محال مباشرة')}</div>
+            <div className="rp-compl__d">{direct.length ? direct.map((o) => <span key={o.enforceNum}><RecordLink to={orderPath(o.enforceNum)} dir="ltr">{o.enforceNum}</RecordLink> <OrderStatusChip status={o.orderStatus} /> </span>) : L('No Sanad order names this contract number.', 'لا أمر في سند يذكر رقم هذا العقد.')}</div>
+            <div className="rp-compl__d">{L('Source evidence: the Sanad request carries this contract number. It does not say which invoices are covered.', 'دليل المصدر: طلب سند يحمل رقم هذا العقد. ولا يحدد أي فواتير يشمل.')}</div>
+          </div>
+          <div>
+            <h3>{L('2 · The contract’s invoices', '2 · فواتير العقد')}</h3>
+            <div className={`rp-compl__v ${referredIds.length ? 'rp-warn' : ''}`}>{L(`${referredIds.length} of ${invoiceIds.length} invoiced installments carry a confirmed order`, `${referredIds.length} من ${invoiceIds.length} دفعات مفوترة عليها أمر مؤكد`)}</div>
+            <div className="rp-compl__d">{L('Counted per invoice from confirmed links only. The others are not referred.', 'تُعدّ لكل فاتورة بالروابط المؤكدة فقط. والبقية غير محالة.')}</div>
+          </div>
+        </div>
+        <div className="rp-limit">{L('One does not imply the other: a contract-level order does not mean all its invoices are referred, and referred invoices do not mean the contract itself is referred.', 'إحداهما لا تعني الأخرى: الأمر على مستوى العقد لا يعني أن كل فواتيره محالة، والفواتير المحالة لا تعني أن العقد نفسه محال.')}</div>
+      </Section>
 
       <Section id="invoices" title={L('Invoices and payment schedule', 'الفواتير وجدول الدفعات')} count={invoiceIds.length}
         note={<div className="rp-limit">{L('The repeated balance column is the contract balance AFTER each payment, not an independent amount — it is never summed.', 'عمود الرصيد المتكرر هو رصيد العقد بعد كل دفعة وليس مبلغاً مستقلاً — ولا يُجمع أبداً.')}</div>}>
