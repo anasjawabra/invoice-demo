@@ -617,13 +617,13 @@ html[dir='rtl'] .select {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 820px;
-  background: var(--surface);
+  background: var(--surface); /* fits its container: cells wrap instead of the table scrolling sideways */
 }
 
 .table th,
 .table td {
-  padding: 12px 14px;
+  padding: 10px 10px;
+  overflow-wrap: break-word;
   border-bottom: 1px solid var(--line);
   text-align: start;
   vertical-align: middle;
@@ -1567,3 +1567,23 @@ main h1[tabindex="-1"]:focus { outline: none; }
 
 /* Phones: the floating assistant buttons must never cover the last lines of a page */
 @media (max-width: 720px) { main { padding-bottom: 96px; } }
+
+/* --------------------------------------------------------------------------
+   Tables that cannot fit the page (src/utils/fitTables.js): one card per row, every cell labelled with its column header.
+   The real header row stays in the DOM, visually hidden, for assistive technology.
+   -------------------------------------------------------------------------- */
+table.is-stacked { display: block; width: 100%; min-width: 0; border: 0; background: transparent; }
+table.is-stacked thead { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+table.is-stacked tbody, table.is-stacked tfoot { display: block; }
+table.is-stacked tr { display: block; margin: 0 0 10px; padding: 4px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table.is-stacked td { display: grid; grid-template-columns: minmax(84px, 38%) minmax(0, 1fr); gap: 4px 10px; align-items: start; padding: 6px 12px; border: 0; text-align: start; white-space: normal; }
+table.is-stacked td.num, table.is-stacked td[dir='ltr'] { text-align: start; }
+html[dir='rtl'] table.is-stacked td { direction: rtl; } /* a cell that forces LTR for its figure must not flip the label/value grid */
+html[dir='ltr'] table.is-stacked td { direction: ltr; }
+table.is-stacked td::before { grid-column: 1; grid-row: 1; content: attr(data-label); color: var(--txt-mute); font-size: 12px; font-weight: 700; }
+table.is-stacked td > * { grid-column: 2; justify-self: start; max-width: 100%; } /* several children (a chip and a note) stack in the value column; chips keep their own width */
+table.is-stacked td:not([data-label])::before, table.is-stacked td[data-span-all]::before { content: none; }
+table.is-stacked td:not([data-label]), table.is-stacked td[data-span-all] { display: block; }
+table.is-stacked td:empty { display: none; }
+table.is-stacked td *, table.is-stacked .rv-tag, table.is-stacked .rv-cat { white-space: normal; overflow-wrap: anywhere; } /* nothing inside a card may force it wider */
+table.is-stacked tr:hover td { background: transparent; }

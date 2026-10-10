@@ -134,7 +134,7 @@ export default function Noncollection() {
         {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" style={{ marginBottom: 8 }}>{msg.text}</div>}
         {!canReview && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}>{L('Your role is read-only: you can inspect exclusions but not approve or reject them.', 'دورك للقراءة فقط: يمكنك الاطلاع على الاستبعادات دون اعتمادها أو رفضها.')}</div>}
         <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table" style={{ minWidth: 880 }}>
+          <table className="rv-table">
             <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Category · rule', 'الفئة · القاعدة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Evidence', 'الدليل')}</th><th>{L('Review', 'المراجعة')}</th><th>{L('Effective · reassessment', 'السريان · إعادة التقييم')}</th><th>{L('Action', 'إجراء')}</th></tr></thead>
             <tbody>
               {register.length ? register.flatMap((d0) => {
@@ -162,7 +162,7 @@ export default function Noncollection() {
                       <td dir="auto" style={{ maxWidth: 260 }}>{B(ex.evidence)}{ex.sources?.length > 0 && <div className="muted" style={{ fontSize: 12 }}>{ex.sources.map((x) => `${x.system}: ${x.field} = ${x.value}`).join(' · ')}</div>}</td>
                       <td><span className={`rv-cat ${ex.reviewStatus === 'approved' ? 'rv-cat--not_due' : ex.reviewStatus === 'rejected' ? 'rv-cat--overdue' : 'rv-cat--partial'}`}>{B(REVIEW_LABEL[ex.reviewStatus] || REVIEW_LABEL.pending)}</span><div style={{ fontSize: 12 }} className="muted"><ReviewerText r={ex.reviewer} /> {ex.reviewDate ? <span dir="ltr">· {ex.reviewDate}</span> : null}{hist.length > 0 ? ` · ${hist.length} ${L('decision(s)', 'قرار')}` : ''}</div></td>
                       <td style={{ fontSize: 12 }}><span dir="ltr">{ex.effectiveFrom || '—'} → {ex.effectiveTo || L('open', 'مفتوح')}</span><div className="muted">{ex.reassessment === 'scheduled_annual' ? L('Reassess annually', 'إعادة تقييم سنوية') : L('Reassessment not started', 'لم تبدأ إعادة التقييم')}</div></td>
-                      <td style={{ minWidth: 190 }}>
+                      <td>
                         <input className="input" style={{ width: '100%', padding: '5px 8px', marginBottom: 5 }} placeholder={L('Review note', 'ملاحظة المراجعة')} aria-label={L('Review note', 'ملاحظة المراجعة')} value={note[`${d.rec.id}|${ex.ruleId}`] || ''} onChange={(e) => setNote({ ...note, [`${d.rec.id}|${ex.ruleId}`]: e.target.value })} disabled={!canReview} />
                         <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                           <button type="button" className="btn btn-sm btn-primary" disabled={!canReview || ex.reviewStatus === 'approved'} onClick={() => decide(d.rec.id, 'approved', ex.ruleId)}>{L('Approve', 'اعتماد')}</button>
@@ -190,7 +190,7 @@ export default function Noncollection() {
         </div>
         {snapshot.unapprovedRulesApplied.length > 0 && <div className="rv-callout rv-callout--warn" style={{ marginBottom: 8 }}><b>{B(RULE_APPROVAL_LABEL.unapproved)}</b> — {L(`${short(T.exclusionsUnapproved)} of the ${short(T.exclusions)} excluded rests on unapproved rules (${snapshot.unapprovedRulesApplied.join(', ')}). Approved-rule exclusions: ${short(T.exclusionsApproved)}.`, `${short(T.exclusionsUnapproved)} من ${short(T.exclusions)} مستبعد يستند إلى قواعد غير معتمدة (${snapshot.unapprovedRulesApplied.join('، ')}). استبعاد القواعد المعتمدة: ${short(T.exclusionsApproved)}.`)}</div>}
         <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table" style={{ minWidth: regOpen ? 1180 : 760 }}>
+          <table className="rv-table">
             <thead><tr>
               <th>{L('On', 'تفعيل')}</th><th>{L('Code · reason', 'الرمز · السبب')}</th><th>{L('Approval', 'الاعتماد')}</th><th className="num">{L('Priority', 'الأولوية')}</th>
               <th className="num">{L('Primary', 'رئيسي')}</th><th className="num">{L('Secondary', 'ثانوي')}</th><th className="num">{L('Pending', 'معلّق')}</th><th className="num">{L('Amount', 'المبلغ')}</th>
@@ -205,7 +205,7 @@ export default function Noncollection() {
                   <td className="num" dir="ltr">{r.locked ? '—' : r.priority}</td>
                   <td className="num">{r.primaryCount}</td><td className="num">{r.secondaryCount}</td><td className="num">{r.pendingCandidates}</td><td className="num">{r.primaryAmount ? short(r.primaryAmount) : '—'}</td>
                   {regOpen && (<>
-                    <td style={{ fontSize: 12, minWidth: 220 }} dir="auto">{B(r.definition)}<div className="muted">{B(r.note)}</div></td>
+                    <td style={{ fontSize: 12 }} dir="auto">{B(r.definition)}<div className="muted">{B(r.note)}</div></td>
                     <td style={{ fontSize: 12 }} dir="auto">{(r.sources || []).map((x) => B(x)).join(' · ')}<div className="muted">{(r.fields || []).join('، ')}</div></td>
                     <td dir="ltr" style={{ fontSize: 12 }}>{r.effectiveFrom || L('not in force', 'غير سارية')}</td>
                     <td style={{ fontSize: 12 }}>{B(r.scope)}</td>

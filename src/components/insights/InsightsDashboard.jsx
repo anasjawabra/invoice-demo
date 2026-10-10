@@ -89,13 +89,13 @@ export default function InsightsDashboard() {
         <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : L('لا توجد مقارنة: الفترة السابقة خارج نطاق البيانات.', 'No comparison: the previous period is outside the data.')}</div>
       </div>
 
-      <div className="st-grid">
+      <div className="st-grid st-grid--wide-first">
         <div className="card st-card">
           <b>{L('الأمانات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
           <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>
-        <div style={{ display: 'grid', gap: 14, alignContent: 'start' }}>
+        <div className="st-pair">
           <div className="card st-card">
             <b>{L('مصادر الإيراد', 'Revenue sources')}</b>
             <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('مصادر الإيراد', 'Revenue sources')}><thead><tr><th>{L('المصدر', 'Source')}</th><th>{L('معدل التحصيل', 'Rate')}</th>{comparable && <th>{L('السابق', 'Prior')}</th>}<th>{L('الفواتير', 'Invoices')}</th></tr></thead>

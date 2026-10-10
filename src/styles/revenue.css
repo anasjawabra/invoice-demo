@@ -325,17 +325,19 @@
 [data-theme='dark'] .rv-cause--hypothesis { color: #FEC84B; }
 
 .rv-table-wrap { position: relative; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.rv-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 560px; }
-.rv-table th { text-align: start; font-size: 12px; color: var(--txt-mute); font-weight: 700; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--bg-0); white-space: nowrap; }
-.rv-table td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rv-table { width: 100%; border-collapse: collapse; font-size: 13px; } /* fits its container: headers and text wrap; only numbers stay on one line */
+.rv-table th { text-align: start; font-size: 12px; color: var(--txt-mute); font-weight: 700; padding: 9px 10px; border-bottom: 1px solid var(--line); background: var(--bg-0); vertical-align: bottom; }
+.rv-table td { padding: 9px 10px; overflow-wrap: break-word; border-bottom: 1px solid var(--line); vertical-align: top; }
 .rv-table tr:last-child td { border-bottom: 0; }
-.rv-table td.num, .rv-table th.num { text-align: end; font-family: var(--num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rv-table td.num, .rv-table th.num { text-align: end; font-family: var(--num); font-variant-numeric: tabular-nums; }
+/* a figure never breaks inside its digits (commas do not wrap); when the table is tight the unit drops to a second line instead of the table scrolling sideways */
 .rv-table tr[data-clickable='true'] { cursor: pointer; }
 .rv-table tr[data-clickable='true']:hover { background: rgba(27, 131, 84, 0.05); }
 .rv-table a:not(.btn) { color: var(--secondary); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; min-height: 24px; }
 .rv-table a.btn-primary { color: #fff; } /* a button that is a link keeps its button text colour (was blue on green = 1.15:1) */
 
 .rv-cat { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; border: 1px solid var(--line-strong); color: var(--txt-dim); background: var(--bg-0); white-space: nowrap; }
+.rv-table .rv-cat { white-space: normal; text-align: center; border-radius: 12px; } /* a status chip wraps inside a table instead of widening it */
 .rv-cat--overdue { color: var(--danger-text); border-color: rgba(240, 68, 56, 0.4); background: rgba(240, 68, 56, 0.08); }
 .rv-cat--partial { color: #B54708; border-color: rgba(181, 71, 8, 0.4); background: rgba(181, 71, 8, 0.08); }
 .rv-cat--objection { color: #6C737F; border-color: rgba(108, 115, 127, 0.4); background: rgba(108, 115, 127, 0.08); }
@@ -567,6 +569,10 @@
 .st-section__title small { font-size: 12px; font-weight: 500; color: var(--txt-mute); }
 .st-card { padding: 16px; display: grid; gap: 10px; }
 .st-grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.st-grid--wide-first > :first-child { grid-column: 1 / -1; }
+.st-pair { display: grid; gap: 14px; align-items: start; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.st-pair > .st-card { align-content: start; }
+.st-grid--wide-first > .st-pair { grid-column: 1 / -1; }
 .st-skel { border-radius: 12px; background: linear-gradient(90deg, color-mix(in srgb, var(--line) 60%, transparent), color-mix(in srgb, var(--line) 25%, transparent), color-mix(in srgb, var(--line) 60%, transparent)); background-size: 200% 100%; animation: st-sk 1.4s ease-in-out infinite; }
 @keyframes st-sk { from { background-position: 100% 0; } to { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .st-skel { animation: none; } }
@@ -618,3 +624,10 @@
 /* Planning: the reconciliation bridge wraps its long row labels instead of running off the card */
 #bases .bridge th, #bases .bridge td { white-space: normal; }
 #bases .bridge td { min-width: 96px; }
+
+/* tighter tables on laptop and tablet widths, so a 12-column list still fits without stacking */
+@media (max-width: 1100px) {
+  .rv-table th, .rv-table td, .table th, .table td { padding-inline: 6px; }
+  .row-view__link { font-size: 0; } /* the row is clickable and the header names the action: only the arrow stays */
+  .row-view__chev { font-size: 18px; }
+}

@@ -10,6 +10,7 @@ import { riyadhToday, DEMO_TODAY, IS_TIME_TRAVEL } from '../data/clock';
 import { ToastProvider, useToast } from './Toast';
 import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
+import { useFitTables } from '../utils/fitTables';
 
 function Icon({ name }) {
   // Minimal inline icons (no external deps)
@@ -136,6 +137,7 @@ function LayoutInner() {
     t = window.setTimeout(move, 30);
     return () => window.clearTimeout(t);
   }, [loc.pathname]);
+  useFitTables(); // a table that cannot fit the page becomes stacked cards instead of scrolling sideways
   useEffect(() => { document.addEventListener('keydown', trapTab); return () => document.removeEventListener('keydown', trapTab); }, []);
 
   const org = user?.org || ORGS[0];

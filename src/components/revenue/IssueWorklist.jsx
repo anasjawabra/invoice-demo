@@ -67,7 +67,7 @@ export default function IssueWorklist({ memKey, anomalyCodes = [], riskCats = []
           {codes.map((c) => <button key={c} type="button" className={`btn btn-sm ${code === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={code === c} onClick={() => setCode(c)}>{B(CODE_LABEL[c] || { en: c, ar: c })} · {count(counts[c] ?? radarCounts[c])}</button>)}
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table" style={{ minWidth: 820 }}>
+          <table className="rv-table">
             <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th className="num">{L('Billed (SAR)', 'المفوتر (ريال)')}</th><th>{L('Collection', 'التحصيل')}</th><th>{L('Findings', 'النتائج')}</th><th><span className="sr-only">{L('Action', 'إجراء')}</span></th></tr></thead>
             <tbody>
               {items.length ? items.map((it) => (

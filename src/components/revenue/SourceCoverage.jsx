@@ -26,7 +26,7 @@ export default function SourceCoverage() {
         <span className={`rv-badge rv-badge--sm ${ok ? 'rv-badge--good' : 'rv-badge--bad'}`}>{ok ? L('Integrity checks pass', 'فحوص السلامة سليمة') : L('Integrity check failed', 'فشل فحص سلامة')}</span>
       </div>
       <div className="rv-table-wrap" tabIndex={0}>
-        <table className="rv-table" style={{ minWidth: 980 }}>
+        <table className="rv-table">
           <thead><tr>
             <th>{L('Source', 'المصدر')}</th><th>{L('Files · sheets', 'الملفات · الأوراق')}</th><th>{L('Record level', 'مستوى السجل')}</th><th>{L('Link keys', 'مفاتيح الربط')}</th><th>{L('Supplying system', 'النظام المورّد')}</th>
             <th className="num">{L('Invoices', 'فواتير')}</th><th className="num">{L('Item rows', 'صفوف البنود')}</th><th className="num">{L('Payment rows', 'صفوف السداد')}</th><th className="num">{L('Billed', 'المفوتر')}</th><th className="num">{L('Collected', 'المحصّل')}</th><th className="num">{L('÷ net', '÷ الصافي')}</th><th className="num">{L('Prior-year invoices', 'فواتير العام السابق')}</th>

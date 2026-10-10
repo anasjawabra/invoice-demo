@@ -66,7 +66,7 @@ export default function Collection() {
           ))}
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table" style={{ minWidth: 820 }}>
+          <table className="rv-table">
             <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Outstanding (SAR)', 'المتبقي (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Suggested next step', 'الخطوة المقترحة')}</th></tr></thead>
             <tbody>
               {rows.length ? rows.map((w, i) => (
