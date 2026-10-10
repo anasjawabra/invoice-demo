@@ -36,13 +36,15 @@ import { loadComparison } from '../data/comparison';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import { DEFAULT_PLAN_SCOPE, planScopeOf, scopeLabelOf, cfgHash } from '../data/planStore';
 import LocalDataPanel from '../components/LocalDataPanel';
+import SectionTabs, { tabIdOf } from '../components/strategic/SectionTabs';
 import { fmtRangeText } from '../data/clock';
 
 const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
+const TAB_IDS = NAV.map(([id]) => id);
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
 
 export default function PlanningArea() {
-  const rev = useRevenue(); const { user } = useAuth(); const navigate = useNavigate();
+  const rev = useRevenue(); const { user } = useAuth(); const navigate = useNavigate(); const loc = useLocation();
   const { L, B, ar, lang } = useAr();
   const today = rev.cfg.cutoff; const { data, cfg, targets } = rev;
   const [assistOpen, setAssistOpen] = useState(false);
@@ -131,7 +133,7 @@ export default function PlanningArea() {
       applyFilters: () => {} // a period / Amanah named in a question applies to that ANSWER only; the plan scope never changes silently
     };
   }, []);
-  const onAssistAction = (ac) => { if (ac.kind === 'scenario') { setScenario({ ...DEFAULT_SCENARIO, ...scenario, ...ac.patch }); setAssistOpen(false); document.getElementById('scenario')?.scrollIntoView({ behavior: 'smooth' }); } if (ac.kind === 'export') doExport('docx'); };
+  const onAssistAction = (ac) => { if (ac.kind === 'scenario') { setScenario({ ...DEFAULT_SCENARIO, ...scenario, ...ac.patch }); setAssistOpen(false); goTab('scenario'); } if (ac.kind === 'export') doExport('docx'); };
 
   async function doExport(kind) {
     if (!snapshot || exporting || !plan) return; setExporting(kind);
@@ -152,13 +154,16 @@ export default function PlanningArea() {
   const proposeFromScenario = () => {
     const parts = [['dRate', L('معدل التحصيل', 'collection rate'), true], ['recovery', L('استرداد المتأخر', 'overdue recovery')], ['resolve', L('حسم الحالات', 'pending cases')], ['billing', L('الفوترة', 'billing')], ['expense', L('الإنفاق', 'expenditure')]].filter(([k]) => Number(scenario[k]));
     const p = { id: `scenario:${plan?.id}:${Object.entries(scenario).map(([k, v]) => `${k}=${v}`).join(',')}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
-    setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); document.getElementById('decisions')?.scrollIntoView({ behavior: 'smooth' });
+    setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); goTab('decisions');
   };
   // explicit and optional: open the plan's scope in the dashboard (changes the DASHBOARD filters because the user asked; the plan is unaffected)
   const openPlanInDashboard = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); navigate('/insights?view=dashboard'); };
-  // deep links such as /planning#outlook land on their section once the page has content (the sections are not in the DOM before that)
-  const hash = useLocation().hash;
-  useEffect(() => { if (hash && rev.ready && plan && snapshot) document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hash, rev.ready, !!snapshot, !!x]); // eslint-disable-line react-hooks/exhaustive-deps -- re-run once the async blocks above the section have taken their height
+  // THE ACTIVE SECTION IS THE URL HASH (/planning#outlook): a direct link, a refresh, an external hash change and Back/Forward all land on the same tab. An empty or unknown hash shows the first tab and adds no history entry.
+  const hashId = loc.hash.slice(1);
+  const activeTab = TAB_IDS.includes(hashId) ? hashId : TAB_IDS[0];
+  const goTab = useCallback((id) => { if (id === activeTab && loc.hash === `#${id}`) return; if (id === activeTab && !TAB_IDS.includes(hashId)) return; navigate({ pathname: loc.pathname, search: loc.search, hash: `#${id}` }); }, [activeTab, hashId, loc.hash, loc.pathname, loc.search, navigate]);
+  // a hash that names something else on the page (not a tab) still scrolls to it once the page has content; tabs never scroll the page
+  useEffect(() => { if (hashId && !TAB_IDS.includes(hashId) && rev.ready && plan && snapshot) document.getElementById(hashId)?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hashId, rev.ready, !!snapshot, !!x]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
   if (PS.error && !fresh) return <div className="st-page"><div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر احتساب أرقام الخطة لفترتها ونطاقها.', 'The plan figures could not be computed for its period and scope.')} <button type="button" className="btn btn-sm" onClick={() => setRetry((n) => n + 1)}>{L('إعادة المحاولة', 'Retry')}</button></div></div>;
@@ -193,7 +198,7 @@ export default function PlanningArea() {
       <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} onRecompute={recomputeVersion} today={today} />
       <p className="rv-line">{L('الأرقام أدناه لفترة الخطة ونطاقها، ولا تتأثر بمرشحات لوحة المعلومات.', 'The figures below follow the plan period and scope, not the dashboard filters.')}</p>
       {fresh === null || PS.loading ? <div className="rv-callout" role="status">{L('جارٍ احتساب أرقام الخطة…', 'Computing the plan figures…')}</div> : null}
-      <nav className="st-nav" aria-label={L('أقسام التخطيط', 'Planning sections')}>{NAV.map(([id, a, e]) => <a key={id} href={`#${id}`}>{L(a, e)}</a>)}</nav>
+      {T.count > 0 && <SectionTabs tabs={NAV.map(([id, a, e]) => ({ id, label: L(a, e) }))} active={activeTab} onSelect={goTab} label={L('أقسام التخطيط', 'Planning sections')} rtl={ar} />}
       {toast && <div className="rv-callout" role="status">{toast}</div>}
 
       {T.count === 0 ? <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة؛ وسّع الفترة أو أزل مرشحاً.', 'No data — widen the period or remove a filter.')}</div></div> : (<>
@@ -205,7 +210,7 @@ export default function PlanningArea() {
 
       {snapshot && T.count > 0 && <BasesReconciliation plan={plan} scopeLabel={scopeLabel} s={s} today={today} fy={fy} snapshot={snapshot} receipts={x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null} rec={REC.data && REC.data.key === sKey ? REC.data : null} funding={funding} scenRes={scenRes} scenarioOn={scenarioOn} cov={cov} />}
 
-      <section id="objectives" className="st-section" aria-label={L('الأهداف والمستهدفات', 'Objectives and targets')}>
+      <section id="objectives" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'objectives')} hidden={activeTab !== 'objectives'}>
         <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('المستهدفات الحالية تجريبية وغير معتمدة.', 'The current targets are demo inputs and are not approved.')}</small></h2>
         <ObjectivesPanel store={viewStore} setStore={updateStore} actuals={actuals} systemRows={systemRows} canEdit={canEdit} user={user} today={today} />
         <div className="st-grid">
@@ -221,30 +226,30 @@ export default function PlanningArea() {
         </div>
       </section>
 
-      <section id="plan" className="st-section" aria-label={L('خطط الإيرادات والنفقات', 'Revenue and expenditure plan')}>
+      <section id="plan" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'plan')} hidden={activeTab !== 'plan'}>
         <h2 className="st-section__title">{L('خطط الإيرادات والنفقات', 'Revenue and expenditure plans')}<small>{L(`الخطة «${plan.name}» · الإصدار ${plan.version || 'غير محفوظ'}`, `Plan “${plan.name}” · version ${plan.version || 'unsaved'}`)}</small></h2>
         <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={200}><PlanTable fyMonths={fyMonths} outlook={outlook} fin={fin} financeOk={financeOk} narrowed={narrowed} year={fy} targets={targets} /></AsyncBlock>
       </section>
 
-      <section id="variance" className="st-section" aria-label={L('الفعلي مقابل الخطة', 'Actual vs plan')}>
+      <section id="variance" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'variance')} hidden={activeTab !== 'variance'}>
         <h2 className="st-section__title">{L('الفعلي مقابل الميزانية والمستهدف', 'Actual versus budget and target')} <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span></h2>
         <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={160}>{x && <VarianceBlock ach={ach} achAvail={achAvail} fin={fin} financeOk={financeOk} />}</AsyncBlock>
         {financeOk && cov && <div className="card st-card"><b>{L('تغطية الإنفاق التشغيلي (أبواب 1–3)', 'Operating-expenditure coverage (chapters 1–3)')}</b> <span className="st-tag st-tag--warn">{L('تجريبية', 'synthetic')}</span><div className="rv-tile__value" dir="ltr">{pct(cov.ratio, L('غير متاحة', 'n/a'))}</div><div className="muted" style={{ fontSize: 12 }}>{B(cov.basis)}</div></div>}
         {!financeOk && <div className="rv-callout">{L('تغطية النفقات وتنفيذ الميزانية: البيانات غير متاحة لهذا النطاق؛ الأساس المحاسبي والنطاق يجب أن يتطابقا مع الإيرادات (وطني، كل المصادر).', 'Expenditure coverage and budget execution: data not available for this scope; the accounting basis and scope must match revenue (national, all sources).')}</div>}
       </section>
 
-      <section id="outlook" className="st-section" aria-label={L('التوقعات والفجوات', 'Forecasts and gaps')}>
+      <section id="outlook" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'outlook')} hidden={activeTab !== 'outlook'}>
         <h2 className="st-section__title">{L('التوقعات والفجوات', 'Forecasts and gaps')}</h2>
         <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={260}><ForecastGaps outlook={outlook} fyMonths={fyMonths} forecast={x?.forecast} tvf={tvf} gaps={gaps} snapshot={snapshot} funding={funding} scenarioOn={scenarioOn} canShowFunding={financeOk} /></AsyncBlock>
       </section>
 
-      <section id="scenario" className="st-section" aria-label={L('السيناريوهات', 'Scenarios')}>
+      <section id="scenario" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'scenario')} hidden={activeTab !== 'scenario'}>
         <h2 className="st-section__title">{L('سيناريوهات «ماذا لو»', 'What-if scenarios')} <span className="st-tag st-tag--scenario">{L('سيناريو المستخدم', 'user scenario')}</span><small>{L('جزء من الخطة النشطة؛ لا يغيّر أي بيانات فعلية ولا المستهدفات', 'part of the active plan; changes no actual data and no targets')}</small></h2>
         <ScenarioPanel snapshot={snapshot} targets={targets} scenario={scenario} setScenario={setScenario} planDate={planDate} setPlanDate={setPlanDate} today={today} canEdit={canEdit} financeOk={financeOk} onSaveToRegister={proposeFromScenario} />
         {snapshot && T.net > 0 && <NamedScenarios snapshot={snapshot} targets={targets} planId={plan.id} planName={plan.name} store={viewStore} commit={(st) => updateStore(() => st)} commitWith={(fn) => updateStore(fn)} scenario={scenario} canEdit={canEdit} by={by} onLoad={(s) => setPlan((p) => editPlan(p, { scenario: cleanScenario(s.scenario), ...(s.planDate ? { planDate: s.planDate < today ? today : s.planDate } : {}) }, by))} />}
       </section>
 
-      <section id="decisions" className="st-section" aria-label={L('المبادرات والقرارات', 'Initiatives and decisions')}>
+      <section id="decisions" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'decisions')} hidden={activeTab !== 'decisions'}>
         <h2 className="st-section__title">{L('المبادرات والقرارات ومتابعة التنفيذ', 'Initiatives, decisions and follow-up')}</h2>
         <ActionRegister register={register} setRegister={setRegister} proposals={proposals} canEdit={canEdit} user={user} today={today} scopeText={scopeText} />
       </section>

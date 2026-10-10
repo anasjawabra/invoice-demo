@@ -13,16 +13,16 @@ export default function SettingsNav({ current }) {
   const { L, B } = useL();
   const page = SETTINGS_PAGES.find((p) => p.to === current);
   return (
-    <div className="st-nav">
+    <div className="ss-nav">
       <nav className="rp-crumbs" aria-label={L('Breadcrumb', 'مسار التنقل')}>
         <ol>
           <li><Link to="/settings">{L('System settings', 'إعدادات النظام')}</Link></li>
           {page && <li><span aria-current="page">{B({ en: page.en, ar: page.ar })}</span></li>}
         </ol>
       </nav>
-      <nav className="st-tabs" aria-label={L('System settings sections', 'أقسام إعدادات النظام')}>
+      <nav className="ss-tabs" aria-label={L('System settings sections', 'أقسام إعدادات النظام')}>
         {SETTINGS_PAGES.map((p) => (
-          <NavLink key={p.to} to={p.to} className={({ isActive }) => `st-tab${isActive ? ' active' : ''}`}>
+          <NavLink key={p.to} to={p.to} className={({ isActive }) => `ss-tab${isActive ? ' active' : ''}`}>
             <b>{B({ en: p.en, ar: p.ar })}</b>
             <small>{B({ en: p.hintEn, ar: p.hintAr })}</small>
           </NavLink>

@@ -61,7 +61,7 @@ export function useFitTables(rootId = 'main-content') {
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(run) : null;
     ro?.observe(document.documentElement);
     const mo = new MutationObserver(run); // rows arrive after the data loads, pages change, panels open
-    mo.observe(document.body, { childList: true, subtree: true, characterData: true }); // not attributes: our own class and label changes must not retrigger it
+    mo.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ['hidden'] }); // not other attributes: our own class and label changes must not retrigger it; «hidden» is a tab panel being shown
     window.addEventListener('resize', run);
     document.addEventListener('toggle', run, true); // an opened <details> may reveal a table that has just become visible
     run();
