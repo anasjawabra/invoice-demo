@@ -26,6 +26,7 @@ Synthetic-data demonstration; not production-ready. Preserves every calculation,
 
 * **Risks:** possible duplicate · struck-off registry · deceased debtor.
 * **Deviations:** value anomaly against the Amanah baseline · amount conflict (header ≠ line items) · payment on an excluded invoice.
+* A risk flag is listed only while it is **open**: once the matching exclusion (duplicate · struck-off registry · deceased debtor) is approved, the flag is settled and leaves this list; the decision stays on the invoice. Open flags also appear in the invoice page's «ما يحتاج مراجعة», so the two pages cannot disagree.
 * Tiles: risk flags, deviations (counted per finding, an invoice can carry several), amount conflicts, collected-but-flagged. A flag is a reason to look, never a conclusion about the payer; collected invoices appear only labelled «للمراجعة فقط».
 * Not on this page any more: missing mandatory fields, contract not linked / not matched, exclusions and enforcement links awaiting a decision → **جودة البيانات**.
 

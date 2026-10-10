@@ -15,7 +15,7 @@ export const CLASS_INDEX = C;
 
 const RULES = EXCLUSION_RULES.map((r, i) => ({ id: r.id, bit: 1 << i, priority: r.priority, approved: r.approval === 'approved', category: r.category, locked: r.locked }));
 if (RULES.some((r, i) => r.id !== RULE_IDS[i])) throw new Error('rule order mismatch between catalog and revenueMetrics');
-const OBJ_BIT = RULE_BIT['OBJ-1']; const CR_BIT = RULE_BIT['CR-1'];
+const OBJ_BIT = RULE_BIT['OBJ-1']; const CR_BIT = RULE_BIT['CR-1']; const DUP_BIT = RULE_BIT['DUP-1']; const DEC_BIT = RULE_BIT['DEC-1'];
 const BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 const NBITS = RULES.length;
 
@@ -113,6 +113,19 @@ function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit)
 const popcount = (x) => { let n = 0; while (x) { n += x & 1; x >>>= 1; } return n; };
 
 /* ------------------------------------------------------------------ derive one row (no allocation) */
+// RISK FLAGS (duplicate · struck-off registry · deceased debtor) — ONE rule for the Risks & Deviations page and the invoice page, so they cannot disagree.
+// A flag is a reason to look. It is OPEN only while nobody has decided: when the matching exclusion rule (DUP-1 · CR-1 · DEC-1) is already APPROVED and applied, the flag is SETTLED —
+// the invoice is excluded on that ground, and the decision is shown on the invoice — so it is not listed as a live risk. Returns { category: 'open' | 'settled' } for the flags present.
+export function recordRiskFlags(st, ctx, i) {
+  const out = {}; const f = st.flags[i]; const fx = i >= st.nGen ? st.fixtures.get(i) : null;
+  const invalid = !!(fx?.debtorInvalid || fx?.invalidDebtor); const crBad = st.crSt[i] === 2 || st.crSt[i] === 4;
+  if (!(f & F.DUPLICATE_WF) && !invalid && !crBad) return out; // cheap exit: nearly every invoice
+  const D = derive(ctx, i, ctx.cutoffN) || ctx.D; const applied = (bit) => (D.mask & bit) !== 0;
+  if (f & F.DUPLICATE_WF) out.duplicate = applied(DUP_BIT) ? 'settled' : 'open';
+  if (invalid) { const c = fx.debtorInvalidReason === 'deceased_person' ? 'deceased_person' : 'struck_off_registry'; out[c] = applied(c === 'deceased_person' ? DEC_BIT : CR_BIT) ? 'settled' : 'open'; }
+  else if (crBad && D.outstanding > 0) out.struck_off_registry = 'open';
+  return out;
+}
 export function derive(ctx, i, asOfN) {
   const st = ctx.st; const D = ctx.D; const flags = st.flags[i];
   const adj = st.adjDay[i] && st.adjDay[i] <= asOfN ? st.adjAmt[i] : 0;

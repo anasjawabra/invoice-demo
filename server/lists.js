@@ -3,7 +3,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { materialize } from './materialize.js';
-import { makeCtx, resolveScope, derive, inScope, idOf, lookupId, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
+import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
 import { parseInvoiceId, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, invoiceIdOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
 import { grpOf, GRP } from '../src/data/catalog.js';
@@ -267,11 +267,9 @@ export function risk(st, req) {
   const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, deceased_person: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const f = st.flags[i];
-    if (f & F.DUPLICATE_WF) { cat.duplicate.n += 1; cat.duplicate.amt += st.gross[i]; cat.duplicate.top.push(i, 90); }
-    const fx = i >= st.nGen ? st.fixtures.get(i) : null;
-    if (fx?.debtorInvalid || fx?.invalidDebtor) { const c = fx.debtorInvalidReason === 'deceased_person' ? 'deceased_person' : 'struck_off_registry'; cat[c].n += 1; cat[c].amt += st.gross[i]; cat[c].top.push(i, 85); }
-    else if (st.crSt[i] === 2 || st.crSt[i] === 4) { derive(ctx, i, ctx.cutoffN); if (D.outstanding > 0) { cat.struck_off_registry.n += 1; cat.struck_off_registry.amt += st.gross[i]; cat.struck_off_registry.top.push(i, 85); } }
+    // duplicate / struck-off / deceased: listed only while OPEN (not already settled by an approved exclusion) — the same rule the invoice page uses
+    const rf = recordRiskFlags(st, ctx, i);
+    for (const [c, state] of Object.entries(rf)) if (state === 'open') { cat[c].n += 1; cat[c].amt += st.gross[i]; cat[c].top.push(i, c === 'duplicate' ? 90 : 85); }
     const g = st.ent[i] * SOURCES.length + st.src[i];
     if (cnt[g] >= 30) { const avg = (sum[g] - st.gross[i]) / (cnt[g] - 1); const ratio = avg > 0 ? st.gross[i] / avg : 0; if (ratio >= VALUE_ANOMALY_MULTIPLE) { cat.value_anomaly.n += 1; cat.value_anomaly.amt += st.gross[i]; cat.value_anomaly.top.push(i, Math.min(99, 60 + (ratio - VALUE_ANOMALY_MULTIPLE) * 2)); } }
   }

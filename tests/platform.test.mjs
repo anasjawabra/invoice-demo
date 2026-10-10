@@ -35,7 +35,7 @@ import { fmtRiyadh, riyadhDateOf, lastCompleteMonths } from '../src/data/clock.j
 import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisLabel } from '../src/data/measure.js';
 import { planScopeOf, cfgHash, DEFAULT_PLAN_SCOPE, scopeLabelOf } from '../src/data/planStore.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
-import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
+import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
 import { detail } from '../server/materialize.js';
@@ -305,6 +305,22 @@ await test('findings are split by function: every issue code and risk category b
   assert.ok(dev.total <= all.total && q.total <= all.total && dev.total + q.total >= all.total, 'an invoice may carry findings of both groups, never fewer than the whole');
   assert.equal(anomalies(st, { scope: YTD, cfg, limit: 100, codes: [] }).total, all.total, 'an empty group means no restriction');
   assert.equal(issuePage('missing_fields'), '/settings/data-quality'); assert.equal(issuePage('contract_unlinked'), '/settings/data-quality'); assert.equal(issuePage('amount_conflict'), '/risk'); assert.equal(issuePage('risk_duplicate'), '/risk');
+});
+await test('risk flags: the Risks page and the invoice page use one rule — a flag settled by an approved exclusion is not an open risk, an open flag shows on both', () => {
+  const r = risk(st, { scope: YTD, cfg, limit: 200 });
+  const ctx = makeCtx(st, { scope: YTD, cfg });
+  // INV-2026-0728 / INV-2026-0808: marked duplicate in the source, but the duplicate exclusion (DUP-1) is already approved and applied
+  for (const id of ['INV-2026-0728', 'INV-2026-0808']) {
+    const d = detail(st, lookupId(st, id), ctx);
+    assert.equal(d.riskFlags.duplicate, 'settled', `${id}: the duplicate is settled by the approved exclusion`); assert.equal(d.cls, 'excluded');
+    assert.ok(!r.categories.duplicate.rows.some((x) => x.id === id), `${id}: a settled duplicate is not listed as a risk`);
+  }
+  // every invoice listed under a record-level risk category is OPEN on its own page (nothing listed on one page is missing from the other)
+  for (const cat of ['duplicate', 'struck_off_registry', 'deceased_person']) for (const row of r.categories[cat].rows) assert.equal(detail(st, lookupId(st, row.id), ctx).riskFlags[cat], 'open', `${row.id} ${cat}`);
+  // with the duplicate rule switched off nothing is settled: the same two invoices become OPEN duplicates, listed on the Risks page AND carried by the invoice page
+  const off = { cutoff: TODAY, rules: { 'DUP-1': false } }; const r2 = risk(st, { scope: YTD, cfg: off, limit: 200 }); const ctx2 = makeCtx(st, { scope: YTD, cfg: off });
+  for (const id of ['INV-2026-0728', 'INV-2026-0808']) { assert.ok(r2.categories.duplicate.rows.some((x) => x.id === id), `${id}: listed when open`); assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open'); }
+  assert.equal(r2.categories.duplicate.count, r.categories.duplicate.count + 2);
 });
 await test('export streams in chunks, keeps exact SAR and a separately named abbreviated column', () => {
   const it = exportChunks(st, { scope: { ...YTD, source: 'white_lands' }, cfg, filters: {} }, 1000);

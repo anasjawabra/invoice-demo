@@ -4,7 +4,7 @@ import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, ALIN
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
 import { invoiceIdOf, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
-import { idOf, derive, makeCtx, CLASSES } from './engine.js';
+import { idOf, derive, makeCtx, recordRiskFlags, CLASSES } from './engine.js';
 import { sourceRecord } from './sourceRecords.js';
 
 const RULE_BY_ID = Object.fromEntries(EXCLUSION_RULES.map((r) => [r.id, r]));
@@ -105,6 +105,7 @@ export function detail(st, i, ctx) {
   const D = derive(ctx, i, ctx.cutoffN);
   const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
-  return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec };
+  const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry | deceased_person: 'open' | 'settled' } — the same rule as the Risks & Deviations page
+  return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
 void RULE_BIT;
