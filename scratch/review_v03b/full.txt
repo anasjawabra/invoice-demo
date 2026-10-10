@@ -1,0 +1,2471 @@
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Intelligent Invoice Management
+Revenue and Receivables Intelligence
+High Level Solution Design
+Prototype phase | Version 0.3 | 15 September 2026
+This design covers investment-revenue analysis, collection and enforcement monitoring, reconciliation,
+forecasting, KPI intelligence and conversational reporting. It defines the analytical capabilities and
+controls to demonstrate in the prototype and the approvals and integrations required for production.
+
+Document Information
+ Field                            Value
+
+ Document title                   High Level Solution Design
+
+ Solution name                    Intelligent Invoice Management
+
+ Version                          0.3
+
+ Date                             15/09/2026
+
+ Document owner                   ByteDance (as identified in source v0.3)
+
+ Review roles                     Solution Owner; Central AI / Oversight Team; relevant data owners
+
+ Approval roles                   AI Solutions Steering Group / Central AI Committee, per applicable stage gate
+
+ Status / phase                   Pending business and data-owner review / Prototype
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 1 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Revision History
+ Version      Date              Author            Summary of Changes
+
+ 0.1          24/08/2026        ByteDance         Initial Draft Version
+
+ 0.2          12/09/2026        ByteDance         Update based on solution owner review 12/09/2026
+
+                                                  Round-2 review: repositioned as revenue and receivables intelligence;
+                                                  corrected Sanad/Efaa/Makeen/Furas platform descriptions; added
+                                                  Sanad Enforcement-to-Invoice Mapping (WF-09); expanded KPI &
+                                                  Performance Intelligence and Dynamic Report Generation; added
+ 0.3          14/09/2026        ByteDance
+                                                  governed semantic/business metrics layer; removed remaining
+                                                  procurement/tax-compliance remnants from text and diagrams;
+                                                  strengthened data-authority matrix; aligned acceptance criteria and
+                                                  benefit statements with clarified scope
+
+
+
+
+HLSD Review Checklist
+Review responsibilities below are carried forward from the source template. No review or approval is
+represented as completed by this revision.
+
+ Review item                                      Sections                Required review roles
+
+ Business problem and strategy                    2.1–2.2                 OT / SO / AC / CAIT
+
+ Source landscape and data authority              2.5 / 3.1               OT / SO / data owners / CAIT
+
+ Requirements, acceptance and benefits            4–5                     OT / SO / AC / CAIT
+
+ Executive summary                                Executive Summary       OT / CAIT / SGG / SH / CAIC
+
+ Personas, workflows and journeys                 3.2–3.4                 OT / SO / CAIT
+
+ Roadmap and open dependencies                    6                       OT / SO / AC / CAIT
+
+                                                                          NHCI ARB technical review; no prototype
+ Architecture                                     3.1 / 4.2
+                                                                          approval implied
+
+ Stakeholders                                     2.3                     OT / SO / AC / CAIT
+
+
+OT = Oversight Team; SO = Solution Owner; AC = AI Champion; CAIT = Central AI Team; SGG = AI
+Steering Group; SH = Sector Head; CAIC = AI Central Committee; ARB = Architecture Review Board.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 2 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Table of Contents
+Section entries below are refreshed against the rendered revised document. Workflow and requirement
+IDs remain stable for review traceability.
+Executive Summary......................................................................................................................................................4
+1 Introduction................................................................................................................................................................5
+   1.1 Purpose...............................................................................................................................................................5
+   1.2 Scope..................................................................................................................................................................5
+   1.3 Intended Audience..............................................................................................................................................5
+   1.4 Definitions and Acronyms...................................................................................................................................6
+2 Business Context.......................................................................................................................................................8
+   2.1 Business Problem...............................................................................................................................................8
+   2.2 Strategic Alignment.............................................................................................................................................9
+   2.3 Key Stakeholders................................................................................................................................................9
+   2.4 Expected Business Outcomes...........................................................................................................................9
+   2.5 Current Solution Landscape.............................................................................................................................10
+3 Solution Overview....................................................................................................................................................11
+   3.1 Solution Description..........................................................................................................................................11
+   3.1.1 Source Authority and Integration Boundaries...............................................................................................12
+   3.1.2 Semantic and Business Metrics Contract.....................................................................................................13
+   3.1.3 Conversational Reporting Technical Approach.............................................................................................13
+   3.2 User Personas..................................................................................................................................................14
+   3.3 Processes and Workflows................................................................................................................................15
+   3.4 User Journeys...................................................................................................................................................34
+4 Requirements Summary..........................................................................................................................................36
+   4.1 Business Requirements....................................................................................................................................36
+   4.2 Non Functional Requirements..........................................................................................................................38
+5 Success Metrics and Acceptance............................................................................................................................39
+   5.1 Strategic Benefit Metrics...................................................................................................................................39
+   5.2 Operational Benefit Metrics..............................................................................................................................39
+   5.3 Technical Service Measures............................................................................................................................40
+   5.4 Capability Acceptance Tests............................................................................................................................41
+6 Roadmap and Phasing............................................................................................................................................43
+   6.1 High Level Delivery Roadmap..........................................................................................................................43
+   6.2 Capability Delivery Traceability........................................................................................................................43
+   6.3 Open Decisions and Release Gates................................................................................................................45
+Additional Resources..................................................................................................................................................46
+Appendix.....................................................................................................................................................................47
+   A Source References..............................................................................................................................................47
+   B Approval Sign Off................................................................................................................................................47
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 3 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Executive Summary
+Intelligent Invoice Management is a revenue and receivables intelligence solution for municipal
+investment and lease revenues, collections and enforcement oversight. Existing platforms retain
+transactional ownership; this solution maintains analytical mappings, evidence, forecasts and reports.
+Tahseel remains authoritative for official collection figures, while other attributes follow the field-specific
+authority matrix in Section 3.1.1.
+The priority business outcome is a reliable link from Sanad non-fine enforcement records to their
+underlying SADAD invoices. The platform checks structured references first and retrieves associated
+documents only when links are unusable. It separates extracted numbers from validated relationships,
+supports one case with several invoices and preserves unsupported cases as unresolved without
+duplicating case values or invoice balances.
+A governed semantic metrics service supports KPI and Performance Intelligence, forecasting and
+dynamic conversational reporting. Users can create and refine editable reports, save definitions and
+refresh or distribute them within approved permissions. Official KPI definitions, baselines, targets and
+thresholds change only through authorized approval and versioning; historical commitments remain
+reproducible.
+Relevant Furas-originated investment/lease data is in scope. Procurement, supplier payments, tax
+compliance, contract-award/amendment administration, direct payment processing and platform-executed
+legal actions are excluded. Human review remains essential for ambiguous mappings, governance
+changes and report distribution.
+The prototype uses controlled sample data and simulated integrations. Production depends on owner-
+approved source roles, field authority, formulas, access, validation data and security design. The supplied
+files do not establish live integration availability, an approved KPI catalog or completed stage-gate
+approval.
+Business benefits will be measured as released employee capacity, collection outcomes attributable to
+the solution and adoption. Previous revenue-accuracy and GDP-linked growth claims are not accepted
+commitments. Section 5 defines measurement and approval requirements; Section 6 retains the original
+milestone dates as proposed dates subject to readiness and re-baselining.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 4 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+1 Introduction
+1.1 Purpose
+This Prototype Phase HLSD establishes the solution scope, architecture, personas, workflows,
+requirements, acceptance criteria and delivery dependencies. It supports review of the proposed revenue-
+intelligence design and planning of subsequent delivery phases; it does not certify implementation or
+approve official measures.
+
+1.2 Scope
+Prototype demonstrations use sample or simulated data. The following capabilities describe the target
+solution; production integrations and official reporting definitions are subject to the gates in Section 6.3.
+
+In scope
+   Controlled intake of approved invoice, collection, investment/lease and enforcement datasets with
+    source lineage and normalization.
+   Sanad enforcement-to-invoice mapping: structured references first, all relevant SADAD numbers from
+    document text/OCR where required, evidence-backed validation and one-to-many relationships.
+   Duplicate and amount-consistency checks, cross-platform reconciliation, revenue anomaly review and
+    risk-based case routing under confirmed revenue responsibilities.
+   Collection forecasting, KPI and Performance Intelligence, editable conversational reports, periodic
+    reports and controlled export/distribution.
+   Relevant municipal investment and lease-contract data originating from Furas are in scope for
+    revenue and receivables analysis. Procurement, supplier-payment processing, and the execution or
+    administration of contract-award and amendment processes remain outside this solution’s scope.
+   Existing tax/VAT values may be retained as optional source attributes where needed to interpret or
+    reconcile amounts. VAT extraction is not mandatory for Sanad mapping.
+
+Out of scope
+   Procurement, supplier-payment approval/processing, contract-award/amendment execution or
+    administration, and general contract lifecycle management.
+   Direct payment processing, bank-account reconciliation, replacement of source platforms, or silent
+    changes to official records.
+   Tax assessment, tax-registration verification, VAT/tax compliance and any ZATCA or other tax-
+    authority integration.
+   Initiating, pausing, cancelling or amending legal enforcement actions, municipal receivables or
+    violations in this platform.
+   Entity relationship-management operations and issuance of legally approved official financial reports.
+    Analytical entity relationships required for revenue measures remain in scope.
+Use the precise term “SADAD invoice number” for the invoice identifier. A payment-order field may be
+introduced only if its data owner confirms a relevant revenue-collection meaning; no such confirmation
+was supplied.
+
+1.3 Intended Audience
+ Audience                             Purpose of Review
+
+                                      Strategic review of an executive version of the HLSD and final stage-gate
+ Central AI Committee
+                                      approval
+
+                                      Strategic and technical review of an executive version of the HLSD, stage-gate
+ AI Solutions Steering Group          endorsement for moonshot solutions and stage-gate approval for standalone
+                                      solutions
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 5 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Audience                             Purpose of Review
+
+                                      Review for alignment with sector needs and priorities, provide final approval
+ Sector Head
+                                      before submission to Steering Group / Central AI Committee
+
+ AI Champion                          Review for sector alignment
+
+ NHCI ARB                             Review for technical architecture (no approval at this stage)
+
+ NHCI Technical Lead(s)               Day-to-day delivery management and review
+
+                                      Governance review, standards compliance, and delivery assurance across the
+ Oversight team
+                                      program
+
+                                      Solution-level owner; provide input, review key requirements, business
+ AI Solution Owner
+                                      outcomes, and user journeys
+
+                                      Document owner - produced and maintained by vendor. Responsible for
+ Solution Vendor
+                                      completeness and accuracy of all sections.
+
+
+Governing-body review also requires an executive summary presentation covering the HLSD, per the
+source template.
+
+1.4 Definitions and Acronyms
+ Term / Acronym                   Definition
+
+ HLSD                             High-Level Solution Design
+
+ NHCI                             NHC Innovation
+
+ MOMAH                            Ministry of Municipalities and Housing
+
+ ARB                              Architecture Review Board
+
+ AI                               Artificial Intelligence
+
+ Preparation phase                Define the vision, objectives, scope, requirements, and high-level solution approach
+
+ Prototype phase                  Validate UX/UI, key features, and user journeys before full development
+
+                                  Build and test core features in a sandbox environment to prove the technical
+ Alpha phase
+                                  approach
+
+                                  Complete feature development and validate the solution with integrations in a
+ Beta phase
+                                  staging environment
+
+ Release & Stabilization
+                                  Deploy to production, release improvements, fix issues, and stabilize the solution
+ phase
+
+                                  Hand over to operations/technical teams and drive adoption through change
+ Operate phase
+                                  management and ongoing support
+
+                                  Business Requirements Document; defines the scope, business needs, functional
+ BRD
+                                  requirements, and constraints for the Intelligent Invoice Management solution.
+
+                                  Human governance for ambiguous/critical analytical decisions, KPI changes and
+ Human-in-the-Loop (HITL)         report distribution. Routine approved calculations may run automatically within
+                                  authorized rules.
+
+ Optical Character                Technology that converts scanned or image-based documents into machine-
+ Recognition (OCR)                readable text, enabling automated extraction and analysis of invoice data.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 6 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Term / Acronym                   Definition
+
+ Personal Data Protection         Saudi Personal Data Protection Law issued by SDAIA; the primary data-protection
+ Law (PDPL)                       regulation applicable to this solution.
+
+                                  A formal agreement defining guaranteed performance levels such as availability,
+ Service Level Agreement
+                                  response time, and service quality between the Ministry and the implementation
+ (SLA)
+                                  partner.
+
+ Role-Based Access Control        An access-control model that restricts platform features and data according to user
+ (RBAC)                           role and the need-to-know principle.
+
+                                  Government payment platform of the Ministry of Municipalities and Housing for
+ Tahseel Platform
+                                  collecting revenue from municipal services and government payments.
+
+                                  Working description: candidate billing/invoice-record source with relevant revenue
+                                  and possible investment/lease references. Exact coverage, Furas-originated data
+ Makeen Platform
+                                  availability and ownership require Makeen-owner confirmation; no existing
+                                  integration is assumed.
+
+                                  Working description for WF-08: candidate violations/penalty data source. Its exact
+ Efaa Platform                    domain, enforcement-referral role and relationship with Mumtathil require data-
+                                  owner validation. It is not treated here as a contract/payment-order platform.
+
+                                  Platform supporting municipalities in pursuing legal recovery of outstanding
+                                  investment debts and other non-fine, non-violation municipal receivables through
+ Sanad Platform                   the Board of Grievances; distinct from the Efaa fines and violations workflow. Its
+                                  enforcement/case reference and Board of Grievances reference are distinct from,
+                                  and not always linked to, the underlying SADAD invoice number(s).
+
+                                  Enables municipalities to offer municipal real estate to investors through competitive
+                                  bidding, resulting primarily in investment and lease contracts that generate
+                                  municipal receivables. Relevant contract data is in scope for revenue and
+ Furas Platform                   receivables analysis, invoice matching, collection monitoring, forecasting and
+                                  enforcement analysis; the required data feed and whether it is obtained directly or
+                                  through an existing integration or approved dataset is to be confirmed with the
+                                  Furas data owner.
+
+                                  Working description for WF-08: candidate municipal violation/case-status source.
+ Mumtathil Platform               Judgment, appeal and enforcement field availability and authority remain pending
+                                  owner confirmation.
+
+                                  Model- or rule-specific confidence indicator, with method/version and calibration
+ Confidence Score                 limits. Extraction confidence and relationship validation are separate assessments;
+                                  neither alone constitutes legal or business approval.
+
+                                  A specialized AI program that independently performs a specific task within defined
+ AI Agent
+                                  boundaries, such as the Ingestion Agent or Validation Agent.
+
+                                  Model estimating collection or risk outcomes for a stated horizon using approved
+ Financial Forecasting Model      features; available outcomes depend on labeled data. Predictions are distinct from
+                                  official source status.
+
+                                  Any invoice, item, or pattern that deviates materially from normal expectations
+ Financial Anomaly
+                                  based on historical behavior models.
+
+                                  Government Enterprise Resource Planning system; the integrated environment for
+ Government ERP                   managing financial, human, and operational resources in Saudi government
+                                  entities.
+
+                                  An immutable sequential record documenting every action in the system: who
+ Audit Trail
+                                  performed it, when, what changed, and for what reason.
+
+ National Cybersecurity           Government authority responsible for cybersecurity in the Kingdom; it issues
+ Authority (NCA)                  controls and frameworks with which this solution must comply.
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 7 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Term / Acronym                    Definition
+
+                                   Invoice reference retained as a string; distinct from Sanad record ID, Board of
+ SADAD invoice number
+                                   Grievances enforcement reference and internal analytical record ID.
+
+                                   Governed entities, relationships, reusable measures, source authority, lineage,
+ Semantic metrics layer
+                                   permissions and effective-dated business definitions.
+
+                                   A proposed case–invoice relationship without sufficient validation evidence; it is not
+ Unresolved mapping
+                                   assigned an inferred invoice number.
+
+
+
+
+2 Business Context
+2.1 Business Problem
+Revenue information is distributed across Tahseel, Makeen, Sanad and other source platforms.
+Inconsistent identifiers and fragmented access make reconciliation, investment-revenue analysis and
+enforcement monitoring difficult. A Sanad enforcement reference may lack a usable structured link to one
+or more SADAD invoices, limiting reliable portfolio reporting.
+The solution addresses intake and normalization, evidence-backed validation, anomaly review, case
+routing and governed analytics. Descriptions of current platform capabilities and manual cycle times in the
+source are working assumptions, not verified platform assessments.
+
+                                                                                                                      Severity /
+ #    Pain Point                                              Business Impact
+                                                                                                                      Impact
+
+      Invoice data is fragmented across multiple              Data duplication and inconsistency and difficulty
+ 1                                                                                                                    High
+      platforms (Tahseel, Makeen, Efaa, Sanad)                obtaining a unified view
+
+      Reliance on manual invoice processing and               Higher operating cost, slow processing cycle,
+ 2                                                                                                                    High
+      reconciliation                                          and more human errors
+
+      No automated validation of invoice matching             Risk of uncollected or misapplied revenue due to
+ 3                                                                                                                    High
+      across different platforms                              unmatched or incorrect invoices
+
+                                                              Potential revenue leakage and unreliable
+      Difficulty detecting duplicate invoices and
+ 4                                                            portfolio totals; anomaly evidence requires             High
+      potential manipulation
+                                                              investigation.
+
+      Limited ability to predict collection or cancellation   Difficulty in financial planning and reduced
+ 5                                                                                                                    High
+      probability                                             accuracy of revenue forecasts
+
+      Incoming invoice formats are not standardized           Intensive manual effort to standardize data
+ 6                                                                                                                    High
+      across platforms                                        before processing
+
+                                                              Delayed visibility and inconsistent management
+ 7    No consolidated view with agreed data freshness                                                                 High
+                                                              information
+
+      Difficulty routing invoices automatically to the        Delayed case review and accumulation of
+ 8                                                                                                                    High
+      responsible reviewing officer                           unmonitored invoices
+
+                                                              Difficulty in auditing and accountability in official
+ 9    Limited transparency in financial AI decisions                                                                  High
+                                                              financial reporting
+
+      Difficulty connecting legacy financial systems          Technical barriers limiting integration and end-to-
+ 10                                                                                                                   High
+      with modern digital platforms                           end automation
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 8 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+Opportunity statement
+Automated matching, controlled exception handling and reusable revenue measures can reduce
+reconciliation effort and improve follow-up prioritization. The source’s 15–30% revenue-accuracy
+improvement lacks a defined denominator and supporting baseline, so it is withdrawn as a quantified
+commitment. Section 5 requires measured baselines and an attribution method before benefit targets are
+approved.
+
+2.2 Strategic Alignment
+ Alignment area                        Design contribution
+
+                                       Improve government performance efficiency, non-oil revenue oversight and
+ Vision 2030 Objective
+                                       transparent revenue management.
+
+                                       Aligned with the core objectives of NHCI's AI innovation implementation and
+ NHCI Strategic Objective              digital transformation of government services, aiming to develop a reusable
+                                       benchmark solution for government AI agents.
+
+                                       Support municipal financial sustainability and revenue oversight. Source v0.3
+ MOMAH Sector Strategic                cites 85% financial sustainability and SAR 25B invoicing by 2025; these
+ Objectives (SSOs)                     historical strategic references require owner confirmation of relevance to the
+                                       2026 plan and are not project acceptance targets.
+
+                                       Apply governed AI extraction, relationship validation and forecasting with
+ MOMAH AI Strategy Alignment           evidence and human oversight for material analytical decisions; source-system
+                                       authority remains unchanged.
+
+
+
+2.3 Key Stakeholders
+ Stakeholder and role         Named contacts from source                 Responsibility
+
+                              Tariq Aljarboa, Abdulaziz Alajlan          Participate in vendor check-ins, Sprint
+ AI Solution Owner —
+                              taljarboa@momah.gov.sa,                    Reviews, Steering Group, and design
+ Solution-level owner
+                              aa.alajlan@momah.gov.sa                    discussions
+
+ AI Champion — Sector-        Waleed Al-Askar                            Participate in Sprint Reviews and Bi-Weekly
+ level coordinator            W.Alaskr@momah.gov.sa                      Sector meetings
+
+ Sector Head — Sector-        Omar Almhasen                              Participate in Bi-Weekly Sector meetings and
+ level sponsor                Oalmhasen@momah.gov.sa                     Central AI Committee sessions
+
+
+Additional accountable roles are the source data owners, Business KPI Owner, Data Governance Lead,
+Delivery Lead and IT/Security/QA leads. Individuals and acceptance delegates must be assigned before
+the relevant gate; role assignment here does not imply their approval.
+
+2.4 Expected Business Outcomes
+   Reliable investment-receivable and enforcement analysis without double-counting; traceable
+    unresolved coverage rather than forced matches.
+   Faster review and reconciliation, measured through comparable time studies. The source’s “up to
+    50%” processing-time reduction is an unvalidated hypothesis, not an approved commitment.
+   Evidence-supported collection follow-up, forecast monitoring and management reporting using
+    consistent approved definitions.
+   Improved capacity and adoption, with cash savings reported only when separately evidenced; source
+    platforms remain authoritative.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 9 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+2.5 Current Solution Landscape
+ Source / role              Relevant use and confirmation needed
+
+                            Official collection figures; field dictionary, event/reversal semantics, access and update
+ Tahseel
+                            frequency require confirmation.
+
+                            Proposed billing and revenue reference data; confirm scope, identifiers and field
+ Makeen
+                            authority.
+
+                            Non-fine/non-violation municipal receivable enforcement records and associated
+ Sanad
+                            evidence; confirm access and case/identifier semantics.
+
+                            Investment/lease contract origin; confirm direct, verified intermediary or approved dataset
+ Furas
+                            route.
+
+                            Working violation/case-status sources for WF-08; both owners must validate roles and
+ Efaa / Mumtathil
+                            data authority.
+
+ Other
+                            Only approved revenue-relevant datasets; optional expense and master data need a
+ government/finance
+                            confirmed owner and access agreement.
+ datasets
+
+
+The supplied files do not substantiate platform launch dates, existing API availability, budgets, absence of
+AI features or a 3–5 day baseline. Those prior assertions are not used as verified facts in this design.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 10 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+3 Solution Overview
+3.1 Solution Description
+The proposed platform consolidates authorized read-only revenue data while preserving source identity,
+document evidence and field-level lineage. Five logical capabilities support intake, validation, anomaly
+detection, review routing, and analytics/forecasting. These are logical services; implementation does not
+require five independently autonomous agents.
+
+
+
+
+Figure 3.1-1 Logical architecture
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 11 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+3.1.1 Source Authority and Integration Boundaries
+This is a proposed authority matrix for owner agreement. The feedback confirms Tahseel’s role for official
+collection figures; it does not approve every field assignment below. Retain conflicting source values and
+provenance. An unresolved ownership decision must not be resolved by an arbitrary source override.
+
+ Domain and material fields             Authority and current status                  Owner confirmation and handling
+
+                                        Tahseel for official collection figures, as   Tahseel data owner + revenue owner
+ Official collections: collected
+                                        directed in feedback. Exact field             confirm data dictionary and collection
+ amount, collection event/date and
+                                        definitions, reversals and cutoff remain      methodology; retain lineage and disclose
+ relevant collection status
+                                        to be agreed.                                 differences.
+
+ Billing: native invoice key, SADAD
+                                        Proposed: Makeen or the confirmed             Makeen/billing owner approves fields
+ link, issued amount, billing status,
+                                        originating billing system. Not approved      and mappings; do not overwrite them
+ due date, product/revenue
+                                        by the supplied sources.                      merely because Tahseel differs.
+ classification
+
+ Investment and lease contract:         Furas-originated contract record,
+                                                                                  Furas owner approves originating fields,
+ ID/version, dates, lease terms,        accessed through an owner-confirmed
+                                                                                  lawful access, feed route and crosswalk
+ billing schedule, asset and investor   route. No live integration established by
+                                                                                  to billing; discrepancies remain visible.
+ reference                              the supplied files.
+
+ Non-fine enforcement: Sanad            Sanad-provided records/evidence;              Sanad owner validates identifiers,
+ record ID, Board of Grievances         legal reference/status source and             evidence association and legal status
+ reference, case amount, status and     update semantics require Sanad-owner          lineage; no legal-state inference by the
+ source documents                       confirmation.                                 platform.
+
+                                                                                      Efaa/Mumtathil owners resolve the
+                                        Efaa and Mumtathil roles and field
+ Violations, penalties, appeals,                                                      domain dictionary and event model;
+                                        authority are provisional pending both
+ judgments and enforcement states                                                     conflicting or unsupported state remains
+                                        owners’ validation.
+                                                                                      unresolved.
+
+                                        Ministry-approved business KPI
+ Official KPIs, baselines, targets,                                                   KPI owner approves formulas, dates and
+                                        catalog and responsible business
+ improvement directions and                                                           baseline method. Prototype examples
+                                        owner; actual catalog/sign-off not
+ business thresholds                                                                  stay marked illustrative.
+                                        supplied.
+
+ Organization hierarchy,                Proposed Ministry master-data catalog;        Data Governance Lead appoints master-
+ Amanah/municipality and revenue-       specific owner and dataset to be              data owners and approves effective-
+ source codes                           confirmed.                                    dated crosswalks.
+
+ Optional operating-expense values,     Approved finance dataset and            Do not calculate coverage until
+ coverage methodology and target        finance/business owner, not             numerator, denominator, access and
+ periods                                procurement transactions; not supplied. aligned periods are approved.
+
+ Analytical links, candidate matches,                                                 Named reviewer/definition owner
+                                        This platform owns its traceable
+ review decisions, model/report                                                       approves as applicable. Analytical state
+                                        analytical artifacts only.
+ definitions and recommendations                                                      never overwrites source records.
+
+
+
+Furas minimum dataset and route
+Request originating contract ID/version and contract type (investment/lease), investor reference,
+asset/property reference, Amanah/municipality, start/end dates, billing schedule and due dates,
+rent/receivable amounts and currency, status and relevant amendment-effective dates, available
+invoice/SADAD crosswalks, and source update/evidence references. Guarantee attributes are optional
+only when relevant and owner-approved. Consume terms as revenue data; do not administer awards or
+amendments.
+The Furas owner must choose and evidence one route: direct approved feed, a verified existing
+integration (with the intermediary and lineage identified), or a controlled approved dataset. Confirm field
+completeness, permissible use, cadence and missing-data behavior before related Alpha design is
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 12 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+baselined. Where unavailable, the prototype uses labeled samples and production analysis discloses the
+gap.
+
+3.1.2 Semantic and Business Metrics Contract
+ Governed definition         Required approved content and release rule
+
+                             Invoice fact: unique source-native invoice ID plus approved SADAD crosswalk;
+                             collection fact: unique collection transaction/event with reversals; contract: originating
+ Entity grains and keys
+                             contract ID/version; enforcement case: Sanad record ID and separate Board of
+                             Grievances reference. Preserve unresolved identities.
+
+                             Use a versioned case–invoice bridge carrying evidence and validation status. Sum
+                             invoice balances once per invoice and case amounts once per case. Aggregate each
+ Relationships and
+                             grain before combining views. If a source later links one invoice to multiple cases,
+ allocation
+                             prevent repeated balances across those cases. Allocate case amounts only under an
+                             approved method/version; otherwise show unallocated amounts separately.
+
+                             Define NI(P,C,v) = SUM of owner-approved signed invoice events/adjustments included
+                             by rule version v for period P and population C. Approval must specify included
+ Net invoicing               statuses, cancellations, credit notes, reversals, exclusions, relevant date, currency and
+                             tax treatment. This is a configuration contract, not a claim that the Ministry’s formula has
+                             been supplied.
+
+                             Define CR(P,C,v) = 100 × N(P,C,v) / D(P,C,v), only when the approved denominator is
+                             nonzero. Owner must specify numerator event/status and reversal treatment,
+ Collection rate             denominator (including whether approved net invoicing or another eligible receivable
+                             base), exclusions, cohort, calendar and date alignment. Zero/missing denominator
+                             returns “not applicable”/“unavailable”, not an invented percentage.
+
+                             Distinguish invoice issue date, due date, collection event/value date, source update
+ Time and status             time, ingestion time, enforcement referral date and snapshot as-of date. Maintain
+ semantics                   source-to-business status mappings. Report source cutoff and organizational/revenue-
+                             classification versions.
+
+                             Each KPI stores ID/name, rationale, formula/version, unit, owner, measurement period,
+                             dimensions, aggregation/exclusion rules, baseline period/population/method/value,
+ KPI catalog contract
+                             target, intended direction/range, threshold, approver and effective dates. Proposed
+                             records cannot silently become official.
+
+                             Every result links to source snapshot and governed measure version. Scope queries
+ Lineage and
+                             and evidence by owner-approved role/row/column policies. Preserve historical
+ authorization
+                             commitments and govern any restated historical series separately.
+
+                             The actual approved net-invoicing and collection-rate methods are not included in the
+                             two supplied files. Prototype formulas must be marked illustrative; production official KPI
+ Release gate
+                             use is blocked until the business owner approves populated definitions and
+                             reconciliation examples.
+
+
+Reporting partitions must be explicit: “referred” invoices are distinct invoices with at least one validated,
+relevant case relationship; “not referred” requires adequate confirmed referral coverage; unknown or
+unresolved referral status is separate. Collections on referred invoices are not automatically collections
+attributable to enforcement. Use an owner-approved timing/attribution rule for that measure.
+
+3.1.3 Conversational Reporting Technical Approach
+Proposed approach: an Arabic conversational interface produces a schema-validated report specification
+containing approved measure IDs/versions, dimensions, filters, period, comparisons, calculations and
+visualization layout. A policy service validates scope and allowed operations. A semantic query service
+compiles parameterized read-only queries; a report service renders an editable report and stores its
+versioned definition. The language model has no direct source-database credentials and cannot invent
+production formulas.
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 13 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+Refinements modify the report specification and repeat validation. Saved definitions pin measure
+versions; scheduled refresh rechecks the owner and each recipient, identifies incompatible/retired
+definitions and requires controlled migration. PDF and XLSX outputs carry source, period, filters,
+calculations, version and freshness metadata. Restricted content is omitted through scoped copies or
+delivery is denied.
+Power BI describes the intended analyst-like experience; it is not a prescribed product dependency. OCI
+hosting is the source’s proposed baseline, pending architecture/security validation. Specific model, OCR,
+query, report-rendering and identity services are not selected in the supplied files. Approval of Saudi-
+hosted endpoints, network connectivity, licenses, document storage, access policies and operational
+support is required before real-data deployment.
+Freshness is source-specific: the original five-minute dashboard claim conflicts with daily, weekly and
+monthly feeds. Each dataset requires an agreed cadence and SLA; every display shows source cutoff
+and stale-data state. Forecasts and reports cannot be fresher than their available inputs.
+
+3.2 User Personas
+ Persona                    Role and primary need                            Interaction / frequency
+
+                            Financial employee responsible for daily
+                                                                             Uses the invoice and daily dashboard to
+ Invoice and Collection     invoice ingestion and validation. Process
+                                                                             review ingested invoices and alerts
+ Officer                    invoices quickly and accurately and detect
+                                                                             Daily
+                            errors and duplicates
+
+                            Manager responsible for monitoring               Reviews evidence, prioritizes follow-up and
+ Revenue and Collection     collection performance and making                approves changes only within confirmed
+ Manager                    intervention decisions. Source-aware view of     revenue responsibilities.
+                            collections, forecasts and deviations            Weekly / Monthly
+
+                            Auditor of revenue data quality and              Reviews analytical changes, audit history and
+                            analytical decisions. Verify mapping             governance exceptions; no supplier-payment
+ Internal Financial Auditor
+                            evidence, review permissions and                 approval path.
+                            traceability                                     Periodic / As needed
+
+                            Executive leader responsible for
+                                                                             Reviews summary reports and strategic
+                            performance of the invoice and revenue
+ Shared Services Leader                                                      indicator dashboards
+                            ecosystem. Comprehensive executive view
+                                                                             Monthly
+                            of performance, risks, and financial impact
+
+                            Owner of analytical review/access                Reviews revenue responsibility rules,
+ Governance Officer         governance. Verify authorized reviewers,         escalations and authorization deviations.
+                            KPI changes and report distribution              Periodic / As needed
+
+                            Financial officer responsible for reviewing      Reviews differences and proposed
+                            billing differences between Makeen and           corrections, confirms analytical findings and
+ Financial Reconciliation
+                            Tahseel.. Reconcile differences by field         refers source changes to the authorized
+ Officer
+                            authority; Tahseel governs official collection   owner.
+                            figures only.                                    Weekly
+
+                            Officer responsible for monitoring penalties
+                            and fines and their appeal and enforcement       Reviews owner-confirmed source states and
+ Penalties and Fines        status across Efaa and Mumtathil.. Track         follow-up recommendations; legal actions
+ Officer                    violation status, enforcement progress,          occur only in existing source processes.
+                            appeals, and their impact on collection          Daily / As needed
+                            probability.
+
+                          Collection execution role responsible for
+                                                                             Uses collection-risk rankings,
+                          acting on collection-priority
+                                                                             collection/delay/cancellation probabilities, and
+                          recommendations generated from
+ Field Collection Manager                                                    intervention recommendations to execute
+                          forecasting results.. Prioritize follow-up
+                                                                             follow-up actions on prioritized invoices.
+                          activities and focus collection effort on
+                                                                             Daily
+                          invoices requiring proactive intervention.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 14 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Persona                     Role and primary need                       Interaction / frequency
+
+                             Amanah-level management role receiving      Reviews the periodic revenue
+                             revenue-performance information for         report/dashboard, including collected-versus-
+                             oversight and performance review.. Review   target performance, revenue-source analysis,
+ Amanah Leader
+                             revenue/collection performance; optional    and operating-expense coverage at Amanah
+                             expense coverage only with approved data    level.
+                             and formula.                                Monthly
+
+
+
+
+3.3 Processes and Workflows
+All nine target workflows describe the intended analytical behavior. Prototype feeds, scores, external
+notifications and source responses are simulated and visibly labeled. Internal review and versioning may
+be demonstrated; there are no official source writes. Routine calculations run within approved rules;
+exceptions and governance changes require authorized people.
+
+ Workflow       Capability                                                                 Related requirements
+
+ WF-01          Intelligent Invoice Processing                                             FR-001–009/011
+
+ WF-02          Collection Forecast and Follow-up Prioritization                           FR-010/020
+
+ WF-03          KPI and Performance Intelligence                                           FR-010/017/019
+
+ WF-04          Conversational Reporting and Dynamic Report Generation                     FR-018/019
+
+ WF-05          Financial Audit Review                                                     FR-007/012
+
+ WF-06          Periodic Revenue Reporting                                                 FR-013/018/019
+
+ WF-07          Financial Reconciliation                                                   FR-005/014/019
+
+ WF-08          Violation Follow-up                                                        FR-015
+
+ WF-09          Sanad Enforcement-to-Invoice Mapping                                       FR-001/002/005/016/019
+
+
+Workflow IDs are the authoritative identifiers in this revision. Legacy UC-01–UC-13 and SCR-05/SCR-09
+references in source v0.3 must be cross-checked in DOC-01 and DOC-02 before submission; those
+companion artifacts were not supplied.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 15 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-01 Intelligent Invoice Processing
+Current-state context: Invoice and receivables records are reviewed across separate platforms; intake,
+reconciliation and exception coordination require manual consolidation.
+Target-state steps
+
+ Step         Activity and outcome                                                                  Responsible role
+
+              Receive a record through authenticated manual upload or an approved source            Invoice and Collection
+ WF01-01
+              intake; assign a unique analytical record ID and retain source identifiers.           Officer
+
+              Read structured fields first, then machine-readable text or OCR when needed.
+ WF01-02      Keep original values, normalized values and evidence separately. Route Sanad          Ingestion Agent
+              linkage gaps to WF-09.
+
+              Check completeness and duplicates using source keys and supporting evidence.
+ WF01-03      Quarantine unsupported or suspected duplicate analytical records for review;          Ingestion Agent
+              preserve the original receivable.
+
+              Validate SADAD references and relevant investment-receivable data against
+ WF01-04      approved datasets and field authority. Record relationship validation separately      Validation Agent
+              from extraction confidence.
+
+              In parallel, assess amount consistency and unusual revenue patterns; preserve
+                                                                                                    Anomaly Detection
+ WF01-05      evidence and flag risk for review. Tax compliance and received-service validation
+                                                                                                    Agent
+              are excluded.
+
+              Join both check results. Clear records continue to analytical monitoring;
+ WF01-06                                                                                            Platform
+              unresolved or conflicting results enter the exception queue.
+
+              Review the proposed extraction, classification or mapping; confirm, reject the
+                                                                                                    Internal Financial
+ WF01-07      proposal, request evidence or escalate. No decision cancels an invoice or
+                                                                                                    Auditor
+              municipal receivable.
+
+              Route review cases using approved revenue responsibilities, organization and risk
+ WF01-08                                                                                            Routing Agent
+              rules; send an internal notification with evidence and confidence.
+
+              Review notified cases and plan follow-up under WF-02. Mandatory human review
+                                                                                                    Revenue and
+ WF01-09      remains for ambiguous mappings, KPI changes and report-distribution
+                                                                                                    Collection Manager
+              authorization.
+
+              Record analytical status and review events. Display official collection status only
+ WF01-10                                                                                            Platform
+              from the authorized source snapshot; do not update that source.
+
+              Correct a derived proposal, retrieve fresh source data, request documents or
+ WF01-11      escalate. Reprocessing repeats checks; rejected proposals remain auditable and        Officer / Auditor
+              do not delete source records.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 16 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-1 WF-01 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 17 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-02 Collection Forecast and Follow-up Prioritization
+Current-state context: Follow-up depends on source reports and manual prioritization; the availability of
+historical training data and predictive capability must be confirmed.
+Target-state steps
+
+ Step         Activity and outcome                                                                   Responsible role
+
+              Run the proposed daily cycle before 08:00 Asia/Riyadh, subject to feed availability;
+ WF02-01                                                                                             Platform
+              display the actual source cutoff and any delay.
+
+              Use approved semantic-layer features: invoice balances, due dates, collection
+ WF02-02      history and Furas-originated investment/lease terms when available. Guarantees         Analytics Agent
+              or market indicators require owner-approved access and definitions.
+
+              Estimate collection by the approved horizon, overdue risk and cancellation
+ WF02-03      likelihood only where labels support it; publish horizon, model version, data cutoff   Analytics Agent
+              and uncertainty. Scores are not official statuses.
+
+              Apply approved revenue risk and follow-up thresholds. Rank invoices without
+ WF02-04      duplicating balances through enforcement joins. Unsupported or cold-start cases        Analytics Agent
+              carry an insufficient-history flag.
+
+              Update SCR-09 with scores, forecast horizon, priority, evidence and freshness.
+ WF02-05      Use approved fallback models only with disclosed limitations; otherwise show           Platform
+              unavailable.
+
+              Notify the responsible manager of high-risk cases under the approved alert policy;
+ WF02-06                                                                                             Platform
+              do not imply a statutory deadline unless confirmed by the source owner.
+
+              Review the ranked portfolio and approve operational follow-up priorities within        Revenue and
+ WF02-07
+              existing revenue responsibilities.                                                     Collection Manager
+
+              Perform approved follow-up in existing collection processes; the analytical platform   Field Collection
+ WF02-08
+              neither executes collection nor changes legal or receivable status.                    Manager
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 18 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-2 WF-02 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 19 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-03 KPI and Performance Intelligence
+Current-state context: Performance is consolidated from platform reports and spreadsheets; official KPI
+definitions and historic approvals must be obtained from business owners.
+Target-state steps
+
+ Step         Activity and outcome                                                                Responsible role
+
+              Authenticate and open SCR-05 with the required organizational and revenue           Manager / Shared
+ WF03-01
+              access scope.                                                                       Services Leader
+
+              Load the approved KPI catalog and version applicable to the measurement period;
+ WF03-02      show each source cutoff. Freshness follows the approved feed SLA, not an            Platform
+              unconditional five-minute promise.
+
+              Retrieve actuals, approved forecasts and anomaly evidence through the semantic
+ WF03-03                                                                                          Analytics Agent
+              layer; do not infer causation from correlation.
+
+              Show the approved KPI set with formula, owner, period, baseline, target and
+ WF03-04      intended improvement direction. The former six indicators are candidates, not a     Platform
+              mandatory or approved catalog.
+
+              Drill down by authorized organization, revenue source and period; retain the        Manager / Shared
+ WF03-05
+              measure version and comparable population.                                          Services Leader
+
+              Evaluate adverse deviation using each KPI’s increase/decrease/range direction
+ WF03-06      and approved thresholds, rather than treating every below-target value as poor      Platform
+              performance.
+
+              Create or refine an editable management report through WF-04 using the same         Manager / Shared
+ WF03-07
+              governed definitions.                                                               Services Leader
+
+              Save, export or schedule the report only after recipient authorization checks;
+ WF03-08                                                                                          Platform
+              preserve report definition, source cutoffs and measure versions.
+
+              Identify trends, material deviations and evidence-supported contributing factors;
+ WF03-09                                                                                          Analytics Agent
+              distinguish associations from proven causes and recommend follow-up.
+
+              Propose additional KPIs with rationale, formula, input data and decision value.
+ WF03-10                                                                                          Analytics Agent
+              Proposed baselines must specify historical period, population and method.
+
+              Recalibrate analytical expectations within approved rules. Official KPI, baseline,
+ WF03-11      target or threshold changes require business-owner approval, version and effective Business KPI Owner
+              date; retain the prior period’s commitments.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 20 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-3 WF-03 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 21 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-04 Conversational Reporting and Dynamic Report Generation
+Current-state context: Users depend on fixed dashboards and manual analysis; the target is an analyst-
+like reporting experience through an authorized conversational interface.
+Target-state steps
+
+ Step         Activity and outcome                                                                     Responsible role
+
+              Describe an analysis or ask a question in Arabic; a report request can specify           Authorized Business
+ WF04-01
+              investment revenues, period, Amanah comparison or enforcement referral.                  User
+
+              Resolve intent, approved measures, dimensions, periods, filters, comparisons,
+ WF04-02      calculations and visualizations. Ask for clarification when ambiguous; list              Analytics Agent
+              unavailable data without invented values.
+
+              Apply identity, role, organization, row/column permissions and report-distribution
+ WF04-03                                                                                               Platform
+              rights before query planning. Deny unauthorized data requests.
+
+              Compile a validated report specification into parameterized, read-only queries
+                                                                                                       Authorized Data
+ WF04-04      through the governed semantic service. Reject unapproved formulas and direct
+                                                                                                       Service
+              raw-table access.
+
+              Return a grounded answer or editable report with charts/tables and explanation;
+ WF04-05                                                                                               Analytics Agent
+              include sources, period, filters, calculation definitions/versions and data freshness.
+
+              Refine period, Amanah comparison, investment-revenue separation or
+ WF04-06      enforcement classification conversationally. Each edit repeats clarification,            User / Platform
+              authorization and calculation checks.
+
+              Log user, report specification/version, authorized query, measure versions, source
+ WF04-07      snapshot, result reference and timestamp under approved retention and access             Audit Service
+              rules.
+
+              Allow users to edit report layout, selected measures and approved calculations in
+ WF04-08      the report builder; do not require a separately developed dashboard for each             User / Report Service
+              report.
+
+              Save a versioned report definition; on refresh, revalidate owner permissions,
+ WF04-09      source availability and measure compatibility. Suspend unauthorized jobs and             Report Service
+              disclose definition changes.
+
+              Export PDF and XLSX and distribute only to authorized recipients. Recheck each
+ WF04-10      recipient’s scope; generate scoped copies or deny delivery. Retain metadata in           Report Service
+              exports; log distribution.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 22 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-4 WF-04 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 23 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-05 Financial Audit Review
+Current-state context: Audit evidence is distributed across source systems; revenue review decisions and
+analytical lineage need a consolidated audit view.
+Target-state steps
+
+ Step         Activity and outcome                                                              Responsible role
+
+              Authenticate and choose period, organization, revenue source, invoice/case ID,    Internal Financial
+ WF05-01
+              status and review-decision scope.                                                 Auditor
+
+              Retrieve the authorized population and distinct invoice/case totals without
+ WF05-02                                                                                        Platform
+              duplicate joins.
+
+              Assemble source snapshots, mapping evidence, validation and anomaly results,
+ WF05-03      analytical changes, reviewer identity and timestamps. Preserve official source    Audit Service
+              records.
+
+              Check mapping reviews, KPI changes and distribution approvals against the
+ WF05-04      approved revenue responsibility and access matrix. Procurement/payment            Audit Service
+              financial-delegation checks are excluded.
+
+              Report authorization deviations and proposed follow-up; route governance          Platform / Governance
+ WF05-05
+              exceptions to the responsible Governance Officer.                                 Officer
+
+              Review findings and request additional evidence or source-owner correction        Internal Financial
+ WF05-06
+              through existing procedures.                                                      Auditor
+
+              Export PDF/XLSX to authorized oversight recipients, with audit ID and
+ WF05-07      provenance. A digital signature, if separately approved and available, confirms   Auditor / Platform
+              integrity/authorship, not factual or legal validity. Log access independently.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 24 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-5 WF-05 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 25 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-06 Periodic Revenue Reporting
+Current-state context: Monthly revenue reporting requires manual aggregation and validation of approved
+source figures and targets.
+Target-state steps
+
+ Step         Activity and outcome                                                                    Responsible role
+
+              Run on the first working day after the approved Tahseel monthly cutoff is available.
+ WF06-01      If incomplete, issue a clearly marked draft or defer distribution under the approved    Scheduler
+              policy.
+
+              Load collections, invoice records, approved targets, investment/lease and
+ WF06-02      enforcement mappings through the semantic layer. Expense inputs are optional            Analytics Agent
+              and require approved finance data.
+
+              Calculate net invoicing, collected amount, target and year-on-year change using
+ WF06-03                                                                                              Analytics Agent
+              the approved versioned methodology and aligned period/population.
+
+              Calculate enforcement measures without double-counting case values or invoice
+ WF06-04      balances. Show expense coverage only with an approved numerator, denominator            Analytics Agent
+              and same-period expense dataset.
+
+              Compare actual collections with targets. Tahseel governs official collection figures;
+ WF06-05                                                                                              Analytics Agent
+              resolve other fields by the authority matrix and disclose unresolved differences.
+
+              Generate revenue-source and Amanah views with investment-revenue separation,
+ WF06-06      enforcement status and metadata. Unmapped enforcement amounts remain                    Report Service
+              separately disclosed; missing inputs are not zero.
+
+              Review calculations, versions, variances, exceptions and recipient scope before         Revenue and
+ WF06-07
+              authorizing distribution.                                                               Collection Manager
+
+              Export PDF/XLSX and execute only authorized distribution. Revalidate recipients
+ WF06-08      on each scheduled run. Use WF-04 for conversational refinements to the saved            Report Service
+              report.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 26 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-6 WF-06 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 27 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-07 Financial Reconciliation
+Current-state context: Makeen and Tahseel records require cross-platform matching and classification of
+billing and collection differences.
+Target-state steps
+
+ Step         Activity and outcome                                                                    Responsible role
+
+              Run weekly on Sunday before 08:00 Asia/Riyadh when approved snapshots are
+ WF07-01                                                                                              Platform
+              available; show actual cutoff and reconcile comparable periods.
+
+              Retrieve approved Makeen billing fields, native invoice keys, any SADAD
+ WF07-02      reference, amounts, status and organizational/revenue classifications; retain           Ingestion Agent
+              source lineage.
+
+              Retrieve approved Tahseel SADAD references, collection amounts, collection
+ WF07-03                                                                                              Ingestion Agent
+              dates and related source statuses. Authority is field-specific.
+
+              Match using validated SADAD invoice numbers or approved source crosswalks.
+ WF07-04      Debtor ID and amount can support investigation but cannot alone establish a             Validation Agent
+              relationship; unresolved candidates stay separate.
+
+              Classify missing records, amount differences, timing differences, status conflicts
+ WF07-05                                                                                              Validation Agent
+              and collected-versus-cancelled cases. Preserve each source value.
+
+              Calculate each discrepancy at its defined grain and prioritize review. Tahseel
+ WF07-06      governs official collection figures only; unresolved field ownership remains pending    Validation Agent
+              owner agreement.
+
+              Produce proposed corrections, not source amendments. Review high-value
+ WF07-07      differences daily using an owner-approved threshold; the original SAR 50,000 is a       Platform
+              proposal awaiting confirmation.
+
+              Confirm the analytical reconciliation finding or refer it for audit/source-owner action.
+ WF07-08                                                                                               Reconciliation Officer
+              Only the authorized source-system process can amend an official record.
+
+              Review evidence and confirm referral outcome. Close the analytical issue only with      Internal Financial
+ WF07-09
+              evidence; verify any official correction by re-ingesting the source record.             Auditor
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 28 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-7 WF-07 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 29 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-08 Violation Follow-up
+Current-state context: Violation, appeal and collection status is consolidated from Efaa, Mumtathil and
+Tahseel; source roles and case-state ownership require data-owner confirmation.
+Target-state steps
+
+ Step         Activity and outcome                                                                 Responsible role
+
+              Trigger on an approved violation batch or material source-status change. The
+ WF08-01      provisional Efaa/Mumtathil event model must be validated with their owners before    Platform
+              integration.
+
+              Validate completeness, identifiers, timestamp and source provenance; retain
+ WF08-02                                                                                           Validation Agent
+              conflicting or stale case-state data as exceptions.
+
+              Validate the SADAD link or approved violation-to-invoice crosswalk. Violator
+ WF08-03                                                                                           Validation Agent
+              identity is supporting evidence only; ambiguous matches remain unresolved.
+
+              Display source-recorded violation, appeal and enforcement status using the
+ WF08-04      agreed authority matrix. Keep this fines workflow separate from Sanad non-fine       Platform
+              receivables.
+
+              For a source-recorded pending appeal, flag the case for authorized review and
+ WF08-05      suppress conflicting platform recommendations under approved rules. Do not           Platform
+              execute or cancel an enforcement hold.
+
+              Recalculate analytical collection risk only from validated available inputs with
+ WF08-06                                                                                           Analytics Agent
+              model version and uncertainty.
+
+              Alert on material status or amount changes under owner-approved rules. The
+ WF08-07      original below-SAR 100,000 condition is unverified and must not be activated         Analytics Agent
+              without BRD/owner confirmation.
+
+              Refresh the follow-up view and weekly portfolio report through governed
+ WF08-08                                                                                           Platform
+              definitions, showing unmatched cases and source freshness.
+
+              Record a follow-up recommendation or referral for the authorized source-system
+                                                                                                   Penalties and Fines
+ WF08-09      process. The platform cannot initiate, pause, cancel or update a legal action or
+                                                                                                   Officer
+              official violation.
+
+              Review identity, mapping or source-state conflicts and supporting evidence; retain   Internal Financial
+ WF08-10
+              unresolved cases without inferring legal outcomes.                                   Auditor
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 30 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-8 WF-08 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 31 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+WF-09 Sanad Enforcement-to-Invoice Mapping
+Current-state context: Some Sanad records contain an enforcement reference without a usable structured
+link to the underlying SADAD invoices; manual document review is then needed.
+Target-state steps
+
+ Step         Activity and outcome                                                                Responsible role
+
+              Receive a new or updated Sanad record and its available enforcement reference.
+ WF09-01      Retain Sanad record ID and Board of Grievances reference in separate fields;        Ingestion Agent
+              missing case evidence creates an unresolved exception.
+
+              Inspect all structured SADAD references and validate their completeness and
+ WF09-02      uniqueness. Usable references go to step 05; missing, incomplete, invalid or        Validation Agent
+              ambiguous references go to step 03.
+
+              Retrieve documents demonstrably associated with that Sanad record and
+ WF09-03      enforcement reference; preserve document ID, version/hash and access controls.      Ingestion Agent
+              If unavailable, remain unresolved.
+
+              Read machine-readable text first; OCR only scanned/image content. Extract all
+ WF09-04      candidate SADAD invoice numbers with original value, normalized value,              Ingestion Agent
+              page/location and extraction confidence. VAT is not a required mapping field.
+
+              Validate structured or extracted candidates against approved invoice datasets,
+ WF09-05      including Tahseel where applicable, and the case evidence. A recognized number      Validation Agent
+              is not proof of relationship. Never match solely on debtor identity or amount.
+
+              Store validated case-to-invoice links separately from case values and invoice
+ WF09-06      balances. One case may link to many invoices. Without an approved allocation        Validation Agent
+              rule, retain the amount unallocated at case level; never assume equal shares.
+
+              Record every attempt: source record/document version, page/location where
+              applicable, candidate value, validation evidence/result, extraction confidence,
+ WF09-07                                                                                          Platform
+              relationship assessment and reviewer/history. Structured links retain field-level
+              provenance.
+
+              Review conflicts, ambiguous matches and partial cases. Confirm individual
+ WF09-08      supported links, reject proposals, request evidence or retain unresolved status;    Reconciliation Officer
+              show whether the case is fully or partially mapped.
+
+              Independently audit referred cases and sampled accepted mappings. Changes to        Internal Financial
+ WF09-09
+              analytical links are versioned; neither case nor receivable records are amended.    Auditor
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 32 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Figure 3.3-9 WF-09 target workflow
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 33 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+3.4 User Journeys
+Each journey uses controlled sample data in the prototype. Users can inspect evidence and distinguish
+analytical state from official source state. Authorization and missing-data handling apply throughout.
+
+ ID / journey               User experience                                                               Traceability
+
+                            Officer selects sample record → inspects structured/text/OCR evidence
+ J-01
+                            → reviews duplicate/validation/anomaly results → receives simulated   WF-01; FR-001–
+ Intelligent Invoice
+                            routing → confirms or corrects the analytical proposal. A rejected    009/011
+ Processing
+                            proposal never cancels the receivable.
+
+ J-02                       Manager selects period and portfolio → reviews horizon, uncertainty
+ Collection Forecast and    and available Furas lease features → prioritizes distinct invoices →          WF-02; FR-010/020
+ Follow-up                  field staff use existing collection procedures. No official status changes.
+
+                            Manager loads an approved/example catalog version → checks
+ J-03                       baseline, target and direction → explores trends and evidence →
+ KPI and Performance        reviews recommendations/new KPI proposals → business owner                    WF-03; FR-017/019
+ Intelligence               approves/version-controls official changes → history remains
+                            reproducible.
+
+                            User describes a report → clarifies ambiguity → receives an editable
+ J-04
+                            governed report → changes period/Amanah/investment/enforcement
+ Dynamic
+                            filters conversationally → saves a version → refreshes and                    WF-04; FR-018/019
+ Conversational
+                            exports/distributes within current recipient scope. Sources, calculations
+ Reporting
+                            and freshness remain visible.
+
+                            Auditor scopes records → reviews mapping evidence and analytical
+ J-05                       decision history → checks revenue permissions and KPI/distribution
+                                                                                                          WF-05; FR-007/012
+ Financial Audit Review     approvals → refers findings → exports a traceable analytical audit
+                            report.
+
+                            Manager reviews a cutoff-based monthly report → verifies official
+ J-06
+                            collections, approved calculations and gaps → authorizes recipients →         WF-06/04;
+ Periodic Revenue
+                            exports or requests a conversational variation using the same saved           FR-013/018/019
+ Reporting
+                            definition.
+
+                            Officer aligns source periods → validates links → inspects differences
+ J-07                       under field authority → confirms analytical findings → refers correction
+                                                                                                          WF-07; FR-005/014
+ Financial Reconciliation   to the source owner → re-ingests official evidence. Tahseel governs
+                            collections, not every field.
+
+                            Officer reviews validated violation links and source states → checks
+ J-08                       pending appeal and stale/conflict warnings → reviews analytical risk
+                                                                                                          WF-08; FR-015
+ Violation Follow-up        and recommended follow-up → uses the existing source process for
+                            any legal action.
+
+                            Officer opens a case → checks structured SADAD references →
+ J-09                       inspects associated text/OCR candidates if needed → validates every           WF-09;
+ Sanad Enforcement-to-      case–invoice relationship → confirms supported one-to-many links →            FR-001/002/005/016/
+ Invoice Mapping            retains partial/unresolved coverage and evidence → checks distinct            019
+                            case/invoice totals.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 34 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+J-01 Detailed Prototype Journey
+
+ ID          User journey steps             Illustration
+
+                                            The Invoice and Collection Officer selects a controlled sample invoice from
+                                            manual upload or a simulated source-system feed. The prototype records the
+ J-01.1      Start invoice intake
+                                            source and displays a draft unique invoice identifier. No production ingestion or
+                                            source-system update is performed.
+
+                                            Inspect original and normalized fields with missing-data and field-confidence
+             Extract and standardize
+ J-01.2                                     indicators. Check structured references before text/OCR; Sanad linkage gaps
+             invoice data
+                                            continue under J-09.
+
+                                            Compare sample source keys and invoice references; use amount/date/identity
+             Check for duplicate
+ J-01.3                                     as supporting evidence only. Quarantine suspected analytical duplicates
+             invoices
+                                            without deleting source invoices.
+
+                                            Compare extracted SADAD and relevant investment references against
+             Validate receivable
+ J-01.4                                     approved sample datasets; display relationship evidence separately from OCR
+             references
+                                            confidence and route uncertainty to review.
+
+                                            The AI capability evaluates the invoice against controlled historical patterns and
+             Assess financial-anomaly       presents a risk indicator, reasons, and supporting comparisons. Flagged cases
+ J-01.5
+             risk                           are referred to the Internal Financial Auditor for review; the prototype does not
+                                            automatically reject an invoice.
+
+                                            Use a sample revenue responsibility matrix to route the case; display
+ J-01.6      Notify responsible officer
+                                            notification evidence. External delivery is simulated in the prototype.
+
+                                            Review the stop reason, request evidence or correct/reject the analytical
+             Resolve an exception and
+ J-01.7                                     proposal with a reason; reprocess through the same checks. The original
+             reprocess
+                                            source record remains unchanged.
+
+
+
+J-09 Mapping Review Outcomes
+
+ Observed case                         Required user-visible outcome
+
+                                       Validate the reference and case evidence directly; document extraction is not
+ Usable structured reference
+                                       automatically required.
+
+ Multiple SADAD numbers in             Show every candidate with page/location evidence and independent validation
+ documents                             state.
+
+ Some supported links and some Show a partially mapped case, supported links and unresolved remainder; no
+ missing evidence              fabricated invoice or equal allocation.
+
+                                       Keep unresolved; request evidence. Extracted numbers alone do not establish a
+ No supported relationship
+                                       relationship.
+
+                                       Version the analytical links and show distinct invoice totals, case totals and any
+ Confirmed mapping
+                                       unallocated amount separately.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 35 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+4 Requirements Summary
+This revised HLSD contains the requirement and acceptance baseline for review. DOC-01 Product
+Requirements and DOC-02 Service Mapping must be synchronized by their owners before submission;
+their contents or approval status cannot be verified from the supplied files.
+
+4.1 Business Requirements
+ ID / requirement          Required behavior                                                           Accountable owner
+
+                           Ingest approved structured invoice/receivable datasets and Sanad
+                           records with their associated enforcement documents. Check structured
+ FR-001                                                                                                Invoice and Collection
+                           SADAD links before document retrieval; preserve native IDs and
+ Controlled multi-                                                                                     Officer
+                           provenance. Support PDF, DOCX, XML and XLSX through approved
+ source intake                                                                                         P0
+                           channels; proposed 50 MB/file limit, with validation and quarantine.
+                           Connectors are not assumed to exist.
+
+                           Read structured data and machine-readable text before OCR; support
+ FR-002                    Arabic, English and mixed-language material. Extract every relevant         Invoice and Collection
+ SADAD extraction          SADAD invoice number and retain document/page evidence and field            Officer
+ and evidence              confidence. VAT is optional source data, not a Sanad objective;             P0
+                           unconfirmed payment-order fields are excluded.
+
+                           Detect duplicate source keys, repeated files and candidate invoice
+                                                                                                       Invoice and Collection
+ FR-003                    duplicates without merging solely by amount or identity. Quarantine
+                                                                                                       Officer
+ Duplicate detection       analytical duplicates for review; preserve official source records and
+                                                                                                       P0
+                           replay idempotently.
+
+                           Preserve original and normalized identifiers, leading zeros, Arabic/Latin
+ FR-004
+                           digits, currencies, dates and source versions. Distinguish analytical IDs   Data Lead
+ Normalization and
+                           from Sanad IDs, Board of Grievances references and SADAD numbers;           P0
+ provenance
+                           record every transformation.
+
+                           Validate invoice/SADAD and investment-receivable relationships using
+ FR-005                    approved datasets and crosswalks. Store evidence and match                  Financial
+ Receivable                outcomes separately from extraction confidence; identity and amount         Reconciliation Officer
+ relationship validation   alone are insufficient. Route unsupported matches to unresolved             P0
+                           review.
+
+                           Check available components, totals, adjustments and balances against
+ FR-006                    approved arithmetic rules. Retain relevant source VAT only as optional      Internal Financial
+ Amount consistency        amount context; distinguish missing components from zero. Exclude tax       Auditor
+ and data quality          assessment, registration checks, VAT compliance and all ZATCA               P0
+                           integration.
+
+                           Maintain owner-approved routing and review responsibilities by
+ FR-007
+                           organization, revenue domain and risk. Version rules and effective          Governance Officer
+ Revenue review
+                           dates; unconfirmed thresholds remain disabled. Exclude procurement          P0
+ responsibilities
+                           and supplier-payment financial delegation.
+
+                           Flag unusual amounts, duplicate receivables, inconsistent statuses and
+ FR-008                                                                                                Revenue and
+                           revenue patterns with evidence and calibrated risk scores; support
+ Revenue anomaly                                                                                       Collection Manager
+                           human dispositions and model monitoring. Findings are indicators, not
+ detection                                                                                             P0
+                           determinations of fraud.
+
+                           Route cases under FR-007 and log authorized notifications, ownership
+ FR-009                                                                                                Revenue and
+                           and escalation. The prototype simulates delivery; production
+ Controlled review                                                                                     Collection Manager
+                           notifications require approved channels. No payment authorization or
+ routing                                                                                               P0
+                           legal action is executed.
+
+                           Use governed, authorized invoice, collection, investment and
+ FR-010                    enforcement features for horizon-defined collection/risk estimates and      Revenue and
+ Collection forecasts      dashboards. Disclose versions, uncertainty, freshness and unavailable       Collection Manager
+ and analytics             outcomes; apply FR-017 for KPIs and FR-018 for                              P0
+                           conversation/reporting.
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 36 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ ID / requirement         Required behavior                                                            Accountable owner
+
+                          Allow authorized review, correction/reprocessing of derived proposals,
+ FR-011                                                                                                Invoice and Collection
+                          evidence requests, rejection and escalation. Preserve source records
+ Analytical exception                                                                                  Officer
+                          and history. Rejecting an extraction, classification or mapping never
+ resolution                                                                                            P0
+                          cancels a municipal receivable.
+
+                          Search immutable/tamper-evident audit evidence and check mapping-
+ FR-012                                                                                                Internal Financial
+                          review, KPI-change and distribution permissions. Export scoped
+ Revenue audit and                                                                                     Auditor
+                          PDF/XLSX with provenance; optional approved digital signatures prove
+ governance                                                                                            P0
+                          integrity/authorship, not official financial validity.
+
+                          Generate monthly source/Amanah reports with investment-revenue
+ FR-013                   separation, target comparisons and deduplicated enforcement analysis.        Revenue and
+ Periodic revenue         Expense coverage requires approved expense inputs/formula. Reuse             Collection Manager
+ reports                  FR-018 definitions and controlled distribution; include freshness and        P0
+                          gaps.
+
+                          Reconcile Makeen/Tahseel data using approved links and comparable
+ FR-014                                                                                                Financial
+                          cutoffs. Tahseel governs official collection figures only. Classify other
+ Field-authoritative                                                                                   Reconciliation Officer
+                          differences by the agreed authority matrix; retain unresolved conflicts
+ reconciliation                                                                                        P0
+                          and propose corrections for the source owner.
+
+                          Consolidate owner-confirmed Efaa/Mumtathil and Tahseel data; validate
+ FR-015                                                                                         Penalties and Fines
+                          invoice links, display authoritative appeal/enforcement states and
+ Violation status                                                                               Officer
+                          recommend follow-up. The platform cannot initiate, hold, cancel or
+ intelligence                                                                                   P0
+                          amend a legal action or violation.
+
+                          Implement WF-09: validate structured references first; retrieve
+ FR-016                   documents for unusable links; extract all SADAD candidates; validate         Financial
+ Sanad enforcement-       case relationships; retain distinct IDs, evidence and separate               Reconciliation Officer
+ to-invoice mapping       confidence assessments. Preserve one-to-many links and unresolved            P0
+                          cases. No equal allocation without approval; no double-counting.
+
+                          Consume approved formulas, owners, periods, baselines, targets and
+ FR-017                   improvement direction. Specify and approve baseline
+                                                                                                       Business KPI Owner
+ KPI and Performance      period/population/method. Explain trends/deviations with evidence,
+                                                                                                       P0
+ Intelligence             recommend follow-up and propose new KPIs. Official changes require
+                          approval, version/effective dates and preserved historical commitments.
+
+                          Create editable reports from approved measures, dimensions,
+ FR-018                   calculations, filters, periods, comparisons and charts. Clarify ambiguity,   Shared Services
+ Dynamic                  disclose unavailable data, support conversational refinement, versioned      Leader
+ conversational reports   saves/refreshes, PDF/XLSX and controlled recipient-scoped                    P0
+                          distribution. Every output retains source/definition/freshness metadata.
+
+                          Maintain reusable entities, source authority, relationships, status/date
+ FR-019                   meanings, organizational/revenue classifications and approved                Data Governance
+ Governed semantic        measures. Encode net-invoicing and collection-rate numerator,                Lead
+ metrics service          denominator, exclusions and time alignment as approved versioned             P0
+                          rules. Prevent raw-table bypass and duplicate enforcement joins.
+
+                          Ingest approved Furas-originated contract data directly, through a
+ FR-020                   verified existing integration, or via an approved dataset. Link              Revenue and
+ Investment and lease     investment/lease terms to invoices and collections for analysis,             Collection Manager
+ revenue analysis         matching, follow-up and forecasting. Keep procurement and contract-          P0
+                          award/amendment administration excluded.
+
+
+P0 = core required capability. Requirements are accountable to human business/data owners; agents are
+implementing services, not approvers. FR-020 gives the Furas use case an explicit requirement ID and
+treats it as core scope; access blockers must be escalated, not silently downgraded.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 37 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+4.2 Non Functional Requirements
+Numerical targets below are proposals carried forward or clarified for approval. They are not represented
+as measured results or signed service commitments.
+
+ ID / category             Requirement
+
+                           Proposed target: P95 ≤3 seconds for navigation, status and bounded search at 50
+ NFR-001
+                           concurrent sessions. Complex report generation, OCR and batch jobs are asynchronous
+ Performance
+                           with progress/status; their workload-specific SLAs require load-test approval.
+
+                           Enforce identity, role, organization and row/column scope at query, evidence retrieval,
+ NFR-002
+                           report save, refresh, export and recipient distribution. Test revoked access, cross-
+ Access control
+                           Amanah access and indirect data leakage; log denied attempts.
+
+ NFR-003                   Proposed ≥99.5% availability in the approved 07:00–22:00 working-day calendar,
+ Availability and          measured by service probes. Specify maintenance treatment, failover, daily encrypted
+ recovery                  backup and restore testing; RPO/RTO and calendar require IT approval before Beta exit.
+
+                           Record source snapshots, mapping attempts, confidence, reviewer decisions,
+ NFR-004                   definition/model/report versions, access and distribution. Use tamper-evident append-only
+ Audit and retention       storage and controlled access. The source’s seven-year retention is proposed, subject to
+                           records/privacy-owner approval before production.
+
+                           Validate schema, currency, date semantics, mandatory fields and source identities;
+ NFR-005                   quarantine defects. Do not manufacture missing SADAD references to meet
+ Data quality              completeness targets. Report unresolved mapping coverage separately from source-data
+                           completeness.
+
+                           Proposed peak 500 structured invoice records/minute and 3× agreed baseline volume;
+ NFR-006                   establish baseline workload, file-size mix and hardware first. OCR pages and report jobs
+ Capacity                  need separate throughput measurements. Validate scaling and backpressure without
+                           dropped/duplicated records.
+
+ NFR-007                   Version and approve rule/configuration changes with rollback; use staged releases and
+ Controlled                backward-compatible migrations. Zero-downtime deployment is a design target subject to
+ maintenance               architecture validation, not an unconditional guarantee.
+
+                           Proposed OCI deployment must satisfy approved Saudi residency, government-network
+ NFR-008
+                           and applicable program security/privacy controls. Encrypt stored data with approved
+ Security and data
+                           AES-256 configuration and traffic with TLS; approve model/OCR endpoints, key
+ protection
+                           management and document isolation before real data use.
+
+                           Use task-specific validation in Section 5.4: SADAD exact extraction, relationship
+ NFR-009                   precision/recall, anomaly precision/recall and forecast calibration/error by horizon. Avoid
+ AI evaluation             one blanket 85% accuracy requirement. Evaluate representative held-out data, drift and
+                           quarterly model reviews.
+
+                           Proposed ≥99% successful eligible requests after bounded retries, with raw failures and
+ NFR-010
+                           retry outcomes reported separately. Use source checkpoints, idempotency, circuit
+ Integration and
+                           breakers and stale-data warnings. Agree source cadence and freshness SLAs before
+ freshness
+                           production; do not assume live APIs.
+
+                           Only authorized owners may approve/version definitions and effective dates. KPI,
+ NFR-011                   forecasting and reporting services consume governed measures/features; block
+ Metrics governance        conversational direct access to raw source tables. Pin historical definitions and prevent
+                           silent report-definition migration.
+
+                           Treat source documents and prompts as untrusted input. Validate report specifications
+ NFR-012
+                           against an allowlisted schema, use read-only parameterized queries, impose resource
+ AI query and evidence
+                           limits and restrict evidence to user scope. Test prompt injection, invented formulas and
+ safety
+                           unauthorized exports.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 38 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+5 Success Metrics and Acceptance
+Ministry business KPIs managed in WF-03 are separate from the project-benefit and technical measures
+in this section. The supplied files contain no approved KPI catalog or evidence that the numerical project
+targets have been signed off. All targets below are proposed; the Solution Owner and relevant data/IT
+owners must approve baselines, definitions and acceptance thresholds.
+
+5.1 Strategic Benefit Metrics
+Released capacity: the source assumes 1,632 hours/FTE/year and SAR 270,000/FTE/year. Its 6M/Y1/Y2
+scenarios of 4/9/15 FTE imply 6,528/14,688/24,480 annualized hours and SAR 1.08M/2.43M/4.05M
+annualized capacity value. These are run-rate scenarios at each milestone, not cumulative savings. A 6-
+month result must not be counted as a full year of realized savings.
+The source’s SAR 2.70M/year baseline equals ten FTE at the same rate and does not substantiate a
+fifteen-FTE release. Remove it as an approved baseline until the eligible workforce and workload are
+verified. Measure net time saved from comparable pre/post task samples, subtract new
+review/maintenance effort, and cap claimed capacity at observed eligible hours. Redeployment alone is
+not a cash saving; a cash benefit requires verified avoided/reduced expenditure, net of implementation
+and operating cost.
+
+ Measure                       Proposed assessment                                                     Owner / cadence
+
+                                                                                                       Solution Owner /
+                               Baseline: measured eligible task hours, not yet established.
+ Released employee                                                                                     Finance; monthly
+                               Indicative run-rate scenarios above require workload validation.
+ capacity                                                                                              observations, annual
+                               Report hours and FTE equivalents separately from money.
+                                                                                                       validation
+
+                               Measure incremental Tahseel-confirmed collections in a treated,         Revenue Owner /
+ Solution-attributable         eligible invoice cohort versus a comparable control or approved         Finance; monthly
+ collections                   counterfactual, adjusted for mix, policy and timing. Prevent            cohorts, annual
+                               duplicate invoices and acceleration-versus-lifetime uplift confusion.   assessment
+
+                                                                                                       Solution Owner /
+                               Approve baseline period, population, assumptions, cost inputs,
+                                                                                                       Finance; before
+ Benefit commitment gate       attribution method and uncertainty before using targets as
+                                                                                                       release benefits
+                               commitments.
+                                                                                                       baseline
+
+
+Revenue growth: v0.3 assumes SAR 16.7B for 2026, 3.1% underlying GDP growth and 4.65% collection
+growth, yielding roughly SAR 17.5B and SAR 18.3B. These are unverified planning inputs, not a
+demonstrated causal benefit. GDP growth is not accepted as a collection counterfactual. Withdraw these
+amounts as solution targets until Finance approves a suitable collection baseline and attribution design.
+Report gross revenue trends separately from solution-attributable collections.
+
+5.2 Operational Benefit Metrics
+ Measure                   Definition and proposed target                                         Measurement / owner
+
+                                                                                                  Task time studies with
+                           Net hours released from comparable tasks; milestone annualized         volume/complexity
+ Employee time saved       scenarios: 6,528 / 14,688 / 24,480, subject to validated eligible      controls and review effort
+                           workload.                                                              deducted; Solution Owner,
+                                                                                                  monthly.
+
+                                                                                                  Report population
+                           Monthly active authorized users completing a meaningful
+                                                                                                  changes, exclusions and
+ Employee adoption         governed task ÷ approved eligible user population. Proposed
+                                                                                                  usage events; Solution
+                           6M/Y1/Y2: 50% / 80% / 100%.
+                                                                                                  Owner, monthly.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 39 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Measure                   Definition and proposed target                                      Measurement / owner
+
+                                                                                               Pre/post matched
+                           Median and P90 elapsed working time per comparable completed
+ Processing/                                                                                   workload samples;
+                           case; baseline period/population to be approved. No committed
+ reconciliation time                                                                           Revenue Owner /
+                           50% reduction without evidence.
+                                                                                               Operations, monthly.
+
+
+
+
+5.3 Technical Service Measures
+ Measure / requirement Proposed target and method                                                   Owner / cadence
+
+                           ≥99.5% within approved service calendar, measured by service
+ Availability
+                           probes as available minutes ÷ eligible minutes. Record exclusions and    IT / monthly
+ NFR-003
+                           incidents; use restore drills for recovery evidence.
+
+                           P95 ≤3 seconds at 50 concurrent sessions for bounded interactive
+ Interactive latency                                                                         IT / release and
+                           operations; measure complex reports/OCR separately under approved
+ NFR-001                                                                                     monthly
+                           job SLAs.
+
+                           500 records/minute and 3× approved baseline; load tests specify
+ Structured throughput                                                                              IT / release and
+                           payload size, duration, error rate, resources and scaling. OCR
+ NFR-006                                                                                            quarterly
+                           pages/minute tested separately.
+
+                           Propose ≥99% completeness for owner-designated required fields and
+ Source-data quality
+                           ≤0.1% invalid values on eligible input fields; missing SADAD       Data Lead / weekly
+ NFR-005
+                           mappings remain unresolved and are measured separately.
+
+                           Propose ≥99% eligible requests successful after bounded retries; also
+ Integration reliability                                                                            Integration Lead /
+                           publish first-attempt success, failures and freshness. Use actual
+ NFR-010                                                                                            monthly
+                           monitored request counts.
+
+                           100% required access/approval events logged and negative
+ Access and audit          authorization tests passed; audit the approved retention configuration   Security / release and
+ NFR-002/004               and restoreability. Test results do not guarantee absence of future      quarterly
+                           incidents.
+
+                                                                                                    AI Lead + business
+ AI quality                Use AC-01/02/10 task-specific metrics and representative held-out
+                                                                                                    owners / release and
+ NFR-009                   data. No blanket “85% across AI tasks” acceptance.
+                                                                                                    quarterly
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 40 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+5.4 Capability Acceptance Tests
+The following are proposed acceptance criteria for owner agreement, not test results. Before evaluation,
+approve a representative, access-controlled gold dataset with sufficient cases per risk stratum and
+independent adjudication. Record sample sizes, prevalence, confidence intervals and coverage; keep
+model-tuning data separate from held-out acceptance data. Report precision as correct accepted items
+divided by accepted items, and recall as recovered gold items divided by eligible gold items.
+Prototype checks demonstrate behavior with samples and seeded exceptions; they cannot establish
+production accuracy. Alpha verifies components; Beta evaluates approved integrations, formulas and
+representative data. Production release requires signed acceptance, resolved critical defects and the
+gates in Section 6.3. Exact deterministic controls use 100% pass criteria within the agreed suite, not
+claims of universal error-free operation.
+
+AC-01 SADAD extraction
+Requirements: FR-001/002/004/016. Propose ≥99% exact-token precision and ≥95% recall across all
+candidate SADAD numbers, with leading zeros preserved; report Arabic/English, text/scanned and multi-
+invoice strata separately.
+Validation evidence: Gold-labeled documents with correct page locations; include multiple numbers, non-
+SADAD identifiers, missing/illegible scans and structured-reference bypass cases.
+
+AC-02 Validated relationships
+Requirements: FR-005/016. Propose ≥99% precision for accepted links and ≥95% recall on resolvable
+gold links; report automated and human-confirmed results separately. Require zero unsupported auto-
+acceptances in the negative test suite.
+Validation evidence: Independent owner adjudication of case–invoice links; include a valid-looking
+number belonging to a different case, conflicting sources and debtor/amount-only candidates.
+
+AC-03 One-to-many and unresolved cases
+Requirements: FR-014/016/019. 100% of deterministic test cases preserve supported links and
+unresolved/partial status; no inferred invoice numbers, duplicate balances, repeated case values or
+unapproved equal allocations.
+Validation evidence: One case with several invoices; duplicate documents; partial mapping; no evidence;
+one invoice linked to multiple cases; unallocated case amount. Reconcile totals to hand-checked gold
+results.
+
+AC-04 Mapping evidence
+Requirements: FR-002/012/016. 100% of mapping attempts have original/normalized candidate, source
+record/version, document/page where applicable, validation result, extraction confidence, relationship
+assessment and review history.
+Validation evidence: Inspect structured and OCR attempts, rejected links and reprocessed documents;
+verify reviewers can retrieve only evidence within their access scope.
+
+AC-05 Reports and semantic calculations
+Requirements: FR-010/013/018/019. 100% exact agreement with approved expected results at the
+defined currency/rounding precision; zero duplicate totals or invented values in deterministic tests.
+Validation evidence: Net invoicing, collection numerator/denominator/exclusions, zero denominator,
+reversals, period alignment, investment filters, Amanah comparison and enforcement partitions; verify
+export metadata.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 41 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+AC-06 Access and controlled distribution
+Requirements: FR-012/018; NFR-002/011/012. 100% of specified negative tests deny unauthorized
+queries, evidence, refreshes and exports; zero data leakage in the test suite.
+Validation evidence: Cross-Amanah and column restrictions, revoked users, scheduled jobs, narrower-
+scope recipients, shared links and prompt-injection attempts.
+
+AC-07 KPI governance and history
+Requirements: FR-017/019; NFR-011. 100% of official definition/baseline/target/threshold changes
+require authorized approval, effective date and immutable version history; historical views reproduce prior
+commitments.
+Validation evidence: Increase/decrease/range KPIs; baseline period/population/method; rejected
+proposal; future-effective change; restatement; analytical recalibration without changing official targets.
+
+AC-08 Conversational report lifecycle
+Requirements: FR-013/018. 100% pass on the agreed scenario suite: editable creation, refinement, save,
+refresh, PDF/XLSX export, recipient controls, clarification and missing-data disclosure.
+Validation evidence: Change period, compare Amanahs, separate investment revenue and enforcement
+referrals; re-open saved definition and verify version/policy compatibility.
+
+AC-09 Source authority and action boundaries
+Requirements: FR-006/007/011/014/015/020. 100% of boundary tests retain conflicting source values,
+follow field authority and prevent source writes, payment approvals, tax checks or platform-executed legal
+actions.
+Validation evidence: Tahseel collection versus Makeen billing conflict; pending appeal; rejected mapping;
+daily high-value review; owner-authorized correction re-ingested.
+
+AC-10 Forecast and anomaly usefulness
+Requirements: FR-008/010; NFR-009. Proposed classification F1 ≥0.85 only for approved labeled
+outcomes; report precision/recall and class prevalence. Forecast probabilities require calibration/Brier
+score and monetary forecasts error by horizon versus an agreed non-AI baseline. Final thresholds need
+owner approval.
+Validation evidence: Time-based held-out data without leakage; segment by Amanah/revenue source and
+include cold-start debtors. Do not report a single “accuracy” across dissimilar tasks.
+
+AC-11 Integration and operations
+Requirements: FR-001/004; NFR-001/003/004/006/010. Validate the proposed performance, availability
+and reliability targets in Section 5.3 against an agreed load profile; 100% pass for replay/idempotency and
+restore evidence in the scenario suite.
+Validation evidence: Delayed feeds, unavailable documents, retries, duplicate batches, peak structured
+throughput, separate OCR workload, source freshness, rollback and restore drills.
+
+AC-12 Investment data readiness
+Requirements: FR-020. All required Furas fields and feed route are owner-confirmed or explicitly
+unavailable; sample lease terms link to the correct invoice without implying procurement administration.
+Validation evidence: Contract/version IDs, investor and asset references, schedule/amounts, approved
+invoice crosswalk and provenance. Exercise direct/verified-intermediary/approved-dataset route selected
+by owner.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 42 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+6 Roadmap and Phasing
+6.1 High Level Delivery Roadmap
+Original v0.3 milestone dates are retained below for traceability only. As of this revision, prototype
+completion, production integrations and approvals have not been verified. The Delivery Lead must
+confirm feasibility and re-baseline dates affected by the clarified scope, access or schedule constraints;
+this document does not certify the 15 September prototype milestone as complete.
+
+                                                                                       Original           Original
+ Phase               Required milestone evidence
+                                                                                       proposed start     proposed end
+
+                     Sample/simulated end-to-end journeys and diagrams
+ Prototype           reviewed; updated requirements/service mapping and open-          06/07/2026         15/09/2026
+                     decision register available.
+
+                     Approved technical design, source/field contracts, semantic
+ Alpha               model and component tests; record unresolved access               16/09/2026         15/10/2026
+                     blockers.
+
+                     Integrated staging validation against representative data,
+ Beta                                                                                  16/10/2026         07/12/2026
+                     approved formulas, permissions and acceptance criteria.
+
+ Release &           Signed release readiness, production
+ Stabilization       access/security/operations approval, deployment and               08/12/2026         21/01/2027
+ phase               stabilization evidence.
+
+                     Operational handover, monitoring, KPI tracking and ongoing
+ Operate phase                                                                         After Go-Live      Ongoing
+                     solution support
+
+
+
+
+6.2 Capability Delivery Traceability
+P0 identifies core business scope, not a guarantee that every production feed is available in the
+prototype. Owners may approve phased staging, but material deferrals require explicit scope/schedule
+change control. AC references point to Section 5.4; functional owner assignments are proposed until
+confirmed.
+
+ Capability and                 Accountable
+                                                        Dependencies                Delivery and acceptance
+ requirements                   owner / priority
+
+                                                        Approved source
+                                                                                    Prototype: simulated intake. Alpha:
+ Intake, normalization,         Data Lead + Invoice     schemas/access;
+                                                                                    controlled adapters. Beta: integrated
+ duplicate controls             Officer                 representative
+                                                                                    replay/load tests. Production: source
+ FR-001–004                     P0                      documents; document
+                                                                                    approval. AC-01/04/11.
+                                                        security
+
+                                                                                    Prototype: structured/text/OCR, multi-
+                                                        Sanad documents;
+                                                                                    invoice and unresolved examples.
+ Sanad mapping and              Reconciliation          approved invoice data;
+                                                                                    Alpha: evidence model. Beta:
+ validation                     Officer                 case evidence;
+                                                                                    adjudicated integration tests.
+ FR-005/016                     P0                      allocation policy only if
+                                                                                    Production: source/owner gates. AC-01
+                                                        allocation is needed
+                                                                                    –04.
+
+                                                                                    Prototype: simulated routing. Alpha:
+ Revenue review and             Revenue Manager + Revenue responsibility
+                                                                                    permission/audit controls. Beta: review
+ exceptions                     Governance Officer matrix; risk rules;
+                                                                                    and notification tests. Production:
+ FR-006–009/011/012             P0                 audit/retention policies
+                                                                                    authorized channels. AC-04/06/09/10.
+
+                                                  Historical labeled data;          Prototype: illustrative scores. Alpha:
+                                Revenue Manager +
+ Forecasting                                      approved                          baseline model. Beta: held-out
+                                AI Lead
+ FR-010                                           horizons/features;                validation. Production: approved model
+                                P0
+                                                  semantic layer                    monitoring. AC-03/05/10.
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 43 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+ Capability and                 Accountable
+                                                        Dependencies                Delivery and acceptance
+ requirements                   owner / priority
+
+                                                        Approved catalog,           Prototype: sample versioned catalog.
+                                Business KPI
+ KPI intelligence                                       baseline                    Alpha: governance service. Beta:
+                                Owner
+ FR-017                                                 method/period/populatio     approved formulas/history tests.
+                                P0
+                                                        n, targets and directions   Production: owner sign-off. AC-05/07.
+
+                                                        Semantic layer;             Prototype: editable sample reports and
+ Dynamic and periodic           Shared Services         approved queries/model      simulated refresh/export. Alpha: report
+ reports                        Leader                  endpoints; recipients;      engine. Beta: refresh/distribution
+ FR-013/018                     P0                      optional expense            integration. Production: access gates.
+                                                        dataset                     AC-05/06/08.
+
+                                Reconciliation          Makeen/Tahseel data         Prototype: seeded conflicts. Alpha:
+ Field authority and
+                                Officer + Data          contracts, agreed field     authority registry. Beta: source
+ reconciliation
+                                Owners                  authority and matching      snapshots. Production: reconciliation
+ FR-014
+                                P0                      rules                       approval. AC-03/05/09/11.
+
+                                                                                    Prototype: simulated appeal/conflict
+                                                        Efaa/Mumtathil owner-
+                                Penalties and Fines                                 cases. Alpha: agreed event model.
+ Violation follow-up                                    confirmed roles and
+                                Officer                                             Beta: read-only integrated tests.
+ FR-015                                                 source statuses; invoice
+                                P0                                                  Production: owner approval.
+                                                        crosswalk
+                                                                                    AC-06/09/11.
+
+                                                                                    Prototype: core entities and illustrative
+                                                        Approved measures,
+ Semantic metrics               Data Governance                                     calculations. Alpha: governed service.
+                                                        master data,
+ architecture                   Lead                                                Beta: approved formula/access tests.
+                                                        authorization and
+ FR-019; NFR-011/012            P0                                                  Production: catalog sign-off. AC-03/05–
+                                                        authority registry
+                                                                                    07.
+
+                                                                                    Prototype: illustrative lease data. Alpha:
+ Furas investment/lease         Revenue Manager + Confirmed fields, feed            approve route/schema. Beta: validate
+ analysis                       Furas Owner       route, permitted access           approved feed. Production: owner sign-
+ FR-020                         P0 core scope     and invoice crosswalk             off; blockers require explicit re-
+                                                                                    baselining. AC-05/12.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 44 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+6.3 Open Decisions and Release Gates
+ ID       Open decision or dependency                                                Accountable owner and gate
+
+                                                                                     Relevant data owners + Data
+          Validate Makeen/Efaa/Mumtathil descriptions and agree material-field
+ D-01                                                                                Governance Lead; before related
+          authority; confirm Sanad legal-state provenance.
+                                                                                     Alpha adapters are baselined.
+
+          Approve Furas minimum dataset and
+                                                                                     Furas owner + integration lead;
+ D-02     direct/verified-intermediary/approved-dataset route; no integration is
+                                                                                     Alpha design gate.
+          assumed.
+
+                                                                                     Business KPI Owner; before official
+          Provide approved net-invoicing/collection-rate formulas and full KPI
+ D-03                                                                                KPI calculations or Beta
+          catalog, baseline methods, targets and effective versions.
+                                                                                     acceptance.
+
+                                                                                     Revenue/Governance owners;
+          Approve revenue responsibility matrix, alert thresholds and any
+                                                                                     before rule activation. No allocation
+ D-04     enforcement amount-allocation policy. Original SAR 50,000 and below-
+                                                                                     policy means case amounts remain
+          SAR 100,000 rules are unconfirmed.
+                                                                                     unallocated.
+
+                                                                                     Business owners + QA/IT/AI leads;
+          Approve representative labeled validation data, numerical thresholds,
+ D-05                                                                                before acceptance testing and Beta
+          workload profile, freshness SLAs and release criteria.
+                                                                                     exit.
+
+                                                                                     Architecture, Security, Records and
+          Validate OCI/network design, approved OCR/model services, residency,       IT owners; before real data or
+ D-06
+          retention, RPO/RTO, key management and recipients.                         production deployment as
+                                                                                     applicable.
+
+                                                                                     Solution Owner + Finance; before
+          Validate benefit baselines/attribution; confirm optional finance expense
+ D-07                                                                                benefit commitments and expense-
+          data and any claimed cash saving.
+                                                                                     coverage publication.
+
+          Update DOC-01 product requirements and DOC-02 service mapping,
+          resolve UC/screen identifiers, attach approved versions and record         Document owner + Solution Owner;
+ D-08
+          reviewer confirmation before Manafeh. Neither companion file was           submission gate.
+          supplied.
+
+          Confirm revised-package completion and feasibility of all original
+                                                                                     Delivery Lead + Solution Owner;
+ D-09     milestone dates. Record a re-baseline if access or approvals delay
+                                                                                     current planning gate.
+          delivery.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 45 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Additional Resources
+ ID / document                  Status and required update
+
+                                Not supplied with this request; no usable link or embedded file exists in source v0.3.
+ DOC-01 Product
+                                Owner must synchronize FR-001–020, NFR-001–012, AC-01–12, workflow/journey
+ Requirements
+                                IDs and approved business rules, then attach the version/date/link.
+
+                                Not supplied with this request; source has an unfilled attachment/link field. Owner
+ DOC-02 Solution to             must map revenue/receivables capabilities to confirmed MOMAH services, source
+ Services Mapping               owners and interfaces, preserve procurement/tax exclusions and attach the approved
+                                version.
+
+
+The uploaded department feedback also requests a tracked-changes copy, completion-date confirmation
+and final reviewer approval before Manafeh submission. The current request is fulfilled with a clean
+revised HLSD and a disposition matrix. Companion-document synchronization, tracked-change
+packaging for the broader submission, date confirmation and reviewer sign-off remain owner actions; no
+delivery to recipients or Manafeh submission is represented as performed.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 46 of 47
+NHCI AI Program | Intelligent Invoice Management HLSD
+
+
+
+
+Appendix
+A Source References
+ Source       Exact supplied file and use
+
+              Intelligent-Invoice-Management-HLSD-V0.3.docx — uploaded design dated 14/09/2026; baseline
+ S-01
+              content, NHCI identity, workflow and requirement IDs, original planning assumptions.
+
+              粘贴的文本 (1).txt — uploaded department feedback; numbered comments 1–9 and submission
+ S-02
+              instructions. Its page references refer to v0.2, so this revision uses section/workflow/requirement IDs.
+
+
+No external platform description, legal interpretation, KPI approval or source-system integration was
+treated as verified evidence. Working descriptions and proposed controls require the owners identified in
+Section 6.3.
+
+B Approval Sign Off
+ Role                             Name                  Signature     Date              Supporting document
+
+ Solution Vendor                                                                        Revised HLSD; approval
+                                  ByteDance
+ (Prepared By)                                                                          pending
+
+ NHCI Oversight
+ (Reviewed By)
+
+ Solution Owner
+ (Reviewed By)
+
+ AI Champion
+ (Reviewed By)
+
+ Central AI
+ (Reviewed By)
+
+ Sector Head
+ (Approved By)
+
+ AI Solutions Steering Group
+ (Approved By)
+
+ Central AI Committee
+ (Approved By)
+
+
+Supporting evidence may include meeting minutes recording review or approval. Blank sign-off fields are
+intentional and indicate pending approval.
+
+
+
+
+CONFIDENTIAL | Prototype phase | Review draft | Page 47 of 47
+

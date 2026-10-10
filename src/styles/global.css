@@ -103,13 +103,13 @@ button {
 .side-brand__logo {
   width: 38px;
   height: 38px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #ffffff;
   box-shadow: 0 10px 22px rgba(27, 131, 84, 0.18);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.5px;
   font-size: 13px;
 }
@@ -117,14 +117,14 @@ button {
 .side-brand__text b {
   display: block;
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--heading);
   letter-spacing: 0.4px;
 }
 
 .side-brand__text span {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   margin-top: 1px;
   color: var(--txt-mute);
   letter-spacing: 1px;
@@ -148,8 +148,8 @@ button {
   align-items: center;
   gap: 6px;
   padding: 10px 22px;
-  overflow-x: auto;
-  background: transparent;
+  overflow: visible; /* three entries now (the operational pages sit in one menu), so the strip no longer scrolls sideways */
+  background: var(--bg-0);
   border-bottom: 1px solid var(--line);
   scrollbar-width: thin;
 }
@@ -164,7 +164,7 @@ button {
   gap: 8px;
   flex: none;
   padding: 9px 14px;
-  border-radius: 9px;
+  border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
   color: var(--txt-mute);
@@ -200,12 +200,7 @@ button {
 }
 
 @media (max-width: 820px) {
-  .tab__text {
-    display: none;
-  }
-  .tab {
-    padding: 9px;
-  }
+  .tab { padding: 8px 10px; }
 }
 
 /* --------------------------------------------------------------------------
@@ -224,7 +219,7 @@ button {
   border-radius: 999px;
   border: 1px solid var(--primary-light);
   background: var(--primary);
-  color: #f2fbf7;
+  color: #F3FCF6;
   font-weight: 700;
   font-size: 13px;
   box-shadow: var(--glow-primary);
@@ -266,7 +261,7 @@ button {
 
 .topbar-title {
   font-size: 18px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--heading);
 }
@@ -324,7 +319,7 @@ button {
 
 .page-title {
   font-size: 20px;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.2px;
   color: var(--heading);
 }
@@ -359,7 +354,7 @@ button {
 
 .card-title {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--heading);
 }
 
@@ -432,7 +427,7 @@ button {
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--txt);
-  font-weight: 800;
+  font-weight: 700;
   font-size: 13px;
   display: inline-flex;
   align-items: center;
@@ -452,7 +447,7 @@ button {
   transform: scale(0.98);
 }
 
-.btn:disabled {
+.btn:disabled, .btn[aria-disabled="true"] {
   opacity: 0.55;
   cursor: not-allowed;
   transform: none;
@@ -478,25 +473,25 @@ button {
 }
 
 .btn-danger {
-  border-color: rgba(196, 81, 76, 0.22);
-  background: rgba(196, 81, 76, 0.08);
+  border-color: rgba(240, 68, 56, 0.22);
+  background: rgba(240, 68, 56, 0.08);
   color: var(--danger);
 }
 
 .btn-danger:hover {
-  background: rgba(196, 81, 76, 0.12);
-  border-color: rgba(196, 81, 76, 0.32);
+  background: rgba(240, 68, 56, 0.12);
+  border-color: rgba(240, 68, 56, 0.32);
 }
 
 .btn-ghost {
   background: var(--surface);
-  border: 1px solid rgba(10, 111, 166, 0.30);
+  border: 1px solid rgba(24, 73, 169, 0.30);
   color: var(--secondary);
 }
 
 .btn-ghost:hover {
-  background: rgba(10, 111, 166, 0.06);
-  border-color: rgba(10, 111, 166, 0.45);
+  background: rgba(24, 73, 169, 0.06);
+  border-color: rgba(24, 73, 169, 0.45);
 }
 
 .btn-sm {
@@ -552,59 +547,59 @@ html[dir='rtl'] .select {
   padding: 3px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   border: 1px solid rgba(0, 0, 0, 0.08);
   background: rgba(0, 0, 0, 0.04);
-  color: #5B6472;
+  color: #4D5761;
   white-space: nowrap;
 }
 
 .badge--teal {
-  color: var(--primary);
+  color: var(--ink-ok);
   background: rgba(27, 131, 84, 0.08);
   border-color: rgba(27, 131, 84, 0.18);
 }
 
 .badge--green {
   color: var(--success);
-  background: rgba(0, 102, 4, 0.08);
-  border-color: rgba(0, 102, 4, 0.18);
+  background: rgba(7, 77, 49, 0.08);
+  border-color: rgba(7, 77, 49, 0.18);
 }
 
 .badge--red {
-  color: var(--danger);
-  background: rgba(196, 81, 76, 0.08);
-  border-color: rgba(196, 81, 76, 0.18);
+  color: var(--danger-text);
+  background: rgba(240, 68, 56, 0.08);
+  border-color: rgba(240, 68, 56, 0.18);
 }
 
 .badge--gold {
   color: var(--warning);
-  background: rgba(140, 95, 0, 0.18);
-  border-color: rgba(140, 95, 0, 0.30);
+  background: rgba(147, 55, 13, 0.18);
+  border-color: rgba(147, 55, 13, 0.30);
 }
 
 .badge--orange {
   color: var(--orange);
-  background: rgba(140, 95, 0, 0.14);
-  border-color: rgba(140, 95, 0, 0.26);
+  background: rgba(147, 55, 13, 0.14);
+  border-color: rgba(147, 55, 13, 0.26);
 }
 
 .badge--blue {
   color: var(--secondary);
-  background: rgba(10, 111, 166, 0.08);
-  border-color: rgba(10, 111, 166, 0.18);
+  background: rgba(24, 73, 169, 0.08);
+  border-color: rgba(24, 73, 169, 0.18);
 }
 
 .badge--indigo {
   color: var(--secondary);
-  background: rgba(10, 111, 166, 0.08);
-  border-color: rgba(10, 111, 166, 0.18);
+  background: rgba(24, 73, 169, 0.08);
+  border-color: rgba(24, 73, 169, 0.18);
 }
 
 .badge--purple {
-  color: #51407A;
-  background: rgba(107, 87, 166, 0.10);
-  border-color: rgba(107, 87, 166, 0.20);
+  color: #4D5761;
+  background: rgba(108, 115, 127, 0.10);
+  border-color: rgba(108, 115, 127, 0.20);
 }
 
 /* --------------------------------------------------------------------------
@@ -643,11 +638,11 @@ html[dir='rtl'] .select {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .table td {
-  font-size: 13.5px;
+  font-size: 13px;
   color: rgba(0, 0, 0, 0.78);
 }
 
@@ -686,7 +681,7 @@ html[dir='rtl'] .select {
   flex-direction: column;
   justify-content: space-between;
   border-inline-end: 1px solid var(--line);
-  background: linear-gradient(145deg, rgba(27, 131, 84, 0.14), rgba(10, 111, 166, 0.10));
+  background: linear-gradient(145deg, rgba(27, 131, 84, 0.14), rgba(24, 73, 169, 0.10));
 }
 
 .login-hero::after {
@@ -747,7 +742,7 @@ html[dir='rtl'] .select {
 
 .hero-stat b {
   font-size: 30px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--heading);
 }
 
@@ -814,14 +809,14 @@ html[dir='rtl'] .select {
   place-items: center;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   color: #ffffff;
-  font-weight: 900;
+  font-weight: 700;
   box-shadow: 0 10px 22px rgba(27, 131, 84, 0.18);
 }
 
 .brand-name b {
   display: block;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--heading);
   letter-spacing: 0.6px;
 }
@@ -830,7 +825,7 @@ html[dir='rtl'] .select {
   display: block;
   margin-top: 2px;
   color: var(--txt-mute);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 1.2px;
 }
 
@@ -1017,7 +1012,7 @@ html[dir='rtl'] .switch--on .switch__thumb {
 .toast__icon {
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   flex: none;
@@ -1025,7 +1020,7 @@ html[dir='rtl'] .switch--on .switch__thumb {
 }
 
 .toast__title {
-  font-weight: 900;
+  font-weight: 700;
   font-size: 13px;
   color: var(--heading);
 }
@@ -1124,25 +1119,25 @@ html[dir='rtl'] .hero-badge {
 .banner b {
   display: block;
   font-size: 14px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--heading);
 }
 
 .banner p {
   margin-top: 6px;
   color: var(--txt-dim);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.6;
 }
 
 .banner--teal {
-  background: linear-gradient(90deg, rgba(27, 131, 84, 0.10), rgba(10, 111, 166, 0.06));
+  background: linear-gradient(90deg, rgba(27, 131, 84, 0.10), rgba(24, 73, 169, 0.06));
   border-color: rgba(27, 131, 84, 0.22);
 }
 
 .banner--gold {
-  background: rgba(140, 95, 0, 0.16);
-  border-color: rgba(140, 95, 0, 0.30);
+  background: rgba(147, 55, 13, 0.16);
+  border-color: rgba(147, 55, 13, 0.30);
 }
 
 /* KPI */
@@ -1155,7 +1150,7 @@ html[dir='rtl'] .hero-badge {
 .kpi__icon {
   min-width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: 8px;
   display: grid;
   place-items: center;
   padding: 0 6px;
@@ -1228,8 +1223,8 @@ html[dir='rtl'] .hero-badge {
 }
 
 .source-card b {
-  font-size: 13.5px;
-  font-weight: 900;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--heading);
 }
 
@@ -1260,8 +1255,8 @@ html[dir='rtl'] .hero-badge {
   border: 1px solid var(--line);
   display: grid;
   place-items: center;
-  font-weight: 900;
-  font-size: 22px;
+  font-weight: 700;
+  font-size: 20px;
   color: var(--heading);
 }
 
@@ -1294,7 +1289,7 @@ html[dir='rtl'] .hero-badge {
 
 .pipe-step b {
   display: block;
-  font-weight: 900;
+  font-weight: 700;
   font-size: 13px;
   color: var(--heading);
 }
@@ -1313,8 +1308,8 @@ html[dir='rtl'] .hero-badge {
 }
 
 .pipe-step--done {
-  border-color: rgba(0, 102, 4, 0.30);
-  background: rgba(0, 102, 4, 0.04);
+  border-color: rgba(7, 77, 49, 0.30);
+  background: rgba(7, 77, 49, 0.04);
 }
 
 .pipe-step--skip {
@@ -1359,17 +1354,17 @@ html[dir='rtl'] .hero-badge {
   max-width: 84%;
   width: fit-content;
   padding: 12px 15px;
-  border-radius: 14px;
+  border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: rgba(0, 0, 0, 0.82);
   line-height: 1.65;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .msg--user {
   margin-inline-start: auto;
-  background: linear-gradient(135deg, rgba(27, 131, 84, 0.10), rgba(10, 111, 166, 0.08));
+  background: linear-gradient(135deg, rgba(27, 131, 84, 0.10), rgba(24, 73, 169, 0.08));
   border-color: rgba(27, 131, 84, 0.18);
   border-top-right-radius: 4px;
 }
@@ -1392,7 +1387,7 @@ html[dir='rtl'] .msg--assistant {
 
 .msg h4 {
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   margin-bottom: 6px;
   color: var(--txt-dim);
 }
@@ -1446,15 +1441,15 @@ html[dir='rtl'] .msg--assistant {
 }
 
 .agent-card h3 {
-  font-size: 15px;
-  font-weight: 900;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--heading);
 }
 
 .agent-card p {
   margin-top: 8px;
   color: var(--txt-dim);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.65;
 }
 
@@ -1477,7 +1472,7 @@ html[dir='rtl'] .msg--assistant {
 .meta-item b {
   display: block;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
   color: var(--heading);
 }
 
@@ -1487,3 +1482,88 @@ html[dir='rtl'] .msg--assistant {
   font-size: 12px;
   color: var(--txt-mute);
 }
+
+/* Keyboard focus (WCAG 2.4.7 / 1.4.11): ONE visible ring for every focusable control. The repeated :focus-visible raises specificity above the many
+   component rules that remove the outline and only tint the background; containers focused by script (tabindex="-1") are not ringed. */
+:focus-visible:focus-visible:focus-visible:not([tabindex="-1"]) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+/* Page title as a real heading, skip link, footer, and the target-size floor (WCAG 2.2 AA: 24 px; 44 px on touch) */
+h1.page-title, h2.page-title { margin: 0; }
+.skip-link { position: absolute; inset-inline-start: 8px; top: -48px; z-index: 1000; background: var(--surface); color: var(--heading); padding: 8px 14px; border-radius: 8px; border: 2px solid var(--focus-ring); font-weight: 700; }
+.skip-link:focus { top: 8px; }
+#main-content:focus { outline: none; }
+.app-footer { padding: 14px 18px 22px; font-size: 12px; color: var(--txt-mute); text-align: center; }
+.rv-link, .rv-table a:not(.btn), .tab, .sr-tab { min-height: 24px; }
+.rv-link { display: inline-flex; align-items: center; }
+@media (pointer: coarse) { .btn, .btn-sm, .select, .input, .tab, .sr-tab, .rv-link { min-height: 44px; } }
+input[type='checkbox'], input[type='radio'] { width: 24px; height: 24px; accent-color: var(--primary); } /* WCAG 2.2 AA target floor */
+input[type='range'] { min-height: 24px; }
+.st-fresh a, .page-sub a { display: inline-flex; align-items: center; min-height: 24px; }
+td a:not(.btn), li a:not(.btn), a.rv-tile__more { display: inline-flex; align-items: center; min-height: 24px; }
+.rv-def__btn { min-width: 24px; min-height: 24px; }
+
+/* one global marker for demo data (instead of a tag on every page) */
+.demo-note { position: relative; margin-inline-start: 10px; }
+.demo-note > summary { cursor: pointer; list-style: none; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; border: 1px solid rgba(122, 46, 14, 0.4); background: rgba(122, 46, 14, 0.08); color: var(--warning); }
+.demo-note > summary::-webkit-details-marker { display: none; }
+.demo-note[open] > div { position: absolute; z-index: 60; inset-inline-start: 0; top: 30px; width: 280px; padding: 10px 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line-strong); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); font-size: 13px; line-height: 1.6; color: var(--txt); }
+/* dashboard: one status sentence, the attention block */
+.rv-line { margin: 0; font-size: 13px; color: var(--txt-dim); }
+.rv-attention { display: grid; gap: 8px; }
+.rv-attention__list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.rv-attention__list li { display: grid; grid-template-columns: minmax(160px, 1fr) 3fr auto; gap: 10px; align-items: baseline; padding: 8px 0; border-top: 1px solid var(--line); }
+.rv-attention__list li:first-child { border-top: 0; }
+.rv-attention__list span { color: var(--txt-dim); font-size: 13px; }
+@media (max-width: 720px) { .rv-attention__list li { grid-template-columns: 1fr; } }
+.rv-def__more { margin-top: 6px; font-size: 12px; }
+.rv-def__more summary { cursor: pointer; font-weight: 700; }
+
+.rv-more > summary { cursor: pointer; font-weight: 700; font-size: 13px; padding: 4px 0; }
+.rv-more[open] > summary { margin-bottom: 4px; }
+.day-banner { position: sticky; top: 0; z-index: 900; display: flex; gap: 10px; align-items: center; justify-content: center; padding: 8px 14px; background: #FEF0C7; color: #7A2E0E; font-weight: 700; font-size: 13px; }
+
+.tab-menu { position: relative; }
+.tab-menu > .tab { cursor: pointer; font-family: inherit; background: transparent; }
+.tab__chev { font-size: 12px; margin-inline-start: 2px; }
+/* system settings: rarely used, so it sits apart at the far end of the main bar */
+.tab--settings { margin-inline-start: auto; }
+.tab-menu__list { position: absolute; z-index: 70; inset-inline-start: 0; top: calc(100% + 6px); min-width: 220px; margin: 0; padding: 6px; list-style: none; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); display: grid; gap: 2px; }
+.tab-menu__item { display: flex; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--txt); }
+.tab-menu__item:hover { background: var(--bg-0); }
+.tab-menu__item.active { background: var(--bg-0); color: var(--heading); font-weight: 700; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* phones: one compact header row; the controls open from a single button; the tab strip is three equal columns with visible labels */
+.topbar-toggle { display: none; }
+@media (max-width: 720px) {
+  .topbar { position: static; min-height: 0; padding: 8px 12px; gap: 8px; }
+  .topbar-left { flex: 1 1 auto; }
+  .topbar-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; }
+  .topbar-right { display: none; width: 100%; flex-wrap: wrap; gap: 6px; }
+  .topbar-right[data-open] { display: flex; }
+  .topbar-right .org-consolidated { flex: 1 1 100%; max-width: 100%; }
+  .side-brand__text { display: none; }
+  .tabbar { top: 0; padding: 6px 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+  .tabbar .tab, .tab-menu > .tab { flex-direction: column; gap: 2px; justify-content: center; text-align: center; padding: 6px 4px; font-size: 12px; white-space: normal; width: 100%; min-height: 52px; }
+  .tab-menu { position: static; }
+  .tabbar .tab--settings { margin-inline-start: 0; }
+  .tab-menu__list { inset-inline: 8px; top: auto; margin-top: 4px; }
+  .sr-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .sr-tab { padding: 8px 4px; text-align: center; font-size: 13px; }
+}
+
+/* Long disclosure labels (source table names) wrap inside narrow panels instead of widening them */
+.btn-wrap { white-space: normal; overflow-wrap: anywhere; text-align: start; height: auto; max-width: 100%; line-height: 1.5; padding-block: 6px; }
+
+/* Cross-reference links keep a 24px-tall target (WCAG 2.5.8) without changing their look */
+.xref { display: inline-flex; align-items: center; min-height: 24px; }
+
+/* Visually hidden native file input: stays in the tab order and shows its focus on the label that follows it */
+.file-pick { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+.file-pick:focus-visible + label { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+/* the page heading that receives focus after navigation is a target, not a control: no ring */
+main h1[tabindex="-1"]:focus { outline: none; }
+
+/* Phones: the floating assistant buttons must never cover the last lines of a page */
+@media (max-width: 720px) { main { padding-bottom: 96px; } }

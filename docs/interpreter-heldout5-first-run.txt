@@ -1,0 +1,8 @@
+60/63
+#6011 detailed report for the year so far → kind clarify ≠ report [over_clarification]
+#6032 الفواتير المسددة يوم الخميس → kind report ≠ clarify|unsupported [unsafe_silent_misread]
+#6042 Hail and Jazan and Najran together → amanah ["Jazan Amanah","Najran Amanah"] ≠ ["Ha'il Amanah","Jazan Amanah","Najran Amanah"] [unsafe_silent_misread]
+{"correct_interpretation":25,"over_clarification":1,"appropriate_clarification":35,"unsafe_silent_misread":2}
+
+NOTES: set 5 was written after the guards above and run once before any further change: 60/63 = 95.2 % — correct reading 25, appropriate clarification 35, over-clarification 1 («year so far» was asked about), unsafe silent misread 2 (a weekday «يوم الخميس» was ignored; «Hail» not recognised as Ha'il, so only 2 of 3 Amanahs were applied).
+63 phrases from one author are NOT evidence of reliable language understanding; the unsafe-silent-misread class is not zero on the latest fresh set. The three failures were fixed afterwards (weekday guard, English Amanah spellings, «so far») and the set became a regression set (63/63).

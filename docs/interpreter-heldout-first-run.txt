@@ -1,0 +1,22 @@
+55/65  (84.6%)
+{"h-period":[11,15],"h-scope":[14,15],"h-section":[8,10],"h-compare":[6,7],"h-follow":[6,8],"h-neg":[10,10]}
+#2001 [h-period] أبي تقرير الشهر اللي فات
+     → from 2026-01-01 ≠ 2026-09-01; to 2026-10-09 ≠ 2026-09-30
+#2002 [h-period] أنشئ تقريراً عن الأشهر الثلاثة الأخيرة
+     → from 2026-01-01 ≠ 2026-07-01; to 2026-10-09 ≠ 2026-09-30
+#2004 [h-period] تقرير الإيرادات للنصف الأول من السنة
+     → kind report ≠ clarify
+#2013 [h-period] report for the last two weeks
+     → kind report ≠ clarify
+#2021 [h-scope] Makkah and Madinah comparison
+     → amanah "Makkah Amanah" ≠ ["Makkah Amanah","Al Madinah Amanah"]
+#2030 [h-section] اعرض الفواتير غير المسددة
+     → status "collected" ≠ "open"
+#2036 [h-section] جودة بيانات الفواتير
+     → kind unsupported ≠ report
+#2040 [h-compare] هل التحصيل هذا الشهر أحسن من الشهر اللي فات؟
+     → compare none ≠ prev_month
+#2049 [h-follow] أضف المقارنة مع العام الماضي  (after: تقرير أمانة جدة للشهر الماضي)
+     → kind clarify ≠ report
+#2053 [h-follow] امسح الفلاتر  (after: تقرير الغرامات لأمانة جدة)
+     → kind unsupported ≠ report

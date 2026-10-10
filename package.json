@@ -6,13 +6,25 @@
   "description": "INTELLIBILL - Intelligent Invoice Management Demo (React + Vite)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
     "preview": "vite preview",
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs",
+    "verify:sources": "esbuild scripts/verify-sources.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/verify-sources.mjs && node .test-build/verify-sources.mjs",
+    "check": "node scripts/check-undef.mjs",
+    "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
+    "verify:exports": "esbuild scripts/export-parity.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/export-parity.mjs && node .test-build/export-parity.mjs .test-build/exports && python3 scripts/export_parity_check.py .test-build/exports",
+    "make:samples": "esbuild scripts/make-order-pdfs.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-order-pdfs.mjs && node .test-build/make-order-pdfs.mjs",
+    "make:samples:ar": "esbuild scripts/make-arabic-order-pdfs.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-arabic-order-pdfs.mjs && node .test-build/make-arabic-order-pdfs.mjs",
+    "make:samples:docx": "esbuild scripts/make-order-docx.mjs --bundle --platform=node --format=esm --log-level=error --external:docx --outfile=.test-build/make-order-docx.mjs && node .test-build/make-order-docx.mjs",
+    "make:samples:prepared": "esbuild scripts/make-prepared-samples.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-prepared-samples.mjs && node .test-build/make-prepared-samples.mjs"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
     "chart.js": "^4.4.4",
     "docx": "^9.7.1",
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^4.10.38",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.2.0",
@@ -23,6 +35,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
+    "axe-core": "^4.14.0",
     "vite": "^5.4.2"
   },
   "engines": {

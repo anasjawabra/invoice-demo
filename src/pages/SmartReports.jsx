@@ -1,898 +1,392 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend } from 'chart.js';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
-import { useI18n } from '../context/I18nContext';
-import { fmtMoney, TREND } from '../data/mock';
-import { buildReportData, computeRecoveryTrend } from '../data/reportAnalytics';
-import { exportReportToDocx, exportReportToXlsx, exportReportToPptx } from '../utils/exportReport';
-import AgentThinking from '../components/ai/AgentThinking';
+// «التقارير الذكية» — the ONE reporting experience (it replaces the former report centre and the former smart-reports page).
+// A conversation: the user asks for a report or asks a question; the assistant builds the report from the shared data layer.
+// Interpretation is rule-based (it is NOT a language model) and the page says so. Each report is a MODEL (src/data/reportModel.js)
+// that is both rendered here and exported, so the file always contains what is on screen.
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useRevenue } from '../context/RevenueContext';
+import { useL } from '../utils/bi';
+import { municipalitiesOf } from '../data/catalog';
+import { amanahOptionsOf, REVENUE_SOURCE_KEYS } from '../data/revenueLedger';
+import { previousScope } from '../data/revenueMetrics';
+import { startOfYear, startOfMonth } from '../data/clock';
+import { interpret, defaultSpec, describeChange, previousMonthScope, SUPPORTED_HELP } from '../data/reportIntents';
+import { buildReportModel, SECTION_META, SECTION_ORDER } from '../data/reportModel';
+import { sourceAr, sourceEn } from '../data/insightsEngine';
+import ReportView from '../components/smart/ReportView';
+import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
+import { fmtRiyadh, fmtRangeText, fmtDateText } from '../data/clock';
+import { DateRangeFields } from '../components/revenue/RevenueUI';
+import { measure, headlineCfg } from '../data/measure';
+import { usePersistOnChange } from '../utils/usePersistOnChange';
+import LocalDataPanel from '../components/LocalDataPanel';
+import { PRESETS, detectPreset } from '../data/periodPresets';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, PointElement, LineElement, Tooltip, Legend);
+const STORE_KEY = 'ib_smart_convs_v1';
+const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
+const saveConvs = (c) => { try { window.localStorage.setItem(STORE_KEY, JSON.stringify(c.slice(0, 30).map((x) => ({ ...x, messages: x.messages.map(({ model, progress, ...m }) => m) })))); } catch { /* storage unavailable: history stays in memory */ } };
+// unsent text of the request box, kept per conversation for this browser session (written only when the user types; cleared on send)
+const DRAFT_KEY = 'ib_smart_drafts_v1';
+const readDrafts = () => { try { const v = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
+const writeDraft = (id, text) => { try { const d = readDrafts(); if (text) d[id || 'new'] = text; else delete d[id || 'new']; if (Object.keys(d).length) window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(d)); else window.sessionStorage.removeItem(DRAFT_KEY); } catch { /* storage unavailable: the draft stays in the box only */ } };
+const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-const FOCUS_OPTIONS = ['revenue', 'province', 'enforcement', 'investment'];
+const SUGGESTIONS = [
+  { ar: 'أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم', en: 'Create the revenue report for this month to date' },
+  { ar: 'قارن أداء التحصيل بين الأمانات', en: 'Compare collection performance between Amanahs' },
+  { ar: 'حلّل المتأخرات حسب مصدر الإيراد', en: 'Analyse overdue balances by revenue source' },
+  { ar: 'جهّز تقريراً شهرياً بالمقارنة مع العام الماضي', en: 'Prepare a monthly report compared with last year' }
+];
+const FOLLOW_UPS = [
+  { ar: 'قارن بالشهر الماضي', en: 'Compare with last month' },
+  { ar: 'اعرض أمانة الرياض فقط', en: 'Show Riyadh Amanah only' },
+  { ar: 'أضف تحليل الاستبعادات', en: 'Add the exclusions analysis' },
+  { ar: 'حوّله إلى ملخص تنفيذي', en: 'Turn it into an executive summary' }
+];
+const STEPS = { scope: ['أحدد النطاق والمرشحات', 'Setting the scope and filters'], read: ['أقرأ بيانات الفواتير والتحصيل', 'Reading invoice and collection data'], compare: ['أحسب المقارنة بالفترة المكافئة', 'Computing the equivalent-period comparison'], build: ['أُعدّ الجداول والرسوم والنتائج', 'Preparing tables, charts and findings'], check: ['أراجع المطابقة المالية', 'Checking the financial reconciliation'] };
 
-const pick = (lang, en, ar, zh) => (lang === 'ar' ? ar : lang === 'zh' ? zh : en);
-
-function provinceName(p, lang) {
-  return lang === 'ar' ? p.nameAr : p.nameEn;
+function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
+  const sp = spec || defaultSpec(today); const sc = sp.scope;
+  const [d, setD] = useState({ from: sc.from, to: sc.to, amanah: Array.isArray(sc.amanah) ? '__multi' : sc.amanah, muni: sc.muni, source: sc.source, status: sc.status || 'all', scopeType: sc.scopeType || 'all', compare: sp.compare });
+  const munis = d.amanah !== 'all' && d.amanah !== '__multi' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
+  const [badRange, setBadRange] = useState(false); const [rk, setRk] = useState(0);
+  const preset = (from, to) => { setBadRange(false); setRk((n) => n + 1); setD((x) => ({ ...x, from, to })); };
+  const ams = amanahOptionsOf();
+  return (
+    <div className="sr-filters card" role="region" aria-label={L('المرشحات', 'Filters')}>
+      <div className="sr-filters__row">
+        <span className="rv-scope__lbl">{L('الفترة', 'Period')}</span>
+        {PRESETS.map((p) => <button key={p.key} type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = p.range(today); preset(r.from, r.to); }}>{ar ? p.ar : p.en}</button>)}
+        <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={ar ? 'ar' : 'en'} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
+      </div>
+      <div className="sr-filters__row">
+        <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة', 'Amanah')}</label>
+        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : x.en) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
+        {munis.length > 0 && <><label className="rv-scope__lbl" htmlFor="sr-mu">{L('البلدية', 'Municipality')}</label><select id="sr-mu" className="select" value={d.muni} onChange={(e) => setD({ ...d, muni: e.target.value })}><option value="all">{L('كل البلديات', 'All municipalities')}</option>{munis.map((m) => <option key={m.key} value={m.key}>{ar ? m.ar : m.en}</option>)}</select></>}
+        <label className="rv-scope__lbl" htmlFor="sr-src">{L('المصدر', 'Source')}</label>
+        <select id="sr-src" className="select" value={d.source} onChange={(e) => setD({ ...d, source: e.target.value })}><option value="all">{L('كل المصادر', 'All sources')}</option>{REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{sourceName(k)}</option>)}</select>
+      </div>
+      <div className="sr-filters__row">
+        <label className="rv-scope__lbl" htmlFor="sr-st">{L('حالة الفاتورة', 'Invoice status')}</label>
+        <select id="sr-st" className="select" value={d.status} onChange={(e) => setD({ ...d, status: e.target.value })}>{[['all', 'كل الحالات', 'All statuses'], ['collected', 'محصّلة', 'Collected'], ['open', 'قائمة', 'Open'], ['overdue', 'متأخرة', 'Overdue'], ['partial', 'جزئية', 'Partial'], ['not_due', 'لم تستحق', 'Not yet due'], ['cancelled', 'ملغاة', 'Cancelled'], ['excluded', 'مستبعدة', 'Excluded']].map(([k, a, e]) => <option key={k} value={k}>{L(a, e)}</option>)}</select>
+        <label className="rv-scope__lbl" htmlFor="sr-sc">{L('مركزي / داخلي', 'Central / internal')}</label>
+        <select id="sr-sc" className="select" value={d.scopeType} onChange={(e) => setD({ ...d, scopeType: e.target.value })}><option value="all">{L('الكل', 'All')}</option><option value="central">{L('مركزي', 'Central')}</option><option value="internal">{L('داخلي', 'Internal')}</option></select>
+        <label className="rv-scope__lbl" htmlFor="sr-cm">{L('المقارنة', 'Comparison')}</label>
+        <select id="sr-cm" className="select" value={d.compare} onChange={(e) => setD({ ...d, compare: e.target.value })}><option value="none">{L('بدون', 'None')}</option><option value="prev_year">{L('نفس الفترة من العام السابق', 'Same period last year')}</option><option value="prev_month">{L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)')}</option></select>
+      </div>
+      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah === '__multi' ? sc.amanah : d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
+    </div>
+  );
 }
 
-function gfsName(entry, lang) {
-  if (!entry) return '';
-  return lang === 'zh' ? entry.name : lang === 'ar' ? entry.nameAr : entry.nameEn;
+// «How I understood your request»: the six things that decide what the report says, each tagged with where it came from.
+// It states what WAS applied (never that the request was applied in full); the latest report can be edited with the filter panel.
+const FIELD_GROUPS = [['period', ['period']], ['amanah', ['amanah', 'muni']], ['source', ['source']], ['status', ['status', 'st']], ['cmp', ['cmp']], ['basis', ['basis']]];
+function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel, pending = false }) {
+  const by = Object.fromEntries(chips.map((c) => [c.k, c]));
+  const changed = new Set(msg.changeKeys || []); const keyOf = { period: ['period'], amanah: ['amanah', 'muni'], source: ['source'], status: ['status', 'scopeType'], cmp: ['compare'], basis: [] };
+  const rows = [
+    [L('الفترة', 'Reporting period'), by.period?.value, 'period'],
+    [L('الأمانة / البلدية', 'Amanah / municipality'), [by.amanah?.value, by.muni?.value && by.muni.value !== L('كل البلديات', 'All municipalities') ? by.muni.value : null].filter(Boolean).join(' · '), 'amanah'],
+    [L('مصدر الإيراد', 'Revenue source'), by.source?.value, 'source'],
+    [L('حالة الفاتورة', 'Invoice status'), [by.status?.value, by.st?.value].filter(Boolean).join(' · '), 'status'],
+    [L('فترة المقارنة', 'Comparison'), by.cmp?.value || L('بدون مقارنة', 'No comparison'), 'cmp'],
+    [L('أساس القياس', 'Reporting basis'), by.basis?.value, 'basis']
+  ];
+  const tag = (g) => (keyOf[g].some((k) => changed.has(k)) ? L('من طلبك', 'from your request') : msg.changeKeys ? (msg.firstReport ? L('الافتراضي', 'default') : L('كما كان', 'unchanged')) : null);
+  return (
+    <div className="sr-interp" role="group" aria-label={L('كيف فهمتُ طلبك', 'How I read your request')}>
+      <div className="sr-interp__head"><b>{L('كيف فهمتُ طلبك', 'How I read your request')}</b>{editable && <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!editing} onClick={onEdit}>{editing ? L('إغلاق التعديل', 'Close editing') : L('تعديل', 'Edit')}</button>}</div>
+      <dl className="sr-interp__grid">{rows.map(([k, v, g]) => <div key={g} className="sr-interp__item"><dt>{k}</dt><dd><bdi>{v}</bdi>{tag(g) && <small className={`sr-interp__tag${keyOf[g].some((x) => changed.has(x)) ? ' is-req' : ''}`}>{tag(g)}</small>}</dd></div>)}</dl>
+      <div className="muted sr-interp__note">{pending ? L('هذا ما سأطبّقه إن أكّدت. عدّله إن لم يطابق ما قصدته.', 'This is what I will apply if you confirm. Edit it if it is not what you meant.') : L('هذا ما طُبّق على التقرير. إن لم يطابق ما قصدته فعدّله هنا أو أعد صياغة الطلب؛ وما لا أستطيع تطبيقه أسألك عنه قبل الإعداد.', 'This is what was applied to the report. If it is not what you meant, edit it here or rephrase; anything I cannot apply I ask about before generating.')}</div>
+      {editing && panel}
+    </div>
+  );
 }
 
-// Builds the fully render-ready, localized report object consumed by both
-// the on-screen view and the three export functions — one source of truth
-// so the exported files can never drift from what's shown on screen.
-function useSmartReport(t, lang, focus) {
-  return useMemo(() => {
-    const data = buildReportData();
-    const { kpi, exclusions, byProvince, worklist, worstProvince, bestProvince, biggestGapProvince, sameProvince, flaggedNoContract, sanad } = data;
-    const sanadUnlinkedPct = sanad.ordersIssued ? Math.round((sanad.ordersUnlinked / sanad.ordersIssued) * 100) : 0;
+export default function SmartReports({ embedded = false, initialQuery = null, onQueryConsumed = null }) {
+  const rev = useRevenue();
+  const { lang, ar } = useL();
+  const L = useCallback((a, e) => (ar ? a : e), [ar]); // Arabic first, English second (the shared useL().L is English first)
+  const today = rev.cfg.cutoff;
+  const [convs, setConvs] = useState(loadConvs);
+  const [activeId, setActiveId] = useState(() => loadConvs()[0]?.id || null);
+  const [input, setInput] = useState(() => readDrafts()[loadConvs()[0]?.id || 'new'] || '');
+  const [busy, setBusy] = useState(null); // { msgId, step, token }
+  const [showFilters, setShowFilters] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [editOpen, setEditOpen] = useState(false); const [editPendingId, setEditPendingId] = useState(null);
+  const [exporting, setExporting] = useState('');
+  const [models, setModels] = useState({}); // msgId -> model (in memory; regenerated from the spec when a stored conversation is reopened)
+  const [collapsed, setCollapsed] = useState({});
+  const endRef = useRef(null); const taRef = useRef(null);
 
-    const worstName = provinceName(worstProvince, lang);
-    const bestName = provinceName(bestProvince, lang);
-    const gapName = provinceName(biggestGapProvince, lang);
+  // a new conversation starts from the SHARED filters of the management area, so dashboard, fixed reports and smart reports speak about the same scope
+  const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all' } }; }, [rev.scopeEff, rev.scope.preset, today]);
+  const conv = convs.find((c) => c.id === activeId) || null;
+  const spec = conv?.spec || null;
+  const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
 
-    // Overall dominant GFS revenue category across every province combined.
-    const revenueTotals = new Map();
-    for (const p of byProvince) {
-      for (const r of p.revenue) {
-        const e = revenueTotals.get(r.code) || { ...r, value: 0 };
-        e.value += r.value;
-        revenueTotals.set(r.code, e);
-      }
-    }
-    const dominantOverall = [...revenueTotals.values()].sort((a, b) => b.value - a.value)[0];
-    const dominantPct = dominantOverall ? Math.round((dominantOverall.value / kpi.gross) * 100) : 0;
+  usePersistOnChange(convs, saveConvs); // written only after a user action, never when the page loads or a stored conversation is reopened
+  // follow the conversation only when it GROWS while it is open (never on arrival or when reopening — F-16a)
+  const seenLen = useRef({ id: null, n: 0 });
+  useEffect(() => { const n = conv?.messages.length || 0; const grew = seenLen.current.id === conv?.id && n > seenLen.current.n; seenLen.current = { id: conv?.id, n }; if (grew) endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [conv?.id, conv?.messages.length]);
+  useEffect(() => { const el = taRef.current; if (el) { el.style.height = 'auto'; el.style.height = `${Math.min(el.scrollHeight, 180)}px`; } }, [input]);
 
-    const biggestExclusionKey = Object.entries(exclusions).sort((a, b) => b[1].value - a[1].value)[0];
-    const exclusionLabelMap = {
-      duplicate: pick(lang, 'Duplicate invoices', 'الفواتير المكررة', '重复账单'),
-      appeal: pick(lang, 'Invoices under appeal/dispute', 'الفواتير قيد الاعتراض/النزاع', '争议中的账单'),
-      invalid_debtor: pick(lang, 'Struck-off registry / deceased debtor invoices', 'فواتير السجل الملغى أو المدين المتوفى', '注销登记/债务人已故账单'),
-      enforcement: pick(lang, 'Invoices referred to enforcement', 'الفواتير المُحالة للتنفيذ', '已转执行的账单')
-    };
+  // switching conversation brings back that conversation's unsent text (and keeps the one just left)
+  const draftFor = useRef(activeId || 'new');
+  useEffect(() => { const key = activeId || 'new'; if (draftFor.current === key) return; draftFor.current = key; setInput(readDrafts()[key] || ''); }, [activeId]);
+  const onInput = (v) => { setInput(v); writeDraft(draftFor.current, v); };
+  const patchConv = useCallback((id, fn) => setConvs((cs) => { let changed = false; const n = cs.map((c) => { if (c.id !== id) return c; const r = fn(c); if (r !== c) changed = true; return r; }); return changed ? n : cs; }), []);
 
-    const trend = computeRecoveryTrend(TREND.recovery);
+  /* ---------------- generation ---------------- */
+  const generate = useCallback(async (sp, token, setStep) => {
+    const sc = sp.scope; const cutoff = rev.cfg.cutoff;
+    const step = (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setStep(k); };
+    step('scope');
+    const scope = { ...sc };
+    const prevSc = sp.compare === 'prev_month' ? previousMonthScope(sc, today) : sp.compare === 'prev_year' ? (({ from, to }) => ({ from, to }))(previousScope({ from: sc.from, to: sc.to })) : null;
+    const atEnd = { cfg: headlineCfg(rev.cfg) }; // the SAME measurement rule as every other view (src/data/measure.js)
+    step('read');
+    const task = rev.startAnalysis('report', { focus: sp.sections.includes('exclusions') ? 'noncollection' : sp.sections.includes('amanah') ? 'amanah' : 'revenue', nonce: uid() }, { scope, background: true, inline: true, paceMs: 0, followsGlobal: false, origin: 'smart-reports' });
+    token.taskId = task.id;
+    const final = await task.promise;
+    step('compare');
+    if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw Object.assign(new Error('analysis_failed'), { status: final.status, reason: final.error || final.errors || final.message || null }); }
+    const out = { ...final.out, snapshot: await measure(rev.data, scope, rev.cfg) };
+    const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status };
+    const [prev, cash, bridge] = await Promise.all([
+      prevSc ? rev.data.snapshot({ ...prevSc, ...scopeKeys }, atEnd) : Promise.resolve(null),
+      sp.sections.includes('trends') ? rev.data.series({ ...scope }, { asOf: sc.to < cutoff ? sc.to : cutoff }) : Promise.resolve(null),
+      sp.sections.includes('quality') ? rev.data.bridge({ ...scopeKeys, from: '2000-01-01', to: cutoff }) : Promise.resolve(null)
+    ]);
+    step('build');
+    const model = buildReportModel({ spec: sp, lang, out, prev, compare: sp.compare, prevScope: prevSc, cash, bridge, targets: rev.targets, cases: rev.cases, meta: rev.meta });
+    step('check');
+    if (!model.equationOk) model.sections.unshift({ key: 'warn', title: L('تنبيه', 'Warning'), purpose: '', blocks: [{ type: 'callout', tone: 'warn', text: L('تعذّر تحقق إحدى علاقات المطابقة المالية لهذا الاختيار؛ راجع قسم اكتمال البيانات والمطابقة.', 'One financial reconciliation identity did not hold for this selection; see the completeness and reconciliation section.') }] });
+    return model;
+  }, [rev, lang, today, L]);
 
-    const title = pick(lang, 'Smart Report', 'التقرير الذكي', '智能报告');
-    const subtitleMap = {
-      revenue: pick(lang, 'Revenue & Collection Performance', 'أداء الإيرادات والتحصيل', '收入与收缴绩效'),
-      province: pick(lang, 'Province Comparison', 'مقارنة المناطق', '省份对比'),
-      enforcement: pick(lang, 'Enforcement & Compliance', 'التنفيذ والامتثال', '执行与合规'),
-      investment: pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')
-    };
-    const generatedOn = `${pick(lang, 'Generated', 'تاريخ الإنشاء', '生成时间')}: ${new Date().toLocaleDateString(lang === 'ar' ? 'ar-SA' : lang === 'zh' ? 'zh-CN' : 'en-US')}`;
+  const run = useCallback(async (convId, msgId, sp) => {
+    const token = { cancelled: false, taskId: null };
+    setBusy({ msgId, step: 'scope', token });
+    try {
+      const model = await generate(sp, token, (k) => setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)));
+      setModels((m) => ({ ...m, [msgId]: model }));
+      // the conversation is named after its FIRST report (what it is about), unless the person renamed it
+      const firstId = (c) => c.messages.find((m) => m.role === 'assistant' && m.spec)?.id;
+      const nameOf = () => { const sc = sp.scope; const am = sc.amanah === 'all' ? null : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [model.title, fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en'), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : sourceEn(sc.source)) : null].filter(Boolean).join(' · ').slice(0, 80); };
+      patchConv(convId, (c) => { const t = c.titleSource !== 'user' && firstId(c) === msgId ? nameOf() : c.title; return c.messages.some((m) => m.id === msgId && m.status === 'done' && m.title === model.title) && t === c.title ? c : { ...c, title: t, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title } : m)) }; });
+    } catch (e) {
+      const stopped = token.cancelled || e.stopped;
+      if (!stopped) console.error('[smart-reports] the report could not be prepared:', e);
+      patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: stopped ? 'stopped' : 'error' } : m)) }));
+    } finally { setBusy((b) => (b && b.msgId === msgId ? null : b)); }
+  }, [generate, patchConv, labelOfAmanah, ar]);
 
-    const executiveSummary = pick(
-      lang,
-      `This report covers ${kpi.invoiceCount} invoices totaling ${fmtMoney(kpi.gross)} SAR gross invoiced, of which ${fmtMoney(kpi.netInvoiced)} SAR is net of exclusions. The overall collection rate is ${kpi.collectionRate}%, with ${fmtMoney(kpi.collectedValue)} SAR collected and ${fmtMoney(kpi.uncollectedValue)} SAR still outstanding. ${worstName} shows the weakest collection performance at ${worstProvince.rate}%, while ${bestName} leads at ${bestProvince.rate}%.`,
-      `يغطي هذا التقرير ${kpi.invoiceCount} فاتورة بإجمالي ${fmtMoney(kpi.gross)} ريال، منها ${fmtMoney(kpi.netInvoiced)} ريال صافي بعد الاستبعادات. يبلغ معدل التحصيل الإجمالي ${kpi.collectionRate}%، حيث تم تحصيل ${fmtMoney(kpi.collectedValue)} ريال وما يزال ${fmtMoney(kpi.uncollectedValue)} ريال غير محصَّل. تُظهر ${worstName} أضعف أداء تحصيل بنسبة ${worstProvince.rate}%، بينما تتصدر ${bestName} بنسبة ${bestProvince.rate}%.`,
-      `本报告涵盖 ${kpi.invoiceCount} 张发票，总开票额 ${fmtMoney(kpi.gross)} 里亚尔，其中净开票额（扣除排除项后）为 ${fmtMoney(kpi.netInvoiced)} 里亚尔。总体收缴率为 ${kpi.collectionRate}%，已收缴 ${fmtMoney(kpi.collectedValue)} 里亚尔，仍有 ${fmtMoney(kpi.uncollectedValue)} 里亚尔未收缴。${worstName} 的收缴表现最弱，收缴率仅 ${worstProvince.rate}%，而 ${bestName} 表现最佳，达到 ${bestProvince.rate}%。`
-    );
+  const stop = () => { if (!busy) return; busy.token.cancelled = true; if (busy.token.taskId) rev.cancelTask(busy.token.taskId); };
 
-    const keyMetrics = [
-      {
-        label: pick(lang, 'Net Invoiced', 'صافي الفوترة', '净开票额'),
-        value: `${fmtMoney(kpi.netInvoiced)} SAR`,
-        caption: pick(lang, 'Total invoiced value after removing duplicate, disputed, invalid-debtor, and enforcement-referred invoices.', 'إجمالي قيمة الفوترة بعد استبعاد الفواتير المكررة والمتنازع عليها وباطلة المدين والمُحالة للتنفيذ.', '扣除重复、争议、无效债务人及已转执行账单后的开票总额。')
-      },
-      {
-        label: pick(lang, 'Collected', 'المحصَّل', '已收缴'),
-        value: `${fmtMoney(kpi.collectedValue)} SAR`,
-        caption: pick(lang, 'Amount successfully collected against net-invoiced value.', 'المبلغ المحصَّل فعليًا من صافي الفوترة.', '已从净开票额中实际收缴的金额。')
-      },
-      {
-        label: pick(lang, 'Collection Rate', 'معدل التحصيل', '收缴率'),
-        value: `${kpi.collectionRate}%`,
-        caption: pick(lang, 'Collected ÷ Net Invoiced — the core efficiency measure for revenue collection.', 'المحصَّل ÷ صافي الفوترة — المقياس الأساسي لكفاءة التحصيل.', '已收缴 ÷ 净开票额——衡量收缴效率的核心指标。')
-      },
-      {
-        label: pick(lang, 'Uncollected', 'غير محصَّل', '未收缴'),
-        value: `${fmtMoney(kpi.uncollectedValue)} SAR`,
-        caption: pick(lang, 'Still outstanding within net-invoiced scope; needs active follow-up.', 'ما يزال مستحقًا ضمن نطاق صافي الفوترة، ويتطلب متابعة فعلية.', '仍在净开票范围内未收缴，需要主动跟进。')
-      },
-      {
-        label: pick(lang, 'Excluded', 'المبلغ المستبعد', '已排除金额'),
-        value: `${fmtMoney(kpi.excludedValue)} SAR`,
-        caption: pick(lang, 'Removed from the collection-rate denominator; tracked separately since it should never count as collectible.', 'مستبعد من مقام معدل التحصيل، ويُتابع بشكل منفصل لأنه لا يجب اعتباره قابلاً للتحصيل.', '已从收缴率分母中排除，单独跟踪，因其本不应被视为可收缴金额。')
-      }
-    ];
+  // reopen a stored conversation: rebuild the last report from its spec
+  useEffect(() => {
+    if (!conv || busy) return;
+    const last = [...conv.messages].reverse().find((m) => m.role === 'assistant' && m.spec && m.status === 'done');
+    if (last && !models[last.id]) run(conv.id, last.id, last.spec);
+  }, [conv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const detailedAnalysisIntro = pick(
-      lang,
-      `Performance varies significantly by province. ${worstName} sits well below the 70% target, while ${bestName} exceeds it. The gap between best and worst is ${bestProvince.rate - worstProvince.rate} percentage points.`,
-      `يتفاوت الأداء بشكل كبير بين المناطق. تقع ${worstName} دون المستهدف البالغ 70% بفارق كبير، بينما تتجاوزه ${bestName}. الفارق بين الأفضل والأسوأ ${bestProvince.rate - worstProvince.rate} نقطة مئوية.`,
-      `各省份表现差异显著。${worstName} 远低于70%的目标，而 ${bestName} 已超过该目标。最佳与最差之间相差 ${bestProvince.rate - worstProvince.rate} 个百分点。`
-    );
+  /* ---------------- sending ---------------- */
+  const send = useCallback((text, override = null, { fresh = false } = {}) => {
+    const q = (text || '').trim();
+    if (!q || busy) return;
+    let c = fresh ? null : conv; // a request that arrives through a link starts its own conversation
+    if (!c) { c = { id: uid(), title: q.slice(0, 48), createdAt: Date.now(), updatedAt: Date.now(), spec: sharedSpec, messages: [] }; }
+    const userMsg = { id: uid(), role: 'user', text: q };
+    const res = override ? { kind: 'report', spec: override.spec, changes: override.changes || [] } : interpret(q, c.messages.some((m) => m.spec) ? c.spec : null, today, { base: sharedSpec });
+    const asId = uid();
+    const lbl = (ch) => describeChange(ch, lang, { amanahLabel: labelOfAmanah, spec: res.spec });
+    let aMsg;
+    if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', question: res.question || null, status: 'done' };
+    else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
+    else if (res.confirm?.length && !override) aMsg = { id: asId, role: 'assistant', kind: 'confirm', status: 'pending', confirm: res.confirm, pending: { kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec) } };
+    else aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working' };
+    const next = { ...c, title: c.messages.length ? c.title : q.slice(0, 48), updatedAt: Date.now(), spec: aMsg.spec || c.spec, messages: [...c.messages.map((m) => (m.kind === 'confirm' && m.status === 'pending' ? { ...m, status: 'superseded' } : m)), userMsg, aMsg] };
+    setConvs((cs) => (cs.some((x) => x.id === c.id) ? cs.map((x) => (x.id === c.id ? next : x)) : [next, ...cs]));
+    setActiveId(c.id); setInput(''); writeDraft(c.id, ''); writeDraft(draftFor.current, '');
+    if (aMsg.spec) run(c.id, asId, aMsg.spec);
+  }, [busy, conv, today, lang, labelOfAmanah, run, sharedSpec]);
 
-    const sortedProvinces = byProvince.slice().sort((a, b) => b.gross - a.gross);
+  // the demo asks the user to confirm the interpreted scope in the risky categories BEFORE anything is generated
+  const confirmPending = (msg) => {
+    const pd = msg.pending; if (busy || !pd) return;
+    patchConv(conv.id, (c) => ({ ...c, spec: pd.spec, updatedAt: Date.now(), messages: c.messages.map((m) => (m.id === msg.id ? { id: m.id, role: 'assistant', kind: pd.kind, spec: pd.spec, changes: pd.changes, changeKeys: pd.changeKeys, firstReport: pd.firstReport, confirmedByUser: true, status: 'working' } : m)) }));
+    run(conv.id, msg.id, pd.spec);
+  };
+  const cancelPending = (msg) => patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'cancelled' } : m)) }));
+  const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec); };
+  const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); taRef.current?.focus(); };
+  const [renaming, setRenaming] = useState(null); // { id, text }
+  const renameConv = (id, text) => { const t = text.trim().slice(0, 80); if (t) patchConv(id, (c) => ({ ...c, title: t, titleSource: 'user' })); setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${id}`)?.focus(), 0); };
+  const removeConv = (id) => { setConvs((cs) => cs.filter((c) => c.id !== id)); if (id === activeId) setActiveId(null); };
 
-    const analysisTable = {
-      headers: [
-        pick(lang, 'Province', 'المنطقة', '省份'),
-        pick(lang, 'Invoices', 'الفواتير', '发票数'),
-        pick(lang, 'Gross (SAR)', 'الإجمالي (ريال)', '总开票额（里亚尔）'),
-        pick(lang, 'Collected (SAR)', 'المحصَّل (ريال)', '已收缴（里亚尔）'),
-        pick(lang, 'Uncollected (SAR)', 'غير المحصَّل (ريال)', '未收缴（里亚尔）'),
-        pick(lang, 'Rate', 'المعدل', '收缴率')
-      ],
-      rows: sortedProvinces.map((p) => [provinceName(p, lang), p.count, fmtMoney(p.gross), fmtMoney(p.collected), fmtMoney(p.uncollected), `${p.rate}%`]),
-      rateByRow: sortedProvinces.map((p) => p.rate)
-    };
-
-    // Chart series — every number here is read straight from the same `data`
-    // (buildReportData) used for the text sections above, so a chart can never
-    // show a different figure than the sentence next to it.
-    const revenueMixSorted = [...revenueTotals.values()].sort((a, b) => b.value - a.value);
-    const trendLangIdx = lang === 'ar' ? 'labelsAr' : lang === 'zh' ? 'labels' : 'labelsEn';
-    const investmentLinkedCount = data.investmentInvoices.length - flaggedNoContract.length;
-    const sanadLinkedPct = sanad.ordersIssued ? Math.round(((sanad.ordersIssued - sanad.ordersUnlinked) / sanad.ordersIssued) * 100) : 0;
-
-    const charts = {
-      composition: {
-        labels: [
-          pick(lang, 'Collected', 'المحصَّل', '已收缴'),
-          pick(lang, 'Uncollected', 'غير محصَّل', '未收缴'),
-          pick(lang, 'Excluded', 'مستبعد', '已排除')
-        ],
-        values: [kpi.collectedValue, kpi.uncollectedValue, kpi.excludedValue],
-        pct: [
-          kpi.gross ? Math.round((kpi.collectedValue / kpi.gross) * 100) : 0,
-          kpi.gross ? Math.round((kpi.uncollectedValue / kpi.gross) * 100) : 0,
-          kpi.gross ? Math.round((kpi.excludedValue / kpi.gross) * 100) : 0
-        ]
-      },
-      provinceBar: {
-        labels: sortedProvinces.map((p) => provinceName(p, lang)),
-        gross: sortedProvinces.map((p) => p.gross),
-        collected: sortedProvinces.map((p) => p.collected),
-        rate: sortedProvinces.map((p) => p.rate)
-      },
-      revenueMix: {
-        labels: revenueMixSorted.map((r) => gfsName(r, lang)),
-        values: revenueMixSorted.map((r) => r.value),
-        pct: revenueMixSorted.map((r) => (kpi.gross ? Math.round((r.value / kpi.gross) * 100) : 0))
-      },
-      enforcementBar: {
-        labels: sortedProvinces.map((p) => provinceName(p, lang)),
-        violations: sortedProvinces.map((p) => p.violationCount),
-        enforcement: sortedProvinces.map((p) => p.enforcementCount)
-      },
-      sanadLinkage: {
-        linkedPct: sanadLinkedPct,
-        unlinkedPct: 100 - sanadLinkedPct,
-        ordersIssued: sanad.ordersIssued,
-        ordersUnlinked: sanad.ordersUnlinked,
-        unlinkedValue: sanad.ordersUnlinkedValue
-      },
-      investment: {
-        labels: [
-          pick(lang, 'Linked to Furas contract', 'مرتبطة بعقد فرص', '已关联Furas合同'),
-          pick(lang, 'No linked contract', 'بلا عقد مرتبط', '未关联合同')
-        ],
-        values: [investmentLinkedCount, flaggedNoContract.length],
-        total: data.investmentInvoices.length
-      },
-      trend: {
-        labels: [...TREND[trendLangIdx], pick(lang, 'Next (est.)', 'القادم (تقديري)', '下期（预计）')],
-        actual: [...TREND.recovery, null],
-        forecast: [...TREND.recovery.map(() => null).slice(0, -1), TREND.recovery[TREND.recovery.length - 1], trend.nextValue]
-      }
-    };
-
-    const discoveries = [
-      sameProvince
-        ? pick(
-            lang,
-            `${worstName} is simultaneously the biggest recovery opportunity and the worst-performing province — the risk is concentrated in one place, not spread across the map.`,
-            `تُعد ${worstName} في آن واحد أكبر فرصة للتحصيل وأضعف منطقة أداءً — أي أن الخطر متركّز في مكان واحد وليس موزَّعًا.`,
-            `${worstName} 同时是最大的追缴机会和表现最差的省份——风险集中在一处，而非分散各地。`
-          )
-        : pick(
-            lang,
-            `The biggest recovery opportunity (${gapName}) and the worst-performing province (${worstName}) are not the same place — they need different responses.`,
-            `أكبر فرصة تحصيل (${gapName}) وأضعف منطقة أداءً (${worstName}) ليستا نفس المكان — وهو ما يتطلب استجابتين مختلفتين.`,
-            `最大追缴机会所在地（${gapName}）与表现最差的省份（${worstName}）并非同一地点——需要采取不同的应对措施。`
-          ),
-      dominantOverall
-        ? pick(
-            lang,
-            `${gfsName(dominantOverall, lang)} is the single largest revenue source, accounting for ${dominantPct}% of gross invoiced value across all provinces.`,
-            `يُعد "${gfsName(dominantOverall, lang)}" أكبر مصدر إيراد منفرد، ويمثل ${dominantPct}% من إجمالي قيمة الفوترة عبر جميع المناطق.`,
-            `"${gfsName(dominantOverall, lang)}" 是最大的单一收入来源，占所有省份开票总额的 ${dominantPct}%。`
-          )
-        : '',
-      pick(
-        lang,
-        `Of the ${fmtMoney(sanad.ordersIssued)} enforcement orders in the sample dataset that were actually issued, ${sanadUnlinkedPct}% carry no linked invoice number (SAR ${fmtMoney(sanad.ordersUnlinkedValue)}) — illustrating a linkage gap that persists even after enforcement has already started.`,
-        `من أصل ${fmtMoney(sanad.ordersIssued)} أمر تنفيذ صادر فعليًا في مجموعة البيانات النموذجية، ${sanadUnlinkedPct}% منها بلا رقم فاتورة مرتبط (${fmtMoney(sanad.ordersUnlinkedValue)} ريال) — ما يوضّح استمرار فجوة الربط حتى بعد بدء التنفيذ.`,
-        `在示例数据集中已实际签发的 ${fmtMoney(sanad.ordersIssued)} 份执行令中，${sanadUnlinkedPct}% 未关联任何发票编号（合计 ${fmtMoney(sanad.ordersUnlinkedValue)} 里亚尔）——说明即使执行已经开始，关联缺口依然存在。`
-      ),
-      flaggedNoContract.length
-        ? pick(
-            lang,
-            `${flaggedNoContract.length} investment invoice(s) totaling ${fmtMoney(flaggedNoContract.reduce((s, i) => s + i.amount, 0))} SAR have no linked Furas contract, creating an audit exposure.`,
-            `توجد ${flaggedNoContract.length} فاتورة استثمارية بإجمالي ${fmtMoney(flaggedNoContract.reduce((s, i) => s + i.amount, 0))} ريال بلا عقد فرص مرتبط، مما يشكّل تعرّضًا رقابيًا.`,
-            `有 ${flaggedNoContract.length} 张投资类发票（合计 ${fmtMoney(flaggedNoContract.reduce((s, i) => s + i.amount, 0))} 里亚尔）未关联任何 Furas 合同，存在审计风险。`
-          )
-        : '',
-      biggestExclusionKey
-        ? pick(
-            lang,
-            `"${exclusionLabelMap[biggestExclusionKey[0]]}" is the largest exclusion category by value (${fmtMoney(biggestExclusionKey[1].value)} SAR) — worth reviewing whether this category's growth is accelerating.`,
-            `تُعد فئة "${exclusionLabelMap[biggestExclusionKey[0]]}" الأكبر قيمةً بين فئات الاستبعاد (${fmtMoney(biggestExclusionKey[1].value)} ريال) — ويستحق الأمر مراجعة ما إذا كانت هذه الفئة في تسارع.`,
-            `"${exclusionLabelMap[biggestExclusionKey[0]]}" 是排除类别中金额最大的一项（${fmtMoney(biggestExclusionKey[1].value)} 里亚尔）——值得关注该类别是否正在加速增长。`
-          )
-        : ''
-    ].filter(Boolean);
-
-    const risks = [
-      {
-        priority: pick(lang, worstProvince.rate < 40 ? 'Critical' : 'High', worstProvince.rate < 40 ? 'حرجة' : 'عالية', worstProvince.rate < 40 ? '严重' : '高'),
-        title: pick(lang, `${worstName} — collection rate at ${worstProvince.rate}%`, `${worstName} — معدل التحصيل ${worstProvince.rate}%`, `${worstName} — 收缴率仅 ${worstProvince.rate}%`),
-        rationale: pick(
-          lang,
-          `The lowest collection rate among ${byProvince.length} provinces with data, with ${fmtMoney(worstProvince.uncollected)} SAR still outstanding.`,
-          `أدنى معدل تحصيل بين ${byProvince.length} مناطق تملك بيانات، مع ${fmtMoney(worstProvince.uncollected)} ريال ما يزال غير محصَّل.`,
-          `在 ${byProvince.length} 个有数据的省份中收缴率最低，仍有 ${fmtMoney(worstProvince.uncollected)} 里亚尔未收缴。`
-        )
-      },
-      {
-        priority: pick(lang, 'High', 'عالية', '高'),
-        title: pick(lang, 'Sanad invoice-linkage gap', 'فجوة ربط فواتير سند', 'Sanad 发票关联缺口'),
-        rationale: pick(
-          lang,
-          `SAR ${fmtMoney(sanad.ordersUnlinkedValue)} in issued enforcement orders cannot currently be traced to a source invoice.`,
-          `${fmtMoney(sanad.ordersUnlinkedValue)} ريال من أوامر التنفيذ الصادرة لا يمكن حاليًا تتبعها لفاتورة أصلية.`,
-          `已签发的执行令中有 ${fmtMoney(sanad.ordersUnlinkedValue)} 里亚尔目前无法追溯至原始发票。`
-        )
-      },
-      ...(flaggedNoContract.length
-        ? [{
-            priority: pick(lang, 'Medium', 'متوسطة', '中'),
-            title: pick(lang, `${flaggedNoContract[0].id} — unlinked investment contract`, `${flaggedNoContract[0].id} — عقد استثماري غير مرتبط`, `${flaggedNoContract[0].id} — 未关联投资合同`),
-            rationale: pick(
-              lang,
-              `${fmtMoney(flaggedNoContract[0].amount)} SAR invoiced with no linked Furas contract on record.`,
-              `فاتورة بقيمة ${fmtMoney(flaggedNoContract[0].amount)} ريال دون عقد فرص مسجَّل مرتبط بها.`,
-              `已开票 ${fmtMoney(flaggedNoContract[0].amount)} 里亚尔，但没有登记关联的 Furas 合同。`
-            )
-          }]
-        : [])
-    ];
-
-    const predictions = [
-      {
-        prediction: pick(
-          lang,
-          `If the ministry-wide recovery-rate trend of the last 8 months continues, next month's rate is estimated around ${trend.nextValue}% (currently ${trend.lastValue}%).`,
-          `إذا استمر اتجاه معدل التحصيل على مستوى الوزارة خلال الأشهر الثمانية الماضية، يُقدَّر معدل الشهر القادم بنحو ${trend.nextValue}% (حاليًا ${trend.lastValue}%).`,
-          `若过去8个月部级回收率趋势延续，下月收缴率预计约为 ${trend.nextValue}%（当前为 ${trend.lastValue}%）。`
-        ),
-        timeframe: pick(lang, 'Next 1 month', 'الشهر القادم', '未来1个月'),
-        confidence: pick(lang, 'Low — simple linear trend on 8 data points, not a statistical model', 'منخفضة — اتجاه خطي بسيط على 8 نقاط بيانات، وليس نموذجًا إحصائيًا', '低——基于8个数据点的简单线性趋势，非统计模型'),
-        supporting: pick(lang, 'Consistent month-over-month upward movement over the observed period.', 'استمرار الاتجاه التصاعدي شهريًا خلال الفترة المرصودة.', '观测期内月度持续上升。'),
-        changing: pick(lang, 'New large invoices, enforcement actions, policy changes, or seasonal effects could shift this materially.', 'قد تُغيّر هذا التقدير بشكل جوهري فواتير كبيرة جديدة أو إجراءات تنفيذ أو تغييرات في السياسات أو تأثيرات موسمية.', '新增大额发票、执行行动、政策变化或季节性因素都可能显著改变该估算。')
-      },
-      {
-        prediction: pick(
-          lang,
-          `If ${worstName}'s collection rate does not improve, its uncollected balance could grow beyond the current ${fmtMoney(worstProvince.uncollected)} SAR next period, assuming a similar invoicing volume.`,
-          `إذا لم يتحسّن معدل التحصيل في ${worstName}، فقد يتجاوز رصيدها غير المحصَّل الحالي البالغ ${fmtMoney(worstProvince.uncollected)} ريال في الفترة القادمة، بافتراض حجم فوترة مماثل.`,
-          `若 ${worstName} 的收缴率未见改善，假设开票量相近，其未收缴余额可能在下一周期超过当前的 ${fmtMoney(worstProvince.uncollected)} 里亚尔。`
-        ),
-        timeframe: pick(lang, 'Next filing period', 'الفترة القادمة', '下一周期'),
-        confidence: pick(lang, 'Low — a directional projection based on the current rate holding steady, not a forecast model', 'منخفضة — إسقاط اتجاهي بافتراض ثبات المعدل الحالي، وليس نموذج تنبؤ', '低——基于当前收缴率保持不变的方向性推测，非预测模型'),
-        supporting: pick(lang, `${worstName} has shown no improvement within the current filtered period.`, `لم تُظهر ${worstName} أي تحسّن ضمن الفترة الحالية المفلترة.`, `${worstName} 在当前筛选周期内未见改善。`),
-        changing: pick(lang, 'Approving the collection follow-up recommended below would directly change this trajectory.', 'اعتماد متابعة التحصيل الموصى بها أدناه سيغيّر هذا المسار مباشرةً.', '采纳下方建议的催收跟进措施将直接改变这一走势。')
-      }
-    ];
-
-    const additionalReports = [
-      {
-        title: pick(lang, 'Province Comparison Report', 'تقرير مقارنة المناطق', '省份对比报告'),
-        description: pick(lang, 'Side-by-side collection performance across all provinces with data.', 'مقارنة جنبًا إلى جنب لأداء التحصيل عبر جميع المناطق التي تملك بيانات.', '对所有有数据省份的收缴表现进行并列对比。')
-      },
-      {
-        title: pick(lang, 'Enforcement & Compliance Report', 'تقرير التنفيذ والامتثال', '执行与合规报告'),
-        description: pick(lang, 'Sanad invoice-linkage gap, violation counts, and enforcement case load by province.', 'فجوة ربط فواتير سند، وعدد المخالفات، وحجم حالات التنفيذ حسب المنطقة.', 'Sanad 发票关联缺口、违规数量及各省份执行案件量。')
-      },
-      {
-        title: pick(lang, 'Investment Contract Linkage Report', 'تقرير ربط العقود الاستثمارية', '投资合同关联报告'),
-        description: pick(lang, 'Every investment invoice checked against its Furas contract record.', 'مراجعة كل فاتورة استثمارية مقابل سجل عقدها في فرص.', '逐一核对每张投资发票与其 Furas 合同记录。')
-      },
-      {
-        title: pick(lang, 'Exclusion Category Deep-Dive', 'تحليل معمّق لفئات الاستبعاد', '排除类别深度分析'),
-        description: pick(lang, 'Trend of duplicate, disputed, invalid-debtor, and enforcement-referred exclusions over time.', 'اتجاه استبعادات الفواتير المكررة والمتنازع عليها وباطلة المدين والمُحالة للتنفيذ عبر الزمن.', '重复、争议、无效债务人及已转执行等排除类别随时间的变化趋势。')
-      }
-    ];
-
-    const recommendations = [
-      {
-        priority: pick(lang, worstProvince.rate < 40 ? 'Critical' : 'High', worstProvince.rate < 40 ? 'حرجة' : 'عالية', worstProvince.rate < 40 ? '严重' : '高'),
-        text: pick(
-          lang,
-          `Approve a collection follow-up plan for ${worstName} — target raising its rate from ${worstProvince.rate}% toward the 70% benchmark.`,
-          `اعتماد خطة متابعة تحصيل لـ${worstName} — بهدف رفع معدلها من ${worstProvince.rate}% نحو المستهدف 70%.`,
-          `批准针对 ${worstName} 的催收跟进计划——目标是将其收缴率从 ${worstProvince.rate}% 提升至 70% 的基准水平。`
-        )
-      },
-      {
-        priority: pick(lang, 'High', 'عالية', '高'),
-        text: pick(
-          lang,
-          'Require an invoice-number field to be captured at the point an enforcement order is issued, closing the Sanad linkage gap at the source.',
-          'إلزام التقاط حقل رقم الفاتورة عند لحظة إصدار أمر التنفيذ، لسد فجوة الربط في سند من مصدرها.',
-          '要求在签发执行令时同步录入发票编号字段，从源头上弥合 Sanad 关联缺口。'
-        )
-      },
-      ...(flaggedNoContract.length
-        ? [{
-            priority: pick(lang, 'Medium', 'متوسطة', '中'),
-            text: pick(
-              lang,
-              `Review and link ${flaggedNoContract[0].id} to its Furas contract before the next audit cycle.`,
-              `مراجعة وربط ${flaggedNoContract[0].id} بعقدها في فرص قبل دورة التدقيق القادمة.`,
-              `在下一轮审计前审查并关联 ${flaggedNoContract[0].id} 与其 Furas 合同。`
-            )
-          }]
-        : []),
-      {
-        priority: pick(lang, 'Low', 'منخفضة', '低'),
-        text: pick(
-          lang,
-          'Monitor the largest exclusion category monthly to confirm it is not growing faster than gross invoicing.',
-          'مراقبة أكبر فئة استبعاد شهريًا للتأكد من أنها لا تنمو أسرع من إجمالي الفوترة.',
-          '每月监测最大排除类别，确认其增速未超过总开票额。'
-        )
-      }
-    ];
-
-    const assumptions = [
-      pick(lang, `Data source: this demo's fictional invoice dataset (${kpi.invoiceCount} records) — not connected to a production system.`, `مصدر البيانات: مجموعة بيانات فواتير افتراضية لهذا العرض التوضيحي (${kpi.invoiceCount} سجلًا) — غير متصلة بنظام إنتاجي.`, `数据来源：本演示的虚构发票数据集（共 ${kpi.invoiceCount} 条记录）——未连接生产系统。`),
-      pick(lang, 'Sanad enforcement figures are illustrative/sample data for demo purposes, not a real dataset.', 'أرقام تنفيذ سند بيانات توضيحية/نموذجية لأغراض العرض، وليست بيانات حقيقية.', 'Sanad 执行数据为演示用途的示例性数据，并非真实数据集。'),
-      pick(lang, `Only ${byProvince.length} of Saudi Arabia's 13 real provinces have invoices in this demo dataset; the rest show no data by design.`, `${byProvince.length} فقط من مناطق المملكة الـ13 الحقيقية تملك فواتير في مجموعة البيانات هذه؛ البقية بلا بيانات عن قصد.`, `本演示数据集中仅有 ${byProvince.length} 个（共13个）真实省份存在发票数据，其余省份按设计无数据。`),
-      pick(lang, 'Uncollected excludes duplicate, disputed, invalid-debtor, and enforcement-referred invoices by definition — they are never counted as collectible.', 'يستبعد "غير المحصَّل" بحكم التعريف الفواتير المكررة والمتنازع عليها وباطلة المدين والمُحالة للتنفيذ — فهي لا تُحتسب أبدًا كقابلة للتحصيل.', '"未收缴"按定义排除重复、争议、无效债务人及已转执行的账单——这些从不计入可收缴范围。'),
-      pick(lang, 'The forecast above is a simple linear trend on a short series, not a statistical or machine-learning model — treat it as directional, not precise.', 'التنبؤ أعلاه اتجاه خطي بسيط على سلسلة قصيرة، وليس نموذجًا إحصائيًا أو تعلّم آلي — يُعامَل كإشارة اتجاه لا كقيمة دقيقة.', '上述预测是基于短序列的简单线性趋势，并非统计或机器学习模型——请将其视为方向性参考，而非精确数值。')
-    ];
-
-    const labels = {
-      executiveSummary: pick(lang, 'Executive Summary', 'الملخص التنفيذي', '执行摘要'),
-      keyMetrics: pick(lang, 'Key Metrics', 'المؤشرات الرئيسية', '关键指标'),
-      detailedAnalysis: pick(lang, 'Detailed Analysis', 'التحليل التفصيلي', '详细分析'),
-      aiDiscoveries: pick(lang, 'AI Discoveries', 'اكتشافات الذكاء الاصطناعي', 'AI 洞察发现'),
-      risksAlerts: pick(lang, 'Risks & Alerts', 'المخاطر والتنبيهات', '风险与预警'),
-      predictions: pick(lang, 'Predictions & Forecasts', 'التوقعات والتنبؤات', '预测与展望'),
-      additionalReports: pick(lang, 'Additional Recommended Reports', 'تقارير إضافية موصى بها', '推荐的其他报告'),
-      recommendations: pick(lang, 'Recommendations', 'التوصيات', '建议'),
-      dataAssumptions: pick(lang, 'Data & Assumptions', 'البيانات والافتراضات', '数据与假设'),
-      metric: pick(lang, 'Metric', 'المؤشر', '指标'),
-      value: pick(lang, 'Value', 'القيمة', '数值'),
-      note: pick(lang, 'What it means', 'ماذا يعني', '含义说明'),
-      priority: pick(lang, 'Priority', 'الأولوية', '优先级'),
-      title: pick(lang, 'Title', 'العنوان', '标题'),
-      rationale: pick(lang, 'Rationale', 'المبرر', '依据'),
-      timeframe: pick(lang, 'Timeframe', 'الإطار الزمني', '时间范围'),
-      confidence: pick(lang, 'Confidence', 'مستوى الثقة', '置信度'),
-      supportingFactors: pick(lang, 'Supporting Factors', 'العوامل الداعمة', '支持因素'),
-      changingFactors: pick(lang, 'Factors That Could Change This', 'عوامل قد تُغيّر هذا التقدير', '可能改变该预测的因素')
-    };
-
-    return {
-      title,
-      subtitle: subtitleMap[focus] || subtitleMap.revenue,
-      generatedOn,
-      executiveSummary,
-      keyMetrics,
-      detailedAnalysis: { intro: detailedAnalysisIntro, table: analysisTable },
-      discoveries,
-      risks,
-      predictions,
-      additionalReports,
-      recommendations,
-      assumptions,
-      labels,
-      charts,
-      meta: {
-        invoiceCount: kpi.invoiceCount,
-        provinceCount: byProvince.length,
-        gross: fmtMoney(kpi.gross)
-      }
-    };
-  }, [t, lang, focus]);
-}
-
-export default function SmartReports() {
-  const { t, lang, isRtl } = useI18n();
-  const [focus, setFocus] = useState('revenue');
-  const [query, setQuery] = useState('');
-  const [busy, setBusy] = useState('');
-  const [phase, setPhase] = useState('idle'); // idle | analyzing | done
-  const [tick, setTick] = useState(0);
-  const report = useSmartReport(t, lang, focus);
-
-  // Chart.js configs — every dataset reads straight from `report.charts`, the
-  // same numbers driving the text sections above, so a chart can never
-  // contradict the sentence next to it.
-  const legendOpts = useMemo(() => ({ position: 'bottom', rtl: isRtl, labels: { color: '#6b8578', boxWidth: 12, font: { size: 11 } } }), [isRtl]);
-  const tooltipBase = useMemo(() => ({ rtl: isRtl, backgroundColor: '#FFFFFF', titleColor: '#000000', bodyColor: '#323232', borderColor: '#EAEAEA', borderWidth: 1 }), [isRtl]);
-
-  const compositionChartData = useMemo(() => ({
-    labels: report.charts.composition.labels,
-    datasets: [{ data: report.charts.composition.values, backgroundColor: ['rgba(0, 102, 4, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(120, 120, 120, 0.55)'], borderWidth: 0 }]
-  }), [report]);
-  const compositionOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: legendOpts,
-      tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} SAR (${report.charts.composition.pct[ctx.dataIndex]}%)` } }
-    }
-  }), [legendOpts, tooltipBase, report]);
-
-  const provinceBarData = useMemo(() => ({
-    labels: report.charts.provinceBar.labels,
-    datasets: [
-      { label: pick(lang, 'Gross', 'الإجمالي', '总额'), data: report.charts.provinceBar.gross, backgroundColor: 'rgba(0, 90, 150, 0.75)', borderRadius: 4 },
-      { label: pick(lang, 'Collected', 'المحصَّل', '已收缴'), data: report.charts.provinceBar.collected, backgroundColor: 'rgba(0, 102, 4, 0.75)', borderRadius: 4 }
-    ]
-  }), [report, lang]);
-  const provinceBarOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${fmtMoney(ctx.parsed.y)} SAR` } } },
-    scales: {
-      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#6b8578', callback: (v) => fmtMoney(v) }, grid: { color: 'rgba(0,0,0,0.06)' } }
-    }
-  }), [legendOpts, tooltipBase, isRtl]);
-
-  const revenueMixData = useMemo(() => ({
-    labels: report.charts.revenueMix.labels,
-    datasets: [{ data: report.charts.revenueMix.values, backgroundColor: ['rgba(0, 90, 150, 0.85)', 'rgba(38, 99, 75, 0.85)', 'rgba(230, 126, 34, 0.85)', 'rgba(175, 8, 24, 0.85)'], borderWidth: 0 }]
-  }), [report]);
-  const revenueMixOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.label}: ${fmtMoney(ctx.parsed)} SAR (${report.charts.revenueMix.pct[ctx.dataIndex]}%)` } } }
-  }), [legendOpts, tooltipBase, report]);
-
-  const enforcementBarData = useMemo(() => ({
-    labels: report.charts.enforcementBar.labels,
-    datasets: [
-      { label: pick(lang, 'Violations', 'المخالفات', '违规数'), data: report.charts.enforcementBar.violations, backgroundColor: 'rgba(175, 8, 24, 0.75)', borderRadius: 4 },
-      { label: pick(lang, 'Enforcement Cases', 'حالات التنفيذ', '执行案件数'), data: report.charts.enforcementBar.enforcement, backgroundColor: 'rgba(0, 90, 150, 0.75)', borderRadius: 4 }
-    ]
-  }), [report, lang]);
-  const enforcementBarOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: legendOpts, tooltip: tooltipBase },
-    scales: {
-      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
-      y: { beginAtZero: true, ticks: { color: '#6b8578', precision: 0 }, grid: { color: 'rgba(0,0,0,0.06)' } }
-    }
-  }), [legendOpts, tooltipBase, isRtl]);
-
-  const investmentData = useMemo(() => ({
-    labels: report.charts.investment.labels,
-    datasets: [{ data: report.charts.investment.values, backgroundColor: ['rgba(0, 102, 4, 0.85)', 'rgba(175, 8, 24, 0.85)'], borderWidth: 0 }]
-  }), [report]);
-  const investmentOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: legendOpts,
-      tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed} (${report.charts.investment.total ? Math.round((ctx.parsed / report.charts.investment.total) * 100) : 0}%)` } }
-    }
-  }), [legendOpts, tooltipBase, report]);
-
-  const trendLineData = useMemo(() => ({
-    labels: report.charts.trend.labels,
-    datasets: [
-      { label: pick(lang, 'Actual recovery rate', 'معدل التحصيل الفعلي', '实际回收率'), data: report.charts.trend.actual, borderColor: 'rgba(0, 102, 4, 0.9)', backgroundColor: 'rgba(0, 102, 4, 0.15)', pointRadius: 3, tension: 0.3 },
-      { label: pick(lang, 'Forecast', 'تقديري', '预测'), data: report.charts.trend.forecast, borderColor: 'rgba(0, 90, 150, 0.9)', borderDash: [6, 4], pointRadius: 3, tension: 0.3 }
-    ]
-  }), [report, lang]);
-  const trendLineOptions = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y}%` } } },
-    scales: {
-      x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } },
-      y: { ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } }
-    }
-  }), [legendOpts, tooltipBase, isRtl]);
-
-  const focusLabels = {
-    revenue: pick(lang, 'Revenue & Collection Performance', 'أداء الإيرادات والتحصيل', '收入与收缴绩效'),
-    province: pick(lang, 'Province Comparison', 'مقارنة المناطق', '省份对比'),
-    enforcement: pick(lang, 'Enforcement & Compliance', 'التنفيذ والامتثال', '执行与合规'),
-    investment: pick(lang, 'Investment Contract Linkage', 'ربط العقود الاستثمارية', '投资合同关联')
+  const applyFilters = (patch, baseSpec = null) => {
+    setShowFilters(false);
+    const base = baseSpec ? JSON.parse(JSON.stringify(baseSpec)) : spec ? JSON.parse(JSON.stringify(spec)) : JSON.parse(JSON.stringify(sharedSpec));
+    const next = { ...base, ...patch, scope: { ...base.scope, ...(patch.scope || {}) } };
+    next.preset = detectPreset(next.scope.from, next.scope.to, today); // the label of the period follows the dates that were actually chosen
+    const changes = [];
+    for (const k of ['from', 'to']) if (patch.scope && patch.scope[k] && patch.scope[k] !== base.scope[k]) { if (!changes.some((x) => x.key === 'period')) changes.push({ key: 'period', value: `${next.scope.from} → ${next.scope.to}` }); }
+    for (const k of ['amanah', 'muni', 'source', 'status', 'scopeType']) if (patch.scope && JSON.stringify(patch.scope[k]) !== undefined && JSON.stringify(patch.scope[k]) !== JSON.stringify(base.scope[k])) changes.push({ key: k, value: patch.scope[k] });
+    if (patch.compare && patch.compare !== base.compare) changes.push({ key: 'compare', value: patch.compare });
+    if (!changes.length) return;
+    send(L('طبّق المرشحات: ', 'Apply filters: ') + changes.map((c) => describeChange(c, lang, { amanahLabel: labelOfAmanah })).join('، '), { spec: next, changes });
   };
 
-  function matchFocusFromQuery(text) {
-    const lower = text.toLowerCase();
-    if (/enforc|compliance|تنفيذ|امتثال|执行|合规/.test(lower)) return 'enforcement';
-    if (/invest|contract|استثمار|عقد|投资|合同/.test(lower)) return 'investment';
-    if (/province|region|city|منطقة|省份|城市/.test(lower)) return 'province';
-    return 'revenue';
+  async function doExport(kind, model) {
+    if (exporting) return;
+    setExporting(kind);
+    try { if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model); } finally { setExporting(''); }
   }
 
-  // The visible "how the AI analyzed this" timeline. Every step's detail is a
-  // real value pulled from the SAME `report` object rendered below once the
-  // sequence finishes — including the forecast step, which previews the exact
-  // prediction text that appears in the final report, so the two can never
-  // drift apart or feel unrelated.
-  const analysisSteps = useMemo(() => ([
-    {
-      title: pick(lang, 'Understanding your request', 'فهم طلبك', '理解您的请求'),
-      detail: pick(lang, `Focus: ${report.subtitle}`, `التركيز: ${report.subtitle}`, `分析重点：${report.subtitle}`)
-    },
-    {
-      title: pick(lang, 'Analyzing invoice and province data', 'تحليل بيانات الفواتير والمناطق', '分析发票与省份数据'),
-      detail: pick(
-        lang,
-        `Scanned ${report.meta.invoiceCount} invoices across ${report.meta.provinceCount} provinces with data — ${report.meta.gross} SAR gross invoiced.`,
-        `تم فحص ${report.meta.invoiceCount} فاتورة عبر ${report.meta.provinceCount} مناطق تملك بيانات — بإجمالي فوترة ${report.meta.gross} ريال.`,
-        `已扫描 ${report.meta.invoiceCount} 张发票，涵盖 ${report.meta.provinceCount} 个有数据的省份——总开票额 ${report.meta.gross} 里亚尔。`
-      )
-    },
-    {
-      title: pick(lang, 'Detecting patterns and discoveries', 'اكتشاف الأنماط والاكتشافات', '识别模式与发现'),
-      detail: report.discoveries[0]
-    },
-    {
-      title: pick(lang, 'Running the collection-rate forecast', 'تشغيل نموذج تنبؤ معدل التحصيل', '运行收缴率预测模型'),
-      detail: report.predictions[0]?.prediction
-    },
-    {
-      title: pick(lang, 'Compiling risks, recommendations, and report', 'تجميع المخاطر والتوصيات والتقرير', '汇总风险、建议与报告'),
-      detail: pick(
-        lang,
-        `Identified ${report.risks.length} risk item(s) and ${report.recommendations.length} recommendation(s).`,
-        `تم تحديد ${report.risks.length} بند(بنود) خطر و${report.recommendations.length} توصية(توصيات).`,
-        `已识别 ${report.risks.length} 项风险和 ${report.recommendations.length} 条建议。`
-      )
-    }
-  ]), [lang, report]);
-
-  const activeStepIndex = Math.min(Math.floor(tick / 2), analysisSteps.length - 1);
-  const activeRevealed = tick % 2 === 1;
-
+  // deep links: /smart-reports?r=<standard report key> opens that report; ?q=<request> sends a request (old /reports links land here too)
+  const deepRef = useRef(false);
   useEffect(() => {
-    if (phase !== 'analyzing') return undefined;
-    const totalTicks = analysisSteps.length * 2;
-    if (tick >= totalTicks) {
-      const id = window.setTimeout(() => setPhase('done'), 300);
-      return () => window.clearTimeout(id);
-    }
-    const id = window.setTimeout(() => setTick((n) => n + 1), 550);
-    return () => window.clearTimeout(id);
-  }, [phase, tick, analysisSteps.length]);
+    if (deepRef.current) return; deepRef.current = true;
+    const sp = new URLSearchParams(window.location.search); const r = sp.get('r'); const q = sp.get('q');
+    const link = q || initialQuery;
+    if (link) { send(link, null, { fresh: true }); onQueryConsumed?.(); } // consumed once: reloading the page does not send it again (F-16b)
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function runGeneration(nextFocus) {
-    if (nextFocus) setFocus(nextFocus);
-    setTick(0);
-    setPhase('analyzing');
-  }
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(input); } };
 
-  async function handleExport(kind) {
-    setBusy(kind);
-    try {
-      if (kind === 'docx') await exportReportToDocx(report, 'smart-report.docx');
-      if (kind === 'xlsx') exportReportToXlsx(report, 'smart-report.xlsx');
-      if (kind === 'pptx') await exportReportToPptx(report, 'smart-report.pptx');
-    } finally {
-      setBusy('');
-    }
-  }
+  /* ---------------- pieces ---------------- */
+  const sourceName = (k) => (k === 'all' ? L('كل المصادر', 'All sources') : ar ? sourceAr(k) : sourceEn(k));
+  const specChips = useCallback((sp) => {
+    const sc = sp.scope;
+    const amLabel = sc.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، ');
+    const mu = sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(sc.muni).split('|')[0]).find((m) => m && m.key === sc.muni)?.[ar ? 'ar' : 'en'] || sc.muni);
+    const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'];
+    const cmp = { none: null, prev_month: L('مقارنة بالشهر الماضي', 'vs last month'), prev_year: L('مقارنة بالعام الماضي', 'vs last year') }[sp.compare];
+    return [
+      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en') }, { k: 'amanah', label: L('الأمانة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
+      { k: 'source', label: L('المصدر', 'Source'), value: sourceName(sc.source) }, { k: 'status', label: L('الحالة', 'Status'), value: st },
+      ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'st', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
+      { k: 'basis', label: L('الأساس', 'Basis'), value: L(`فواتير الفترة · التحصيل حتى ${fmtDateText(sc.to < today ? sc.to : today, 'ar')}`, `Period invoices · collections to ${fmtDateText(sc.to < today ? sc.to : today, 'en')}`) }, ...(cmp ? [{ k: 'cmp', label: L('المقارنة', 'Comparison'), value: cmp }] : [])
+    ];
+  }, [today, ar, L, labelOfAmanah]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chips = useMemo(() => specChips(spec || sharedSpec), [specChips, spec, sharedSpec]);
+
+  const scopeDiffers = !!spec && ['from', 'to', 'amanah', 'source', 'scopeType', 'muni', 'status'].some((k) => JSON.stringify(spec.scope[k] ?? 'all') !== JSON.stringify(sharedSpec.scope[k] ?? 'all'));
+  const lastReportId = conv ? [...conv.messages].reverse().find((m) => m.role === 'assistant' && m.spec)?.id : null;
+  const stepText = (k) => STEPS[k]?.[ar ? 0 : 1] || '';
+  const empty = !conv || conv.messages.length === 0;
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
-      <div className="page-head">
-        <div>
-          <div className="page-title">{t('smart_reports_title')}</div>
-          <div className="page-sub">{t('smart_reports_sub')}</div>
+    <div className="sr-page" dir={ar ? 'rtl' : 'ltr'}>
+      <div className="sr-top">
+        {!embedded && <div><h1 className="page-title" style={{ margin: 0 }}>{L('التقارير الذكية', 'Smart reports')}</h1></div>}
+        <div className="sr-top__actions">
+          <button type="button" className="btn btn-sm" onClick={newConv} disabled={!!busy}>＋ {L('محادثة جديدة', 'New conversation')}</button>
+          <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>{L('السجل', 'History')} ({convs.length})</button>
+          <Link className="btn btn-sm btn-ghost" to="/insights?view=reports">{L('التقارير الثابتة', 'Fixed reports')}</Link>
         </div>
       </div>
 
-      <div className="card card-pad">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-          <input
-            className="input"
-            style={{ flex: 1, minWidth: 220 }}
-            placeholder={t('smart_reports_placeholder')}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter' && query.trim()) runGeneration(matchFocusFromQuery(query)); }}
-          />
-          <button className="btn btn-primary" type="button" onClick={() => runGeneration(query.trim() ? matchFocusFromQuery(query) : focus)}>
-            {t('smart_reports_generate')}
-          </button>
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {FOCUS_OPTIONS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={`btn btn-sm ${focus === key && phase !== 'idle' ? 'btn-primary' : 'btn-ghost'}`}
-              onClick={() => runGeneration(key)}
-            >
-              {focusLabels[key]}
-            </button>
+      {showHistory && (
+        <div className="sr-history card" role="region" aria-label={L('سجل المحادثات', 'Conversation history')}>
+          {!convs.length && <div className="muted">{L('لا محادثات بعد.', 'No conversations yet.')}</div>}
+          {convs.map((c) => (
+            <div key={c.id} className={`sr-history__item ${c.id === activeId ? 'is-active' : ''}`}>
+              {renaming?.id === c.id
+                ? <input id={`sr-rni-${c.id}`} className="input" autoFocus maxLength={80} aria-label={L('اسم المحادثة', 'Conversation name')} value={renaming.text} onChange={(e) => setRenaming({ id: c.id, text: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); renameConv(c.id, renaming.text); } if (e.key === 'Escape') { setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${c.id}`)?.focus(), 0); } }} onBlur={() => renaming && renameConv(c.id, renaming.text)} />
+                : <button type="button" onClick={() => { if (!busy) { setActiveId(c.id); setShowHistory(false); } }}><b>{c.title}</b><small>{fmtRiyadh(c.updatedAt)} · {c.messages.filter((m) => m.role === 'user').length} {L('طلب', 'requests')}</small></button>}
+              <button type="button" id={`sr-rn-${c.id}`} className="btn btn-sm btn-ghost" aria-label={L('إعادة تسمية المحادثة', 'Rename the conversation')} onClick={() => setRenaming({ id: c.id, text: c.title })}>✎</button>
+              <button type="button" className="btn btn-sm btn-ghost" aria-label={L('حذف', 'Delete')} onClick={() => removeConv(c.id)}>×</button>
+            </div>
           ))}
-        </div>
-      </div>
-
-      {phase === 'idle' && (
-        <div className="card card-pad" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div className="page-title" style={{ fontSize: 15 }}>{t('smart_reports_idle_title')}</div>
-          <div className="muted" style={{ fontSize: 12.5, marginTop: 6 }}>{t('smart_reports_idle_sub')}</div>
         </div>
       )}
 
-      {phase === 'analyzing' && (
-        <div className="card card-pad">
-          <div className="page-title" style={{ fontSize: 15, marginBottom: 4 }}>{t('smart_reports_analyzing_title')}</div>
-          <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>{report.subtitle}</div>
-          <div className="ai-timeline">
-            {analysisSteps.slice(0, activeStepIndex + 1).map((step, i) => {
-              const isActive = i === activeStepIndex;
-              const revealed = !isActive || activeRevealed;
-              let cls = 'ai-step';
-              if (isActive) cls += revealed ? ' ai-step--done' : ' ai-step--running';
-              else cls += ' ai-step--done';
-              return (
-                <div className={cls} key={i}>
-                  <div className="ai-step__tag">{i + 1}</div>
-                  <div className="ai-step__title">{step.title}</div>
-                  <div className="ai-step__detail">
-                    {revealed ? <span>{step.detail}</span> : <AgentThinking />}
+      <div className="sr-context" role="region" aria-label={L('سياق التقرير', 'Report context')}>
+        <div className="sr-chips">{chips.map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
+        <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>{showFilters ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
+      </div>
+      {spec && scopeDiffers && <div className="sr-note" role="note">{L('لهذه المحادثة نطاقها الخاص، وهو يختلف عن مرشحات لوحة المعلومات الحالية؛ لن يتغير نطاقها تلقائياً.', 'This conversation keeps its own scope, which differs from the current dashboard filters; it never changes automatically.')} <button type="button" className="sr-link" onClick={() => applyFilters({ scope: sharedSpec.scope })}>{L('مزامنة نطاق المحادثة مع لوحة المعلومات', 'Sync the conversation scope with the dashboard')}</button></div>}
+      {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
+
+      <div className="sr-note" role="note">
+        <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result.')}</b>
+        <details className="rv-more"><summary>{L('أمثلة، وعن المساعد، وأين تُحفظ بياناتي', 'Examples, about the assistant, where my data is kept')}</summary>
+          <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}</ul>
+          <div>{L('تُبنى التقارير من بيانات النظام التجريبية.', 'Reports are built from the system’s demo data.')}</div>
+          <LocalDataPanel />
+        </details>
+      </div>
+
+      <div className="sr-thread" aria-live="polite">
+        {empty && (
+          <div className="sr-welcome">
+            <h2>{L('ماذا تريد أن تعرف؟', 'What would you like to see?')}</h2>
+            <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>
+          </div>
+        )}
+        {conv?.messages.map((m) => {
+          if (m.role === 'user') return <div key={m.id} className="sr-msg sr-msg--user"><div className="sr-bubble">{m.text}</div></div>;
+          const model = models[m.id]; const isBusy = busy?.msgId === m.id; const isLast = m.id === lastReportId;
+          return (
+            <div key={m.id} className="sr-msg sr-msg--ai">
+              <div className="sr-avatar" aria-hidden="true">ذ</div>
+              <div className="sr-ai">
+                {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')}</b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'confirm' && (
+                  <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
+                    <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
+                    <div className="muted" style={{ fontSize: 13 }}>{L('يستدعي التأكيد: ', 'Needs confirmation: ')}{m.confirm.map((c) => (ar ? c.ar : c.en)).join(L('؛ ', '; '))}.</div>
+                    <InterpretationSummary pending msg={{ changeKeys: m.pending.changeKeys, firstReport: m.pending.firstReport }} chips={specChips(m.pending.spec)} L={L} editable={m.status === 'pending' && !busy} editing={m.status === 'pending' && editPendingId === m.id} onEdit={() => setEditPendingId((v) => (v === m.id ? null : m.id))} panel={<FilterPanel key={`${m.id}${JSON.stringify(m.pending.spec.scope)}`} spec={m.pending.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditPendingId(null); applyFilters(p, m.pending.spec); }} />} />
+                    {m.status === 'pending' && <div className="sr-suggest sr-suggest--inline"><button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => confirmPending(m)}>{L('تأكيد وإعداد التقرير', 'Confirm and build the report')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => cancelPending(m)}>{L('إلغاء', 'Cancel')}</button></div>}
+                    {m.status === 'cancelled' && <div className="muted">{L('أُلغي الطلب ولم يُعدّ تقرير.', 'Cancelled — no report was built.')}</div>}
+                    {m.status === 'superseded' && <div className="muted">{L('حلّ محلّه طلب أحدث.', 'Replaced by a newer request.')}</div>}
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {phase === 'done' && (
-      <div className="card card-pad">
-        <div className="ai-conclusion" style={{ marginBottom: 14 }}>
-          <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
-          <div className="ai-conclusion__text">{t('smart_reports_ready')}</div>
-        </div>
-        <div className="page-head" style={{ marginBottom: 6 }}>
-          <div>
-            <div className="page-title" style={{ fontSize: 18 }}>{report.title}</div>
-            <div className="page-sub">{report.subtitle} · {report.generatedOn}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <button className="btn btn-sm" type="button" disabled={busy === 'docx'} onClick={() => handleExport('docx')}>
-              {busy === 'docx' ? t('smart_reports_exporting') : t('smart_reports_export_word')}
-            </button>
-            <button className="btn btn-sm" type="button" disabled={busy === 'xlsx'} onClick={() => handleExport('xlsx')}>
-              {busy === 'xlsx' ? t('smart_reports_exporting') : t('smart_reports_export_excel')}
-            </button>
-            <button className="btn btn-sm" type="button" disabled={busy === 'pptx'} onClick={() => handleExport('pptx')}>
-              {busy === 'pptx' ? t('smart_reports_exporting') : t('smart_reports_export_ppt')}
-            </button>
-          </div>
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15 }}>{report.labels.executiveSummary}</div>
-        <p className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginTop: 6 }}>{report.executiveSummary}</p>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.keyMetrics}</div>
-        <div className="grid grid-5">
-          {report.keyMetrics.map((m) => (
-            <div key={m.label} className="card card-pad" title={m.caption}>
-              <div className="kpi__value" style={{ fontSize: 18 }}>{m.value}</div>
-              <div className="kpi__label">{m.label}</div>
-            </div>
-          ))}
-        </div>
-        <div className="grid" style={{ gap: 4, marginTop: 8, marginBottom: 12 }}>
-          {report.keyMetrics.map((m) => (
-            <div key={m.label} className="muted" style={{ fontSize: 11.5 }}><strong>{m.label}:</strong> {m.caption}</div>
-          ))}
-        </div>
-        <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
-          <div style={{ height: 220 }}>
-            <Doughnut data={compositionChartData} options={compositionOptions} />
-          </div>
-          <div className="grid" style={{ gap: 8 }}>
-            <div className="muted" style={{ fontSize: 11.5, fontWeight: 800 }}>
-              {pick(lang, 'Gross invoicing split by outcome', 'توزيع إجمالي الفوترة حسب النتيجة', '按结果划分的总开票额分布')}
-            </div>
-            {report.charts.composition.labels.map((label, i) => (
-              <div key={label}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
-                  <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">{report.charts.composition.pct[i]}%</span>
-                </div>
-                <div style={{ height: 8, borderRadius: 4, background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                  <div style={{ width: `${report.charts.composition.pct[i]}%`, height: '100%', background: ['var(--green)', 'var(--gold)', '#787878'][i] }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15 }}>{report.labels.detailedAnalysis}</div>
-        <p className="muted" style={{ fontSize: 13, lineHeight: 1.8, marginTop: 6, marginBottom: 10 }}>{report.detailedAnalysis.intro}</p>
-        <div style={{ height: 240, marginBottom: 14 }}>
-          <Bar data={provinceBarData} options={provinceBarOptions} />
-        </div>
-        <div className="table-wrap">
-          <table className="table" aria-label="Province analysis">
-            <thead>
-              <tr>{report.detailedAnalysis.table.headers.map((h) => <th key={h}>{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {report.detailedAnalysis.table.rows.map((row, i) => (
-                <tr key={i}>
-                  {row.map((c, j) => {
-                    if (j !== row.length - 1) return <td key={j} dir={j > 0 ? 'ltr' : undefined}>{c}</td>;
-                    const rate = report.detailedAnalysis.table.rateByRow[i];
-                    return (
-                      <td key={j} dir="ltr">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 120 }}>
-                          <div style={{ flex: 1, height: 7, borderRadius: 4, background: 'rgba(0,0,0,0.06)', overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(rate, 100)}%`, height: '100%', background: rate >= 70 ? 'var(--green)' : rate >= 40 ? 'var(--gold)' : 'var(--red)' }} />
-                          </div>
-                          <span style={{ fontWeight: 900, fontSize: 12 }}>{c}</span>
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 4 }}>{focusLabels[focus]}</div>
-        <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>
-          {pick(lang, 'Chart focused on this report’s selected business area.', 'رسم بياني مرتبط بمجال العمل المحدد لهذا التقرير.', '与本报告所选业务领域相关的图表。')}
-        </div>
-        {focus === 'revenue' && (
-          <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
-            <div style={{ height: 220 }}><Doughnut data={revenueMixData} options={revenueMixOptions} /></div>
-            <div className="grid" style={{ gap: 6 }}>
-              {report.charts.revenueMix.labels.map((label, i) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">{fmtMoney(report.charts.revenueMix.values[i])} SAR · {report.charts.revenueMix.pct[i]}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {focus === 'province' && (
-          <div style={{ height: 240 }}>
-            <Bar
-              data={{ labels: report.charts.provinceBar.labels, datasets: [{ label: pick(lang, 'Collection Rate %', 'معدل التحصيل %', '收缴率 %'), data: report.charts.provinceBar.rate, backgroundColor: report.charts.provinceBar.rate.map((r) => (r >= 70 ? 'rgba(0,102,4,0.75)' : r >= 40 ? 'rgba(255,193,7,0.75)' : 'rgba(175,8,24,0.75)')), borderRadius: 4 }] }}
-              options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: legendOpts, tooltip: { ...tooltipBase, callbacks: { label: (ctx) => `${ctx.parsed.y}%` } } }, scales: { x: { reverse: isRtl, ticks: { color: '#6b8578', font: { size: 11 } }, grid: { display: false } }, y: { beginAtZero: true, max: 100, ticks: { color: '#6b8578', callback: (v) => `${v}%` }, grid: { color: 'rgba(0,0,0,0.06)' } } } }}
-            />
-          </div>
-        )}
-        {focus === 'enforcement' && (
-          <div className="grid" style={{ gap: 14 }}>
-            <div style={{ height: 220 }}><Bar data={enforcementBarData} options={enforcementBarOptions} /></div>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
-                <span>{pick(lang, 'Sanad enforcement orders linked to a source invoice', 'أوامر تنفيذ سند المرتبطة بفاتورة مصدر', '已关联原始发票的 Sanad 执行令')}</span>
-                <span style={{ fontWeight: 900 }} dir="ltr">{report.charts.sanadLinkage.linkedPct}%</span>
-              </div>
-              <div style={{ height: 10, borderRadius: 5, background: 'rgba(175,8,24,0.15)', overflow: 'hidden' }}>
-                <div style={{ width: `${report.charts.sanadLinkage.linkedPct}%`, height: '100%', background: 'var(--green)' }} />
-              </div>
-              <div className="muted" style={{ fontSize: 11, marginTop: 4 }} dir="ltr">
-                {report.charts.sanadLinkage.ordersUnlinked} / {report.charts.sanadLinkage.ordersIssued} {pick(lang, 'orders unlinked', 'أمر غير مرتبط', '份执行令未关联')} · {fmtMoney(report.charts.sanadLinkage.unlinkedValue)} SAR
+                )}
+                {m.kind !== 'unsupported' && m.kind !== 'clarify' && m.kind !== 'confirm' && (
+                  <div className="sr-bubble sr-bubble--ai">
+                    {m.kind === 'question' ? L('الإجابة:', 'Answer:') : (m.changes?.length > 0 ? L('فهمتُ الطلب:', 'Understood:') : L('التقرير بالنطاق الحالي.', 'Report for the current scope.'))}
+                    {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}</div>}
+                    {m.spec && <InterpretationSummary msg={m} chips={specChips(m.spec)} L={L} editable={isLast && !busy} editing={isLast && editOpen} onEdit={() => setEditOpen((v) => !v)} panel={<FilterPanel key={JSON.stringify(m.spec.scope) + m.spec.compare} spec={m.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditOpen(false); applyFilters(p); }} />} />}
+                    {isBusy && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {stepText(busy.step)}… <button type="button" className="btn btn-sm btn-ghost" onClick={stop}>{L('إيقاف', 'Stop')}</button></div>}
+                    {m.status === 'stopped' && <div className="sr-warn">{L('أُوقف الإعداد.', 'Generation was stopped.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
+                    {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إعداد التقرير. تحقق من اتصال خدمة البيانات ثم أعد المحاولة.', 'The report could not be prepared. Check the data service and try again.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
+                  </div>
+                )}
+                {model && (
+                  <div className="sr-card card">
+                    <div className="sr-card__bar">
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${model.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
+                      {isLast && <div className="sr-card__actions">
+                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={model.empty} aria-disabled={!!exporting || undefined} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
+                        <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>
+                      </div>}
+                    </div>
+                    {!(collapsed[m.id] ?? !isLast) && (model.empty ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو المرشحات.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={model} />)}
+                  </div>
+                )}
+                {m.status === 'done' && m.spec && !model && !isBusy && <button type="button" className="btn btn-sm" onClick={() => run(conv.id, m.id, m.spec)} disabled={!!busy}>{L('عرض هذا التقرير', 'Show this report')}</button>}
               </div>
             </div>
-          </div>
-        )}
-        {focus === 'investment' && (
-          <div className="grid grid-2" style={{ gap: 12, alignItems: 'center' }}>
-            <div style={{ height: 220 }}><Doughnut data={investmentData} options={investmentOptions} /></div>
-            <div className="grid" style={{ gap: 6 }}>
-              {report.charts.investment.labels.map((label, i) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                  <span>{label}</span>
-                  <span style={{ fontWeight: 900 }} dir="ltr">
-                    {report.charts.investment.values[i]} · {report.charts.investment.total ? Math.round((report.charts.investment.values[i] / report.charts.investment.total) * 100) : 0}%
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.aiDiscoveries}</div>
-        <div className="grid" style={{ gap: 8 }}>
-          {report.discoveries.map((d, i) => (
-            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--secondary, #0A6FA6)', marginTop: 6, flexShrink: 0 }} />
-              <span style={{ fontSize: 13, lineHeight: 1.7 }}>{d}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.risksAlerts}</div>
-        <div className="grid" style={{ gap: 8 }}>
-          {report.risks.map((r, i) => (
-            <div key={i} className="card card-pad" style={{ borderInlineStart: `4px solid var(--red)` }}>
-              <span className="badge badge--red">{r.priority}</span>
-              <div style={{ fontWeight: 900, fontSize: 13, marginTop: 6 }}>{r.title}</div>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4, lineHeight: 1.6 }}>{r.rationale}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.predictions}</div>
-        <div style={{ height: 220, marginBottom: 12 }}>
-          <Line data={trendLineData} options={trendLineOptions} />
-        </div>
-        <div className="grid" style={{ gap: 10 }}>
-          {report.predictions.map((p, i) => (
-            <div key={i} className="card card-pad">
-              <div style={{ fontWeight: 900, fontSize: 13 }}>{p.prediction}</div>
-              <div className="grid grid-2" style={{ gap: 4, marginTop: 8 }}>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.timeframe}:</strong> {p.timeframe}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.confidence}:</strong> {p.confidence}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.supportingFactors}:</strong> {p.supporting}</div>
-                <div className="muted" style={{ fontSize: 11.5 }}><strong>{report.labels.changingFactors}:</strong> {p.changing}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.additionalReports}</div>
-        <div className="grid grid-2" style={{ gap: 8 }}>
-          {report.additionalReports.map((a, i) => (
-            <div key={i} className="card card-pad">
-              <div style={{ fontWeight: 900, fontSize: 12.5 }}>{a.title}</div>
-              <div className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{a.description}</div>
-            </div>
-          ))}
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.recommendations}</div>
-        <div className="grid" style={{ gap: 6 }}>
-          {report.recommendations.map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span className={`badge ${r.priority === (lang === 'ar' ? 'حرجة' : lang === 'zh' ? '严重' : 'Critical') ? 'badge--red' : r.priority === (lang === 'ar' ? 'عالية' : lang === 'zh' ? '高' : 'High') ? 'badge--orange' : r.priority === (lang === 'ar' ? 'متوسطة' : lang === 'zh' ? '中' : 'Medium') ? 'badge--gold' : 'badge--teal'}`}>
-                {r.priority}
-              </span>
-              <span style={{ fontSize: 13 }}>{r.text}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="hr" />
-        <div className="page-title" style={{ fontSize: 15, marginBottom: 8 }}>{report.labels.dataAssumptions}</div>
-        <div className="grid" style={{ gap: 6 }}>
-          {report.assumptions.map((a, i) => (
-            <div key={i} className="muted" style={{ fontSize: 11.5, lineHeight: 1.6 }}>• {a}</div>
-          ))}
-        </div>
+          );
+        })}
+        <div ref={endRef} />
       </div>
-      )}
+
+      <div className="sr-dock">
+        {!empty && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{FOLLOW_UPS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
+        <div className="sr-composer">
+          <textarea ref={taRef} id="sr-input" rows={1} className="sr-composer__input" value={input} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} aria-label={L('طلب تقرير أو سؤال', 'Report request or question')} placeholder={L('اطلب تقريرًا أو اسأل عن الإيرادات والتحصيل…', 'Ask for a report or about revenue and collection…')} />
+          {busy ? <button type="button" className="sr-composer__btn sr-composer__btn--stop" onClick={stop} aria-label={L('إيقاف الإعداد', 'Stop generation')}>■</button>
+            : <button type="button" className="sr-composer__btn" onClick={() => send(input)} disabled={!input.trim()} aria-label={L('إرسال', 'Send')}>{ar ? '↰' : '➤'}</button>}
+        </div>
+        <div className="muted sr-hint">{L('Enter للإرسال · Shift+Enter لسطر جديد', 'Enter to send · Shift+Enter for a new line')}</div>
+      </div>
     </div>
   );
 }

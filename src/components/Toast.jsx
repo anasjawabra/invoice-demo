@@ -23,13 +23,13 @@ function iconFor(type) {
 function iconBg(type) {
   switch (type) {
     case 'success':
-      return { background: 'rgba(53, 208, 127, 0.16)', color: 'var(--green)' };
+      return { background: 'rgba(71, 205, 137, 0.16)', color: 'var(--green)' };
     case 'error':
-      return { background: 'rgba(255, 106, 106, 0.14)', color: 'var(--red)' };
+      return { background: 'rgba(249, 112, 102, 0.14)', color: 'var(--red)' };
     case 'warning':
-      return { background: 'rgba(255, 159, 67, 0.14)', color: 'var(--orange)' };
+      return { background: 'rgba(253, 176, 34, 0.14)', color: 'var(--orange)' };
     default:
-      return { background: 'rgba(74, 168, 255, 0.12)', color: 'var(--blue)' };
+      return { background: 'rgba(83, 177, 253, 0.12)', color: 'var(--blue)' };
   }
 }
 

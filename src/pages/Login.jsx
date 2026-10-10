@@ -1,37 +1,37 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
-import { AGENTS, KPIS, ORGS } from '../data/mock';
+import { AGENTS, ORGS } from '../data/mock';
+import { SOURCE_SYSTEMS } from '../data/revenueLedger';
+import { api } from '../api/client';
+import { fmtInt } from '../utils/money';
 
 export default function Login() {
   const { t, lang, setLang, T } = useI18n();
   const { login } = useAuth();
   const nav = useNavigate();
 
+  const [ytdInvoices, setYtdInvoices] = useState(null);
+  useEffect(() => { let off = false; api.meta().then((m) => { if (!off) setYtdInvoices(m.counts.invoicesYtd); }).catch(() => {}); return () => { off = true; }; }, []);
   const [username, setUsername] = useState('demo');
   const [password, setPassword] = useState('demo123');
   const [orgId, setOrgId] = useState(ORGS[0]?.id || 'mof-hq');
   const [scopeByOrg, setScopeByOrg] = useState(true);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const loginTimer = useRef(null); useEffect(() => () => window.clearTimeout(loginTimer.current), []); // a pending sign-in must not navigate after the page was left
 
   // The consolidated HQ org is the "all-orgs" context used when org scoping
   // is turned off, so downstream pages still have a valid org to render.
   const consolidatedOrgId = ORGS[0]?.id || 'mof-hq';
-
-  const kpiAuto = KPIS.find((k) => k.id === 'automation');
-  const kpiCycle = KPIS.find((k) => k.id === 'cycle');
-
-  const statAuto = useMemo(() => (kpiAuto ? `${kpiAuto.value.toFixed(1)}%` : '96%'), [kpiAuto]);
-  const statSpeed = useMemo(() => (kpiCycle ? `${kpiCycle.value}${lang === 'en' ? 'd' : t('unit_day')}` : '0.8d'), [kpiCycle, lang, t]);
 
   function onSubmit(e) {
     e.preventDefault();
     setErr('');
     setBusy(true);
 
-    setTimeout(() => {
+    loginTimer.current = window.setTimeout(() => {
       const effectiveOrgId = scopeByOrg ? orgId : consolidatedOrgId;
       const ok = login(username.trim(), password, effectiveOrgId, scopeByOrg);
       setBusy(false);
@@ -39,7 +39,7 @@ export default function Login() {
         setErr(t('login_err'));
         return;
       }
-      nav('/dashboard', { replace: true });
+      nav('/insights', { replace: true });
     }, 650);
   }
 
@@ -56,16 +56,16 @@ export default function Login() {
 
           <div className="hero-stats">
             <div className="hero-stat">
-              <b>{AGENTS.length}</b>
-              <span>{t('stat_agents')}</span>
+              <b dir="ltr">{ytdInvoices == null ? '…' : fmtInt(ytdInvoices)}</b>
+              <span>{lang === 'ar' ? 'فاتورة تجريبية في السنة الحالية حتى اليوم' : 'demo invoices, year to date'}</span>
             </div>
             <div className="hero-stat">
-              <b>{statAuto}</b>
-              <span>{t('stat_auto')}</span>
+              <b>0 / {SOURCE_SYSTEMS.length - 1}</b>
+              <span>{lang === 'ar' ? 'أنظمة مصدرية متصلة' : 'source systems connected'}</span>
             </div>
             <div className="hero-stat">
-              <b>{statSpeed}</b>
-              <span>{t('stat_speed')}</span>
+              <b>{lang === 'ar' ? 'عرض' : 'Demo'}</b>
+              <span>{lang === 'ar' ? 'بيانات غير إنتاجية' : 'non-production data'}</span>
             </div>
           </div>
 
@@ -105,6 +105,7 @@ export default function Login() {
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
+                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
                 onClick={() => setLang('zh')}
               >
                 中文
@@ -119,7 +120,7 @@ export default function Login() {
             </div>
           </div>
 
-          <h2 style={{ fontSize: 20, fontWeight: 900 }}>{t('welcome')}</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{t('welcome')}</h2>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>
@@ -214,7 +215,7 @@ export default function Login() {
               </div>
               <div className="sso-reserved" aria-disabled="true">
                 <span>{t('sso_reserved')}</span>
-                <span className="pill" style={{ fontSize: 11 }}>{t('sso_coming')}</span>
+                <span className="pill" style={{ fontSize: 12 }}>{t('sso_coming')}</span>
               </div>
             </div>
 

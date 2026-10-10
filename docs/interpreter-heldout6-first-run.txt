@@ -1,0 +1,17 @@
+32/42
+#7003 report for Asir, Jazan → amanah "all" ≠ ["Asir Amanah","Jazan Amanah"] [unsafe_silent_misread]
+#7005 Madinah plus Taif this year → kind unsupported ≠ report [over_clarification]
+#7006 نجران مع الباحة → kind unsupported ≠ report [over_clarification]
+#7010 report for Mecca → kind clarify ≠ report [over_clarification]
+#7011 وين وصلت جيزان؟ → kind unsupported ≠ question|report [over_clarification]
+#7019 report since the first of January → to 2026-01-31 ≠ 2026-10-09 [unsafe_silent_misread]
+#7025 what about this year to date → kind unsupported ≠ question|report [over_clarification]
+#7027 how did August compare with July → kind unsupported ≠ question|report [over_clarification]
+#7029 report for last month versus the month before → compare none ≠ prev_month [unsafe_silent_misread]
+#7033 غيّرها للمدينة والمتأخرة فقط ومقارنة بالعام الماضي → amanah "all" ≠ "Al Madinah Amanah" [unsafe_silent_misread]
+{"correct_interpretation":29,"unsafe_silent_misread":4,"over_clarification":6,"appropriate_clarification":3}
+
+NOTES: set 6 (42 phrases) was written before the confirmation step and run once on the interpreter as it stood after round 5: 32/42 = 76.2 % — correct reading 29, appropriate clarification 3, over-clarification 6, unsafe silent misread 4
+(a comma-separated list of two Amanahs applied as «all»; «since the first of January» read as the month of January; «versus the month before» read as no comparison; «للمدينة» not recognised, so the follow-up changed the status but not the Amanah).
+The over-clarifications were vocabulary gaps of the unknown-word guard («plus», «مع», «جيزان», «Mecca»). After this record: the genuine failures were fixed and the CONFIRMATION STEP was added; the set then scored 39/42 (3 safe over-clarifications remain: «وين وصلت جيزان؟», «what about this year to date», «how did August compare with July») and is now a regression set — NOT independent accuracy.
+Confirmation burden (requests that now need a confirm click, all outcomes): set 6 23/42 (the set is built from the risky categories), sets 2–5: 8–22 %. Standard requests (single exact Amanah, standard period words, chip follow-ups) do not need confirmation.

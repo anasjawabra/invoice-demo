@@ -1,0 +1,38 @@
+55/72  (76.4%)
+#3002 [p2-period] تقرير الإيرادات منذ أول يناير
+     → got kind=report ; to 2026-01-31 ≠ 2026-10-09
+#3006 [p2-period] تقرير الربع الأول للعام الماضي
+     → got kind=report ; from 2026-01-01 ≠ 2025-01-01; to 2026-03-31 ≠ 2025-03-31
+#3007 [p2-period] تقرير الإيرادات لشهر رمضان
+     → got kind=report ; kind report ≠ clarify
+#3008 [p2-period] تقرير الصيف
+     → got kind=report ; kind report ≠ clarify
+#3009 [p2-period] report for H1 2026
+     → got kind=report ; kind report ≠ clarify
+#3010 [p2-period] تقرير من 1 مارس إلى 15 مارس
+     → got kind=report ; to 2026-03-31 ≠ 2026-03-15
+#3022 [p2-scope] report for Makkah and Jeddah and Riyadh
+     → got kind=report ; amanah "all" ≠ ["Makkah Amanah","Jeddah Amanah","Riyadh Amanah"]
+#3023 [p2-scope] تقرير لأمانة العاصمة المقدسة
+     → got kind=report ; amanah "all" ≠ "Makkah Amanah"
+#3026 [p2-scope] تقرير أمانة دبي
+     → got kind=report ; kind report ≠ clarify|unsupported
+#3032 [p2-scope] ما نسبة تحصيل الإيواء في مكة؟
+     → got kind=question ; amanah "all" ≠ "Makkah Amanah"
+#3034 [p2-section] الفواتير المسددة جزئياً
+     → got kind=report ; status "collected" ≠ "partial"
+#3043 [p2-section] هل ارتفع التحصيل عن الشهر الماضي؟
+     → got kind=question ; compare none ≠ prev_month
+#3045 [p2-section] compare Riyadh and Eastern for the year
+     → got kind=report ; amanah "Riyadh Amanah" ≠ ["Riyadh Amanah","Eastern Province Amanah"]
+#3046 [p2-section] مقارنة أغسطس بيوليو لأمانة جدة
+     → got kind=clarify ; kind clarify ≠ report
+#3054 [p2-follow] remove the Amanah filter  (after: تقرير أمانة الرياض)
+     → got kind=unsupported ; kind unsupported ≠ report
+#3065 [p2-neg] report for the day after tomorrow
+     → got kind=report ; kind report ≠ clarify
+#3066 [p2-neg] تقرير الشهر الماضي والشهر الحالي
+     → got kind=report ; kind report ≠ clarify
+{"correct_interpretation":39,"appropriate_clarification":16,"over_clarification":2,"unsafe_silent_misread":15} n= 72
+unsafe: 3002 تقرير الإيرادات منذ أول يناير | 3006 تقرير الربع الأول للعام الماضي | 3007 تقرير الإيرادات لشهر رمضان | 3008 تقرير الصيف | 3009 report for H1 2026 | 3010 تقرير من 1 مارس إلى 15 مارس | 3022 report for Makkah and Jeddah and Riyadh | 3023 تقرير لأمانة العاصمة المقدسة | 3026 تقرير أمانة دبي | 3032 ما نسبة تحصيل الإيواء في مكة؟ | 3034 الفواتير المسددة جزئياً | 3043 هل ارتفع التحصيل عن الشهر الماضي؟ | 3045 compare Riyadh and Eastern for the year | 3065 report for the day after tomorrow | 3066 تقرير الشهر الماضي والشهر الحالي
+over-clarified: 3046 مقارنة أغسطس بيوليو لأمانة جدة | 3054 remove the Amanah filter

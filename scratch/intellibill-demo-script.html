@@ -1,0 +1,484 @@
+<title>سيناريو عرض إنتليبيل</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ground:#EEF3F1;
+    --surface:#FFFFFF;
+    --surface-2:#E3EBE7;
+    --ink:#132220;
+    --ink-dim:#4C6864;
+    --line:#CFDCD7;
+    --petrol:#0B4A45;
+    --petrol-strong:#073430;
+    --petrol-tint:#DCEAE7;
+    --amber:#9C6B15;
+    --amber-soft:#F3E6C9;
+    --rose:#8F3A3C;
+    --rose-soft:#F4DFDD;
+    --forest:#2C6B4E;
+    --forest-soft:#DDEBE1;
+    --radius:16px;
+    --radius-sm:10px;
+    --font-display:'Reem Kufi','Segoe UI',sans-serif;
+    --font-body:'IBM Plex Sans Arabic','Segoe UI',Tahoma,sans-serif;
+    --font-mono:'IBM Plex Mono',ui-monospace,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0C1614;
+      --surface:#132422;
+      --surface-2:#1A2E2A;
+      --ink:#E7F0ED;
+      --ink-dim:#94B0AA;
+      --line:#254440;
+      --petrol:#57C4B4;
+      --petrol-strong:#8CDDCF;
+      --petrol-tint:#173430;
+      --amber:#E2B45C;
+      --amber-soft:#332A15;
+      --rose:#E2908F;
+      --rose-soft:#382121;
+      --forest:#7FCBA1;
+      --forest-soft:#17332699;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1614;
+    --surface:#132422;
+    --surface-2:#1A2E2A;
+    --ink:#E7F0ED;
+    --ink-dim:#94B0AA;
+    --line:#254440;
+    --petrol:#57C4B4;
+    --petrol-strong:#8CDDCF;
+    --petrol-tint:#173430;
+    --amber:#E2B45C;
+    --amber-soft:#332A15;
+    --rose:#E2908F;
+    --rose-soft:#382121;
+    --forest:#7FCBA1;
+    --forest-soft:#173326;
+  }
+
+  *{ box-sizing:border-box; }
+  body{ background:var(--ground); color:var(--ink); font-family:var(--font-body); }
+
+  .doc{ direction:rtl; max-width:880px; margin-inline:auto; padding:44px 22px 100px; font-variant-numeric:tabular-nums; }
+  .doc p{ line-height:1.85; }
+
+  /* ---------- Masthead ---------- */
+  .masthead{ padding-block-end:30px; border-block-end:1px solid var(--line); margin-block-end:36px; }
+  .eyebrow{ font-family:var(--font-mono); font-size:11.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--petrol); direction:ltr; text-align:end; unicode-bidi:isolate; }
+  h1{ font-family:var(--font-display); font-weight:600; font-size:clamp(30px,5.2vw,46px); line-height:1.18; margin:12px 0 14px; text-wrap:balance; color:var(--petrol-strong); }
+  .lede{ font-size:16px; color:var(--ink-dim); max-width:62ch; margin:0 0 22px; line-height:1.85; }
+  .meta{ display:flex; flex-wrap:wrap; gap:10px; }
+  .meta__chip{ display:inline-flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:7px 14px; font-size:12.5px; color:var(--ink-dim); }
+  .meta__chip b{ color:var(--ink); font-weight:600; }
+  .meta__chip svg{ width:14px; height:14px; flex-shrink:0; color:var(--petrol); }
+
+  /* ---------- Section headers ---------- */
+  .section-head{ display:flex; align-items:baseline; gap:12px; margin:56px 0 18px; }
+  .section-head h2{ font-family:var(--font-display); font-weight:600; font-size:24px; margin:0; color:var(--ink); }
+  .section-head .num{ font-family:var(--font-mono); font-size:12px; color:var(--ink-dim); direction:ltr; }
+  .section-lede{ color:var(--ink-dim); font-size:14px; margin:-8px 0 20px; max-width:64ch; }
+
+  /* ---------- Prep checklist ---------- */
+  .prep{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; display:grid; gap:12px; }
+  .prep__item{ display:flex; gap:12px; align-items:flex-start; font-size:14px; line-height:1.7; }
+  .prep__box{ flex-shrink:0; width:18px; height:18px; margin-block-start:2px; border-radius:5px; border:1.6px solid var(--petrol); }
+  .cred{ font-family:var(--font-mono); font-size:12.5px; background:var(--surface-2); border-radius:5px; padding:1px 7px; direction:ltr; unicode-bidi:isolate; }
+
+  /* ---------- Quick map ---------- */
+  .quickmap{ display:flex; flex-wrap:wrap; gap:8px; }
+  .quickmap a{ font-size:12.5px; text-decoration:none; color:var(--petrol-strong); background:var(--petrol-tint); border-radius:999px; padding:7px 14px; border:1px solid transparent; transition:border-color .15s ease; }
+  .quickmap a:hover, .quickmap a:focus-visible{ border-color:var(--petrol); outline:none; }
+  .quickmap a b{ font-family:var(--font-mono); font-weight:500; }
+
+  /* ---------- Timeline / scenes ---------- */
+  .timeline{ display:flex; flex-direction:column; gap:40px; }
+  .scene{ display:grid; grid-template-columns:56px 1fr; gap:20px; align-items:start; scroll-margin-top:20px; }
+  .scene__marker{ position:relative; width:56px; height:56px; border-radius:50%; background:var(--petrol); color:var(--ground); display:grid; place-items:center; font-family:var(--font-display); font-size:19px; }
+  .scene__marker::after{ content:''; position:absolute; top:100%; inset-inline-start:27px; width:2px; height:40px; background:var(--line); }
+  .timeline .scene:last-child .scene__marker::after{ display:none; }
+
+  .scene__body{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:24px 26px; }
+  .scene__head{ display:flex; justify-content:space-between; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-block-end:16px; padding-block-end:14px; border-block-end:1px solid var(--line); }
+  .scene__title{ font-family:var(--font-display); font-weight:600; font-size:21px; color:var(--ink); margin:0 0 6px; }
+  .scene__tags{ display:flex; gap:8px; flex-wrap:wrap; }
+  .tag{ font-family:var(--font-mono); font-size:11.5px; padding:3px 10px; border-radius:999px; direction:ltr; unicode-bidi:isolate; }
+  .tag--route{ background:var(--surface-2); color:var(--ink-dim); }
+  .tag--time{ background:var(--surface-2); color:var(--ink-dim); }
+
+  .block{ border-radius:var(--radius-sm); border-inline-start:3px solid; padding:14px 18px; margin-block-end:14px; }
+  .block:last-child{ margin-block-end:0; }
+  .block__label{ display:flex; align-items:center; gap:7px; font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; margin-block-end:8px; }
+  .block__label svg{ width:14px; height:14px; }
+  .block p{ margin:0 0 10px; font-size:14.5px; }
+  .block p:last-child{ margin-block-end:0; }
+
+  .say{ background:var(--amber-soft); border-color:var(--amber); }
+  .say .block__label{ color:var(--amber); }
+  .do{ background:var(--surface-2); border-color:var(--petrol); }
+  .do .block__label{ color:var(--petrol); }
+  .do ol{ margin:0; padding-inline-start:20px; display:grid; gap:7px; font-size:14px; line-height:1.7; }
+  .moment{ background:var(--forest-soft); border-color:var(--forest); border-inline-start-style:dashed; }
+  .moment .block__label{ color:var(--forest); }
+
+  /* ---------- Closing ---------- */
+  .closing{ margin-top:60px; padding:34px 30px; background:var(--petrol-strong); color:var(--ground); border-radius:var(--radius); }
+  .closing p{ font-family:var(--font-display); font-weight:500; font-size:clamp(19px,3vw,25px); line-height:1.7; margin:0; text-wrap:balance; }
+  .closing .sign{ margin-block-start:18px; font-family:var(--font-mono); font-size:12px; opacity:.75; direction:ltr; text-align:end; }
+
+  /* ---------- Q&A ---------- */
+  .qa{ display:grid; gap:16px; }
+  .qa__item{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px 20px; }
+  .qa__q{ font-weight:700; color:var(--petrol-strong); font-size:14.5px; margin:0 0 8px; }
+  .qa__a{ color:var(--ink-dim); font-size:14px; margin:0; line-height:1.8; }
+
+  /* ---------- Fallback ---------- */
+  .fallback{ display:grid; gap:12px; }
+  .fallback__item{ background:var(--rose-soft); border-inline-start:3px solid var(--rose); border-radius:var(--radius-sm); padding:12px 18px; font-size:14px; line-height:1.75; }
+  .fallback__item b{ color:var(--rose); }
+
+  footer.note{ margin-top:56px; padding-block-start:20px; border-block-start:1px solid var(--line); font-size:12px; color:var(--ink-dim); display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  footer.note span[dir]{ direction:ltr; unicode-bidi:isolate; }
+
+  @media (max-width:560px){
+    .scene{ grid-template-columns:44px 1fr; gap:14px; }
+    .scene__marker{ width:44px; height:44px; font-size:15px; }
+    .scene__marker::after{ inset-inline-start:21px; }
+    .scene__body{ padding:18px; }
+  }
+</style>
+
+<div class="doc" dir="rtl" lang="ar">
+
+  <header class="masthead">
+    <div class="eyebrow">demo script · internal use</div>
+    <h1>سيناريو عرض إنتليبيل</h1>
+    <p class="lede">دليل مرافق للعرض الحي لمنصّة إنتليبيل — من اللحظة اللي تفتح فيها الشاشة، إلى الجملة الأخيرة اللي تختم فيها. كل مشهد فيه وش تقول، وش تسوّي، واللحظة اللي المفروض توقف عندها.</p>
+    <div class="meta">
+      <span class="meta__chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        المدة الكلية <b>١٨–٢٢ دقيقة</b>
+      </span>
+      <span class="meta__chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 4v3M16 4v3"/></svg>
+        <b>٩</b> مشاهد
+      </span>
+      <span class="meta__chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        الجمهور: <b>صنّاع القرار وفِرَق العمليات</b>
+      </span>
+    </div>
+  </header>
+
+  <section>
+    <div class="section-head"><span class="num">00</span><h2>قبل ما تفتح الشاشة</h2></div>
+    <p class="section-lede">خمس دقائق تحضير توفّر عليك تعثّر أثناء العرض.</p>
+    <div class="prep">
+      <div class="prep__item"><span class="prep__box"></span> سجّل الدخول ببيانات العرض: <span class="cred">demo / demo123</span> — أو <span class="cred">auditor / demo123</span> لو حبيت تبيّن منظور المدقق.</div>
+      <div class="prep__item"><span class="prep__box"></span> تأكد إن اللغة مضبوطة على <b>العربية</b> من أعلى يمين الشاشة قبل ما يدخل الحضور.</div>
+      <div class="prep__item"><span class="prep__box"></span> امسح أي فلاتر سابقة — الفترة على <b>«كل الفترات»</b>، والمدينة على <b>«جميع المدن»</b> — عشان الأرقام تطلع كاملة من أول ثانية.</div>
+      <div class="prep__item"><span class="prep__box"></span> افتح المتصفح بعرض كامل، بدون تقسيم شاشة، عشان الرسوم البيانية والخريطة تاخذ مساحتها الطبيعية.</div>
+      <div class="prep__item"><span class="prep__box"></span> جهّز تبويب ثاني مفتوح مسبقًا على <span class="cred" dir="ltr">/sanad-orders</span> و<span class="cred" dir="ltr">/investment-invoices</span> لتختصر وقت التنقل بالمشهد الخامس والسادس.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="num">↓</span><h2>خارطة المشاهد</h2></div>
+    <div class="quickmap">
+      <a href="#s1"><b>1</b> · الافتتاحية</a>
+      <a href="#s2"><b>2</b> · لوحة التحكم</a>
+      <a href="#s3"><b>3</b> · الخريطة التفاعلية</a>
+      <a href="#s4"><b>4</b> · رادار المخاطر</a>
+      <a href="#s5"><b>5</b> · ربط أوامر التنفيذ</a>
+      <a href="#s6"><b>6</b> · الفواتير الاستثمارية</a>
+      <a href="#s7"><b>7</b> · سجل الفواتير</a>
+      <a href="#s8"><b>8</b> · المساعد الذكي</a>
+      <a href="#s9"><b>9</b> · التقارير الذكية</a>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="num">01–09</span><h2>السيناريو</h2></div>
+
+    <div class="timeline">
+
+      <div class="scene" id="s1">
+        <div class="scene__marker">١</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">الافتتاحية — قبل ما تفتح أي شاشة</div>
+              <div class="scene__tags"><span class="tag tag--time">٠:٣٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>قبل ما أفتح الشاشة، خليني أوصف لكم الوضع الحالي: فريق التحصيل يوميًا يفتح أكثر من نظام — واحد يصدر الفاتورة، وآخر يسجّل المخالفة، وثالث يتابع التنفيذ — وكل مطابقة بينهم تصير يدويًا، بالعين والإكسل. النتيجة: وقت ضايع، وفجوة بين اللي المفروض يتحصَّل واللي يتحصَّل فعليًا ما حد يقدر يفسّرها بسرعة.</p>
+            <p>إنتليبيل مو نظام فوترة جديد — هو طبقة ذكاء فوق الأنظمة الموجودة، تجمع البيانات، تحلّلها، وتقترح. والقاعدة اللي بُني عليها من أول يوم بسيطة: <b>الذكاء الاصطناعي يستنتج، والإنسان يقرر.</b></p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>اترك شاشة تسجيل الدخول ظاهرة ثانيتين — الشعار والإحصاءات العلوية تعطي انطباع أول احترافي.</li>
+              <li>سجّل الدخول أمام الحضور، بدون قصّ أو تجهيز مسبق.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s2">
+        <div class="scene__marker">٢</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">لوحة التحكم — النظرة العامة</div>
+              <div class="scene__tags"><span class="tag tag--route">/dashboard</span><span class="tag tag--time">٢:٣٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>هذا هو المكان اللي يبدأ منه يوم أي مدير مركز خدمات مشتركة. أربع أرقام بس، لكن كل رقم مبني على تعريف واضح: صافي الفوترة بعد استبعاد التكرار والمنازعات، المحصَّل الفعلي، معدل التحصيل كنسبة، وغير المحصَّل اللي لسه يحتاج متابعة.</p>
+            <p>شوفوا فلتر الفترة والأمانة فوق — أي رقم بالصفحة يتغيّر لحظيًا لو غيّرت المدينة أو الفترة الزمنية، بدون ما أطلب تقرير جديد من أحد.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>مرّر ببطء على بطاقات الـKPI الأربع.</li>
+              <li>غيّر فلتر الفترة إلى «آخر ٣ أشهر» ثم رجّعه «كل الفترات» — لإظهار التفاعل اللحظي.</li>
+              <li>اختر أمانة واحدة من فلتر المدينة، وبيّن كيف كل الأرقام — حتى قسم القرارات تحت — تتحدّث معها.</li>
+            </ol>
+          </div>
+          <div class="block moment">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 9l7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>اللحظة المؤثرة</div>
+            <p>انزل لقسم «قرارات بانتظارك» وقول: «هذا القسم هو قلب اللوحة — النظام ما يعرض بيانات فقط، يرتّب لي التوصيات حسب الأولوية مع السبب والرقم بالضبط، وزر واحد يوصّلني لمكان الحل.»</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s3">
+        <div class="scene__marker">٣</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">خريطة التحصيل التفاعلية</div>
+              <div class="scene__tags"><span class="tag tag--route">/dashboard</span><span class="tag tag--time">١:٣٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>نفس الفلسفة تنطبق على الخريطة — حدود إدارية حقيقية، مو تقريبية. أقدر أبدّل المقياس المعروض بين معدل التحصيل، إجمالي الفوترة، أنواع الإيرادات، وحتى المخالفات وحالات التنفيذ — كل هذا بضغطة واحدة.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>بدّل بين مقياسين أو ثلاثة (معدل التحصيل، ثم أنواع الإيرادات).</li>
+              <li>اضغط على منطقة — يفضّل واحدة بلون أحمر أو مصفر — وبيّن لوحة التفاصيل التي تفتح بجانب الخريطة، مع شريط «معدل التحصيل مقابل المستهدف ٧٠٪».</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s4">
+        <div class="scene__marker">٤</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">رادار المخاطر — تحليل قابل للتفسير</div>
+              <div class="scene__tags"><span class="tag tag--route">/risk</span><span class="tag tag--time">٢:٣٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>الآن ننتقل لجزء يهمّ فريق التدقيق والمخاطر تحديدًا. هذي مو فئات مخترعة عشوائيًا — أربع فئات مخاطر حقيقية مأخوذة من نفس اجتماعات ووثيقة متطلبات العمل: فواتير مكررة، سجلات تجارية مشطوبة، مدينون متوفّون، وفواتير قيمتها منحرفة عن المعدل الطبيعي لأمانتها.</p>
+            <p>والأهم — كل علم مو رقم بارد. اضغطوا معي على «تحليل الذكاء الاصطناعي» لأي فاتورة.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>افتح فاتورة من فئة «انحراف القيمة» — الأقوى بصريًا لأنها تعرض أرقام مقارنة فعلية.</li>
+              <li>اضغط «تحليل الذكاء الاصطناعي»، واصمت ٣–٤ ثوانٍ تخلي الحضور يشوف الخطوات تتكشّف وحدة وحدة.</li>
+            </ol>
+          </div>
+          <div class="block moment">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 9l7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>اللحظة المؤثرة</div>
+            <p>«شوفوا — ما قال لي ‹فاتورة مشبوهة› وخلص. قال لي بالضبط: هذي الفاتورة أضعاف متوسط أمانتها، وقارنها برقم حقيقي، وطلع لي توصية واضحة. هذا الفرق بين تنبيه وبين تحليل تقدر تدافع عنه قدّام المدقق.»</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s5">
+        <div class="scene__marker">٥</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">سند — ربط أوامر التنفيذ بالفواتير</div>
+              <div class="scene__tags"><span class="tag tag--route">/sanad-orders</span><span class="tag tag--time">٣:٠٠ دقائق</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>من أصعب المشاكل الحقيقية اللي طلعت من تحليل بيانات التنفيذ: نسبة من أوامر التنفيذ الصادرة فعليًا ما فيها رقم فاتورة مرتبط — يعني أمر تنفيذ قائم، لكن ما تقدر تربطه بالفاتورة الأصلية بسهولة. هذا مو خطأ تقني — هذي فجوة تشغيلية حقيقية بين الأنظمة.</p>
+            <p>بدل ما موظف يفتح الملف الأصلي ويقلّب فيه يدويًا، أرفق المستند الداعم — والذكاء الاصطناعي يقرأه، يستخرج النص، يدوّر على رقم فاتورة، ويربطها تلقائيًا. وأربّيكم على الحالتين: لمّا يلقى الرقم، ولمّا ما يلقاه.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>من لوحة التحكم اضغط «عرض أوامر التنفيذ غير المرتبطة»، وافتح تفاصيل أمر واحد.</li>
+              <li>اضغط «تجربة: مستند فيه رقم» — واقرأ الخطوات بصوت عالٍ: قراءة، استخراج نص، بحث عن مرجع، ربط.</li>
+              <li>ارجع، وجرّب «تجربة: مستند بدون رقم» أمام الحضور — لتبيان الصدق في الاعتراف بالحدود.</li>
+            </ol>
+          </div>
+          <div class="block moment">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 9l7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>اللحظة المؤثرة</div>
+            <p>«ولو المستند ما فيه رقم واضح؟ بصراحة تامة، يقول ‹ما لقيت› بدل ما يخترع رقم غلط. هذا فرق مهم جدًا بمجال زي التدقيق المالي — النظام لازم يعترف بحدوده.»</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s6">
+        <div class="scene__marker">٦</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">الفواتير الاستثمارية — تحليل تلقائي بلا زر</div>
+              <div class="scene__tags"><span class="tag tag--route">/investment-invoices</span><span class="tag tag--time">١:٤٥ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>نفس الفكرة، بسياق مختلف — فواتير استثمارية ما لها عقد مرتبط في فرص. هنا التحليل ما يحتاج مني أضغط زر — يشتغل تلقائيًا لحظة ما أفتح الفاتورة، ويعطيني توصية لصاحب القرار مباشرة.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>افتح إحدى الفاتورتين المعلَّمتين، واترك التحليل يشتغل تلقائيًا أمام الحضور.</li>
+              <li>بيّن كيف التوصية تختلف حسب عمر الفاتورة منذ إصدارها.</li>
+            </ol>
+          </div>
+          <div class="block moment">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 15 9l7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>اللحظة المؤثرة</div>
+            <p>«لاحظوا التوصية نفسها تغيّرت لأن عمر الفاتورة تجاوز حد معيّن — يعني القرار مبني على منطق واضح، مو نفس الجواب لكل الحالات.»</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s7">
+        <div class="scene__marker">٧</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">سجل الفواتير — المستوى المفرد</div>
+              <div class="scene__tags"><span class="tag tag--route">/invoices</span><span class="tag tag--time">١:٣٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>لو احتجت أدخل على مستوى الفاتورة المفردة، سجل الفواتير يعطيني فلترة كاملة — بحث، أمانة، حالة تحصيل — وكل فاتورة أفتحها فيها ثلاث طبقات: الحقول اللي استخرجها الـOCR مع نسبة الثقة، المطابقة الثلاثية بين الفاتورة وأمر التحصيل وإثبات الاستحقاق، وتقييم الذكاء الاصطناعي للمخاطر.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>استخدم مربع البحث أو فلتر الأمانة أمام الحضور.</li>
+              <li>افتح فاتورة، ومرّر على الأقسام الثلاثة بسرعة دون التوقف الطويل عند أي منها.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s8">
+        <div class="scene__marker">٨</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">المساعد الذكي — سؤال بدل تصفّح</div>
+              <div class="scene__tags"><span class="tag tag--route">/assistant</span><span class="tag tag--time">١:٠٠ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>أحيانًا ما أبغى أتصفّح — أبغى أسأل. المساعد يفهم عربي طبيعي، ويجاوب من نفس البيانات الحية اللي شفتوها بالصفحات السابقة، فما يصير عندي رقمين مختلفين لنفس السؤال.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>اكتب سؤالًا حيًّا أمام الحضور، مثل: «كم عدد الحالات المنحرفة؟»</li>
+              <li>اقرأ الجواب بصوت عالٍ، وبيّن إنه نفس رقم رادار المخاطر بالضبط.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="scene" id="s9">
+        <div class="scene__marker">٩</div>
+        <div class="scene__body">
+          <div class="scene__head">
+            <div>
+              <div class="scene__title">التقارير الذكية — الختام</div>
+              <div class="scene__tags"><span class="tag tag--route">/smart-reports</span><span class="tag tag--time">٢:٤٥ دقيقة</span></div>
+            </div>
+          </div>
+          <div class="block say">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z"/></svg>قل</div>
+            <p>وأختم بأقوى ميزة بالمنصة. بدل ما أطلب من محلل يبني تقرير يدويًا على إكسل، أكتب طلبي بلغة طبيعية، أو أختار مجال تركيز، وأضغط توليد.</p>
+            <p>شوفوا هذا — الذكاء الاصطناعي ما يطلع النتيجة فجأة، يمشي أمامي بخطوات مرئية: يفهم الطلب، يحلل البيانات، يكتشف الأنماط، ويشغّل نموذج التنبؤ. هذي نفس الشفافية اللي شفناها برادار المخاطر، بس على مستوى تقرير كامل.</p>
+            <p>والتقرير النهائي مو نص بس — رسوم بيانية، نسب مئوية، مقارنات بين المناطق، وتوقعات مبنية على اتجاه البيانات. وأقدر أصدّره فورًا Word أو Excel أو PowerPoint — ملفات حقيقية تفتح على أي جهاز، جاهزة للاجتماع القادم.</p>
+          </div>
+          <div class="block do">
+            <div class="block__label"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>افعل</div>
+            <ol>
+              <li>اختر تركيز «التنفيذ والامتثال» — يربط أكثر من مشهد سابق بخيط واحد.</li>
+              <li>اضغط توليد التقرير، واصمت وخلّي خطوات التحليل تتكشّف أمام الحضور.</li>
+              <li>مرّر على الرسوم البيانية بسرعة، ثم اضغط تصدير Word وافتح الملف الحقيقي أمامهم لو أمكن.</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <div class="closing">
+    <p>«الفكرة اللي أبغى تطلعون فيها اليوم مو إن عندنا شاشات حلوة — إن عندنا نظام يجمع بيانات مبعثرة، يحللها بمنطق تقدرون تفهمونه وتراجعونه، ويسلّمكم القرار جاهز مع دليله. الذكاء الاصطناعي يستنتج، وإنتوا تقررون.»</p>
+    <div class="sign">— closing line, scene 9</div>
+  </div>
+
+  <section>
+    <div class="section-head"><span class="num">؟</span><h2>لو سألوك</h2></div>
+    <div class="qa">
+      <div class="qa__item">
+        <p class="qa__q">الأرقام هذي حقيقية؟</p>
+        <p class="qa__a">البيانات المعروضة اليوم توضيحية بالكامل لأغراض العرض، لكن كل منطق وقاعدة عمل خلفها مبني على تحليل فعلي لوثائق ولقاءات عمل حقيقية.</p>
+      </div>
+      <div class="qa__item">
+        <p class="qa__q">هل النظام يستبدل الموظف؟</p>
+        <p class="qa__a">لا. الذكاء الاصطناعي يرتّب ويحلل ويقترح، لكن كل قرار نهائي — اعتماد، تصعيد، أو رفض — يمر على إنسان مسؤول.</p>
+      </div>
+      <div class="qa__item">
+        <p class="qa__q">وش لو النظام غلط بالتحليل؟</p>
+        <p class="qa__a">لهذا بالضبط كل تحليل يعرض دليله خطوة بخطوة — مو نتيجة نهائية بدون تفسير. تقدر تراجع المنطق نفسه قبل ما تعتمد القرار، مو بس ترفض أو توافق على النتيجة.</p>
+      </div>
+      <div class="qa__item">
+        <p class="qa__q">كم يستغرق الربط مع الأنظمة الفعلية؟</p>
+        <p class="qa__a">يعتمد على جاهزية كل مصدر بيانات على حدة، وفيه خارطة طريق مرحلية مبنية على أولوية كل نظام — نقدر نناقشها بجلسة تقنية منفصلة.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><span class="num">⚠</span><h2>خطة بديلة لو صار خطأ</h2></div>
+    <div class="fallback">
+      <div class="fallback__item"><b>لو صفحة ما فتحت:</b> ارجع للوحة التحكم وابدأ من هناك — معظم الروابط تصل من فوقها مباشرة.</div>
+      <div class="fallback__item"><b>لو الرسم البياني تأخر:</b> كمّل كلامك — الرسوم غالبًا تحمّل خلال ثانية أو ثانيتين، ما يحتاج توقف.</div>
+      <div class="fallback__item"><b>لو نسيت الترتيب:</b> الترتيب المنطقي دائمًا «من العام للخاص» — لوحة عامة، ثم مخاطر، ثم حالة محددة، ثم تقرير شامل يجمعها كلها.</div>
+    </div>
+  </section>
+
+  <footer class="note">
+    <span>سيناريو عرض إنتليبيل — نسخة داخلية للمقدّم</span>
+    <span dir="ltr">INTELLIBILL · AI Suite</span>
+  </footer>
+
+</div>
