@@ -1,5 +1,7 @@
 # Simplified demo journey, OCR simulation and corrected matching rules (branch `enforcement-order-matching`)
 
+> **Superseded in part by `docs/sanad-csv-mapping.md` (§8):** the reviewer action «apply ENF-1» described in §3 was REMOVED — nothing changes any amount; earlier decisions stay as history with an unresolved policy basis. The demo orders were renumbered with the source-style world; the new document and the prepared-samples catalogue list the current ones.
+
 Synthetic-data demonstration; not production-ready. Builds on `docs/all-sources-and-cancelled-invoices.md` (parts of which this document **supersedes**: the «source conflict» hard conflict and the automatic ENF-1 retention are gone, see §1 and §3). Tag `demo-baseline-final` is unchanged; nothing is pushed or merged. **The OCR here is a labelled SIMULATION for prepared samples. Actual OCR and live Sanad retrieval are NOT connected.**
 
 ## 1. Matching corrections

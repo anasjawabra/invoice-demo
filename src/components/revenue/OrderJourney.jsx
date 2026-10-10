@@ -52,6 +52,7 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
     if (st.kind === 'ready') return <Chip def={{ en: 'Exact match', ar: 'مطابقة تامة', cls: 'rv-cat--collected' }} />;
     if (st.kind === 'weak') return <Chip def={{ en: 'Match on an incomplete number', ar: 'مطابقة برقم ناقص', cls: 'rv-cat--partial' }} />;
     if (st.kind === 'rejected') return <Chip def={{ en: 'Rejected before', ar: 'رُفض سابقاً', cls: 'rv-cat--excluded' }} />;
+    if (st.kind === 'corrupted') return <Chip def={{ en: 'Corrupted number — cannot be matched', ar: 'رقم مشوّه — لا يمكن مطابقته', cls: 'rv-cat--overdue' }} />;
     if (st.kind === 'needs_evidence') return <Chip def={{ en: 'Conflict — evidence needed', ar: 'تعارض — يلزم دليل', cls: 'rv-cat--overdue' }} />;
     if (st.kind === 'ambiguous') return <Chip def={{ en: `Ambiguous — ${n} invoices`, ar: `ملتبس — ${n} فواتير`, cls: 'rv-cat--partial' }} />;
     return <Chip def={{ en: 'Not found in the system', ar: 'غير موجود في النظام', cls: 'rv-cat--overdue' }} />;
@@ -183,11 +184,12 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
                           <button type="button" className="btn btn-sm" disabled={!(fix[row.key] || '').trim()} onClick={() => { if (work.addManual(fix[row.key])) { setFix((m) => ({ ...m, [row.key]: '' })); setTick((x) => x + 1); } }}>{L('Add as evidence', 'إضافة كدليل')}</button></div>}
                       </div>}
                       {st.kind === 'needs_evidence' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{hard.map((x) => <div key={x}>{B(RESOLVE_HINT[x] || { en: '', ar: '' })}</div>)}</div>}
+                      {st.kind === 'corrupted' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{L('A spreadsheet turned this number into scientific notation, so its digits are lost: it is never matched, padded or repaired. Look for the full number in the description or a document, or ask the source for the original value.', 'حوّل جدول بيانات هذا الرقم إلى صيغة علمية فضاعت أرقامه: فلا يُطابق ولا يُكمَّل ولا يُصحَّح. ابحث عن الرقم الكامل في الوصف أو مستند، أو اطلب القيمة الأصلية من المصدر.')}</div>}
                       {st.kind === 'unmatched' && <div className="muted" style={{ fontSize: 12 }}>{L('Possibly a typing or OCR error — never replaced by a “similar” invoice.', 'ربما خطأ طباعة أو OCR — ولا يُستبدل بفاتورة «مشابهة».')}</div>}
                       {st.kind === 'weak' && <div className="muted" style={{ fontSize: 12 }}>{L('Incomplete number that matches one invoice — not preselected.', 'رقم ناقص يطابق فاتورة واحدة — غير محدد مسبقاً.')}</div>}
                       {canReview && (st.kind === 'ready' || st.kind === 'weak' || st.kind === 'needs_evidence') && !row.link && <div><button type="button" className="rv-link" onClick={() => { rev.enforcement.reject(c.enforceNum, id, { note: why[id] || '', input: inputFor(row, cand) }); }}>{L('Not an invoice of this order', 'ليست من فواتير هذا الأمر')}</button></div>}
-                      {canReview && st.kind === 'unmatched' && !(c.dismissedRefs || []).includes(row.key) && <div><button type="button" className="rv-link" onClick={() => rev.enforcement.dismiss(c.enforceNum, row.key, {})}>{L('Set aside', 'استبعاد')}</button></div>}
-                      {st.kind === 'unmatched' && (c.dismissedRefs || []).includes(row.key) && <span className="rv-tag">{L('set aside', 'مستبعد')}</span>}
+                      {canReview && (st.kind === 'unmatched' || st.kind === 'corrupted') && !(c.dismissedRefs || []).includes(row.key) && <div><button type="button" className="rv-link" onClick={() => rev.enforcement.dismiss(c.enforceNum, row.key, {})}>{L('Set aside', 'استبعاد')}</button></div>}
+                      {(st.kind === 'unmatched' || st.kind === 'corrupted') && (c.dismissedRefs || []).includes(row.key) && <span className="rv-tag">{L('set aside', 'مستبعد')}</span>}
                     </td>
                     <td>{cand && st.kind !== 'ambiguous' ? <input type="checkbox" className="oj-check" checked={checked} disabled={!st.selectable || !canReview} aria-label={`${L('Select', 'تحديد')} ${id}`} onChange={(e) => toggle(id, e.target.checked)} /> : <span className="muted">—</span>}</td>
                   </tr>

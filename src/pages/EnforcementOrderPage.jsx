@@ -9,6 +9,7 @@ import OrderDocuments, { METHOD_NOTE } from '../components/revenue/OrderDocument
 import OrderJourney from '../components/revenue/OrderJourney';
 import { SIM_LABEL } from '../data/ocrSimulation';
 import { locLabel } from '../data/docxText';
+import { SOURCE_FIELDS, isCorruptedNumber } from '../data/sanadSource';
 import { OrderStatusChip, PayStatusChip, Chip, LINK_STATUS_LABEL, KIND_LABEL, SOURCE_LABEL, IntegrationNotice } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { invoicePath, contractPath, ordersListPath } from '../utils/paths';
@@ -102,9 +103,10 @@ export default function EnforcementOrderPage() {
   return (
     <div className="rp">
       <RecordHeader
-        crumbs={crumbs} ret={ret} kind={L('Enforcement order', 'أمر تنفيذ')} title={c.enforceNum}
+        crumbs={crumbs} ret={ret} kind={L(`Enforcement request ${c.source?.requestNo || ''}`, `طلب التنفيذ رقم ${c.source?.requestNo || ''}`)} title={c.enforceNum}
         statuses={<>
-          <StatusGroup label={L('Order status (Sanad)', 'حالة الأمر (سند)')} hint={status === 'closed' ? L('closing an order does not mean payment and does not erase its links', 'إغلاق الأمر لا يعني السداد ولا يمحو روابطه') : null}><OrderStatusChip status={status} />{status === 'closed' && <span className="rv-tag">{c.closeReason ? B(CLOSE_REASON_LABEL[c.closeReason] || { en: c.closeReason, ar: c.closeReason }) : L('closure reason unknown', 'سبب الإغلاق غير معروف')}</span>}</StatusGroup>
+          <StatusGroup label={L('Order status (provisional class)', 'حالة الأمر (تصنيف مؤقت)')} hint={status === 'closed' ? L('closing an order does not mean payment and does not erase its links', 'إغلاق الأمر لا يعني السداد ولا يمحو روابطه') : null}><OrderStatusChip status={status} /></StatusGroup>
+          <StatusGroup label={L('Referral status (source)', 'حالة الرفع للتنفيذ (المصدر)')} hint={L('as written in Sanad; the open/suspended/closed class is provisional', 'كما كُتبت في سند؛ وتصنيفها مفتوح/موقوف/مغلق مؤقت')}><b>{c.source?.statusText || '—'}</b></StatusGroup>
           <StatusGroup label={L('Source', 'المصدر')}><span className="rv-tag rv-tag--warn">{c.feed === 'synthetic_demo' ? L('Sanad — synthetic demo feed', 'سند — تغذية تجريبية اصطناعية') : L('Hand-anchored demo case', 'حالة تجريبية مثبّتة يدوياً')}</span></StatusGroup>
         </>}
       />
@@ -229,13 +231,23 @@ export default function EnforcementOrderPage() {
         </Section>
       )}
 
-      <Section id="facts" secondary title={L('Sanad order information', 'بيانات الأمر من سند')}>
-        <Facts items={[
-          { k: L('Order number', 'رقم الأمر'), v: c.enforceNum, ltr: true }, { k: L('Opened', 'تاريخ الفتح'), v: c.openedDate, ltr: true }, { k: L('Amanah', 'الأمانة'), v: c.amanahEn },
-          { k: L('Debtor', 'المدين'), v: <>{B(c.debtorName) || '—'}{c.debtorId ? <span className="muted" dir="ltr"> · {c.debtorId}</span> : null}</> },
-          { k: L('Invoice references from Sanad', 'مراجع الفواتير من سند'), v: (c.refs || []).length ? (c.refs || []).map((r) => r.value).join(', ') : L('none supplied', 'لم تُزوَّد'), ltr: true },
-          { k: L('Contract', 'العقد'), v: contracts.length ? contracts.map((no, i) => <span key={no}>{i ? ' · ' : ''}<RecordLink to={contractPath(no)} dir="ltr">{no}</RecordLink></span>) : L('none — this order is not tied to a contract (it covers invoices of any type)', 'لا عقد — هذا الأمر غير مرتبط بعقد (يشمل فواتير من أي نوع)') }
-        ]} />
+      <Section id="facts" secondary title={L('Sanad source fields (the enforcement request)', 'حقول المصدر (طلب التنفيذ في سند)')} count={SOURCE_FIELDS.length}
+        note={<div className="rp-limit">{L('Every column of the Sanad extract, as the demo case carries it (synthetic values; column names as in the source). One row of the extract = one enforcement request. The extract has NO debtor name or identity — only the debtor type — and its invoice-number column is almost always empty: invoice numbers are mostly in the description, which is read in full.', 'كل أعمدة ملف سند كما تحملها الحالة التجريبية (قيم اصطناعية؛ وأسماء الأعمدة كما في المصدر). صف واحد في الملف = طلب تنفيذ واحد. ولا يحمل الملف اسم المنفذ ضده ولا هويته — بل نوعه فقط — وعمود رقم الفاتورة فارغ في الغالب: وأرقام الفواتير في الوصف غالباً، ويُقرأ كاملاً.')}</div>}>
+        <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Source fields', 'حقول المصدر')}>
+          <thead><tr><th>{L('Field', 'الحقل')}</th><th>{L('Value', 'القيمة')}</th><th>{L('Data quality / meaning', 'جودة البيانات / المعنى')}</th></tr></thead>
+          <tbody>{SOURCE_FIELDS.map((f) => { const raw = c.source?.[`${f.key}Raw`]; const v = f.key === 'amount' ? sar(c.amount) : f.key === 'amanah' ? c.amanahEn : f.key === 'description' ? [c.description, c.notes].filter(Boolean).join('\n') : c.source?.[f.key]; const bad = raw && isCorruptedNumber(raw);
+            return (<tr key={f.key}>
+              <td><b>{ar ? f.ar : f.en}</b><div className="muted" style={{ fontSize: 11 }} dir="rtl">{f.col}</div></td>
+              <td dir={f.key === 'description' || f.key === 'amountWords' || f.key === 'employeeName' || f.key === 'statusText' || f.key === 'debtorType' || f.key === 'executionType' || f.key === 'municipality' ? 'auto' : 'ltr'} style={{ overflowWrap: 'anywhere', maxWidth: 420, whiteSpace: f.key === 'description' ? 'pre-wrap' : undefined }}>
+                {bad ? <><span className="rv-tag rv-tag--bad">{raw}</span> <span className="muted" style={{ fontSize: 12 }}>{L('as received (scientific notation); the original digits are lost', 'كما وصل (صيغة علمية)؛ الأرقام الأصلية مفقودة')}</span><div className="muted" style={{ fontSize: 11 }} dir="ltr">{L('demo’s underlying value', 'القيمة الأصلية في العرض')}: {v}</div></>
+                  : v ? (f.key === 'invoiceNo' && isCorruptedNumber(v) ? <span className="rv-tag rv-tag--bad">{v}</span> : String(v)) : <span className="muted">{f.key === 'municipality' ? L('empty in the source', 'فارغ في المصدر') : f.key === 'invoiceNo' ? L('empty (usual: the numbers are in the description)', 'فارغ (المعتاد: الأرقام في الوصف)') : '—'}</span>}</td>
+              <td style={{ fontSize: 12 }} className="muted">{B(f.note)}{f.key === 'statusText' && c.sourceMeta?.provisionalClass && <div>{L('Provisional class', 'التصنيف المؤقت')}: <b>{{ open: L('open', 'مفتوح'), suspended: L('suspended', 'موقوف'), closed: L('closed', 'مغلق') }[c.sourceMeta.provisionalClass]}</b> ({c.sourceMeta.classBasis === 'stated' ? L('stated by the text', 'منصوص عليه في النص') : L('inferred — to be confirmed with Sanad', 'مستنتج — يلزم تأكيده مع سند')})</div>}</td>
+            </tr>); })}
+            <tr><td><b>{L('Debtor (name / identity)', 'المنفذ ضده (الاسم / الهوية)')}</b></td><td>{B(c.debtorName) || '—'}{c.debtorId ? <span className="muted" dir="ltr"> · {c.debtorId}</span> : null}</td><td className="muted" style={{ fontSize: 12 }}>{L('NOT in the Sanad extract — a demo value used to test payer conflicts. In practice the debtor appears only in the description or in documents.', 'غير موجود في ملف سند — قيمة تجريبية لاختبار تعارض الدافع. وعملياً يرد المنفذ ضده في الوصف أو المستندات فقط.')}</td></tr>
+            <tr><td><b>{L('Demo reference', 'مرجع العرض')}</b></td><td dir="ltr">{c.enforceNum}</td><td className="muted" style={{ fontSize: 12 }}>{L('The key used by the demo’s links and addresses; the Sanad key is the enforcement request no.', 'المفتاح الذي تستعمله روابط العرض وعناوينه؛ ومفتاح سند هو رقم طلب التنفيذ.')}</td></tr>
+            <tr><td><b>{L('Contract', 'العقد')}</b></td><td>{contracts.length ? contracts.map((no, i) => <span key={no}>{i ? ' · ' : ''}<RecordLink to={contractPath(no)} dir="ltr">{no}</RecordLink></span>) : L('none — this order is not tied to a contract (it covers invoices of any type)', 'لا عقد — هذا الأمر غير مرتبط بعقد (يشمل فواتير من أي نوع)')}</td><td className="muted" style={{ fontSize: 12 }}>{L('Listed only where the invoice record itself carries one or Sanad names the contract — never inferred.', 'يُسرد فقط حيث يحمل سجل الفاتورة عقداً أو تذكره سند — ولا يُستنتج.')}</td></tr>
+          </tbody>
+        </table></div>
       </Section>
 
       <Section id="history" secondary title={L('Link and status history', 'سجل الروابط والحالات')} count={hist.length}>

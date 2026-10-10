@@ -24,7 +24,8 @@
 // ============================================================================
 import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ENT_UNASSIGNED, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
 import { PARAMS } from '../src/data/sourceAssumptions.js';
-import { invoiceIdOf } from './names.js';
+import { invoiceIdOf, sadadOf } from './names.js';
+import { toSciNotation } from '../src/data/sanadSource.js';
 
 export const SEED = 20261008;
 export const GEN_START = '2024-10-01'; // opening history so early-2025 receipts include payments on late-2024 invoices
@@ -569,7 +570,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
       if (opened > todayN) { all.forEach((i) => used.add(i)); continue; }
       all.forEach((i) => { used.add(i); if (arch !== 'duplicate_across_orders' || i !== firstSingle) st.payer[i] = owner; });
       const amount = all.reduce((sum, i) => sum + st.gross[i], 0);
-      const idOfi = (i) => invoiceIdOf(st.idKey[i]);
+      const idOfi = (i) => invoiceIdOf(st.idKey[i]); const est_idKey = (i) => st.idKey[i];
       const typo = (id) => `${id.slice(0, 9)}${String(Number(id.slice(9)) + 4000000).padStart(7, '0')}`; // a wrong number that matches no invoice (a digit slip that lands on another real invoice is covered by the debtor check)
       let refs = []; let identified = [];
       if (arch === 'single' || arch === 'multi_exact' || arch === 'duplicate_across_orders') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.filter((i) => st.exec[i] < 0); }
@@ -594,7 +595,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
        `refs` = the structured field; `description` / `notes` = free text; `attachments` = what Sanad lists as attached (not retrieved here).
        Only the structured field is the feed's own link (`identified`); references found in text or documents always need review. */
     {
-      const E2 = ['one_attached', 'contract_mention', 'same_serial_two_years', 'genuine_conflict', 'mixed_sources', 'attach_unreadable', 'desc_multi', 'desc_only', 'attach_pdf', 'attach_docx', 'cancelled_open', 'cancelled_closed']; // the scenarios the demo needs come first: the compact world has few eligible invoices
+      const E2 = ['attach_pdf', 'attach_docx', 'one_attached', 'contract_mention', 'same_serial_two_years', 'genuine_conflict', 'mixed_sources', 'desc_sadad', 'corrupted_structured', 'attach_unreadable', 'desc_multi', 'desc_only', 'cancelled_open', 'cancelled_closed']; // the scenarios the demo needs come first: the compact world has few eligible invoices
       const eligSet = new Set(elig); const partnerOk = (x) => eligSet.has(x) || (st.exec[x] < 0 && !st.cancelDay[x] && st.exMask[x] === 0 && grpOf(st.flags[x]) === 0 && st.due[x] + 150 <= ORDER_GEN_CUTOFF && st.scope[x] === 0); // the second invoice may be partly paid, it just must not be in another order or cancelled
       const cancelledPool = []; for (let i = 0; i < st.nGen; i += 1) if (st.cancelDay[i] && st.cancelDay[i] <= ORDER_GEN_CUTOFF && st.payCount[i] === 0 && st.exMask[i] === 0 && st.exec[i] < 0 && grpOf(st.flags[i]) === 0 && !used.has(i)) cancelledPool.push(i);
       const idOfi = (i) => invoiceIdOf(st.idKey[i]);
@@ -602,9 +603,9 @@ export function generateWorld(today, { scale = 1 } = {}) {
       const contracts = st.contracts.filter(Boolean);
       let seq = 0;
       for (let rep = 0; rep < 2; rep += 1) for (let a = 0; a < E2.length; a += 1) {
-        const arch = E2[a]; const k = rep * 20 + a; const r = rC.reset(mix(16, k)); const cancelled = arch.startsWith('cancelled');
+        const arch = E2[a]; if (rep === 1 && (arch === 'desc_sadad' || arch === 'corrupted_structured' || arch === 'attach_unreadable' || arch === 'mixed_sources' || arch === 'one_attached' || arch === 'same_serial_two_years' || arch === 'genuine_conflict' || arch === 'attach_pdf' || arch === 'cancelled_closed' || arch === 'desc_multi')) continue; const k = rep * 20 + a; const r = rC.reset(mix(16, k)); const cancelled = arch.startsWith('cancelled');
         const pool = cancelled ? cancelledPool : elig; let lead = -1;
-        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch === 'same_serial_two_years' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue; if (arch === 'genuine_conflict' && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue; lead = j; }
+        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch === 'same_serial_two_years' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue; if (!cancelled && !['same_serial_two_years', 'genuine_conflict', 'one_attached'].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && st.ent[x] === st.ent[j])) continue; if (arch === 'genuine_conflict' && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue; lead = j; }
         if (lead < 0) { continue; }
         let covers = [lead]; let other = -1;
         if (arch === 'cancelled_closed') covers = [lead];
@@ -612,7 +613,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
         else if (arch === 'same_serial_two_years') { other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[lead]); covers = [lead, other]; } // two LEGITIMATE invoices: same serial, different years, same payer
         else if (arch === 'genuine_conflict') { covers = [lead]; other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && st.ent[x] === st.ent[lead]); } // a referenced invoice that belongs to ANOTHER payer
         else if (arch === 'one_attached') covers = [lead]; // ONE invoice, named only in the attached document
-        else { covers = pickMore(lead, arch === 'contract_mention' ? 2 : 3, false); }
+        else { covers = pickMore(lead, arch === 'contract_mention' || arch === 'desc_sadad' || arch === 'corrupted_structured' ? 2 : 3, false); }
         covers = [...new Set(covers)]; if (!cancelled && arch !== 'genuine_conflict' && arch !== 'one_attached' && covers.length < 2) { continue; }
         const owner = st.payer[lead]; const lastDue = Math.max(...covers.map((i) => st.due[i])); const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
         if (opened > todayN) { covers.forEach((i) => used.add(i)); continue; }
@@ -622,6 +623,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
         const enforceNum = `EN-${6000 + seq * 7}`; seq += 1;
         if (arch === 'desc_multi') { refs = [{ kind: 'invoice_no', value: ids[0] }]; identified = [covers[0]]; description = `إحالة للتنفيذ — الفاتورة الأولى في الحقل المخصص، وكذلك الفواتير: ${fmt(ids[1], 1)} و ${fmt(ids[2] || ids[1], 2)}. وللتأكيد نكرر ${fmt(ids[0], 3)}.`; }
         else if (arch === 'one_attached') { description = 'الفاتورة المحالة في المستند المرفق.'; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
+        else if (arch === 'desc_sadad') { const sd = covers.map((i) => sadadOf(st.idKey[i])); description = `إلزام المنفذ ضده بسداد الفاتورة رقم ${sd[0]} و ${sd[1]}${sd[2] ? ` و ${sd[2]}` : ''} وفق السند التنفيذي.`; } // as in the real extract: numeric (12-digit) invoice numbers only in the description, nothing in the invoice-number field
+        else if (arch === 'corrupted_structured') { const sd = covers.map((i) => sadadOf(st.idKey[i])); refs = [{ kind: 'invoice_no', value: toSciNotation(sd[0]) }]; description = `سداد فاتورة رقم ${sd[0]} بمبلغ ${st.gross[covers[0]].toFixed(2)} والفاتورة رقم ${sd[1]}.`; } // the structured value arrived as scientific notation (digits lost); the description still carries the full numbers
         else if (arch === 'desc_only') { description = `Referral to enforcement for invoices ${fmt(ids[0], 0)}, ${fmt(ids[1], 2)} and ${fmt(ids[2] || ids[1], 1)}. بدون تعبئة حقل المراجع.`; notes = `تمت المراجعة مع الجهة؛ المرجع ${fmt(ids[0], 1)}.`; }
         else if (arch === 'attach_pdf') { description = 'الفواتير المشمولة مذكورة في المستند المرفق.'; attachments = [{ name: `${enforceNum}-attachment.pdf`, type: 'pdf' }]; }
         else if (arch === 'attach_docx') { description = 'التفاصيل في ملف Word المرفق (جدول الفواتير).'; attachments = [{ name: `${enforceNum}-attachment.docx`, type: 'docx' }]; }

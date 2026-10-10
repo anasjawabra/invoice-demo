@@ -1,6 +1,6 @@
 # Every source of invoice references, cancelled invoices vs enforcement, contract mentions (branch `enforcement-order-matching`)
 
-> **Superseded in part by `docs/simplified-journey-and-ocr-simulation.md`:** the cross-source «source conflict» hard conflict (§1) and the automatic retention of the ENF-1 treatment (§2) were removed — same serial in different years is not a conflict, and enforcement alone no longer changes any amount (a reviewer's recorded decision applies ENF-1). The sample order numbers below changed with the demo world; the new document lists the current ones.
+> **Superseded in part by `docs/simplified-journey-and-ocr-simulation.md` and `docs/sanad-csv-mapping.md` (ENF-1 applies nowhere):** the cross-source «source conflict» hard conflict (§1) and the automatic retention of the ENF-1 treatment (§2) were removed — same serial in different years is not a conflict, and enforcement alone no longer changes any amount (a reviewer's recorded decision applies ENF-1). The sample order numbers below changed with the demo world; the new document lists the current ones.
 
 Synthetic-data demonstration; not production-ready. Builds on `docs/enforcement-management.md` and `docs/full-page-records.md`. Tag `demo-baseline-final` is unchanged; nothing is pushed or merged. Live Sanad retrieval and actual OCR are **still not connected** — nothing below is a simulated retrieval or a simulated extraction.
 

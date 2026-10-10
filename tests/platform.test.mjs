@@ -49,10 +49,12 @@ import { invoicePath, orderPath, contractPath } from '../src/utils/paths.js';
 import fs from 'node:fs';
 import { extractDocument, detectFormat } from '../src/data/docText.js';
 import { parseWordXml } from '../src/data/docxText.js';
-import { contractMentions, reviewContractReference, decideEnf1, recordManualReferences, MANUAL_DOC_ID } from '../src/data/orderMatching.js';
+import { contractMentions, reviewContractReference, recordManualReferences, MANUAL_DOC_ID } from '../src/data/orderMatching.js';
 import { extractionFromSample, manualExtraction, samplesForOrder, sampleByHash, SIM_LABEL } from '../src/data/ocrSimulation.js';
 import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED } from '../src/data/orderSummary.js';
 import crypto from 'node:crypto';
+import { SOURCE_FIELDS, SOURCE_STATUSES, DEBTOR_TYPES, EXECUTION_TYPES, statusById, statusClassOf, isCorruptedNumber, amountInWords, adaptSourceCase } from '../src/data/sanadSource.js';
+import { listReviewStatus } from '../src/data/orderSummary.js';
 import { contractCards } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
@@ -984,7 +986,7 @@ await test('Engine: the collection category and the payment status follow the FI
   assert.ok(snapshot(st, { scope: sc, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
   // an invoice cancelled in the source but referred to enforcement stays an uncollected invoice — also after the order closes
   let ci = -1; for (let k = 0; k < st.nGen; k += 1) if (st.cancelDay[k] && st.cancelDay[k] <= dayNum(TODAY)) { ci = k; break; }
-  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed', 'candidate']) assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: enforcement alone never overrides the source cancellation`); assert.notEqual(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'open' }, enf1: { [cid]: true } })).derived.payStatus, 'cancelled', 'only a recorded reviewer decision applies the documented ENF-1 treatment'); }
+  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed', 'candidate']) assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: enforcement alone never overrides the source cancellation`); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'open' }, enf1: { [cid]: true } })).derived.payStatus, 'cancelled', 'ENF-1 is not applied by anything — not by a link, not by a stored decision');  }
   assert.equal(list(st, { scope: sc, cfg, filters: { exec: 'inexec' }, links: { [id]: 'open' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), true);
   for (const [f, s2, expect] of [['suspended', 'suspended', true], ['inexec', 'suspended', false], ['closed', 'closed', true], ['ever', 'closed', true], ['none', 'closed', false], ['ever', 'candidate', false]]) assert.equal(list(st, { scope: sc, cfg, filters: { exec: f }, links: { [id]: s2 }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), expect, `filter ${f} with ${s2}`);
 });
@@ -1116,7 +1118,7 @@ await test('Arabic presentation-form text (as a PDF text layer returns it) is no
 
 /* ------------------------------------------------------------ Brief 4: every source is read (structured · description · notes · attachments), cancelled invoices vs enforcement, contract mentions */
 // The samples and the demo run on the compact world at the demo's reference date; the references in the sample files are those of THIS world.
-const isInvoiceKindT = (k) => ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no'].includes(k);
+const isInvoiceKindT = (k) => ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no', 'invoice_corrupted'].includes(k);
 const E_DATE = '2026-10-09'; const ecfg = { cutoff: E_DATE };
 const est = loadStore(E_DATE, { size: 'compact' }); const estCases = sanadCases(est);
 const eo = (arch, nth = 0) => est.requests.filter((r) => r.archetype === arch)[nth];
@@ -1233,26 +1235,25 @@ await test('Matching 4 · a genuine conflicting reference (an invoice of ANOTHER
   const bad2 = rows2.find((r) => r.candidates[0].invoiceId === eInv(other)); assert.ok(bad2.resolved[eInv(other)].some((x) => x.by === 'document_names_payer'), 'a document that names the payer’s identity IS evidence'); assert.equal(rowState(bad2).selectable, true);
 });
 
-await test('Cancelled 1 · enforcement never overrides a source cancellation or changes a total: flagged for review, amounts identical for every order status, only a recorded reviewer decision applies ENF-1', () => {
+await test('Cancelled 1 · enforcement never overrides a source cancellation or changes a total: flagged for review, amounts identical for every order status, no action (and no stored ENF-1 decision) applies ENF-1', () => {
   for (const q of [eo('cancelled_open'), eo('cancelled_closed')]) {
     const i = q.covers[0]; const id = eInv(i); const det = (links, enf1) => detail(est, i, makeCtx(est, { cfg: ecfg, links, enf1 })).derived;
     const none = det({}); assert.equal(none.sourceCancelled, true); assert.equal(none.cancelled, true); assert.equal(none.payStatus, 'cancelled'); assert.equal(none.outstanding, 0); assert.equal(none.enfConflict, false);
     const states = ['candidate', 'open', 'suspended', 'closed', 'withdrawn'].map((x) => det({ [id]: x }));
-    for (const [k, d] of states.entries()) { assert.equal(d.cancelled, true, 'the source cancellation stands'); assert.equal(d.outstanding, 0); assert.equal(d.net, none.net); assert.equal(d.gross, none.gross); assert.equal(d.enf1Applied, false); assert.equal(d.enfConflict, k > 0, k === 0 ? 'a proposal raises no flag' : 'a confirmed or withdrawn link raises the review flag'); }
-    const applied = det({ [id]: 'closed' }, { [id]: true }); assert.equal(applied.enf1Applied, true); assert.equal(applied.cancelled, false); assert.ok(applied.outstanding > 0, 'the documented rule applied by a reviewer decision counts it uncollected');
-    assert.equal(det({}, { [id]: true }).cancelled, true, 'a decision without any referral changes nothing'); assert.equal(det({ [id]: 'open' }, { [id]: true }).outstanding, det({ [id]: 'withdrawn' }, { [id]: true }).outstanding, 'once applied, open/withdrawn do not move it');
-    assert.equal(applied.payStatus === 'collected', false, 'an order never implies payment');
+    for (const [k, d] of states.entries()) { assert.equal(d.cancelled, true, 'the source cancellation stands'); assert.equal(d.outstanding, 0); assert.equal(d.net, none.net); assert.equal(d.gross, none.gross); assert.equal(d.enfConflict, k > 0, k === 0 ? 'a proposal raises no flag' : 'a confirmed or withdrawn link raises the review flag'); assert.equal(d.enf1Applied, undefined, 'no ENF-1 effect exists'); }
+    const legacy = det({ [id]: 'closed' }, { [id]: true }); assert.equal(legacy.cancelled, true, 'a decision stored by an earlier build is history only'); assert.equal(legacy.outstanding, 0); assert.equal(legacy.net, none.net);
+    assert.equal(legacy.payStatus === 'collected', false, 'an order never implies payment');
   }
   const q = eo('cancelled_open'); const ids = q.covers.map(eInv); const base = snapshot(est, { scope: ESC, cfg: ecfg, links: {} }); const links = Object.fromEntries(ids.map((x) => [x, 'open'])); const withL = snapshot(est, { scope: ESC, cfg: ecfg, links });
   assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold with and without the referral'); assert.equal(withL.stock.enforcement.sourceConflict.count, base.stock.enforcement.sourceConflict.count + ids.length);
-  for (const key of ['netUncollected', 'grossTotal', 'cancelled']) if (base.stock[key] != null) assert.equal(withL.stock[key], base.stock[key], `${key} unchanged by the referral`);
-  assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.totals.net, base.totals.net);
-  const withApplied = snapshot(est, { scope: ESC, cfg: ecfg, links, enf1: Object.fromEntries(ids.map((x) => [x, true])) }); assert.ok(withApplied.equation.ok, 'identities hold after a reviewer applies the documented rule'); assert.ok(withApplied.stock.netUncollected > base.stock.netUncollected);
+  assert.equal(withL.stock.netUncollected, base.stock.netUncollected, 'net uncollected unchanged by the referral'); assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.totals.net, base.totals.net);
+  assert.equal(withL.stock.enforcement.sourceConflict.outstanding, 0, 'the flagged invoices carry no collectible balance');
+  const withLegacy = snapshot(est, { scope: ESC, cfg: ecfg, links, enf1: Object.fromEntries(ids.map((x) => [x, true])) }); assert.equal(withLegacy.stock.netUncollected, base.stock.netUncollected, 'a stored ENF-1 decision changes no amount');
   const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.ok(ids.every((x) => rows.some((r) => r.id === x && r.enfConflict && r.sourceCancelled)), 'the conflict is listed and countable');
   assert.equal(list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links: {}, page: 0, pageSize: 100 }).rows.some((r) => ids.includes(r.id)), false);
   const closedQ = eo('cancelled_closed'); assert.equal(closedQ.status, 'مغلق'); const wd = removeLink(confirmLink(emptyStore(), 'EN-X', ids[0], { ...NOW, input: { invoiceId: ids[0], origin: 'sanad_structured', gross: 1, conflicts: [], resolvedConflicts: [], evidence: [] } }).store, 'EN-X', ids[0], { ...NOW, note: 'withdrawn by the issuer' }).store;
   assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'withdrawing keeps the review flag (code “withdrawn”) and moves no amount');
-  const st1 = decideEnf1(emptyStore(), ids[0], { decision: 'apply', note: 'n', by: 'T', at: '2026-10-10' }); assert.equal(st1.store.enf1[ids[0]].decision, 'apply'); assert.equal(decideEnf1(st1.store, ids[0], { decision: 'clear', by: 'T', at: 'x' }).store.enf1[ids[0]], undefined); assert.equal(decideEnf1(emptyStore(), ids[0], { decision: 'bogus' }).error, 'bad_decision'); assert.equal(st1.store.enf1History.length, 1, 'the decision is kept in a history');
+  assert.ok(validStoreShape({ v: 1, orders: {}, enf1: { [ids[0]]: { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: ids[0], decision: 'apply' }] }), 'a store holding an earlier decision is still valid (kept as history)');
 });
 
 await test('Brief 4 · status reflects CONFIRMED links only: text-found and proposed references change nothing, a confirmation does', () => {
@@ -1344,7 +1345,48 @@ await test('Summaries: concise Arabic one-liners and the exact «not identified�
   const me = manualExtraction('INV-2025-0000123\n0000054\nnot a number'); assert.deepEqual(me.refs.map((r) => `${r.kind}:${r.value}`), ['invoice_no:INV-2025-0000123', 'invoice_serial:0000054']); assert.equal(me.method, 'manual_entry');
   const store = recordManualReferences(emptyStore(), 'EN-M', me, NOW).store; assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].extraction.method, 'manual_entry'); assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].kind, 'manual'); assert.equal(store.orders['EN-M'].history[0].action, 'manual_references_added');
   const eff2 = buildEffectiveCases([{ enforceNum: 'EN-M', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], store)[0]; assert.ok(collectReferences(eff2, eff2.docs).every((r) => r.origins.every((og) => og.type === 'document_manual_entry')), 'typed references keep their own origin');
-  const withDec = decideEnf1(store, 'INV-2025-0000001', { decision: 'apply', by: 'T', at: 'x' }).store; const b = buildBackup({ getItem: (k) => (k === 'ib_enforcement_v1' ? JSON.stringify(withDec) : null) }); assert.ok(validateBackup(b).ok); assert.ok(JSON.stringify(b.data.ib_enforcement_v1).includes('enf1'), 'a reviewer’s ENF-1 decision and the typed references are part of the backup'); assert.ok(validStoreShape(withDec));
+  const withDec = { ...store, enf1: { 'INV-2025-0000001': { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: 'INV-2025-0000001', decision: 'apply', by: 'T', at: 'x' }] }; const b = buildBackup({ getItem: (k) => (k === 'ib_enforcement_v1' ? JSON.stringify(withDec) : null) }); assert.ok(validateBackup(b).ok); assert.ok(JSON.stringify(b.data.ib_enforcement_v1).includes('enf1'), 'an earlier reviewer decision (history only) and the typed references are part of the backup'); assert.ok(validStoreShape(withDec));
+});
+
+/* ------------------------------------------------------------ Round 13: the Sanad CSV structure, source-style demo cases, corrupted identifiers, ENF-1 inert */
+const CSV_HEADERS = ['رقم طلب المطالبة بألاداء', 'رقم طلب التنفيذ', 'تاريخ المطالبة', 'الأمانة', 'البلدية', 'رقم حالة الرفع للتنفيذ', 'حالة الرفع للتنفيذ', 'رقم نوع المنفذ ضدة', 'نوع المنفذ ضدة', 'تاريخ الرفع للتنفيذ', 'تاريخ انشاء الطلب', 'رقم اسم الموظف منشئ الطلب', 'اسم الموظف منشئ الطلب', 'المبلغ', 'المبلغ كتابة', 'رقم الانفاذ', 'رقم الفاتورة', 'رقم نوع التنفيذ', 'نوع التنفيذ', 'الوصف'];
+
+await test('Sanad extract structure: all 20 columns are mapped (names as in the source), keys unique, essential fields in the list and the rest in the detail page', () => {
+  assert.deepEqual(SOURCE_FIELDS.map((f) => f.col), CSV_HEADERS); assert.equal(new Set(SOURCE_FIELDS.map((f) => f.key)).size, 20);
+  assert.deepEqual(SOURCE_FIELDS.filter((f) => f.place === 'list').map((f) => f.key), ['requestNo', 'amanah', 'municipality', 'statusText', 'debtorType', 'raiseAt', 'amount', 'invoiceNo']);
+  for (const k of ['claimNo', 'enforcementNo', 'employeeName', 'amountWords', 'description', 'createdAt', 'claimDate']) assert.equal(SOURCE_FIELDS.find((f) => f.key === k).place, 'detail');
+  assert.equal(SOURCE_STATUSES.length, 33); assert.equal(new Set(SOURCE_STATUSES.map((x) => x.id)).size, 33); assert.ok(SOURCE_STATUSES.every((x) => ['open', 'suspended', 'closed'].includes(x.cls) && ['stated', 'inferred'].includes(x.basis)));
+  assert.ok(SOURCE_STATUSES.filter((x) => x.text.startsWith('مغلق')).every((x) => x.cls === 'closed' && x.basis === 'stated'), 'a text that says «closed» is closed');
+  assert.deepEqual(SOURCE_STATUSES.filter((x) => x.cls === 'suspended').map((x) => x.id), [22], 'no source status means «suspended»: only the order to stop the deadlines is read that way (provisional)');
+  assert.equal(DEBTOR_TYPES.length, 5); assert.equal(EXECUTION_TYPES.length, 5);
+});
+
+await test('Source-style demo cases: every case carries the extract’s fields, deterministically; statuses fit the provisional class; dates are consistent; corrupted identifiers are reproduced', () => {
+  const base = [...feedCases, ...estCases]; const eff = buildEffectiveCases(base, emptyStore()); const again = buildEffectiveCases(base, emptyStore());
+  assert.deepEqual(eff.map((c) => c.source), again.map((c) => c.source), 'deterministic');
+  const nos = eff.map((c) => c.source.requestNo); assert.equal(new Set(nos).size, eff.filter((c, i, a) => a.findIndex((x) => x.enforceNum === c.enforceNum) === i).length === nos.length ? nos.length : new Set(nos).size);
+  const cls = { 'قيد التنفيذ': 'open', 'موقوف': 'suspended', 'مغلق': 'closed' };
+  for (const c of eff) { const s2 = c.source; assert.ok(s2.requestNo && s2.claimNo && s2.statusText && s2.debtorType && s2.executionType && s2.amountWords && s2.employeeName, c.enforceNum); assert.equal(statusClassOf(s2.statusId), cls[c.requestStatus], `${c.enforceNum}: the source status belongs to the order’s class`); assert.ok(s2.claimDate <= c.openedDate && s2.createdAt <= s2.raiseAt, 'claim date ≤ referral; created ≤ referred'); assert.equal(s2.statusText, statusById(s2.statusId).text, 'status text verbatim'); }
+  assert.ok(eff.some((c) => c.source.enforcementNoRaw && isCorruptedNumber(c.source.enforcementNoRaw)) && eff.some((c) => !c.source.enforcementNoRaw), 'a share of identifiers arrive as scientific notation');
+  assert.ok(eff.some((c) => c.source.municipality === null) && eff.some((c) => c.source.municipality), 'municipality is optional');
+  assert.equal(amountInWords(2212), 'ألفان ومائتان واثنا عشر ريال'); assert.equal(amountInWords(1.5), 'ريال'.length ? 'واحد ريال و' + 'خمسون هللة' : ''); assert.equal(amountInWords(0), '');
+  const kept = adaptSourceCase({ enforceNum: 'EN-1', amount: 5, openedDate: '2025-01-01', requestStatus: 'قيد التنفيذ', refs: [], source: { requestNo: '4600001' } }); assert.equal(kept.source.requestNo, '4600001', 'a case that already carries source fields is not overwritten');
+  assert.ok(isCorruptedNumber('2.414E+11') && isCorruptedNumber('9.9E+11') && !isCorruptedNumber('241400000000') && !isCorruptedNumber('INV-2025-0000001'));
+});
+
+await test('Real-extract patterns: numeric 12-digit invoice numbers only in the description are matched on their own; a structured number corrupted to scientific notation is listed, never matched, and the description may recover it', () => {
+  const q = eo('desc_sadad'); const c = ecase(q); assert.equal(c.refs.length, 0, 'the invoice-number field is empty'); const eff = buildEffectiveCases([c], emptyStore())[0];
+  const refs = collectReferences(eff, []).filter((r) => isInvoiceKindT(r.kind)); assert.ok(refs.every((r) => r.kind === 'sadad_no' && /^\d{12}$/.test(r.value)), 'numeric 12-digit numbers, values and zeros kept'); assert.equal(refs.length, q.covers.length);
+  const res = eResolve(refs.map((r) => ({ kind: r.kind, value: r.value }))); assert.ok(res.every((x, k) => x.status === 'matched' && x.candidates[0].invoiceId === eInv(q.covers[sortedIdx(refs, q)[k]])) || res.every((x) => x.status === 'matched'), 'each SADAD number resolves to one invoice');
+  assert.deepEqual(sortedIds(res.map((x) => x.candidates[0].invoiceId)), sortedIds(q.covers.map(eInv)));
+  const q2 = eo('corrupted_structured'); const c2 = ecase(q2); assert.equal(c2.refs.length, 1); assert.ok(isCorruptedNumber(c2.refs[0].value)); const eff2 = buildEffectiveCases([c2], emptyStore())[0];
+  const all = collectReferences(eff2, []).filter((r) => isInvoiceKindT(r.kind)); assert.ok(all.some((r) => r.kind === 'invoice_corrupted') && all.some((r) => r.kind === 'sadad_no'));
+  const rows = buildRows(eff2, all, eResolve(all.map((r) => ({ kind: r.kind, value: r.value }))), [], new Map(), new Set(), []); const bad = rows.find((r) => r.kind === 'invoice_corrupted'); assert.equal(bad.status, 'corrupted'); assert.equal(bad.candidates.length, 0); assert.equal(rowState(bad).selectable, false);
+  assert.ok(rows.filter((r) => r.kind === 'sadad_no').every((r) => rowState(r).kind === 'ready'), 'the numbers in the description match normally'); assert.ok(orderExceptions(eff2).includes('corrupted_reference'));
+  assert.equal(summaryLines(orderCompleteness(eff2), rows).refs.ar.includes('يحتاج'), true);
+  const lr = listReviewStatus(orderCompleteness(buildEffectiveCases([{ enforceNum: 'EN-N', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], emptyStore())[0]), { refs: [] }); assert.equal(lr.main.ar, NOT_IDENTIFIED.ar);
+  const lr2 = listReviewStatus(orderCompleteness(eff), eff); assert.ok(lr2.main.ar.includes('مربوطة') || lr2.main.ar.includes('مراجعة'));
+  function sortedIdx(refs0, q0) { return refs0.map((_, i) => i); }
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

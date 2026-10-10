@@ -562,3 +562,20 @@ Description, evidence and demo script: `docs/simplified-journey-and-ocr-simulati
 
 **Tests:** 121. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
 
+
+---
+
+# Round 13 — the Sanad CSV structure, source-style demo, ENF-1 inert (branch `enforcement-order-matching`)
+
+Mapping, data review and open questions: `docs/sanad-csv-mapping.md`.
+
+**E-21 — the demo did not follow the source structure (fixed).** The 20 columns of the Sanad extract are mapped (record grain = one enforcement request; claim and «رقم الانفاذ» shared across rows; no debtor name or identity; invoice-number column ≈ 98 % empty, numbers mostly in the description; a share of identifiers corrupted to scientific notation; no «suspended» status). Every demo case now carries the structure deterministically; the orders list shows the essential source fields and one matching-review status, everything else (and the manual upload) is in the order page.
+
+**E-22 — corrupted identifiers (added).** A structured invoice number in scientific notation is listed as «رقم فاتورة مشوّه», never matched, padded or repaired, and raises an exception; numeric 12-digit numbers found only in the description are matched normally.
+
+**E-23 — a reviewer action established an undocumented financial policy (removed).** The «apply ENF-1» action is gone together with its engine path: no order event, review note or stored decision changes any amount; the established treatment (the invoice stays cancelled) is preserved and the conflict stays visible. Earlier decisions are retained in history with their policy basis flagged unresolved. **EQ3 stays unresolved.**
+
+**Status vocabulary (provisional):** 33 source statuses kept verbatim; open/suspended/closed class stated or inferred per status and flagged for confirmation with Sanad.
+
+**Tests:** 124. **Statuses preserved:** F-05 partial; F-19 blocked; F-23 explanation closed / approximation partial; F-27 partial; D-13 blocked (EQ6); G-01 blocked; screen readers unverified; EQ2, EQ3, EQ4, EQ5, EQ6, EQ9 and logo/Figma/icon licence unresolved and not inferred.
+

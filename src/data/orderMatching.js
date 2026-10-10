@@ -17,9 +17,10 @@
 
 export const AMOUNT_TOLERANCE = 1; // SAR — rounding only; anything larger is a real difference
 import { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap } from './relations';
+import { adaptSourceCase, isCorruptedNumber } from './sanadSource';
 export { ORDER_STATUS, orderStatusOf, STATUS_RANK, invoiceEnforcement, invoiceStatusMap };
 
-export const INVOICE_KINDS = ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no'];
+export const INVOICE_KINDS = ['invoice_no', 'invoice_serial', 'sadad_no', 'violation_no', 'invoice_corrupted']; // invoice_corrupted: a structured value a spreadsheet turned into scientific notation — listed, never matched
 export const isInvoiceKind = (k) => INVOICE_KINDS.includes(k);
 export const refKey = (kind, value) => `${kind}|${String(value).trim().toUpperCase()}`;
 
@@ -145,7 +146,7 @@ export function collectReferences(order, docs = []) {
     if (!m.has(k)) m.set(k, { key: k, kind, value: String(value).trim(), origins: [] });
     m.get(k).origins.push(origin);
   };
-  for (const r of order.refs || []) add(r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
+  for (const r of order.refs || []) add(isCorruptedNumber(r.value) ? 'invoice_corrupted' : r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
   for (const r of orderTextRefs(order)) if (isInvoiceKind(r.kind)) add(r.kind, r.value, { type: r.origin, field: r.field, raw: r.raw, snippet: r.snippet });
   for (const d of docs) for (const r of d.extraction?.refs || []) {
     const byMethod = new Map(); // text found by the PDF reader, by imported OCR text, or typed by a person are different kinds of evidence
@@ -322,7 +323,8 @@ export const emptyStore = () => ({ v: 1, orders: {}, enf1: {} });
 const ord = (store, en) => store.orders[en] || { links: {}, docs: {}, history: [], dismissedRefs: [], contractReviews: {}, statusSeen: null };
 
 export function buildEffectiveCases(baseCases, store) {
-  return baseCases.map((c) => {
+  return baseCases.map((c0) => {
+    const c = adaptSourceCase(c0); // the demo case carries the structure of the Sanad extract (request/claim numbers, source status, debtor type, dates…)
     const o = store?.orders?.[c.enforceNum];
     const base = (c.links || []).map((l) => ({ ...l, origin: l.origin || (l.reviewedBy ? 'sanad_structured' : 'sanad_structured'), appliedStatus: orderStatusOf(c) }));
     const merged = new Map(base.map((l) => [l.invoiceId, l]));
@@ -460,7 +462,7 @@ export function recordFileRestored(store, en, docId, { by, at, orderStatus, name
 }
 
 // The matching-review EXCEPTIONS of an order: what a person still has to look at. An order can carry several (counted once per type).
-export const EXCEPTION_TYPES = ['no_references', 'unresolved_references', 'proposals_pending', 'conflicts', 'attachments_not_retrieved', 'unread_pages', 'amount_difference', 'contract_mention_unreviewed', 'contract_level_only'];
+export const EXCEPTION_TYPES = ['no_references', 'corrupted_reference', 'unresolved_references', 'proposals_pending', 'conflicts', 'attachments_not_retrieved', 'unread_pages', 'amount_difference', 'contract_mention_unreviewed', 'contract_level_only'];
 export function orderExceptions(order) {
   const comp = orderCompleteness(order); const out = [];
   const contractLevel = !!order.contractNo && !(order.refs || []).length && !(order.links || []).length;
@@ -469,6 +471,7 @@ export function orderExceptions(order) {
   if (comp.references.unresolved > 0) out.push('unresolved_references');
   if (comp.extraction.attachmentsPending > 0) out.push('attachments_not_retrieved');
   if (contractMentions(order, order.docs || []).some((c) => c.status === 'mentioned')) out.push('contract_mention_unreviewed');
+  if (collectReferences(order, order.docs || []).some((r) => r.kind === 'invoice_corrupted')) out.push('corrupted_reference');
   if (comp.references.proposed > 0) out.push('proposals_pending');
   if ((order.links || []).some((l) => l.status === 'candidate' && unresolvedConflicts(l.conflicts, l.resolvedConflicts).length)) out.push('conflicts');
   if (comp.extraction.state === 'incomplete') out.push('unread_pages');
@@ -477,15 +480,8 @@ export function orderExceptions(order) {
 }
 
 
-// An invoice cancelled in the source that a confirmed enforcement link refers to: a REVIEWER records whether the documented rule ENF-1 (counted uncollected instead of cancelled) is applied,
-// or the source cancellation stands. Nothing is applied automatically, and no order event (confirmation, closure, withdrawal) ever changes an amount by itself. (Open business question: EQ3.)
-export function decideEnf1(store, invoiceId, { decision, note = '', by, at }) {
-  if (!['apply', 'keep_cancelled', 'clear'].includes(decision)) return { store, error: 'bad_decision' };
-  const enf1 = { ...(store.enf1 || {}) };
-  if (decision === 'clear') delete enf1[invoiceId]; else enf1[invoiceId] = { decision, note: String(note).trim(), by, at };
-  const hist = [...(store.enf1History || []), { invoiceId, decision, note: String(note).trim(), by, at }];
-  return { store: { ...store, enf1, enf1History: hist }, error: null };
-}
+// (Earlier builds let a reviewer record «apply ENF-1» for a cancelled-in-source invoice. That action is REMOVED: ENF-1's conditions and authority are unconfirmed, so nothing changes a financial amount.
+//  Decisions already stored in `store.enf1` / `store.enf1History` are kept as history and shown with their policy basis flagged unresolved; they have no effect.)
 
 // A reviewer decides whether a contract number MENTIONED in the description or a document is a direct referral of that contract. The structured field never needs this;
 // a mention alone never establishes a referral. `exists` = the contract number exists in the data (checked by the caller); a number that does not exist cannot be confirmed.

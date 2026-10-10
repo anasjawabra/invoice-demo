@@ -24,7 +24,7 @@ function summary(st, ctx, i) {
     invoiceId: idOf(st, i), source: SOURCES[st.src[i]]?.key || null, amanahEn: ENTITIES[st.ent[i]]?.en || null,
     payerName: generated ? payerName(st.payer[i]) : null, payerId: generated ? beneficiaryIdOf(st.payer[i]) : null, payerIdx: generated ? st.payer[i] : null,
     issueDate: isoOf(st.issue[i]), dueDate: isoOf(st.due[i]), grossAmount: D.billed, netAmount: D.net, outstanding: D.outstanding, collected: D.collected,
-    paymentStatus: D.payStatus, daysOverdue: D.daysOverdue, excluded: D.excluded, cancelled: D.cancelled, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, enf1Applied: D.enf1Applied,
+    paymentStatus: D.payStatus, daysOverdue: D.daysOverdue, excluded: D.excluded, cancelled: D.cancelled, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict,
     contractNo: st.contract[i] >= 0 && st.contracts[st.contract[i]] ? st.contracts[st.contract[i]].contractNo : null, // only the contract the invoice itself carries — never inferred
     serverIdentifiedOrder: exec ? exec.enforceNum : null
   };
@@ -38,6 +38,7 @@ export function resolveReferences(st, req) {
   for (const ref of req.refs || []) {
     const value = String(ref.value ?? '').trim(); const kind = ref.kind;
     let idx = []; let weak = false; let normalized = null;
+    if (kind === 'invoice_corrupted') { out.push({ ref, status: 'corrupted', weak: false, normalized: null, candidates: [] }); continue; } // a number a spreadsheet turned into scientific notation: the digits are lost, nothing is guessed
     if (kind === 'invoice_id_exact') { const i = lookupId(st, value); if (i >= 0) idx = [i]; } // a link's own invoice id: looked up exactly, never padded
     else if (kind === 'invoice_no') {
       let id = value.toUpperCase();

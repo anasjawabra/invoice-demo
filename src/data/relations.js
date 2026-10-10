@@ -70,7 +70,7 @@ export function ordersOfContract(contractNo, invoiceIds, cases) {
     const mentionedOnly = !viaContract && fact?.status === 'mentioned';
     const via = (c.links || []).filter((l) => ids.has(l.invoiceId) && (l.status === 'confirmed' || l.status === 'candidate'));
     if (!viaContract && !mentionedOnly && !via.length) continue;
-    out.set(c.enforceNum, { enforceNum: c.enforceNum, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, amount: c.amount, contractLevel: viaContract, mentionedOnly, factStatus: fact?.status || (viaContract ? 'supported_by_source' : null), factOrigins: fact?.origins || [], invoices: via.map((l) => ({ invoiceId: l.invoiceId, link: l.status === 'confirmed' ? 'confirmed' : 'proposed' })) });
+    out.set(c.enforceNum, { enforceNum: c.enforceNum, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, sourceStatus: c.source?.statusText || null, amount: c.amount, contractLevel: viaContract, mentionedOnly, factStatus: fact?.status || (viaContract ? 'supported_by_source' : null), factOrigins: fact?.origins || [], invoices: via.map((l) => ({ invoiceId: l.invoiceId, link: l.status === 'confirmed' ? 'confirmed' : 'proposed' })) });
   }
   return [...out.values()];
 }

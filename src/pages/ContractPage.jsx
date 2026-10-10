@@ -94,7 +94,7 @@ export default function ContractPage() {
             <tbody>{orders.map((o) => (
               <tr key={o.enforceNum}>
                 <td><RecordLink to={orderPath(o.enforceNum)} dir="ltr"><b>{o.enforceNum}</b></RecordLink></td>
-                <td><OrderStatusChip status={o.orderStatus} />{o.orderStatus === 'closed' && <div className="muted" style={{ fontSize: 12 }}>{o.closeReason ? B(CLOSE_REASON_LABEL[o.closeReason] || { en: o.closeReason, ar: o.closeReason }) : L('closure reason unknown', 'سبب الإغلاق غير معروف')}</div>}</td>
+                <td><OrderStatusChip status={o.orderStatus} />{o.orderStatus === 'closed' && <div className="muted" style={{ fontSize: 12 }}>{o.sourceStatus || L('closure reason unknown', 'سبب الإغلاق غير معروف')}</div>}</td>
                 <td className="num" dir="ltr">{sar(o.amount)}</td>
                 <td style={{ fontSize: 12 }}>{o.contractLevel && <div>{L('names the contract number — contract level (not spread over invoices)', 'يذكر رقم العقد — على مستوى العقد (لا يُوزَّع على الفواتير)')}</div>}{o.mentionedOnly && <div className="rp-warn">{L('mentions the contract only — not a direct referral until reviewed', 'يذكر العقد فقط — ليس إحالة مباشرة حتى تتم مراجعته')}</div>}{o.invoices.map((x) => <div key={x.invoiceId}>{L('invoice', 'فاتورة')} <RecordLink to={invoicePath(x.invoiceId)} dir="ltr">{x.invoiceId}</RecordLink> · {x.link === 'confirmed' ? L('confirmed link', 'رابط مؤكد') : L('proposed link', 'رابط مقترح')}</div>)}</td>
               </tr>

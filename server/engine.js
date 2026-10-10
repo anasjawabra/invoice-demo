@@ -84,8 +84,6 @@ export function makeCtx(st, req = {}) {
   ctx.crOk = names.map((n, k) => (k === 0 ? true : (cfg.crStatuses || []).includes(n)));
   // overlay: review decisions + enforcement links held by the client
   ctx.mark = null; ctx.ov = new Map();
-  // reviewer decisions «apply the documented ENF-1 treatment» (invoice ids): the ONLY thing that lets a source-cancelled invoice stay uncollected — an order never does it by itself
-  ctx.enf1 = new Set(); for (const [id, on] of Object.entries(req.enf1 || {})) if (on) { const j = lookupId(st, id); if (j >= 0) ctx.enf1.add(j); }
   const dec = req.decisions || {}; const links = req.links || {};
   const need = Object.keys(dec).length + Object.keys(links).length;
   if (need) {
@@ -108,7 +106,7 @@ export function makeCtx(st, req = {}) {
       o.link = status === 'confirmed' || status === 'open' ? 2 : status === 'suspended' ? 3 : status === 'closed' ? 4 : status === 'candidate' ? 1 : status === 'withdrawn' ? 5 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1; // 5 = a confirmed link was withdrawn: no referral, but a retained cancelled-invoice treatment is not silently reversed
     }
   }
-  ctx.D = { sourceCancelled: false, enfConflict: false, enf1Applied: false, payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
+  ctx.D = { sourceCancelled: false, enfConflict: false, payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
   return ctx;
 }
 function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit) return r.bit; return 0; }
@@ -129,11 +127,10 @@ export function derive(ctx, i, asOfN) {
   let received = 0; const ps = st.payStart[i]; const pc = st.payCount[i];
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
-  // SOURCE cancellation is a fact kept apart from everything else. A confirmed (or later withdrawn) enforcement link does NOT change it by itself: the invoice stays cancelled and the
-  // disagreement is flagged («source/enforcement conflict — review required»). The documented rule ENF-1 (counted uncollected, not cancelled) is applied only to an invoice for which a
-  // reviewer has recorded that decision (ctx.enf1); whether it should apply is the open business question EQ3. No order status, closure or withdrawal moves an amount.
-  const sourceCancelled = cd !== 0 && cd <= asOfN; const conflict = sourceCancelled && (link >= 2 || link === 5); const retained = conflict && ctx.enf1.has(i);
-  const cancelled = sourceCancelled && !retained;
+  // SOURCE cancellation is a fact kept apart from everything else. A confirmed (or later withdrawn) enforcement link — or any reviewer note — NEVER changes it: the invoice stays cancelled in every total and the
+  // disagreement is only FLAGGED («source/enforcement conflict — review required»). The documented rule ENF-1 (counted uncollected) has unconfirmed conditions and authority, so the demo does not apply it (EQ3).
+  const sourceCancelled = cd !== 0 && cd <= asOfN; const conflict = sourceCancelled && (link >= 2 || link === 5);
+  const cancelled = sourceCancelled;
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
@@ -142,7 +139,7 @@ export function derive(ctx, i, asOfN) {
   const overpayment = excluded ? 0 : Math.max(0, received - base);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
   const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
-  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.enfConflict = conflict; D.enf1Applied = retained; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
+  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.enfConflict = conflict; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
   // every exclusion (cancelled or rule-excluded) leaves gross exactly once, whatever the number of reasons: exclTotal = billed - net
   D.mask = m; D.nReasons = m ? popcount(m) : 0; D.primaryBit = primaryBit; D.primaryApproved = primaryApproved; D.excluded = excluded;
   D.exclusionAmount = excluded ? billed : 0; D.net = excluded ? 0 : billed - cancelledAmount;

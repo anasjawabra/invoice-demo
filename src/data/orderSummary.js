@@ -8,6 +8,7 @@ import { isHardConflict } from './orderMatching';
 // Ambiguous and conflicting references stay unselected until evidence resolves them — a typed reason never does, and neither does matching the order's debtor on its own.
 export function rowState(row) {
   if (row.status === 'duplicate_reference' || (row.status === 'resolved_by_reference' && row.duplicateOf)) return { kind: 'duplicate', selectable: false, preselect: false, candidate: null };
+  if (row.status === 'corrupted') return { kind: 'corrupted', selectable: false, preselect: false, candidate: null };
   if (row.status === 'pending') return { kind: 'pending', selectable: false, preselect: false, candidate: null };
   if (row.status === 'unmatched' || row.status === 'not_invoice_reference') return { kind: 'unmatched', selectable: false, preselect: false, candidate: null };
   if (row.status === 'ambiguous') return { kind: 'ambiguous', selectable: false, preselect: false, candidate: null };
@@ -55,4 +56,19 @@ export function summaryLines(comp, rows) {
   const f = comp.finance.state;
   const fin = f === 'short' || f === 'over' ? { ar: 'يوجد فرق في المبلغ', en: 'There is an amount difference', tone: 'warn' } : f === 'reconciled' ? { ar: 'المبلغ متطابق', en: 'The amount is reconciled', tone: 'ok' } : null;
   return { refs, ext, fin };
+}
+
+// The matching-review status shown in the orders LIST: one concise line plus short extras, from the three completeness states (no matching rows needed).
+export function listReviewStatus(comp, order) {
+  const r = comp.references; const e = comp.extraction; const f = comp.finance; const open = r.unresolved + r.proposed;
+  const contractLevel = !!order.contractNo && !(order.refs || []).length && !r.confirmedLinks;
+  const main = r.state === 'none'
+    ? (contractLevel ? { ar: 'على مستوى العقد — فواتيره غير محددة', en: 'Contract level — invoices not identified', tone: 'warn' } : { ar: NOT_IDENTIFIED.ar, en: NOT_IDENTIFIED.en, tone: 'warn' })
+    : r.state === 'complete' ? { ar: `${AR_INV(r.confirmedLinks)} مربوطة`, en: `${r.confirmedLinks} invoice(s) linked`, tone: 'ok' }
+      : { ar: `${r.confirmedLinks ? `${AR_INV(r.confirmedLinks)} مربوطة — ` : ''}${AR_REFS(open)} ${open === 1 ? 'يحتاج' : open === 2 ? 'يحتاجان' : open <= 10 ? 'تحتاج' : 'يحتاج'} مراجعة`, en: `${r.confirmedLinks ? `${r.confirmedLinks} linked — ` : ''}${open} reference(s) need review`, tone: 'warn' };
+  const extras = [];
+  if (e.unreadPages) extras.push({ ar: `${AR_PAGES(e.unreadPages)} ${e.unreadPages === 2 ? 'لم تُقرآ' : 'لم تُقرأ'}`, en: `${e.unreadPages} page(s) not read`, tone: 'warn' });
+  else if (e.attachmentsPending) extras.push({ ar: 'مرفقات لم تُضَف', en: 'Attachments not added', tone: 'warn' });
+  if (f.state === 'short' || f.state === 'over') extras.push({ ar: 'يوجد فرق في المبلغ', en: 'Amount difference', tone: 'warn' });
+  return { main, extras };
 }
