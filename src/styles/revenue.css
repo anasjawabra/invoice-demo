@@ -562,6 +562,7 @@
 .st-head__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .st-fresh { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
 .st-section { display: grid; gap: 12px; scroll-margin-top: 136px; /* clears the sticky header (ends ~123px) */ }
+.st-section[role='tabpanel'] { scroll-margin-top: var(--pt-land, 136px); } /* measured in PlanningArea: the browser's own fragment scroll leaves the tab bar visible */
 .st-section[hidden] { display: none; } /* an inactive tab panel stays mounted (its state survives) but is neither shown nor reachable */
 .st-section__title { margin: 0; font-size: 18px; color: var(--heading); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .st-section__title small { font-size: 12px; font-weight: 500; color: var(--txt-mute); }

@@ -1,7 +1,7 @@
 // «التخطيط المالي والاستراتيجي» — management area 2. Objectives & targets → revenue and expenditure plan → actual vs plan → forecasts, gaps and
 // funding → what-if scenarios → initiatives and decisions. The dashboard's figures are the BASELINE through shared calculations; only a compact
 // summary is shown here. Actuals, approved budgets, targets, forecasts and user scenarios are kept in separate places and never mixed.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useAsync } from '../utils/useAsync';
@@ -164,6 +164,30 @@ export default function PlanningArea() {
   const goTab = useCallback((id) => { if (id === activeTab && loc.hash === `#${id}`) return; if (id === activeTab && !TAB_IDS.includes(hashId)) return; navigate({ pathname: loc.pathname, search: loc.search, hash: `#${id}` }); }, [activeTab, hashId, loc.hash, loc.pathname, loc.search, navigate]);
   // a hash that names something else on the page (not a tab) still scrolls to it once the page has content; tabs never scroll the page
   useEffect(() => { if (hashId && !TAB_IDS.includes(hashId) && rev.ready && plan && snapshot) document.getElementById(hashId)?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hashId, rev.ready, !!snapshot, !!x]); // eslint-disable-line react-hooks/exhaustive-deps
+  // LANDING ON A TAB — a direct link or a refresh with a valid hash (/planning#outlook).
+  // The browser scrolls to the section by itself, but only if the panel appears before the page's load completes and possibly again on layout changes, so the result used to depend on timing (a late jump that left the tab bar above the screen).
+  // The fix is at the source, not an override: (1) the panel's scroll margin is MEASURED so that the browser's own fragment scroll puts the TAB BAR just under the sticky headers whenever it happens, and (2) at the first commit that has the content
+  // (before paint, so no flicker) the bar is brought into view once if the browser did not already — idempotent, so nothing is fought later. Scroll restoration is manual from then until the first tab change or leaving the page, so a refresh cannot restore a position that hides the bar.
+  const landed = useRef(false);
+  const contentReady = !!(rev.ready && plan && snapshot && snapshot.totals.count > 0);
+  const stickyHeight = () => { const sticky = document.querySelector('.tabbar'); return sticky ? (parseFloat(getComputedStyle(sticky).top) || 0) + sticky.offsetHeight : 0; };
+  useLayoutEffect(() => {
+    if (!contentReady) return undefined;
+    const page = document.querySelector('.st-page'); if (!page) return undefined;
+    const measure = () => { const bar = page.querySelector('.pt-bar'); const panel = page.querySelector('[role=tabpanel]:not([hidden])'); if (!bar || !panel) return; page.style.setProperty('--pt-land', `${Math.round(stickyHeight() + 8 + (panel.getBoundingClientRect().top - bar.getBoundingClientRect().top))}px`); };
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null; ro?.observe(page);
+    return () => ro?.disconnect();
+  }, [contentReady, activeTab]);
+  useLayoutEffect(() => {
+    if (landed.current || !contentReady || !TAB_IDS.includes(hashId)) return undefined;
+    landed.current = true;
+    const bar = document.querySelector('.pt-bar'); if (!bar) return undefined;
+    const prev = window.history.scrollRestoration; window.history.scrollRestoration = 'manual';
+    const r = bar.getBoundingClientRect(); const top = stickyHeight() + 8;
+    if (r.top < top || r.bottom > window.innerHeight - 8) window.scrollTo(0, Math.max(0, window.scrollY + r.top - top));
+    return () => { window.history.scrollRestoration = prev; };
+  }, [contentReady, hashId]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
   if (PS.error && !fresh) return <div className="st-page"><div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر احتساب أرقام الخطة لفترتها ونطاقها.', 'The plan figures could not be computed for its period and scope.')} <button type="button" className="btn btn-sm" onClick={() => setRetry((n) => n + 1)}>{L('إعادة المحاولة', 'Retry')}</button></div></div>;
