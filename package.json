@@ -6,7 +6,7 @@
   "description": "INTELLIBILL - Intelligent Invoice Management Demo (React + Vite)",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
+    "build": "vite build && esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error && npm run build:api",
     "preview": "vite preview",
     "start": "node index.js",
     "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs",
@@ -17,7 +17,8 @@
     "make:samples": "esbuild scripts/make-order-pdfs.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-order-pdfs.mjs && node .test-build/make-order-pdfs.mjs",
     "make:samples:ar": "esbuild scripts/make-arabic-order-pdfs.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-arabic-order-pdfs.mjs && node .test-build/make-arabic-order-pdfs.mjs",
     "make:samples:docx": "esbuild scripts/make-order-docx.mjs --bundle --platform=node --format=esm --log-level=error --external:docx --outfile=.test-build/make-order-docx.mjs && node .test-build/make-order-docx.mjs",
-    "make:samples:prepared": "esbuild scripts/make-prepared-samples.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-prepared-samples.mjs && node .test-build/make-prepared-samples.mjs"
+    "make:samples:prepared": "esbuild scripts/make-prepared-samples.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-prepared-samples.mjs && node .test-build/make-prepared-samples.mjs",
+    "build:api": "esbuild server/api.js --bundle --platform=node --format=esm --outfile=api/_handler.mjs --log-level=error"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",

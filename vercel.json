@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/((?!api/|assets/|samples/|favicon\\.svg).*)", "destination": "/index.html" }
+  ]
+}

@@ -5336,6 +5336,14 @@ var ownerOf = (sess) => {
   return 1 + h % 6e4;
 };
 function readBody(req) {
+  if (req.body !== void 0 && req.body !== null) {
+    try {
+      const b = req.body;
+      return Promise.resolve(Buffer.isBuffer(b) ? b.length ? JSON.parse(b.toString("utf8")) : {} : typeof b === "string" ? b ? JSON.parse(b) : {} : b);
+    } catch (e) {
+      return Promise.reject(e);
+    }
+  }
   return new Promise((resolve, reject) => {
     const chunks = [];
     let n = 0;

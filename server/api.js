@@ -20,6 +20,10 @@ let epoch = 0;
 const ownerOf = (sess) => { if (!sess) return 0; let h = 7; for (const ch of String(sess)) h = (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0; return 1 + (h % 60000); };
 
 function readBody(req) {
+  // on Vercel the platform has already read and parsed the body (req.body); under Node http / Vite it is undefined and the stream is read below
+  if (req.body !== undefined && req.body !== null) {
+    try { const b = req.body; return Promise.resolve(Buffer.isBuffer(b) ? (b.length ? JSON.parse(b.toString('utf8')) : {}) : typeof b === 'string' ? (b ? JSON.parse(b) : {}) : b); } catch (e) { return Promise.reject(e); }
+  }
   return new Promise((resolve, reject) => {
     const chunks = []; let n = 0;
     req.on('data', (c) => { n += c.length; if (n > 20e6) { reject(new Error('body too large')); req.destroy(); } else chunks.push(c); });
