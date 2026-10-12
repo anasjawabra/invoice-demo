@@ -37,13 +37,13 @@ const TX = {
   viewAi: { zh: '查看完整 AI 分析', en: 'View full AI analysis', ar: 'عرض تحليل الذكاء الكامل' },
   none: { zh: '无', en: 'None', ar: 'لا يوجد' },
   sanadTitle: { zh: 'سند 执行关联', en: 'Sanad Enforcement Linkage', ar: 'ربط تنفيذ سند' },
-  sanadSub: { zh: '上传支持文件，系统将扫描其中的执行令编号', en: 'Attach a supporting document — the system scans it for an enforcement order reference', ar: 'أرفق مستندًا داعمًا — سيفحصه النظام بحثًا عن رقم أمر تنفيذ' },
+  sanadSub: { zh: '演示仅检查上传文件的文件名并展示示例关联，不读取文件内容。', en: 'This demo checks only the uploaded file name and shows a sample link; file contents are not read.', ar: 'يفحص هذا العرض التجريبي اسم الملف المرفوع فقط ويعرض ربطًا نموذجيًا؛ ولا يقرأ محتوى الملف.' },
   sanadAttach: { zh: '上传文件', en: 'Attach document', ar: 'إرفاق مستند' },
-  sanadTryMatch: { zh: '示例：含编号的文件', en: 'Try sample: document with a number', ar: 'تجربة: مستند فيه رقم' },
-  sanadTryNone: { zh: '示例：无编号的文件', en: 'Try sample: document without a number', ar: 'تجربة: مستند بدون رقم' },
-  sanadScanning: { zh: '正在扫描文件（OCR）…', en: 'Scanning document (OCR)…', ar: 'جارٍ فحص المستند (OCR)…' },
-  sanadMatchedPrefix: { zh: '已关联至执行令', en: 'Linked to enforcement order', ar: 'تم الربط بأمر التنفيذ' },
-  sanadNotFound: { zh: '在该文件中未找到执行令编号。', en: 'No enforcement order reference found in this document.', ar: 'لم يُعثر على رقم أمر تنفيذ في هذا المستند.' },
+  sanadTryMatch: { zh: '示例：文件名含编号', en: 'Try sample: number in file name', ar: 'تجربة: رقم في اسم الملف' },
+  sanadTryNone: { zh: '示例：文件名无编号', en: 'Try sample: no number in file name', ar: 'تجربة: اسم ملف بلا رقم' },
+  sanadScanning: { zh: '正在检查文件名…', en: 'Checking file name…', ar: 'جارٍ فحص اسم الملف…' },
+  sanadMatchedPrefix: { zh: '示例关联至执行令', en: 'Sample link to enforcement order', ar: 'ربط نموذجي بأمر التنفيذ' },
+  sanadNotFound: { zh: '文件名中未找到至少四位数字。', en: 'No number of at least four digits found in the file name.', ar: 'لم يُعثر على رقم من أربعة أرقام على الأقل في اسم الملف.' },
   sanadTryAgain: { zh: '重新上传文件', en: 'Try another document', ar: 'تجربة مستند آخر' }
 };
 

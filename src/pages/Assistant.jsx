@@ -480,7 +480,7 @@ export default function Assistant() {
           <div id="chat_scroll" className="chat-list" aria-label={t('a11y_chat_messages')}>
             {msgs.map((m) => (
               <div key={m.id} className={`msg msg--${m.role}`}>
-                {m.role === 'assistant' ? <AIContentLabel state={m.typing ? 'refining' : 'generated'} /> : null}
+                {m.role === 'assistant' ? <AIContentLabel state={m.typing ? 'demoPreparing' : 'demo'} /> : null}
                 <div dangerouslySetInnerHTML={{ __html: m.html || (m.typing ? '…' : '') }} />
                 {m.chart ? (
                   <div className="msg-chart">

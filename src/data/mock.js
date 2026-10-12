@@ -453,11 +453,11 @@ export const AGENTS = [
     formEn: 'Conversational + Workflow',
     formAr: 'حواري + سير العمل',
     color: 'purple',
-    desc: '6 个核心 KPI 看板，阿拉伯语/中文自然语言问答(NL2SQL)，定期收入报告，待定账单修正建议。',
+    desc: '6 个核心 KPI 看板，基于示例数据的中英阿语预设问答演示、定期收入报告及待定账单修正建议。',
     descEn:
-      '6 core KPI dashboards, Arabic/Chinese natural-language Q&A (NL2SQL), periodic revenue reports, and correction suggestions for pending invoices.',
+      '6 core KPI dashboards, a preset Q&A demo in English, Chinese and Arabic based on sample data, periodic revenue reports, and correction suggestions for pending invoices.',
     descAr:
-      '6 لوحات مؤشرات أداء أساسية، أسئلة وأجوبة باللغة الطبيعية بالعربية/الصينية (NL2SQL)، تقارير إيرادات دورية، واقتراحات تصحيح للفواتير المعلقة.',
+      '6 لوحات مؤشرات أداء أساسية، وعرض تجريبي لأسئلة وأجوبة مُعدّة مسبقًا بالعربية والإنجليزية والصينية من بيانات نموذجية، وتقارير إيرادات دورية، واقتراحات تصحيح للفواتير المعلقة.',
     uc: 'UC-06/07/08/10',
     model: '豆包多语言模型 · 温度 0.2-0.5',
     modelEn: 'Doubao Multilingual · Temp 0.2-0.5',

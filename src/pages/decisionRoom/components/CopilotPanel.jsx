@@ -26,7 +26,7 @@ export default function CopilotPanel({ t, money, model, assumptions, onAssumptio
           impact: [],
           scenario: t('cfo_copilot_whatif_scenario'),
           action: t('cfo_copilot_whatif_action'),
-          basis: 'cfoCopilot.parseWhatIf → onAssumptionsChange'
+          basis: t('cfo_copilot_basis_whatif')
         }
       }]);
       return;

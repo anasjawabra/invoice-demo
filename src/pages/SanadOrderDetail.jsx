@@ -19,10 +19,8 @@ function matchInvoicesForOrder(order, fileName) {
   const digitGroups = fileName.match(/\d{4,}/g) || [];
   if (!digitGroups.length) return { digitGroups, invoices: [] };
   const candidates = INVOICES.filter((inv) => inv.amanahEn === order.amanahEn);
-  // Enforcement-collected invoices in the same Amanah are the most plausible
-  // match, so they sort first — but every candidate stays eligible, since a
-  // document naming several reference numbers can plausibly resolve to
-  // several invoices, not just the one already flagged as enforcement-collected.
+  // This is a sample selection, not a verified match to the digits in the
+  // file name. Keep enforcement-collected invoices first for the demo.
   const sorted = [...candidates].sort((a, b) => (b.collectedVia === 'enforcement' ? 1 : 0) - (a.collectedVia === 'enforcement' ? 1 : 0));
   const count = Math.min(digitGroups.length, sorted.length, 3);
   return { digitGroups, invoices: sorted.slice(0, count) };
@@ -48,38 +46,35 @@ export default function SanadOrderDetail() {
   const steps = useMemo(() => {
     if (!scan) return [];
     const { fileName, digitGroups, invoices } = scan;
-    const confidence = digitGroups.length ? 90 + (digitGroups[0].length % 8) : 41;
-    const snippetRefs = digitGroups.slice(0, invoices.length || 1).join(', ');
-    const snippet = digitGroups.length
-      ? pick(lang, `"…referral case ${order.enforceNum}… invoice ref(s) ${snippetRefs}…"`, `"…إحالة رقم ${order.enforceNum}… مرجع فاتورة (فواتير) ${snippetRefs}…"`, `"…转执行案件 ${order.enforceNum}…发票参考号 ${snippetRefs}…"`)
-      : pick(lang, `"…referral case ${order.enforceNum}… no structured reference number detected…"`, `"…إحالة رقم ${order.enforceNum}… لم يُكتشف رقم مرجعي مهيكل…"`, `"…转执行案件 ${order.enforceNum}…未检测到结构化参考编号…"`);
+    const fileNameNumbers = digitGroups.slice(0, 3).join(', ');
 
     return [
       {
-        title: pick(lang, 'Reading attached document', 'قراءة المستند المرفق', '读取上传的文件'),
-        detail: pick(lang, `File: ${fileName}`, `الملف: ${fileName}`, `文件：${fileName}`)
+        title: pick(lang, 'Checking file name (demo)', 'فحص اسم الملف (عرض تجريبي)', '检查文件名（演示）'),
+        detail: pick(lang, `File name: ${fileName}`, `اسم الملف: ${fileName}`, `文件名：${fileName}`)
       },
       {
-        title: pick(lang, 'Extracting text (OCR)', 'استخراج النص (OCR)', '文本提取（OCR）'),
-        detail: pick(lang, `Extracted fragment: ${snippet}`, `المقطع المستخرج: ${snippet}`, `提取片段：${snippet}`),
-        confidence
-      },
-      {
-        title: pick(lang, 'Searching for an invoice reference', 'البحث عن مرجع فاتورة', '搜索发票参考号'),
+        title: pick(lang, 'Finding number patterns in the file name', 'البحث عن أنماط رقمية في اسم الملف', '查找文件名中的数字模式'),
         detail: digitGroups.length
-          ? pick(lang, `Found ${digitGroups.length} numeric reference candidate(s) — cross-checking against invoices in ${order.amanahEn}.`, `تم العثور على ${digitGroups.length} مرجع رقمي محتمل — تجري مقارنته بفواتير ${order.amanahAr}.`, `找到 ${digitGroups.length} 个候选数字参考号——正在与「${order.amanah}」的发票进行比对。`)
-          : pick(lang, 'No numeric reference pattern found in the extracted text.', 'لم يُعثر على أي نمط مرجعي رقمي في النص المستخرج.', '提取的文本中未找到任何数字参考模式。')
+          ? pick(lang, `Found ${digitGroups.length} number pattern(s) of at least four digits; first examples: ${fileNameNumbers}.`, `عُثر على ${digitGroups.length} نمط رقمي من أربعة أرقام على الأقل؛ الأمثلة الأولى: ${fileNameNumbers}.`, `找到 ${digitGroups.length} 组至少四位的数字；前几组：${fileNameNumbers}。`)
+          : pick(lang, 'No number pattern of at least four digits in the file name.', 'لا يوجد نمط رقمي من أربعة أرقام على الأقل في اسم الملف.', '文件名中没有至少四位的数字模式。')
       },
       {
-        title: pick(lang, 'Conclusion', 'الخلاصة', '结论'),
+        title: pick(lang, 'Selecting sample invoices', 'اختيار فواتير نموذجية', '选择示例发票'),
+        detail: invoices.length
+          ? pick(lang, `Showing ${invoices.length} sample invoice(s) from ${order.amanahEn}; file contents are not read.`, `عرض ${invoices.length} فاتورة نموذجية من ${order.amanahAr}؛ لا تتم قراءة محتوى الملف.`, `展示「${order.amanah}」的 ${invoices.length} 张示例发票；不读取文件内容。`)
+          : pick(lang, 'No sample invoice selected from this file name.', 'لم تُحدَّد فاتورة نموذجية من اسم الملف هذا.', '未根据此文件名选出示例发票。')
+      },
+      {
+        title: pick(lang, 'Demo result', 'نتيجة العرض التجريبي', '演示结果'),
         detail: invoices.length
           ? pick(
               lang,
-              `${invoices.length > 1 ? 'Matches' : 'Match'} found: ${invoices.map((i) => i.id).join(', ')} — confidence ${confidence}%.`,
-              `تم العثور على ${invoices.length > 1 ? 'تطابقات' : 'تطابق'}: ${invoices.map((i) => i.id).join('، ')} — نسبة الثقة ${confidence}%.`,
-              `找到${invoices.length > 1 ? '多个匹配项' : '匹配项'}：${invoices.map((i) => i.id).join('、')}——置信度 ${confidence}%。`
+              `Sample invoice(s): ${invoices.map((i) => i.id).join(', ')}. These are not document-verified matches.`,
+              `فاتورة (فواتير) نموذجية: ${invoices.map((i) => i.id).join('، ')}. لم يتم التحقق من مطابقتها مع محتوى المستند.`,
+              `示例发票：${invoices.map((i) => i.id).join('、')}。这些并非经文件内容核实的匹配结果。`
             )
-          : pick(lang, 'No matching invoice could be linked from this document.', 'تعذّر ربط أي فاتورة مطابقة من هذا المستند.', '无法从该文件中关联到匹配的发票。')
+          : pick(lang, 'No sample link could be generated from this file name.', 'تعذّر إنشاء ربط نموذجي من اسم الملف هذا.', '无法根据此文件名生成示例关联。')
       }
     ];
   }, [scan, lang, order]);
@@ -201,11 +196,6 @@ export default function SanadOrderDetail() {
                     {revealed ? (
                       <>
                         <span>{step.detail}</span>
-                        {step.confidence != null && (
-                          <div className="ai-step__conf">
-                            <span className={`ocr-conf ${step.confidence >= 70 ? 'ocr-conf--ok' : 'ocr-conf--low'}`}>{step.confidence}%</span>
-                          </div>
-                        )}
                       </>
                     ) : (
                       <AgentThinking />

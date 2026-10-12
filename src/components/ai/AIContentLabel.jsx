@@ -13,6 +13,16 @@ const COPY = {
     en: 'AI refining',
     zh: 'AI 正在优化',
     ar: 'جارٍ التحسين باستخدام الذكاء الاصطناعي'
+  },
+  demo: {
+    en: 'Preset demo answer',
+    zh: '预设演示回答',
+    ar: 'إجابة تجريبية مُعدّة مسبقًا'
+  },
+  demoPreparing: {
+    en: 'Preparing demo answer',
+    zh: '正在整理演示回答',
+    ar: 'جارٍ تجهيز الإجابة التجريبية'
   }
 };
 

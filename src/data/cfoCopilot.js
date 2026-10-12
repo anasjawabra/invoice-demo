@@ -21,7 +21,7 @@ export const CFO_QA = [
       ],
       scenario: t('cfo_copilot_gap_scenario'),
       action: model.recommendations.length ? t(`cfo_action_${model.recommendations[0].action}`) : t('cfo_copilot_no_action'),
-      basis: 'cfoModel.computeCFOModel — netPosition, risks'
+      basis: t('cfo_copilot_basis_funding_gap')
     })
   },
   {
@@ -36,7 +36,7 @@ export const CFO_QA = [
       ],
       scenario: t('cfo_copilot_collection_scenario'),
       action: t('cfo_action_prioritize_overdue'),
-      basis: 'reportAnalytics.computeKpi — actualRate'
+      basis: t('cfo_copilot_basis_collection_rate')
     })
   },
   {
@@ -50,7 +50,7 @@ export const CFO_QA = [
         impact: [{ label: t('cfo_copilot_f_expected_collections'), value: money(model.expectedCollections) }],
         scenario: t('cfo_copilot_driver_scenario'),
         action: revenueRisk ? t(`cfo_action_${revenueRisk.action}`) : t('cfo_copilot_no_action'),
-        basis: 'cfoModel.computeFinancialRisks — revenue category'
+        basis: t('cfo_copilot_basis_revenue_risk')
       };
     }
   },
@@ -65,7 +65,7 @@ export const CFO_QA = [
         impact: top.map((r) => ({ label: r.id, value: `${money(r.amount)} · ${Math.abs(r.days)} ${t('cfo_copilot_days')}` })),
         scenario: t('cfo_copilot_overdue_scenario'),
         action: t('cfo_action_prioritize_overdue'),
-        basis: 'cfoModel.computePaymentPriority — real COLLECTIONS rows'
+        basis: t('cfo_copilot_basis_overdue')
       };
     }
   },
@@ -78,7 +78,7 @@ export const CFO_QA = [
       impact: [{ label: t('cfo_copilot_f_projected'), value: money(model.expectedCollections) }],
       scenario: t('cfo_copilot_yearend_scenario'),
       action: t('cfo_copilot_yearend_action'),
-      basis: model.isIllustrative ? 'decisionRoomDemoData.ILLUSTRATIVE_BASELINE_2026' : 'cfoModel — trailing 12-month trend'
+      basis: t(model.isIllustrative ? 'cfo_copilot_basis_yearend_illustrative' : 'cfo_copilot_basis_yearend_actual')
     })
   },
   {
@@ -92,7 +92,7 @@ export const CFO_QA = [
         impact: worst ? [{ label: worst.en, value: money(worst.uncollected) }] : [],
         scenario: t('cfo_copilot_source_scenario'),
         action: t('cfo_action_prioritize_overdue'),
-        basis: 'cfoModel.computeAmanahShares — per-Amanah real data'
+        basis: t('cfo_copilot_basis_amanah')
       };
     }
   },
@@ -108,7 +108,7 @@ export const CFO_QA = [
       ],
       scenario: t('cfo_copilot_target_scenario'),
       action: t('cfo_copilot_target_action'),
-      basis: 'TargetCard — revenueTargetGap'
+      basis: t('cfo_copilot_basis_target_gap')
     })
   }
 ];

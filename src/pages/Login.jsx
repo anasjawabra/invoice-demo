@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
 import { AGENTS, KPIS, ORGS } from '../data/mock';
+import { Key01Icon, WavingHand01Icon } from '@hugeicons/core-free-icons';
+import UIIcon from '../components/UIIcon';
 
 export default function Login() {
   const { t, lang, setLang, T } = useI18n();
@@ -79,7 +81,10 @@ export default function Login() {
         </div>
 
         <div className="muted" style={{ marginTop: 'var(--spacing-xl)', fontSize: 'var(--text-xs)', lineHeight: 1.6 }}>
-          <div dangerouslySetInnerHTML={{ __html: t('demo_hint') }} />
+          <div className="login-demo-hint">
+            <UIIcon icon={Key01Icon} size={16} />
+            <span dangerouslySetInnerHTML={{ __html: t('demo_hint') }} />
+          </div>
         </div>
       </section>
 
@@ -113,7 +118,7 @@ export default function Login() {
             </div>
           </div>
 
-          <h1 className="login-title">{t('welcome')}</h1>
+          <h1 className="login-title">{t('welcome')} <UIIcon className="login-title__icon" icon={WavingHand01Icon} size={24} /></h1>
           <div className="lead">{t('login_lead')}</div>
 
           <form onSubmit={onSubmit}>
