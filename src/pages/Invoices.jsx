@@ -4,6 +4,7 @@ import { useI18n } from '../context/I18nContext';
 import { useRevenue } from '../context/RevenueContext';
 import { CATEGORY_LABELS } from '../data/revenueMetrics';
 import { pickBi } from '../data/revenueInsights';
+import { PctBadge, pctColor } from '../components/strategic/EntityMap';
 import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
 import { useL } from '../utils/bi';
 import { useAsync } from '../utils/useAsync';
@@ -122,10 +123,10 @@ export default function Invoices() {
         <div className="inv-stats__grid">
           <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{bi.count(ST.count)}</b></div>
           <div><span className="ip-k">{bi.L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.net)}>{bi.short(ST.net)}</b></div>
-          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big ip-good" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
-          <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big" dir="ltr">{ST.net > 0 ? `${(Math.round((ST.collected / ST.net) * 1000) / 10).toFixed(1)}%` : '—'}</b></div>
+          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
+          <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big">{ST.net > 0 ? <PctBadge v={ST.collected / ST.net} text={`${(Math.round((ST.collected / ST.net) * 1000) / 10).toFixed(1)}%`} /> : '—'}</b></div>
         </div>
-        {ST.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(ST.collected / ST.net, 1) * 100}%` }} /></div>}
+        {ST.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(ST.collected / ST.net, 1) * 100}%`, background: pctColor('share', ST.collected / ST.net) }} /></div>}
         <div className="muted" style={{ fontSize: 12 }}>{bi.L('Collection rate = collected ÷ net billed, for every invoice of the period (the same figures as the dashboard). The list below shows only the collected invoices.', 'نسبة التحصيل = المحصّل ÷ صافي المفوتر لكل فواتير الفترة (نفس أرقام لوحة المعلومات). والقائمة أدناه تعرض الفواتير المحصّلة فقط.')}</div>
       </section>
 

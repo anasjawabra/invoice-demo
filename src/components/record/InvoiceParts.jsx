@@ -4,6 +4,7 @@ import React from 'react';
 import { daysBetween } from '../../data/revenueLedger';
 import { useL } from '../../utils/bi';
 import { fmtDateText } from '../../data/clock';
+import { pctColor } from '../strategic/EntityMap';
 
 const pc = (v) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)}%`;
 
@@ -16,11 +17,11 @@ export function MoneyPanel({ der, sar, L }) {
       <h2 className="ip-h">{L('Financial summary', 'الملخص المالي')}</h2>
       <div className="ip-money__row">
         <div><span className="ip-k">{L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr">{sar(net)}</b></div>
-        <div><span className="ip-k">{L('Collected', 'المحصّل')}</span><b className={`ip-big${der.collected > 0 ? ' ip-good' : ''}`} dir="ltr">{sar(der.collected)}</b></div>
+        <div><span className="ip-k">{L('Collected', 'المحصّل')}</span><b className="ip-big" dir="ltr">{sar(der.collected)}</b></div>
         <div><span className="ip-k">{L('Remaining balance', 'الرصيد المتبقي')}</span><b className={`ip-big${late ? ' ip-bad' : ''}`} dir="ltr">{sar(der.outstanding)}</b></div>
       </div>
       <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of net billed`, `المحصّل ${pc(share)} من صافي المفوتر`)}>
-        <i className="ip-bar__paid" style={{ width: `${share * 100}%` }} />{net > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
+        <i className="ip-bar__paid" style={{ width: `${share * 100}%`, background: pctColor('share', share) || undefined }} />{net > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
       </div>
       <div className="ip-bar__cap"><span>{L('Collected', 'المحصّل')} <b dir="ltr">{pc(share)}</b></span>{net > 0 && <span>{L('Remaining', 'المتبقي')} <b dir="ltr">{pc(1 - share)}</b></span>}</div>
       <dl className="ip-sub">
