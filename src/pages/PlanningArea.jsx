@@ -11,7 +11,7 @@ import { useAr } from '../utils/useAr';
 import { actorName } from '../utils/actor';
 import { AsyncBlock } from '../components/strategic/AsyncState';
 import CollectionChart from '../components/strategic/CollectionChart';
-import EntityMap from '../components/strategic/EntityMap';
+import EntityMap, { PctBadge } from '../components/strategic/EntityMap';
 import { MetricTile } from '../components/revenue/RevenueUI';
 import { amanahFilterOptions, DATA_START } from '../data/revenueLedger';
 import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
@@ -103,7 +103,7 @@ export default function PlanningArea() {
       <div className="rv-tiles cg-tiles">
         <MetricTile label={L('المنصرف التراكمي', 'Cumulative spending')} value={short(A.expSpent)} sub={L(`حتى ${asOfText} — آخر شهر أغلقته وزارة المالية`, `to ${asOfText} — the last month closed by the Ministry of Finance`)} />
         <MetricTile label={L('نسبة الصرف', 'Spending rate')} value={pct(A.expSpent / A.expAdjusted)} sub={L('المنصرف ÷ الاعتماد بعد التعديل', 'Spending ÷ adjusted appropriation')} />
-        <MetricTile label={L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')} value={pct(cover(cutCollected, A))} tone={cover(cutCollected, A) >= 1 ? 'good' : undefined} sub={L(`المحصّل حتى ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ المنصرف التراكمي`, `Collected to ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ cumulative spending`)} />
+        <MetricTile label={L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')} value={<PctBadge kind="coverage" v={cover(cutCollected, A)} text={pct(cover(cutCollected, A))} />} tone={cover(cutCollected, A) >= 1 ? 'good' : undefined} sub={L(`المحصّل حتى ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ المنصرف التراكمي`, `Collected to ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ cumulative spending`)} />
       </div>
       <div className="muted" style={{ fontSize: 12 }}>{L('التغطية = ما حُصّل (مدفوعات «تحصيل» الفعلية، لا الفوترة) من بداية العام حتى نهاية آخر شهر أغلقته وزارة المالية ÷ المنصرف التراكمي على الأبواب 1–3 في الفترة نفسها، فيُقارَن الرقمان على فترة واحدة. المنصرف يُحدَّث شهرياً من وزارة المالية فيتأخر عن بيانات الفواتير.', 'Coverage = what was actually collected (Tahseel payments, not billing) from the start of the year to the end of the last month closed by the Ministry of Finance ÷ cumulative spending on chapters 1–3 over the same period, so both figures cover one period. Spending is updated monthly by the Ministry of Finance, so it lags the invoice data.')}</div>
     </div>
@@ -156,7 +156,7 @@ export default function PlanningArea() {
             <div className="rv-tiles cg-tiles">
               <MetricTile label={L('الاعتماد مقابل الإيراد (المستهدف السنوي)', 'Revenue appropriation (annual target)')} value={short(g.target)} sub={L(`بعد التعديل — الأصلي ${short(A.revOriginal)}`, `adjusted — original ${short(A.revOriginal)}`)} />
               <MetricTile label={L(`المحصّل حتى ${dateText(g.reportingDate)}`, `Collected to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — بتاريخ الدفع', 'year to date — by payment date')} />
-              <MetricTile label={L('نسبة المحصّل من الاعتماد', 'Share of the appropriation collected')} value={pct(g.collectionRate)} tone={g.achieved ? 'good' : undefined} sub={L('المحصّل ÷ الاعتماد بعد التعديل', 'Collected ÷ adjusted appropriation')} />
+              <MetricTile label={L('نسبة المحصّل من الاعتماد', 'Share of the appropriation collected')} value={<PctBadge kind="share" v={g.collectionRate} text={pct(g.collectionRate)} />} tone={g.achieved ? 'good' : undefined} sub={L('المحصّل ÷ الاعتماد بعد التعديل', 'Collected ÷ adjusted appropriation')} />
               <MetricTile label={L('المتبقي للوصول إلى الاعتماد', 'Remaining to the appropriation')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تم تحقيق المستهدف', 'Target reached') : L('الاعتماد − المحصّل', 'Appropriation − collected')} />
             </div>
 
