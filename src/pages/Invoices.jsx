@@ -4,8 +4,8 @@ import { useI18n } from '../context/I18nContext';
 import { useRevenue } from '../context/RevenueContext';
 import { CATEGORY_LABELS } from '../data/revenueMetrics';
 import { pickBi } from '../data/revenueInsights';
-import { ProvenanceBadge, ScopeBar, DefinitionButton } from '../components/revenue/RevenueUI';
-import { useL, ratioText } from '../utils/bi';
+import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
+import { useL } from '../utils/bi';
 import { useAsync } from '../utils/useAsync';
 import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
@@ -101,13 +101,6 @@ export default function Invoices() {
 
       <ScopeBar hideStatus />
 
-      <div className="rv-tiles" aria-label={bi.L('Indicators for the scope above', 'مؤشرات النطاق أعلاه')}>
-        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Gross billed', 'إجمالي المفوتر')}</span><DefinitionButton metric="gross" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.totals.gross)}>{bi.short(rev.snapshot.totals.gross)}</div><div className="rv-tile__sub">{bi.invoices(rev.snapshot.totals.count)}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Net billed', 'صافي المفوتر')}</span><DefinitionButton metric="net" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.totals.net)}>{bi.short(rev.snapshot.totals.net)}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Net uncollected', 'الرصيد القائم')}</span><DefinitionButton metric="netUncollected" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.stock.netUncollected)}>{bi.short(rev.snapshot.stock.netUncollected)}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Collected ÷ net billed', 'المحصّل ÷ صافي المفوتر')}</span><DefinitionButton metric="collectedOverNet" /></div><div className="rv-tile__value" dir="ltr">{ratioText(rev.snapshot.totals.collectedOverNet, bi.ar)}</div></div>
-      </div>
-
       <div className="card card-pad" style={{ padding: '10px 14px' }} role="search" aria-label={bi.L('Invoice filters', 'مرشحات الفواتير')}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <input id="inv_search" className="input" style={{ flex: '1 1 220px', height: 32, minWidth: 180 }} placeholder={bi.L('Invoice, SADAD, subscription, violation, CR, payer or contract', 'فاتورة أو سداد أو اشتراك أو مخالفة أو سجل تجاري أو دافع أو عقد')} aria-label={bi.L('Search', 'بحث')} value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -124,32 +117,18 @@ export default function Invoices() {
         </div>
       </div>
 
-      <div className="grid grid-3" role="group" aria-label={bi.L('Totals of the matching invoices', 'إجماليات الفواتير المطابقة')}>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr">{loading && !res ? '…' : bi.count(total)}</div>
-          <div className="kpi__label">{bi.L('Invoices matching the filters', 'فواتير مطابقة للمرشحات')}</div>
+      <section className="card card-pad inv-stats" aria-label={bi.L('Collection statistics of the matching invoices', 'إحصاءات التحصيل للفواتير المطابقة')}>
+        <h2 className="ip-h">{bi.L('Collection statistics — the matching invoices', 'إحصاءات التحصيل — الفواتير المطابقة')}</h2>
+        <div className="inv-stats__grid">
+          <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{loading && !res ? '…' : bi.count(total)}</b></div>
+          <div><span className="ip-k">{bi.L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr" title={bi.sar(sums.net)}>{bi.short(sums.net)}</b></div>
+          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big ip-good" dir="ltr" title={bi.sar(sums.collected)}>{bi.short(sums.collected)}</b></div>
+          <div><span className="ip-k">{bi.L('Uncollected', 'غير المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(sums.outstanding)}>{bi.short(sums.outstanding)}</b></div>
+          <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big" dir="ltr">{sums.net > 0 ? `${(Math.round((sums.collected / sums.net) * 1000) / 10).toFixed(1)}%` : '—'}</b></div>
         </div>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr" title={bi.sar(sums.gross)}>{bi.short(sums.gross)}</div>
-          <div className="kpi__label">{bi.L('Gross billed (before exclusions)', 'إجمالي المفوتر (قبل الاستبعادات)')}</div>
-        </div>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr" title={bi.sar(sums.exclusions)}>{bi.short(sums.exclusions)}</div>
-          <div className="kpi__label">{bi.L('Exclusions (deducted once)', 'الاستبعادات (تُخصم مرة واحدة)')}</div>
-        </div>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr" title={bi.sar(sums.net)}>{bi.short(sums.net)}</div>
-          <div className="kpi__label">{bi.L('Net billed = gross − exclusions', 'صافي المفوتر = الإجمالي − الاستبعادات')}</div>
-        </div>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr" title={bi.sar(sums.collected)}>{bi.short(sums.collected)}</div>
-          <div className="kpi__label">{bi.L('Collected (within net billed)', 'المحصّل (ضمن صافي المفوتر)')}</div>
-        </div>
-        <div className="card card-pad">
-          <div className="kpi__value" dir="ltr" title={bi.sar(sums.outstanding)}>{bi.short(sums.outstanding)}</div>
-          <div className="kpi__label">{bi.L('Uncollected = net − collected', 'غير المحصّل = الصافي − المحصّل')} · {bi.L('collection rate', 'نسبة التحصيل')} {sums.net > 0 ? `${(Math.round((sums.collected / sums.net) * 1000) / 10).toFixed(1)}%` : bi.L('Not available', 'غير متاحة')}</div>
-        </div>
-      </div>
+        {sums.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(sums.collected / sums.net, 1) * 100}%` }} /><i className="ip-bar__left" style={{ width: `${Math.max(1 - sums.collected / sums.net, 0) * 100}%` }} /></div>}
+        <div className="muted" style={{ fontSize: 12 }}>{bi.L('Collection rate = collected ÷ net billed of the invoices that match the filters above.', 'نسبة التحصيل = المحصّل ÷ صافي المفوتر للفواتير المطابقة للمرشحات أعلاه.')}</div>
+      </section>
 
       <div className="card card-pad">
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{t('inv_makeen_note')} {bi.L('Amounts in this table are full SAR; cards above show one appropriate unit per amount.', 'المبالغ في هذا الجدول بالريال كاملة؛ والبطاقات أعلاه بوحدة واحدة مناسبة لكل مبلغ.')}</div>

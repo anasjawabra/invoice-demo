@@ -715,3 +715,4 @@
 .ra-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 14px; align-items: end; }
 .ra-filters__state { font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
 .ra-ctx { font-size: 12px; background: var(--surface-2, #eef2f7); border-radius: 6px; padding: 2px 8px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
+.inv-stats { display: grid; gap: 10px; } .inv-stats__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 20px; }
