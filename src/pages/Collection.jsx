@@ -40,7 +40,7 @@ export default function Collection() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">{L('Outstanding collection worklist', 'قائمة التحصيل للمتبقي')}</h1>
+          <h1 className="page-title">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</h1>
           <div className="page-sub">{L('Invoices with a balance still to collect, ranked by amount, aging, actionable opportunity and evidence quality — not by the lowest collection percentage.', 'فواتير لها رصيد متبقٍ للتحصيل، مرتبة بحسب المبلغ والتقادم والفرصة القابلة للتنفيذ وجودة الدليل — وليس بأقل نسبة تحصيل.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

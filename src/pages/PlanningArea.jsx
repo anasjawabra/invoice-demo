@@ -189,7 +189,7 @@ export default function PlanningArea() {
                     : <p>{L(`المتبقي للاعتماد ${short(g.remaining)} خلال ${g.pace.monthsLeft.toFixed(1)} شهراً تقريباً (الشهر الحالي بنسبة أيامه المتبقية)، أي متوسط تحصيل مطلوب ${short(g.pace.requiredPerMonth)} شهرياً، مقابل ${short(g.pace.plannedPerMonth)} شهرياً في الخطة.`, `${short(g.remaining)} remains to the appropriation over about ${g.pace.monthsLeft.toFixed(1)} months (the current month counted by its remaining days): an average of ${short(g.pace.requiredPerMonth)} per month is needed, against ${short(g.pace.plannedPerMonth)} per month in the plan.`)}</p>}
                 </>
               )}
-              <div className="muted" style={{ fontSize: 12 }}>{L('لا تُعرض إجراءات مقترحة لأن بيانات الفواتير وحدها لا تبيّن سبب الفجوة. ', 'No actions are suggested: the invoice data alone does not show why there is a gap. ')}<Link className="xref" to="/collection">{L('عرض الفواتير المتبقية (قائمة التحصيل)', 'Open the remaining invoices (collection worklist)')}</Link></div>
+              <div className="muted" style={{ fontSize: 12 }}>{L('لا تُعرض إجراءات مقترحة لأن بيانات الفواتير وحدها لا تبيّن سبب الفجوة. ', 'No actions are suggested: the invoice data alone does not show why there is a gap. ')}<Link className="xref" to="/collection">{L('عرض الفواتير المتبقية (قائمة الفواتير غير المحصّلة)', 'Open the remaining invoices (collection worklist)')}</Link></div>
             </div>
           </>
         )}

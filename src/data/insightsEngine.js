@@ -114,7 +114,7 @@ export function buildInsights({ snapshot, prev = null, comparison = null, foreca
       body: bi(`${((old / tot) * 100).toFixed(0)}% من الرصيد القائم متأخر أكثر من 90 يوماً. المتأخر ${(snapshot.stock.overdue / tot * 100).toFixed(0)}% من الرصيد؛ والباقي لم يحن استحقاقه.`, `${((old / tot) * 100).toFixed(0)}% of the standing balance is more than 90 days overdue. Overdue is ${(snapshot.stock.overdue / tot * 100).toFixed(0)}% of the balance; the rest is not yet due.`),
       evidence: [{ k: bi('الرصيد القائم', 'Standing balance'), v: tot, fmt: 'money' }, { k: bi('متأخر أكثر من 90 يوماً', 'More than 90 days overdue'), v: old, fmt: 'money' }, { k: bi('متأخر', 'Overdue'), v: snapshot.stock.overdue, fmt: 'money' }, { k: bi('لم يحن', 'Not yet due'), v: snapshot.stock.notYetDue, fmt: 'money' }],
       basis: bi(`رصيد قائم في ${snapshot.cutoff} لكل ما صدر حتى ذلك التاريخ (لا يتأثر بفترة الإصدار)`, `Standing balance at ${snapshot.cutoff} for everything issued up to then (independent of the issue period)`),
-      drill: { to: '/collection', label: bi('قائمة التحصيل', 'Collection worklist') }, caveat: bi('لا تسجل البيانات سبب عدم السداد.', 'The data does not record why a payer has not paid.')
+      drill: { to: '/collection', label: bi('قائمة الفواتير غير المحصّلة', 'Uncollected invoices list') }, caveat: bi('لا تسجل البيانات سبب عدم السداد.', 'The data does not record why a payer has not paid.')
     });
   }
 

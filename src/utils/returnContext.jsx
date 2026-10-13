@@ -51,7 +51,7 @@ export function usePageLabel() {
   if (p.startsWith('/enforcement')) return L('Enforcement management', 'إدارة التنفيذ');
   if (p.startsWith('/contracts')) return L('Contracts', 'العقود');
   if (p.startsWith('/noncollection')) return L('Noncollection and exclusions', 'عدم التحصيل والاستبعادات');
-  if (p.startsWith('/collection')) return L('Collection worklist', 'قائمة التحصيل');
+  if (p.startsWith('/collection')) return L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة');
   if (p.startsWith('/risk')) return L('Risks and deviations', 'المخاطر والانحرافات');
   if (p.startsWith('/settings/data-sources')) return L('Data sources', 'مصادر البيانات');
   if (p.startsWith('/settings/data-quality')) return L('Data quality', 'جودة البيانات');

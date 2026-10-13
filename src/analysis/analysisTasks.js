@@ -145,7 +145,7 @@ const S = {
       ctx.anomalies = anomalyRows(an);
       ctx.references = wl.rows.slice(0, 8).map((r) => ({ id: r.id, outstanding: r.outstanding, category: r.category }));
       ctx.cards = buildDecisionCards(snap, { enforcementCases: ctx.cases || [] });
-      h.detail(bi(`${countFmt(wl.total)} outstanding invoice(s) in the collection worklist (top ${ctx.worklist.length} ranked); ${countFmt(an.total)} in the data-quality worklist`, `${countFmt(wl.total)} فاتورة متبقية في قائمة التحصيل (أعلى ${ctx.worklist.length} مرتبة)؛ ${countFmt(an.total)} في قائمة جودة البيانات`));
+      h.detail(bi(`${countFmt(wl.total)} outstanding invoice(s) in the collection worklist (top ${ctx.worklist.length} ranked); ${countFmt(an.total)} in the data-quality worklist`, `${countFmt(wl.total)} فاتورة متبقية في قائمة الفواتير غير المحصّلة (أعلى ${ctx.worklist.length} مرتبة)؛ ${countFmt(an.total)} في قائمة جودة البيانات`));
     }
   }),
   prepare: (kind) => ({

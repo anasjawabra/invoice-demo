@@ -172,7 +172,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     return [
       { type: 'callout', tone: 'warn', text: L(`تقدير مقابل مستهدف تجريبي: نسبة ${(target * 100).toFixed(0)}% مُدخل غير معتمد. الفجوة = صافي المفوتر × المستهدف − المحصّل، وليست مبلغاً مؤكد التحصيل.`, `An estimate against a demo target: ${(target * 100).toFixed(0)}% is an unapproved input. Gap = net billed × target − collected; it is not a known-collectible amount.`) },
       tbl('gaps', L('أكبر فجوات التحصيل', 'Largest collection gaps'), [H(L('الأمانة', 'Amanah')), H(L('المصدر', 'Source')), H(L('الفواتير', 'Invoices'), 'count'), H(L('صافي المفوتر', 'Net billed'), 'money'), H(L('نسبة التحصيل', 'Collection rate'), 'pct'), H(L('غير المحصّل', 'Uncollected'), 'money'), H(L('الفجوة للمستهدف', 'Gap to target'), 'money')],
-        rows.map((r) => [labelOfAmanah(r.amanah), ar ? sourceAr(r.source) : sourceEn(r.source), r.count, r.net, ratio(r.collected, r.net), r.outstanding, r.gap]), { note: L('أولويات الفواتير الفردية (المبلغ والتقادم والقابلية للمتابعة) في قائمة التحصيل.', 'Invoice-level priorities (amount, aging, actionability) are in the collection worklist.') })
+        rows.map((r) => [labelOfAmanah(r.amanah), ar ? sourceAr(r.source) : sourceEn(r.source), r.count, r.net, ratio(r.collected, r.net), r.outstanding, r.gap]), { note: L('أولويات الفواتير الفردية (المبلغ والتقادم والقابلية للمتابعة) في قائمة الفواتير غير المحصّلة.', 'Invoice-level priorities (amount, aging, actionability) are in the collection worklist.') })
     ];
   };
   sections.status = () => [

@@ -23,7 +23,7 @@ export default function Risk() {
           <div className="page-sub">{L('Invoices that need a business look before figures or actions rely on them: risks (a possible duplicate, a struck-off registry, a deceased debtor) and deviations (a value far from the Amanah baseline, an amount that differs from its line items, a payment on an excluded invoice). Not a collection list: collected invoices may appear here but are labelled.', 'فواتير تحتاج نظراً من الأعمال قبل الاعتماد عليها في الأرقام أو الإجراءات: مخاطر (تكرار محتمل، سجل مشطوب، مدين متوفى) وانحرافات (قيمة بعيدة عن معدل الأمانة، مبلغ يختلف عن بنوده، دفعة على فاتورة مستبعدة). ليست قائمة تحصيل: قد تظهر فواتير محصّلة لكنها موسومة.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Link className="btn btn-sm" to="/collection">{L('Collection worklist', 'قائمة التحصيل')}</Link>
+          <Link className="btn btn-sm" to="/collection">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</Link>
           <Link className="btn btn-sm" to="/settings/data-quality">{L('Data quality (system settings)', 'جودة البيانات (إعدادات النظام)')}</Link>
         </div>
       </div>
