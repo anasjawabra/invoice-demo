@@ -57,7 +57,7 @@ export function financeCompatible(scope, org = null) {
 // operating-expenditure coverage: cash receipts of the fiscal year to date ÷ cash payments of chapters 1–3 over the SAME period (cash basis on both sides)
 export function operatingCoverage(fin, receiptsYtd) {
   const ex = budgetExecution(fin); const paid = ex.operating.paid;
-  return { receiptsYtd, paid, ratio: receiptsYtd != null && paid > 0 ? receiptsYtd / paid : null, basis: { ar: 'نقدي على الطرفين: مقبوضات الإيرادات بتاريخ الدفع ÷ صرف الأبواب 1–3 للفترة نفسها (من بداية السنة حتى اليوم)، وطني', en: 'Cash on both sides: revenue receipts by payment date ÷ payments of chapters 1–3 over the same period (year to date), national' } };
+  return { receiptsYtd, paid, ratio: receiptsYtd != null && paid > 0 ? receiptsYtd / paid : null, basis: { ar: 'نقدي على الطرفين: إيرادات محصلة الإيرادات بتاريخ الدفع ÷ صرف الأبواب 1–3 للفترة نفسها (من بداية السنة حتى اليوم)، وطني', en: 'Cash on both sides: revenue receipts by payment date ÷ payments of chapters 1–3 over the same period (year to date), national' } };
 }
 
 // the monthly PLAN (approved synthetic budget) for all twelve months — a plan, not an actual, so future months are allowed here

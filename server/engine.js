@@ -407,12 +407,17 @@ export function series(st, req) {
     const pc = st.payCount[i]; if (!pc) continue;
     const ps = st.payStart[i];
     let hasReason = -1;
-    for (let p = ps; p < ps + pc; p += 1) {
+    // capped mode (req.capped): collected revenue exactly as the invoice's «collected» is measured — payments up to the invoice's billed amount, in payment-date order; anything above it is an overpayment, not collected revenue
+    let room = Infinity; const order = [];
+    if (req.capped) { for (let p = ps; p < ps + pc; p += 1) order.push(p); order.sort((x, y) => st.pDay[x] - st.pDay[y]); derive(ctx, i, asOf); room = Math.max(ctx.D.billed - ctx.D.cancelledAmount, 0); }
+    for (let q = 0; q < pc; q += 1) {
+      const p = req.capped ? order[q] : ps + q;
       const d = st.pDay[p]; if (d < sc.fromN || d > asOf) continue;
       if (hasReason < 0) { derive(ctx, i, ctx.cutoffN); hasReason = ctx.D.mask !== 0 ? 1 : 0; }
       if (hasReason) continue;
       const k = idx.get(isoOf(d).slice(0, 7)); if (k === undefined) continue;
-      values[k] += st.pAmt[p]; amts.push(st.pAmt[p]); pinv.push(i); pday.push(d);
+      let amt = st.pAmt[p]; if (req.capped) { amt = Math.min(amt, room); room -= amt; }
+      values[k] += amt; amts.push(amt); pinv.push(i); pday.push(d);
     }
   }
   const sorted = Float64Array.from(amts).sort(); const typical = sorted.length ? sorted[sorted.length >> 1] : 0;

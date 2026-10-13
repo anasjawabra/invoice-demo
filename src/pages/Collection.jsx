@@ -45,7 +45,7 @@ export default function Collection() {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => rev.startAnalysis('noncollection', {}, { origin: 'collection' })}>{L('Analyze reasons for noncollection', 'تحليل أسباب عدم التحصيل')}</button>
-          <Link className="btn btn-sm" to="/planning#outlook">{L('Forecast & target', 'التنبؤ والمستهدف')}</Link>
+          <Link className="btn btn-sm" to="/planning">{L('Collection goal', 'هدف التحصيل السنوي')}</Link>
         </div>
       </div>
 

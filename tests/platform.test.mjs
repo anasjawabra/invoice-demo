@@ -38,6 +38,12 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
+import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
+import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
+import { amanahOptionsOf as amanahsG } from '../src/data/revenueLedger.js';
+import nodeFs from 'node:fs';
+import { metricDictionary } from '../src/data/metricDictionary.js';
+import nodePath from 'node:path';
 import { detail } from '../server/materialize.js';
 import { sourcesReport } from '../server/sourcesReport.js';
 import { sanadCases } from '../server/contracts.js';
@@ -1504,6 +1510,72 @@ await test('Review status and alerts: ONE matching-review value per order; unrea
   assert.equal(c2.references.confirmedLinks, ids.length); assert.equal(reviewStatusOf(c2, e2, orderExceptions(e2)), 'complete'); assert.equal(nextActionOf(c2, e2, orderExceptions(e2)).key, c2.finance.state === 'reconciled' ? 'done' : 'gap', 'confirmed references coexist with an unresolved financial difference — and the difference stays visible');
   assert.equal(enforcementCounts([e2]).everReferred, ids.length); const wd = removeLink(store, q.enforceNum, ids[0], { ...NOW, note: 'withdrawn' }).store; const e3 = buildEffectiveCases([ecase(q)], wd)[0];
   assert.equal(enforcementCounts([e3]).everReferred, ids.length - 1, 'the count drops when a link is withdrawn'); assert.equal(orderCompleteness(e3).references.confirmedLinks, ids.length - 1); assert.equal(e3.history.some((h) => h.action === 'removed'), true, 'the withdrawal is kept in the history');
+});
+
+/* ------------------------------------------------------------------ Strategic Dashboard: the annual collection goal */
+const NOW26 = '2026-10-11';
+const mk = (o = {}) => ({ year: 2026, today: NOW26, rate: 0.6, gross: 100, approvedExclusions: 10, monthlyCollected: [2, 3, 3, 3, 3, 3, 3, 3, 3, 4], plan: null, ...o });
+await test('goal: the approved formulas — adjusted total, target, collection rate, remaining (progress below the target)', () => {
+  const g = computeGoal(mk());
+  assert.equal(g.state, 'ok'); assert.equal(g.adjustedTotal, 90); assert.ok(Math.abs(g.target - 54) < 1e-9);
+  assert.equal(g.collected, 30); assert.ok(Math.abs(g.collectionRate - 30 / 90) < 1e-12); assert.ok(Math.abs(g.remaining - 24) < 1e-9);
+  assert.equal(g.achieved, false); assert.equal(g.exceededBy, 0);
+  assert.ok(g.versusPlan < 0, 'behind the plan'); // plan to date: 40.5 at the end of September + 11/31 of October's 4.5
+  assert.ok(Math.abs(g.plannedToDate - (40.5 + 4.5 * (11 / 31))) < 1e-9);
+});
+await test('goal: target reached or exceeded — remaining is zero, never negative', () => {
+  const exact = computeGoal(mk({ monthlyCollected: [54] })); assert.equal(exact.achieved, true); assert.equal(exact.remaining, 0); assert.equal(exact.exceededBy, 0);
+  const over = computeGoal(mk({ monthlyCollected: [30, 30] })); assert.equal(over.achieved, true); assert.equal(over.remaining, 0); assert.ok(Math.abs(over.exceededBy - 6) < 1e-9);
+  assert.ok(over.collectionRate > 0.6); assert.equal(over.pace.requiredPerMonth, 0);
+});
+await test('goal: no valid denominator — nothing is calculated, nothing is shown as zero', () => {
+  for (const [gross, ex] of [[0, 0], [10, 10], [10, 25], [NaN, 0]]) { const g = computeGoal(mk({ gross, approvedExclusions: ex })); assert.equal(g.state, 'no_denominator'); assert.equal(g.target, undefined); assert.equal(g.collectionRate, undefined); assert.equal(g.actual, undefined); }
+  assert.equal(computeGoal(mk({ year: 2027 })).state, 'future_year');
+});
+await test('goal: actual stops at the reporting date (future months have no value, not zero); a closed year is measured at its end', () => {
+  const g = computeGoal(mk()); assert.equal(g.reportingDate, NOW26); assert.equal(g.actual.length, 12);
+  assert.ok(g.actual.slice(0, 10).every((v) => typeof v === 'number')); assert.ok(g.actual.slice(10).every((v) => v === null));
+  assert.ok(g.actual.every((v, i, a) => i === 0 || v === null || v >= a[i - 1]), 'cumulative never falls');
+  const past = computeGoal(mk({ year: 2025, monthlyCollected: Array(12).fill(4) })); assert.equal(past.reportingDate, '2025-12-31'); assert.equal(past.yearEnded, true);
+  assert.equal(past.actual[11], 48); assert.ok(Math.abs(past.plannedToDate - past.plan.cumulative[11]) < 1e-9); assert.equal(past.pace.monthsLeft, 0); assert.equal(past.pace.requiredPerMonth, 0);
+});
+await test('goal: even monthly plan is labelled an assumption; the partial month is prorated the same way for progress and for the pace', () => {
+  assert.deepEqual(evenPlan(120).map(Math.round), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
+  const g = computeGoal(mk()); assert.equal(g.plan.source, 'assumed'); assert.equal(g.plan.drift, null);
+  assert.ok(Math.abs(monthsLeft('2026-10-11') - (20 / 31 + 2)) < 1e-9); assert.ok(Math.abs(monthsLeft('2026-10-31') - 2) < 1e-9); assert.equal(monthsLeft('2026-12-31'), 0);
+  assert.ok(Math.abs(g.pace.requiredPerMonth - g.remaining / (20 / 31 + 2)) < 1e-9);
+  assert.ok(Math.abs(plannedToDate(evenPlan(120), '2026-01-31') - 10) < 1e-9 && Math.abs(plannedToDate(evenPlan(120), '2026-12-31') - 120) < 1e-9);
+  assert.equal(reportingDateFor(2026, NOW26), NOW26); assert.equal(reportingDateFor(2025, NOW26), '2025-12-31'); assert.equal(reportingDateFor(2027, NOW26), null);
+});
+await test('goal: a saved plan is never recalculated silently; an explicit update keeps the closed months', () => {
+  let store = savePlan(emptyGoalStore(), { year: 2026, amanah: 'all', rate: 0.6, annualTarget: 54, adjustedTotal: 90, at: 't0', by: 'x' });
+  const key = planKey(2026, 'all'); const before = store.plans[key].months.slice();
+  const changed = computeGoal(mk({ gross: 200, plan: store.plans[key] })); // billed amounts doubled after the plan was saved
+  assert.deepEqual(changed.plan.cumulative, before, 'the saved months are untouched'); assert.equal(changed.plan.source, 'saved');
+  assert.ok(changed.plan.drift && changed.plan.drift.saved === 54 && Math.abs(changed.plan.drift.live - 0.6 * 190) < 1e-9, 'the change is reported, not applied');
+  const live = changed.target; store = rebasePlan(store, { year: 2026, amanah: 'all', rate: 0.6, annualTarget: live, adjustedTotal: 190, today: NOW26, at: 't1', by: 'x' });
+  const after = store.plans[key].months; assert.deepEqual(after.slice(0, 9), before.slice(0, 9), 'closed months (Jan–Sep) keep their figures'); assert.ok(Math.abs(after[11] - live) < 1e-9);
+  assert.ok(after.every((v, i, a) => i === 0 || v >= a[i - 1]), 'the plan still rises');
+  assert.equal(rebasePlan(savePlan(emptyGoalStore(), { year: 2025, amanah: 'all', rate: 0.6, annualTarget: 54, adjustedTotal: 90, at: 't', by: 'x' }), { year: 2025, amanah: 'all', rate: 0.6, annualTarget: 99, adjustedTotal: 1, today: NOW26, at: 't2', by: 'x' }).plans[planKey(2025, 'all')].annualTarget, 54, 'a closed year is never rebased');
+});
+await test('goal data: collected revenue by month (capped) equals the snapshot collected; only approved exclusions apply; every Amanah (and the unassigned invoices) adds up to the national figure', () => {
+  const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
+  const one = (am, year = 2026) => { const to = year === 2026 ? TODAY : `${year}-12-31`; const scope = { from: `${year}-01-01`, to, amanah: am, source: 'all' };
+    const sn = snapshot(st, { scope, cfg: approved }); const sr = series(st, { scope: { ...scope, issuedFrom: scope.from, issuedTo: to }, cfg: approved, capped: true });
+    return { T: sn.totals, sum: sr.values.reduce((a, b) => a + b, 0), months: sr.months.length }; };
+  const nat = one('all'); assert.ok(Math.abs(nat.sum - nat.T.collected) < 0.5, 'chart and tile come from the same collected revenue'); assert.equal(nat.T.exclusionsUnapproved, 0);
+  assert.ok(Math.abs(nat.T.gross - nat.T.exclusions - nat.T.net) < 1, 'adjusted total = gross − exclusions');
+  let g = 0; let x = 0; let c = 0; for (const a of [...amanahsG(), { key: 'Unassigned' }]) { const r = one(a.key); assert.ok(Math.abs(r.sum - r.T.collected) < 0.5, a.key); g += r.T.gross; x += r.T.exclusions; c += r.sum; }
+  assert.ok(Math.abs(g - nat.T.gross) < 1 && Math.abs(x - nat.T.exclusions) < 1 && Math.abs(c - nat.sum) < 1, 'Amanah figures add up to the national figures');
+  const past = one('all', 2025); assert.equal(past.months, 12); assert.ok(Math.abs(past.sum - past.T.collected) < 0.5);
+});
+await test('terminology: «المقبوضات» and its forms are gone from every screen text; the approved terms are defined', () => {
+  const hits = []; const walk = (d) => { for (const e of nodeFs.readdirSync(d, { withFileTypes: true })) { const p = nodePath.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(jsx?|mjs)$/.test(e.name) && /مقبوض/.test(nodeFs.readFileSync(p, 'utf8'))) hits.push(p); } };
+  walk('src'); walk('server'); assert.deepEqual(hits, [], 'no source file may contain the retired term');
+  const entries = metricDictionary({ quality: { records: 1 }, cutoff: TODAY, scope: { amanah: 'all', source: 'all', from: '2026-01-01', to: TODAY } });
+  assert.ok(entries.every((e) => e && typeof e.key === 'string' && e.label && e.definition && e.formula), 'every dictionary entry is complete (no empty slot)');
+  const dict = entries.map((e) => e.key);
+  for (const k of ['adjustedTotal', 'targetCollection', 'remainingToTarget']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

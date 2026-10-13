@@ -3543,7 +3543,16 @@ function series(st, req) {
     if (!pc) continue;
     const ps = st.payStart[i];
     let hasReason = -1;
-    for (let p = ps; p < ps + pc; p += 1) {
+    let room = Infinity;
+    const order = [];
+    if (req.capped) {
+      for (let p = ps; p < ps + pc; p += 1) order.push(p);
+      order.sort((x, y) => st.pDay[x] - st.pDay[y]);
+      derive(ctx, i, asOf);
+      room = Math.max(ctx.D.billed - ctx.D.cancelledAmount, 0);
+    }
+    for (let q2 = 0; q2 < pc; q2 += 1) {
+      const p = req.capped ? order[q2] : ps + q2;
       const d = st.pDay[p];
       if (d < sc.fromN || d > asOf) continue;
       if (hasReason < 0) {
@@ -3553,8 +3562,13 @@ function series(st, req) {
       if (hasReason) continue;
       const k = idx.get(isoOf(d).slice(0, 7));
       if (k === void 0) continue;
-      values[k] += st.pAmt[p];
-      amts.push(st.pAmt[p]);
+      let amt = st.pAmt[p];
+      if (req.capped) {
+        amt = Math.min(amt, room);
+        room -= amt;
+      }
+      values[k] += amt;
+      amts.push(amt);
       pinv.push(i);
       pday.push(d);
     }

@@ -241,7 +241,7 @@ export const TASK_KINDS = {
       {
         id: 'forecast_fit',
         label: bi('Fit trend and measure backtest', 'مُلاءمة الاتجاه وقياس الاختبار الرجعي'),
-        active: bi('Fitting the trend on trailing receipts and running the one-step backtest; the target is not used', 'مُلاءمة الاتجاه على المقبوضات السابقة وتشغيل الاختبار الرجعي؛ دون استخدام المستهدف'),
+        active: bi('Fitting the trend on trailing receipts and running the one-step backtest; the target is not used', 'مُلاءمة الاتجاه على الإيرادات المحصلة السابقة وتشغيل الاختبار الرجعي؛ دون استخدام المستهدف'),
         async run(ctx, h) {
           ctx.forecast = await runForecast(ctx, { targets: ctx.targets || DEFAULT_TARGETS });
           if (!ctx.forecast.ready) h.warn(ctx.forecast.reasonNotReady, { limitation: true });

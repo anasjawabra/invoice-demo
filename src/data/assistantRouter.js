@@ -158,7 +158,7 @@ export function classify(text) {
   if (has(s, ['sanad', 'efaa', 'enforcement', 'سند', 'إفاء', 'إنفاذ', 'تنفيذ'])) return 'enforcement';
   if (has(s, ['source', 'connected', 'integration', 'tahseel', 'data available', 'مصدر', 'مصادر', 'متصل', 'تكامل'])) return 'sources';
   if (has(s, ['compare', 'which amanah', 'worst', 'best', 'by amanah', 'ranking', 'قارن', 'أي أمانة', 'الأسوأ', 'الأفضل'])) return 'amanah_compare';
-  if (has(s, ['collection', 'collected', 'billed', 'revenue', 'rate', 'kpi', 'performance', 'تحصيل', 'محصل', 'محصّل', 'مقبوض', 'إيراد', 'فوتر', 'معدل', 'أداء'])) return 'overview';
+  if (has(s, ['collection', 'collected', 'billed', 'revenue', 'rate', 'kpi', 'performance', 'تحصيل', 'محصل', 'محصّل', 'إيراد', 'فوتر', 'معدل', 'أداء'])) return 'overview';
   return 'unknown';
 }
 

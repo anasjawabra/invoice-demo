@@ -1,286 +1,156 @@
-// «التخطيط المالي والاستراتيجي» — management area 2. Objectives & targets → revenue and expenditure plan → actual vs plan → forecasts, gaps and
-// funding → what-if scenarios → initiatives and decisions. The dashboard's figures are the BASELINE through shared calculations; only a compact
-// summary is shown here. Actuals, approved budgets, targets, forecasts and user scenarios are kept in separate places and never mixed.
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+// «التخطيط المالي والاستراتيجي» — the Strategic Dashboard, reduced to ONE question: how far are we from this year's collection goal?
+//   What is our collection goal?  ·  How are we progressing month by month?  ·  How much remains?  ·  What monthly pace is needed in the remaining months?
+// One reporting period (the selected year, up to the reporting date), one invoice scope, approved exclusions only, one optional Amanah — the same for every figure and for the chart.
+// The calculations are in src/data/collectionGoal.js. There are no scenarios, forecasts, assistants, registers or configuration screens here.
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
-import { useAsync } from '../utils/useAsync';
 import { useAuth } from '../context/AuthContext';
+import { useAsync } from '../utils/useAsync';
 import { useAr } from '../utils/useAr';
-import { fmtMoney, fmtInt, unitOfValues, scaled } from '../utils/money';
-import ScenarioPanel from '../components/strategic/ScenarioPanel';
-import NamedScenarios from '../components/strategic/NamedScenarios';
-import BasesReconciliation from '../components/strategic/BasesReconciliation';
-import { cleanScenario } from '../data/namedScenarios';
-import ActionRegister from '../components/strategic/ActionRegister';
-import AssistantPanel from '../components/strategic/AssistantPanel';
-import ObjectivesPanel from '../components/strategic/ObjectivesPanel';
-import PlanBar from '../components/strategic/PlanBar';
-import { PlanTable, VarianceBlock, ForecastGaps } from '../components/strategic/PlanOutlook';
-import { AsyncBlock, Skeleton } from '../components/strategic/AsyncState';
-import { targetAchievementFrom, monthlyTargetSeries, monthsBetween, compareSnapshots, previousScope } from '../data/revenueMetrics';
-import { forecastReceipts, targetVsForecast } from '../data/revenueOutlook';
-import { requiredPace, runScenario, scenarioBase, financeProjection, monthsBetweenDates, DEFAULT_SCENARIO } from '../data/strategicCalc';
-import { buildProposals } from '../data/proposals';
-import { loadRegister, saveRegister, addProposal } from '../data/actionRegister';
-import { loadPlans, savePlans, newPlan, editPlan } from '../data/planStore';
-import { generateFinance, budgetExecution, operatingCoverage, financeCompatible } from '../data/syntheticFinance';
-import { buildCommandModel } from '../data/commandModel';
-import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
-import { buildDecisionCards } from '../data/revenueInsights';
-import { PLANNING_PROMPTS } from '../data/strategicAssistant';
-import { amanahOptionsOf } from '../data/revenueLedger';
 import { actorName } from '../utils/actor';
-import { headlineCfg, measure, BASIS } from '../data/measure';
-import { loadComparison } from '../data/comparison';
-import { usePersistOnChange } from '../utils/usePersistOnChange';
-import { DEFAULT_PLAN_SCOPE, planScopeOf, scopeLabelOf, cfgHash } from '../data/planStore';
-import LocalDataPanel from '../components/LocalDataPanel';
-import SectionTabs, { tabIdOf } from '../components/strategic/SectionTabs';
-import { fmtRangeText } from '../data/clock';
+import { AsyncBlock } from '../components/strategic/AsyncState';
+import CollectionChart from '../components/strategic/CollectionChart';
+import { MetricTile } from '../components/revenue/RevenueUI';
+import { amanahOptionsOf, DATA_START } from '../data/revenueLedger';
+import { ENTITIES, ENT_UNASSIGNED } from '../data/catalog';
+import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
+import { fmtDateText } from '../data/clock';
+import { computeGoal, reportingDateFor, loadGoalStore, saveGoalStore, savePlan, rebasePlan, planKey } from '../data/collectionGoal';
 
-const NAV = [['objectives', 'الأهداف والمستهدفات', 'Objectives & targets'], ['plan', 'خطط الإيرادات والنفقات', 'Revenue & expenditure plan'], ['variance', 'الفعلي مقابل الخطة', 'Actual vs plan'], ['outlook', 'التوقعات والفجوات', 'Forecasts & gaps'], ['scenario', 'السيناريوهات', 'Scenarios'], ['decisions', 'المبادرات والقرارات', 'Initiatives & decisions']];
-const TAB_IDS = NAV.map(([id]) => id);
-const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
+const pct = (v) => `${(v * 100).toFixed(1)}%`;
+// every Amanah, plus the invoices that Makeen assigns to none — so that the Amanah figures add up to the national figures
+const allAmanahOptions = () => [...amanahOptionsOf(), { key: ENTITIES[ENT_UNASSIGNED].en, en: ENTITIES[ENT_UNASSIGNED].en, ar: ENTITIES[ENT_UNASSIGNED].ar }];
 
 export default function PlanningArea() {
-  const rev = useRevenue(); const { user } = useAuth(); const navigate = useNavigate(); const loc = useLocation();
-  const { L, B, ar, lang } = useAr();
-  const today = rev.cfg.cutoff; const { data, cfg, targets } = rev;
-  const [assistOpen, setAssistOpen] = useState(false);
-  const [register, setRegister] = useState(loadRegister);
-  const [store, setStore] = useState(loadPlans);
-  const [exporting, setExporting] = useState(''); const [retry, setRetry] = useState(0); const [toast, setToast] = useState('');
+  const rev = useRevenue(); const { user } = useAuth();
+  const { L, ar, lang, short, sar } = useAr();
+  const today = rev.cfg.cutoff; const todayYear = Number(today.slice(0, 4));
+  const years = useMemo(() => { const out = []; for (let y = todayYear; y >= Number(DATA_START.slice(0, 4)); y -= 1) out.push(y); return out; }, [todayYear]);
+  const [year, setYear] = useState(todayYear);
+  const [amanah, setAmanah] = useState('all');
+  const [retry, setRetry] = useState(0);
+  const amanahOptions = useMemo(() => allAmanahOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
+  const [store, setStore] = useState(loadGoalStore);
+  const key = planKey(year, amanah); const saved = store.plans[key] || null;
+  const [rateText, setRateText] = useState(() => String(Math.round(rev.targets.collectionRate.value * 100)));
+  useEffect(() => { setRateText(String(Math.round((saved?.rate ?? rev.targets.collectionRate.value) * 100))); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- a different year or Amanah starts from its saved goal (or the default)
+  const rateNum = Number(rateText); const rateValid = Number.isFinite(rateNum) && rateNum >= 1 && rateNum <= 100;
   const canEdit = rev.canReview; const by = actorName(user, lang) || 'user';
-  // stored records are written only after a user action — never when the page loads
-  usePersistOnChange(register, saveRegister); usePersistOnChange(store, savePlans);
-  const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
+  const [toast, setToast] = useState('');
 
-  // there is always an ACTIVE plan; when none is stored a draft is held in memory (not saved) and is stored with the first edit
-  const draft = useMemo(() => newPlan({ by, name: L(`خطة السنة المالية ${today.slice(0, 4)}`, `Fiscal year ${today.slice(0, 4)} plan`), scope: { ...DEFAULT_PLAN_SCOPE, label: scopeLabelOf(DEFAULT_PLAN_SCOPE, lang === 'ar') }, period: { from: `${today.slice(0, 4)}-01-01`, to: `${today.slice(0, 4)}-12-31` } }), []); // eslint-disable-line react-hooks/exhaustive-deps
-  const viewStore = store.plans.length ? store : { ...store, plans: [draft], activeId: draft.id };
-  const updateStore = useCallback((fn) => setStore((st) => fn(st.plans.length ? st : { ...st, plans: [draft], activeId: draft.id })), [draft]);
-  const plan = viewStore.plans.find((p) => p.id === viewStore.activeId) || viewStore.plans[0];
-  const setPlan = useCallback((fn) => updateStore((st) => ({ ...st, plans: st.plans.map((p) => (p.id === (st.activeId || st.plans[0]?.id) ? fn(p) : p)) })), [updateStore]);
-  const scenario = plan.scenario || DEFAULT_SCENARIO; const planDate = plan.planDate || `${today.slice(0, 4)}-12-31`;
-  const setScenario = (sc) => setPlan((p) => editPlan(p, { scenario: sc }, by));
-  const setPlanDate = (d) => setPlan((p) => editPlan(p, { planDate: d < today ? today : d }, by));
+  // ONE data request set for the selected year and Amanah: invoices issued from 1 January to the reporting date; only APPROVED exclusions (rules the business has approved); payments counted up to the same date.
+  const reporting = reportingDateFor(year, today);
+  const approvedCfg = useMemo(() => normalizeConfig({ ...rev.cfg, rules: Object.fromEntries(EXCLUSION_RULES.map((r) => [r.id, r.approval === 'approved'])) }), [rev.cfg]);
+  const DATA = useAsync(async () => {
+    if (!reporting) return null;
+    const scope = { from: `${year}-01-01`, to: reporting, amanah, source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
+    const [snap, ser] = await Promise.all([
+      rev.data.snapshot(scope, { cfg: approvedCfg }),
+      rev.data.series({ ...scope, issuedFrom: scope.from, issuedTo: reporting }, { cfg: approvedCfg, capped: true })
+    ]);
+    return { gross: snap.totals.gross, exclusions: snap.totals.exclusions, monthly: ser.values, invoices: snap.population.issuedInPeriod };
+  }, [rev.data, year, amanah, reporting, approvedCfg, retry]);
 
-  // ---- EVERYTHING on this page is computed from the PLAN's period and organisational scope, under the shared headline basis — never from the dashboard filter
-  const s = useMemo(() => planScopeOf(plan, today), [plan.period, plan.scope, today]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sKey = JSON.stringify(s);
-  const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
-  const PS = useAsync(async () => {
-    const main = await measure(data, s, cfg); const cmp = await loadComparison(data, s, cfg, main);
-    return { key: sKey, snapshot: main, prevSnapshot: cmp.prev, comparison: cmp.comparison };
-  }, [data, sKey, cfg, retry]);
-  const fresh = PS.data && PS.data.key === sKey ? PS.data : null;
-  const snapshot = fresh?.snapshot || null; const prevSnapshot = fresh?.prevSnapshot || null; const comparison = fresh?.comparison || null; const T = snapshot?.totals;
-  const scopeLabel = plan.scope?.label || scopeLabelOf(plan.scope, ar);
+  const g = useMemo(() => (DATA.data ? computeGoal({ year, today, rate: rateValid ? rateNum / 100 : 0, gross: DATA.data.gross, approvedExclusions: DATA.data.exclusions, monthlyCollected: DATA.data.monthly, plan: saved }) : null), [DATA.data, year, today, rateNum, rateValid, saved]);
+  const dateText = (iso) => fmtDateText(iso, lang);
+  const amanahName = amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : (() => { const a = allAmanahOptions().find((x) => x.key === amanah); return a ? (ar ? a.ar : a.en) : amanah; })();
 
-  const fy = targets.fiscalYear; const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
-  const narrowed = s.amanah !== 'all' || s.source !== 'all' || s.scopeType !== 'all' || s.muni !== 'all' || !!rev.org?.amanahKeys;
-  const X = useAsync(async () => {
-    const through = s.to < today ? s.to : today; const fcScope = { ...scopeBase, from: `${fy}-01-01`, to: today };
-    const fyFull = await data.series(fcScope, { asOf: today });
-    const fyThrough = through === today ? fyFull : await data.series({ ...fcScope, to: through }, { asOf: through });
-    const achievement = targetAchievementFrom(fyThrough, s, cfg, targets);
-    const forecast = await forecastReceipts(data, scopeBase, cfg, { targets });
-    return { fyFull, achievement, forecast };
-  }, [data, JSON.stringify(scopeBase), s.to, cfg, targets, retry]);
-  // F-23: receipts by payment date vs collected on the plan period's invoices — the same payment window, split by the invoice's issue date (exact when the plan period is inside the fiscal year)
-  const REC = useAsync(async () => {
-    const fyFrom = `${fy}-01-01`; const through = s.to < today ? s.to : today;
-    if (!(plan.period.from >= fyFrom && plan.period.to <= `${fy}-12-31`)) return { key: sKey, available: false };
-    const w = { ...scopeBase, from: fyFrom, to: through }; const sum = (r) => r.values.reduce((t, v) => t + v, 0);
-    const [all, onPeriod] = await Promise.all([data.series(w, { asOf: through }), data.series({ ...w, issuedFrom: s.from, issuedTo: s.to }, { asOf: through })]);
-    return { key: sKey, available: true, receiptsWindow: sum(all), onPeriodInvoices: sum(onPeriod) };
-  }, [data, sKey, fy, JSON.stringify(plan.period), cfg, retry]);
-  const x = X.data; const ach = x?.achievement; const achAvail = !!ach && !ach.scopeCaveat && ach.annualTarget != null;
-
-  const scopeText = snapshot ? `${snapshot.scope.from} → ${snapshot.scope.to}` : '';
-  const proposals = useMemo(() => (snapshot && T.count > 0 ? buildProposals({ snapshot, prev: prevSnapshot, comparison, targets, cases: rev.cases, scopeText }) : []), [snapshot, prevSnapshot, comparison, targets, rev.cases, scopeText]); // eslint-disable-line react-hooks/exhaustive-deps
-  const pace = useMemo(() => (x ? requiredPace({ achievement: ach, series: x.fyFull, today, planDate }) : { available: false }), [x, ach, today, planDate]);
-  const scenRes = useMemo(() => (snapshot && T.net > 0 ? runScenario(scenarioBase(snapshot), scenario, targets.collectionRate.value) : null), [snapshot, scenario, targets]); // eslint-disable-line react-hooks/exhaustive-deps
-  const funding = useMemo(() => {
-    if (!financeOk || !x) return { available: false };
-    const ex = budgetExecution(fin); const pm = fin.chapters[0].months.map((_, i) => fin.chapters.reduce((t, c) => t + c.months[i].paid, 0));
-    return financeProjection({ receiptsYtd: x.fyFull.values.reduce((t, v) => t + v, 0), paymentsYtd: ex.total.paid, series: x.fyFull, paymentsByMonth: pm, forecast: x.forecast, monthsLeft: monthsBetweenDates(today, planDate), scenarioDeltaCash: scenRes?.deltaCollected || 0, scenario });
-  }, [financeOk, x, fin, today, planDate, scenRes, scenario]);
-  const gaps = useMemo(() => { if (!snapshot) return []; const tr = targets.collectionRate.value; const lab = new Map(snapshot.byAmanah.map((g) => [g.key, g.label])); return (snapshot.matrix?.amanahSource || []).map((r) => ({ ...r, gap: Math.max(0, r.net * tr - r.collected), label: lab.get(r.amanah) || r.amanah })).filter((r) => r.gap > 0).sort((a, b) => b.gap - a.gap).slice(0, 6); }, [snapshot, targets]);
-
-  const ex = financeOk ? budgetExecution(fin) : null; const cov = financeOk && x ? operatingCoverage(fin, x.fyFull.values.reduce((t, v) => t + v, 0)) : null;
-  const actuals = useMemo(() => (snapshot ? ({
-    collection_rate: T.collectedOverNet.calculable ? T.collectedOverNet.value * 100 : null, exclusion_rate: T.exclusionRate.calculable ? T.exclusionRate.value * 100 : null,
-    overdue_share: T.net > 0 ? (T.overdueOutstanding / T.net) * 100 : null, receipts_ytd: achAvail ? ach.receiptsYtd : null,
-    budget_execution: ex?.total.execution != null ? ex.total.execution * 100 : null, coverage: cov?.ratio != null ? cov.ratio * 100 : null
-  }) : {}), [snapshot, T, achAvail, ach, ex, cov]); // eslint-disable-line react-hooks/exhaustive-deps
-  const systemRows = [
-    { id: 'sys-rate', title: L('رفع نسبة التحصيل إلى المستهدف', 'Raise the collection rate to the target'), metric: 'collection_rate', target: targets.collectionRate.value * 100, status: targets.collectionRate.status === 'approved' ? 'approved' : 'proposed', owner: null, due: `${fy}-12-31`, note: L('مُدخل تجريبي — يُعدَّل من الحقل أدناه', 'demo input — edit in the field below') },
-    { id: 'sys-rec', title: L('المقبوضات التراكمية منذ بداية السنة', 'Cumulative receipts since the start of the year'), metric: 'receipts_ytd', target: achAvail ? ach.targetYtd : null, status: 'proposed', owner: null, due: today, note: achAvail ? L(`جزء من مستهدف سنوي ${fmtMoney(ach.annualTarget, { lang })} (غير معتمد)`, `part of an annual target of ${fmtMoney(ach.annualTarget, { lang })} (unapproved)`) : L('المستهدف السنوي وطني؛ غير متاح لهذا النطاق', 'The annual target is national; not available for this scope') }
-  ];
-  const editTarget = (k, v) => rev.setTargets((t) => ({ ...t, [k]: { ...t[k], value: v, status: 'demo' } }));
-
-  /* ---------- assistant (planning tasks only) ---------- */
-  const live = useRef({}); live.current = { rev, scopeBase, s, register, proposals, targets, lang, today, labelOfAmanah, cfg, data };
-  const ctxFactory = useCallback(() => {
-    const c = live.current; const sc0 = { from: c.s.from, to: c.s.to, ...c.scopeBase }; const atEnd = { cfg: headlineCfg(c.cfg) };
-    return {
-      mode: 'planning', lang: c.lang, today: c.today, scope: sc0, targets: c.targets, register: c.register, proposals: c.proposals, labelOfAmanah: c.labelOfAmanah, compare: compareSnapshots,
-      fetchSnap: (sc) => c.data.snapshot({ ...sc }),
-      fetchPrev: async (sc) => { const pv = previousScope({ from: sc.from, to: sc.to }); const r = await c.data.snapshot({ ...sc, from: pv.from, to: pv.to }, atEnd); return r.totals.count > 0 ? r : null; },
-      getAchievement: async (sc) => { const fc = { ...sc, from: `${c.targets.fiscalYear}-01-01`, to: c.today }; const through = sc.to < c.today ? sc.to : c.today; const series = await c.data.series({ ...fc, to: through }, { asOf: through }); return targetAchievementFrom(series, sc, c.cfg, c.targets); },
-      applyFilters: () => {} // a period / Amanah named in a question applies to that ANSWER only; the plan scope never changes silently
-    };
-  }, []);
-  const onAssistAction = (ac) => { if (ac.kind === 'scenario') { setScenario({ ...DEFAULT_SCENARIO, ...scenario, ...ac.patch }); setAssistOpen(false); goTab('scenario'); } if (ac.kind === 'export') doExport('docx'); };
-
-  async function doExport(kind) {
-    if (!snapshot || exporting || !plan) return; setExporting(kind);
-    try {
-      const sc = { from: s.from, to: s.to, ...scopeBase }; const cash = await data.series(sc, { asOf: s.to < today ? s.to : today });
-      const out = { snapshot, forecast: x?.forecast, targetPos: null, achievement: ach, coverage: null, cards: buildDecisionCards(snapshot, { enforcementCases: rev.cases }), anomalies: [] };
-      const objectivesRows = [...systemRows, ...viewStore.objectives];
-      const model = buildCommandModel({ lang, today, spec: { preset: 'custom', scope: { ...sc } }, out, prev: comparison?.comparable ? prevSnapshot : null, prevScope: prevSnapshot?.scope, cash, bridge: null, targets, cases: rev.cases, meta: rev.meta, fair: null, achievement: ach, pace, forecast: x?.forecast, scenario, planDate, register, plan, objectivesRows, actuals, funding, fin, financeOk, fyReceiptsYtd: x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null });
-      if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model);
-    } catch (e) { setToast(L(`تعذّر التصدير: ${e.message}`, `Export failed: ${e.message}`)); } finally { setExporting(''); }
-  }
-  // the SAME scenario of a saved version, run on today's data under the version's own period and scope (saved figures are never overwritten)
-  const recomputeVersion = async (v) => {
-    const sc = planScopeOf({ period: v.period || plan.period, scope: v.scope || plan.scope }, today);
-    const snap = await measure(data, sc, cfg); const res = runScenario(scenarioBase(snap), v.scenario, targets.collectionRate.value);
-    return { rate: res.scenario.rate ?? null, collected: res.scenario.collected ?? null, cutoff: snap.cutoff };
-  };
-  const proposeFromScenario = () => {
-    const parts = [['dRate', L('معدل التحصيل', 'collection rate'), true], ['recovery', L('استرداد المتأخر', 'overdue recovery')], ['resolve', L('حسم الحالات', 'pending cases')], ['billing', L('الفوترة', 'billing')], ['expense', L('الإنفاق', 'expenditure')]].filter(([k]) => Number(scenario[k]));
-    const p = { id: `scenario:${plan?.id}:${Object.entries(scenario).map(([k, v]) => `${k}=${v}`).join(',')}`, title: L('تنفيذ سيناريو: ', 'Pursue scenario: ') + parts.map(([k, n, pp]) => `${n} ${scenario[k] > 0 ? '+' : ''}${scenario[k]}${pp ? ' نقطة' : '%'}`).join('، '), issue: L(`سيناريو من الخطة «${plan?.name}» (الإصدار ${plan?.version || 'غير محفوظ'}) ضمن ${scopeText}.`, `A scenario of plan “${plan?.name}” (version ${plan?.version || 'unsaved'}) within ${scopeText}.`), action: L('تحويل افتراضات السيناريو إلى مبادرة بمسؤول وتاريخ ونتيجة تُقاس.', 'Turn the scenario assumptions into an initiative with an owner, date and a measurable outcome.'), priority: 'medium', evidence: { text: L('سيناريو افتراضي وليس تنبؤاً.', 'A hypothetical scenario, not a forecast.'), scope: scopeText, figures: [] }, expectedImpact: null, drill: null };
-    setRegister((r) => addProposal(r, p, by)); setToast(L('أُضيف الاقتراح إلى «مقترحات بانتظار المراجعة». لم يُعتمد بعد ولا مسؤول له؛ يعتمده مراجع ويحدد المسؤول وتاريخ الاستحقاق.', 'Added to “Proposals awaiting review”. It is not approved and has no owner; a reviewer approves it and sets the owner and due date.')); goTab('decisions');
-  };
-  // explicit and optional: open the plan's scope in the dashboard (changes the DASHBOARD filters because the user asked; the plan is unaffected)
-  const openPlanInDashboard = (p) => { rev.setCustomRange(p.period.from, p.period.to < today ? p.period.to : today); rev.setAmanah(p.scope?.amanah || 'all'); rev.setSource(p.scope?.source || 'all'); rev.setScopeType(p.scope?.scopeType || 'all'); rev.setMuni(p.scope?.muni || 'all'); navigate('/insights?view=dashboard'); };
-  // THE ACTIVE SECTION IS THE URL HASH (/planning#outlook): a direct link, a refresh, an external hash change and Back/Forward all land on the same tab. An empty or unknown hash shows the first tab and adds no history entry.
-  const hashId = loc.hash.slice(1);
-  const activeTab = TAB_IDS.includes(hashId) ? hashId : TAB_IDS[0];
-  const goTab = useCallback((id) => { if (id === activeTab && loc.hash === `#${id}`) return; if (id === activeTab && !TAB_IDS.includes(hashId)) return; navigate({ pathname: loc.pathname, search: loc.search, hash: `#${id}` }); }, [activeTab, hashId, loc.hash, loc.pathname, loc.search, navigate]);
-  // a hash that names something else on the page (not a tab) still scrolls to it once the page has content; tabs never scroll the page
-  useEffect(() => { if (hashId && !TAB_IDS.includes(hashId) && rev.ready && plan && snapshot) document.getElementById(hashId)?.scrollIntoView({ behavior: 'auto', block: 'start' }); }, [hashId, rev.ready, !!snapshot, !!x]); // eslint-disable-line react-hooks/exhaustive-deps
-  // LANDING ON A TAB — a direct link or a refresh with a valid hash (/planning#outlook).
-  // The browser scrolls to the section by itself, but only if the panel appears before the page's load completes and possibly again on layout changes, so the result used to depend on timing (a late jump that left the tab bar above the screen).
-  // The fix is at the source, not an override: (1) the panel's scroll margin is MEASURED so that the browser's own fragment scroll puts the TAB BAR just under the sticky headers whenever it happens, and (2) at the first commit that has the content
-  // (before paint, so no flicker) the bar is brought into view once if the browser did not already — idempotent, so nothing is fought later. Scroll restoration is manual from then until the first tab change or leaving the page, so a refresh cannot restore a position that hides the bar.
-  const landed = useRef(false);
-  const contentReady = !!(rev.ready && plan && snapshot && snapshot.totals.count > 0);
-  const stickyHeight = () => { const sticky = document.querySelector('.tabbar'); return sticky ? (parseFloat(getComputedStyle(sticky).top) || 0) + sticky.offsetHeight : 0; };
-  useLayoutEffect(() => {
-    if (!contentReady) return undefined;
-    const page = document.querySelector('.st-page'); if (!page) return undefined;
-    const measure = () => { const bar = page.querySelector('.pt-bar'); const panel = page.querySelector('[role=tabpanel]:not([hidden])'); if (!bar || !panel) return; page.style.setProperty('--pt-land', `${Math.round(stickyHeight() + 8 + (panel.getBoundingClientRect().top - bar.getBoundingClientRect().top))}px`); };
-    measure();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null; ro?.observe(page);
-    return () => ro?.disconnect();
-  }, [contentReady, activeTab]);
-  useLayoutEffect(() => {
-    if (landed.current || !contentReady || !TAB_IDS.includes(hashId)) return undefined;
-    landed.current = true;
-    const bar = document.querySelector('.pt-bar'); if (!bar) return undefined;
-    const prev = window.history.scrollRestoration; window.history.scrollRestoration = 'manual';
-    const r = bar.getBoundingClientRect(); const top = stickyHeight() + 8;
-    if (r.top < top || r.bottom > window.innerHeight - 8) window.scrollTo(0, Math.max(0, window.scrollY + r.top - top));
-    return () => { window.history.scrollRestoration = prev; };
-  }, [contentReady, hashId]); // eslint-disable-line react-hooks/exhaustive-deps
+  const commit = (fn, msg) => { const next = fn(store); setStore(next); saveGoalStore(next); setToast(msg); };
+  const planArgs = () => ({ year, amanah, rate: rateNum / 100, annualTarget: g.target, adjustedTotal: g.adjustedTotal, at: new Date().toISOString(), by });
+  const doSave = () => commit((s) => savePlan(s, planArgs()), L('حُفظت الخطة الشهرية: أشهرها ثابتة ولا تتغير عند تغيّر المفوتر أو الاستبعادات.', 'The monthly plan is saved: its months stay fixed when billed amounts or exclusions change.'));
+  const doRebase = () => commit((s) => rebasePlan(s, { ...planArgs(), today }), L('حُدّثت الخطة: الأشهر المنتهية كما هي، والهدف الجديد موزّع بالتساوي على بقية الأشهر.', 'The plan is updated: closed months are unchanged, the new target is spread evenly over the remaining months.'));
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
-  if (PS.error && !fresh) return <div className="st-page"><div className="rv-callout rv-callout--bad" role="alert">{L('تعذّر احتساب أرقام الخطة لفترتها ونطاقها.', 'The plan figures could not be computed for its period and scope.')} <button type="button" className="btn btn-sm" onClick={() => setRetry((n) => n + 1)}>{L('إعادة المحاولة', 'Retry')}</button></div></div>;
-  if (!rev.ready || !snapshot) return <div className="st-page" role="status"><Skeleton height={80} /><Skeleton height={220} /></div>;
-  const kpiUnit = unitOfValues([T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: kpiUnit });
-  const fyMonths = monthsBetween(`${fy}-01-01`, `${fy}-12-28`);
-  const outlook = (() => {
-    if (!x) return { actual: fyMonths.map(() => null), target: fyMonths.map(() => null), forecast: fyMonths.map(() => null), low: fyMonths.map(() => null), high: fyMonths.map(() => null) };
-    const map = new Map(x.fyFull.months.map((m, i) => [m, x.fyFull.values[i]])); const fc = new Map();
-    if (x.forecast?.ready) x.forecast.horizon.months.forEach((mo, i) => fc.set(mo, { p: x.forecast.horizon.point[i], lo: x.forecast.horizon.low[i], hi: x.forecast.horizon.high[i] }));
-    return { actual: fyMonths.map((m) => (map.has(m) ? map.get(m) : null)), target: narrowed ? fyMonths.map(() => null) : monthlyTargetSeries(targets, fyMonths), forecast: fyMonths.map((m) => (fc.has(m) ? fc.get(m).p : null)), low: fyMonths.map((m) => (fc.has(m) ? fc.get(m).lo : null)), high: fyMonths.map((m) => (fc.has(m) ? fc.get(m).hi : null)) };
-  })();
-  const tvf = x?.forecast?.ready ? targetVsForecast(x.forecast, targets) : null;
-  const scenarioOn = JSON.stringify(scenario) !== JSON.stringify(DEFAULT_SCENARIO);
-  const versionContext = { period: plan.period, scope: plan.scope, basis: BASIS.PERIOD_END, cutoff: snapshot.cutoff, config: cfgHash(cfg), targets: { collectionRate: targets.collectionRate.value, status: targets.collectionRate.status } };
-  const summaryForVersion = { rate: scenRes?.scenario.rate ?? null, collected: scenRes?.scenario.collected ?? null, balance: funding.available ? funding.base.balance : null, balanceBasis: 'baseline' }; // the funding balance never includes the scenario (different measurement bases)
+  const ok = g && g.state === 'ok';
+  const planned = ok ? g.plan.cumulative : [];
+  const closedYear = ok && year < todayYear; // a closed year's saved plan is never updated
 
   return (
     <div className="st-page" dir={ar ? 'rtl' : 'ltr'}>
       <header className="st-head">
         <div>
           <h1 className="page-title" style={{ margin: 0 }}>{L('التخطيط المالي والاستراتيجي', 'Financial and strategic planning')}</h1>
-          <div className="muted" style={{ fontSize: 13 }}>{L(`${plan.name} · الإصدار ${plan.version || 'غير محفوظ'} · ${fmtRangeText(plan.period.from, plan.period.to, 'ar')} · ${scopeLabel}`, `${plan.name} · version ${plan.version || 'unsaved'} · ${fmtRangeText(plan.period.from, plan.period.to, 'en')} · ${scopeLabel}`)}{PS.loading && <span className="st-tag" role="status" style={{ marginInlineStart: 8 }}>{L('جارٍ التحديث…', 'Updating…')}</span>}</div>
-        </div>
-        <div className="st-head__actions">
-          {/* one entry to the assistant (F-21): a floating button that stays reachable while scrolling; it sits here in the DOM so keyboard users reach it first */}
-          {!assistOpen && <button type="button" id="st-fab" className="st-fab" onClick={() => setAssistOpen(true)} aria-label={L('فتح مساعد التخطيط', 'Open the planning assistant')}>{L('مساعد التخطيط', 'Planning assistant')}</button>}
-          {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={T.count === 0} aria-disabled={!!exporting || undefined} onClick={() => doExport(k)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('ملخص الخطة', 'Plan summary')} ${n}`}</button>)}
+          <div className="muted" style={{ fontSize: 13 }}>{L('هدف التحصيل السنوي: أين نحن، وما المتبقي، وما المطلوب في بقية السنة.', 'The annual collection goal: where we are, what remains, and the pace needed for the rest of the year.')}</div>
         </div>
       </header>
 
-      <PlanBar store={viewStore} setStore={updateStore} plan={plan} summary={summaryForVersion} versionContext={versionContext} canEdit={canEdit} user={user} onOpenDashboard={openPlanInDashboard} onRecompute={recomputeVersion} today={today} />
-      <p className="rv-line">{L('الأرقام أدناه لفترة الخطة ونطاقها، ولا تتأثر بمرشحات لوحة المعلومات.', 'The figures below follow the plan period and scope, not the dashboard filters.')}</p>
-      {fresh === null || PS.loading ? <div className="rv-callout" role="status">{L('جارٍ احتساب أرقام الخطة…', 'Computing the plan figures…')}</div> : null}
-      {T.count > 0 && <SectionTabs tabs={NAV.map(([id, a, e]) => ({ id, label: L(a, e) }))} active={activeTab} onSelect={goTab} label={L('أقسام التخطيط', 'Planning sections')} rtl={ar} />}
-      {toast && <div className="rv-callout" role="status">{toast}</div>}
-
-      {T.count === 0 ? <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة؛ وسّع الفترة أو أزل مرشحاً.', 'No data — widen the period or remove a filter.')}</div></div> : (<>
-      <div className="card st-card" aria-label={L('ملخص خط الأساس', 'Baseline summary')}>
-        <div className="st-fresh"><b>{L('خط الأساس لفترة الخطة ونطاقها', 'Baseline for the plan period and scope')}</b> <bdi>{fmtRangeText(s.from, s.to, ar ? 'ar' : 'en')}</bdi> <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span>
-          <span>{L('صافي المفوتر', 'Net billed')} <b dir="ltr">{kp(T.net)}</b></span><span>{L('المحصّل', 'Collected')} <b dir="ltr">{kp(T.collected)}</b></span><span>{L('غير المحصّل', 'Uncollected')} <b dir="ltr">{kp(T.outstanding)}</b></span><span>{L('نسبة التحصيل', 'Rate')} <b dir="ltr">{pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'n/a'))}</b></span>
-          <Link to="/insights">{L('لوحة المعلومات', 'Dashboard')}</Link></div>
+      <div className="card card-pad cg-controls">
+        <label className="cg-field" htmlFor="cg-year">{L('السنة', 'Year')}
+          <select id="cg-year" className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+        </label>
+        <label className="cg-field" htmlFor="cg-amanah">{L('الأمانة', 'Amanah')}
+          <select id="cg-amanah" className="input" value={amanah} onChange={(e) => setAmanah(e.target.value)}>
+            <option value="all">{L('كل الأمانات', 'All Amanahs')}</option>
+            {amanahOptions.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}
+          </select>
+        </label>
+        <label className="cg-field" htmlFor="cg-rate">{L('نسبة التحصيل المستهدفة سنوياً (%)', 'Annual target collection rate (%)')}
+          <input id="cg-rate" type="number" className="input" min="1" max="100" step="1" value={rateText} onChange={(e) => setRateText(e.target.value)} aria-invalid={!rateValid} aria-describedby="cg-rate-note" />
+        </label>
+        <div className="cg-equiv" id="cg-rate-note" role="status">
+          {!rateValid ? <span className="rv-neg">{L('أدخل نسبة بين 1 و100.', 'Enter a rate between 1 and 100.')}</span> : ok ? <>{L('المبلغ المستهدف المكافئ', 'Equivalent target amount')}: <b dir="ltr">{short(g.target)}</b> <span className="muted">({rateNum}% × {short(g.adjustedTotal)})</span></> : <span className="muted">{L('يُحتسب بعد توفر إجمالي فواتير معدّل.', 'Calculated once an adjusted invoice total is available.')}</span>}
+          <div className="muted" style={{ fontSize: 12 }}>{L('النسبة مُدخل تجريبي إلى أن تُعتمد.', 'The rate is a demo input until it is approved.')}</div>
+        </div>
       </div>
 
-      {snapshot && T.count > 0 && <BasesReconciliation plan={plan} scopeLabel={scopeLabel} s={s} today={today} fy={fy} snapshot={snapshot} receipts={x ? x.fyFull.values.reduce((t, v) => t + v, 0) : null} rec={REC.data && REC.data.key === sKey ? REC.data : null} funding={funding} scenRes={scenRes} scenarioOn={scenarioOn} cov={cov} />}
+      {toast && <div className="rv-callout" role="status">{toast}</div>}
 
-      <section id="objectives" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'objectives')} hidden={activeTab !== 'objectives'}>
-        <h2 className="st-section__title">{L('الأهداف الاستراتيجية والمستهدفات', 'Strategic objectives and targets')} <span className="st-tag st-tag--target">{L('مستهدف', 'target')}</span><small>{L('المستهدفات الحالية تجريبية وغير معتمدة.', 'The current targets are demo inputs and are not approved.')}</small></h2>
-        <ObjectivesPanel store={viewStore} setStore={updateStore} actuals={actuals} systemRows={systemRows} canEdit={canEdit} user={user} today={today} />
-        <div className="st-grid">
-          <div className="card st-card"><b>{L('مدخلات المستهدف', 'Target inputs')}</b>
-            <div className="st-field"><label htmlFor="t-rate">{L('مستهدف معدل التحصيل (%)', 'Collection-rate target (%)')}</label><input id="t-rate" type="number" className="input" min="1" max="100" step="1" disabled={!canEdit} value={Math.round(targets.collectionRate.value * 100)} onChange={(e) => { const v = Number(e.target.value); if (v >= 1 && v <= 100) editTarget('collectionRate', v / 100); }} /></div>
-            <div className="st-field"><label htmlFor="t-amt">{L('المستهدف السنوي للمقبوضات (مليار SAR)', 'Annual receipts target (SAR billion)')}</label><input id="t-amt" type="number" className="input" min="0.1" step="0.5" disabled={!canEdit} value={targets.collectionAmountAnnual.value / 1e9} onChange={(e) => { const v = Number(e.target.value); if (v > 0) editTarget('collectionAmountAnnual', v * 1e9); }} /></div>
-            <div className="muted" style={{ fontSize: 12 }}>{B(targets.collectionRate.provenance)} {!canEdit && L('(للعرض فقط — تتطلب صلاحية المراجعة)', '(read-only — needs review permission)')}</div></div>
-          <div className="card st-card"><b>{L('الوتيرة المطلوبة', 'Required pace')} </b>
-            <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={90}>
-              {pace.available ? <div className="rv-tile__value" dir="ltr">{pace.perMonth != null ? fmtMoney(pace.perMonth, { lang }) : L('غير متاح', 'n/a')}<span className="muted" style={{ fontSize: 12 }}> / {L('شهر', 'month')}</span></div> : <div className="rv-empty" style={{ padding: 12 }}><b>{L('البيانات غير متاحة', 'Data not available')}</b><div style={{ fontSize: 13 }}>{L('المستهدف السنوي وطني؛ أزل مرشحات الأمانة والمصدر.', 'The annual target is national; clear the Amanah and source filters.')}</div></div>}
-              {pace.available && <div className="muted" style={{ fontSize: 13 }}>{L(`المتبقي ${fmtMoney(pace.remaining, { lang })} حتى ${planDate} (${pace.monthsLeft.toFixed(1)} شهر)${pace.recentAvgMonthly != null ? `؛ متوسط آخر 3 أشهر مكتملة ${fmtMoney(pace.recentAvgMonthly, { lang })}` : ''}.`, `Remaining ${fmtMoney(pace.remaining, { lang })} to ${planDate} (${pace.monthsLeft.toFixed(1)} months)${pace.recentAvgMonthly != null ? `; average of the last 3 complete months ${fmtMoney(pace.recentAvgMonthly, { lang })}` : ''}.`)}</div>}
-            </AsyncBlock></div>
-        </div>
-      </section>
+      <AsyncBlock state={DATA} onRetry={() => setRetry((n) => n + 1)} height={260}>
+        {g && g.state === 'no_denominator' && (
+          <div className="rv-callout rv-callout--warn" role="status">
+            <b>{L('لا يمكن احتساب الهدف: لا يوجد إجمالي فواتير معدّل لهذا الاختيار.', 'The target cannot be calculated: there is no adjusted invoice total for this selection.')}</b>
+            <div style={{ fontSize: 13, marginTop: 4 }}>{L(`الفترة ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: المفوتر ${short(g.gross)} − الاستبعادات المعتمدة ${short(g.approvedExclusions)} = ${short(g.adjustedTotal)}. لا تُعرض نسبة ولا هدف ولا رسم دون مقام صالح.`, `Period ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: billed ${short(g.gross)} − approved exclusions ${short(g.approvedExclusions)} = ${short(g.adjustedTotal)}. No rate, target or chart is shown without a valid denominator.`)}</div>
+          </div>
+        )}
+        {ok && (
+          <>
+            <div className="muted cg-basis">
+              {L(`الفترة: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (تاريخ التقرير) · ${amanahName} · فواتير صدرت في ${year}. إجمالي الفواتير المعدّل ${short(g.adjustedTotal)} = المفوتر ${short(g.gross)} − الاستبعادات المعتمدة ${short(g.approvedExclusions)}. الإيرادات المحصلة من تحصيل (تاريخ الدفع) حتى تاريخ التقرير.`,
+                `Period ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (reporting date) · ${amanahName} · invoices issued in ${year}. Adjusted total ${short(g.adjustedTotal)} = billed ${short(g.gross)} − approved exclusions ${short(g.approvedExclusions)}. Collected revenue from Tahseel (payment date) up to the reporting date.`)}
+            </div>
 
-      <section id="plan" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'plan')} hidden={activeTab !== 'plan'}>
-        <h2 className="st-section__title">{L('خطط الإيرادات والنفقات', 'Revenue and expenditure plans')}<small>{L(`الخطة «${plan.name}» · الإصدار ${plan.version || 'غير محفوظ'}`, `Plan “${plan.name}” · version ${plan.version || 'unsaved'}`)}</small></h2>
-        <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={200}><PlanTable fyMonths={fyMonths} outlook={outlook} fin={fin} financeOk={financeOk} narrowed={narrowed} year={fy} targets={targets} /></AsyncBlock>
-      </section>
+            <div className="rv-tiles cg-tiles">
+              <MetricTile label={L('المبلغ المستهدف تحصيله (سنوي)', 'Target collection amount (annual)')} value={short(g.target)} sub={L(`${Math.round(g.rate * 100)}% من إجمالي الفواتير المعدّل`, `${Math.round(g.rate * 100)}% of the adjusted total`)} />
+              <MetricTile label={L(`الإيرادات المحصلة حتى ${dateText(g.reportingDate)}`, `Collected revenue to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — حتى تاريخ التقرير', 'year to date — to the reporting date')} />
+              <MetricTile label={L('نسبة التحصيل الحالية', 'Current collection rate')} value={pct(g.collectionRate)} tone={g.achieved ? 'good' : undefined} sub={L(`الإيرادات المحصلة ÷ إجمالي الفواتير المعدّل (الهدف ${Math.round(g.rate * 100)}%)`, `Collected revenue ÷ adjusted total (target ${Math.round(g.rate * 100)}%)`)} />
+              <MetricTile label={L('المتبقي للوصول إلى الهدف', 'Remaining to reach the target')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تحقق الهدف', 'Target reached') : L('الهدف السنوي − الإيرادات المحصلة', 'Annual target − collected revenue')} />
+            </div>
 
-      <section id="variance" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'variance')} hidden={activeTab !== 'variance'}>
-        <h2 className="st-section__title">{L('الفعلي مقابل الميزانية والمستهدف', 'Actual versus budget and target')} <span className="st-tag st-tag--actual">{L('فعلي', 'actual')}</span></h2>
-        <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={160}>{x && <VarianceBlock ach={ach} achAvail={achAvail} fin={fin} financeOk={financeOk} />}</AsyncBlock>
-        {financeOk && cov && <div className="card st-card"><b>{L('تغطية الإنفاق التشغيلي (أبواب 1–3)', 'Operating-expenditure coverage (chapters 1–3)')}</b> <span className="st-tag st-tag--warn">{L('تجريبية', 'synthetic')}</span><div className="rv-tile__value" dir="ltr">{pct(cov.ratio, L('غير متاحة', 'n/a'))}</div><div className="muted" style={{ fontSize: 12 }}>{B(cov.basis)}</div></div>}
-        {!financeOk && <div className="rv-callout">{L('تغطية النفقات وتنفيذ الميزانية: البيانات غير متاحة لهذا النطاق؛ الأساس المحاسبي والنطاق يجب أن يتطابقا مع الإيرادات (وطني، كل المصادر).', 'Expenditure coverage and budget execution: data not available for this scope; the accounting basis and scope must match revenue (national, all sources).')}</div>}
-      </section>
+            <div className="card st-card cg-chart">
+              <b>{L('الإيرادات المحصلة التراكمية بالأشهر: المخطط مقابل الفعلي', 'Cumulative collected revenue by month: plan versus actual')}</b>
+              <CollectionChart year={year} planned={planned} actual={g.actual} plannedLabel={L('المخطط (تراكمي)', 'Plan (cumulative)')} actualLabel={L('الفعلي (تراكمي)', 'Actual (cumulative)')} label={L('رسم الإيرادات المحصلة التراكمية: المخطط مقابل الفعلي', 'Chart of cumulative collected revenue: plan versus actual')} />
+              <table className="sr-only"><caption>{L('الإيرادات المحصلة التراكمية بالأشهر', 'Cumulative collected revenue by month')}</caption>
+                <thead><tr><th>{L('الشهر', 'Month')}</th><th>{L('المخطط', 'Plan')}</th><th>{L('الفعلي', 'Actual')}</th></tr></thead>
+                <tbody>{planned.map((p, i) => <tr key={i}><td>{i + 1}</td><td>{sar(p)}</td><td>{g.actual[i] == null ? '—' : sar(g.actual[i])}</td></tr>)}</tbody></table>
+              <div className="cg-plan">
+                {g.plan.source === 'assumed'
+                  ? <span><b>{L('افتراض تخطيطي:', 'Planning assumption:')}</b> {L('لا توجد خطة شهرية معتمدة، فالهدف السنوي موزّع بالتساوي على 12 شهراً. الفعلي يُعرض حتى تاريخ التقرير فقط.', 'There is no approved monthly plan, so the annual target is spread evenly over 12 months. Actual is shown only up to the reporting date.')}</span>
+                  : <span>{L(`خطة محفوظة (${dateText(g.plan.savedAt.slice(0, 10))}) بهدف سنوي ${short(g.plan.annualTarget)}؛ أشهرها ثابتة ولا تتغير تلقائياً.`, `Saved plan (${dateText(g.plan.savedAt.slice(0, 10))}) with an annual target of ${short(g.plan.annualTarget)}; its months stay fixed and are never changed automatically.`)}</span>}
+                {g.plan.drift && <div className="rv-callout rv-callout--warn" role="status" style={{ marginTop: 8 }}>{L(`تغيّر الهدف المحتسب منذ حفظ الخطة: المحفوظ ${short(g.plan.drift.saved)}، والحالي ${short(g.plan.drift.live)} (تغيّر المفوتر أو الاستبعادات أو النسبة). الرسم يعرض الخطة المحفوظة.`, `The calculated target has changed since the plan was saved: saved ${short(g.plan.drift.saved)}, now ${short(g.plan.drift.live)} (billed amounts, exclusions or the rate changed). The chart shows the saved plan.`)}
+                  {canEdit && !closedYear && rateValid && <> <button type="button" className="btn btn-sm" onClick={doRebase}>{L('تحديث الخطة', 'Update the plan')}</button></>}</div>}
+                {g.plan.source === 'assumed' && canEdit && rateValid && <> <button type="button" className="btn btn-sm" onClick={doSave}>{L('حفظ الخطة (تثبيت الأشهر)', 'Save the plan (fix the months)')}</button></>}
+                {!canEdit && <div className="muted" style={{ fontSize: 12 }}>{L('دورك للقراءة فقط: لا يمكنك حفظ الخطة.', 'Your role is read-only: you cannot save the plan.')}</div>}
+              </div>
+            </div>
 
-      <section id="outlook" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'outlook')} hidden={activeTab !== 'outlook'}>
-        <h2 className="st-section__title">{L('التوقعات والفجوات', 'Forecasts and gaps')}</h2>
-        <AsyncBlock state={X} onRetry={() => setRetry((n) => n + 1)} height={260}><ForecastGaps outlook={outlook} fyMonths={fyMonths} forecast={x?.forecast} tvf={tvf} gaps={gaps} snapshot={snapshot} funding={funding} scenarioOn={scenarioOn} canShowFunding={financeOk} /></AsyncBlock>
-      </section>
-
-      <section id="scenario" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'scenario')} hidden={activeTab !== 'scenario'}>
-        <h2 className="st-section__title">{L('سيناريوهات «ماذا لو»', 'What-if scenarios')} <span className="st-tag st-tag--scenario">{L('سيناريو المستخدم', 'user scenario')}</span><small>{L('جزء من الخطة النشطة؛ لا يغيّر أي بيانات فعلية ولا المستهدفات', 'part of the active plan; changes no actual data and no targets')}</small></h2>
-        <ScenarioPanel snapshot={snapshot} targets={targets} scenario={scenario} setScenario={setScenario} planDate={planDate} setPlanDate={setPlanDate} today={today} canEdit={canEdit} financeOk={financeOk} onSaveToRegister={proposeFromScenario} />
-        {snapshot && T.net > 0 && <NamedScenarios snapshot={snapshot} targets={targets} planId={plan.id} planName={plan.name} store={viewStore} commit={(st) => updateStore(() => st)} commitWith={(fn) => updateStore(fn)} scenario={scenario} canEdit={canEdit} by={by} onLoad={(s) => setPlan((p) => editPlan(p, { scenario: cleanScenario(s.scenario), ...(s.planDate ? { planDate: s.planDate < today ? today : s.planDate } : {}) }, by))} />}
-      </section>
-
-      <section id="decisions" className="st-section" role="tabpanel" aria-labelledby={tabIdOf('plan', 'decisions')} hidden={activeTab !== 'decisions'}>
-        <h2 className="st-section__title">{L('المبادرات والقرارات ومتابعة التنفيذ', 'Initiatives, decisions and follow-up')}</h2>
-        <ActionRegister register={register} setRegister={setRegister} proposals={proposals} canEdit={canEdit} user={user} today={today} scopeText={scopeText} />
-      </section>
-      </>)}
-
-      <LocalDataPanel />
-      <AssistantPanel open={assistOpen} onClose={() => { setAssistOpen(false); window.setTimeout(() => document.getElementById('st-fab')?.focus(), 50); }} ctxFactory={ctxFactory} onAction={onAssistAction} prompts={PLANNING_PROMPTS} title={L('مساعد التخطيط', 'Planning assistant')} />
+            <div className="card st-card cg-explain" role="region" aria-label={L('تقدم الإيرادات المحصلة مقابل الخطة', 'Progress against the plan')}>
+              <b>{L('أين نحن من الخطة؟', 'Where are we against the plan?')}</b>
+              {g.achieved ? (
+                <p>{L(`تحقق الهدف السنوي: حُصّل ${short(g.collected)} من هدف ${short(g.target)}${g.exceededBy > 0 ? ` (بزيادة ${short(g.exceededBy)})` : ''}.`, `The annual target is reached: ${short(g.collected)} collected against a target of ${short(g.target)}${g.exceededBy > 0 ? ` (${short(g.exceededBy)} above it)` : ''}.`)}</p>
+              ) : (
+                <>
+                  <p>{L(`حتى ${dateText(g.reportingDate)} حُصّل ${short(g.collected)} مقابل ${short(g.plannedToDate)} مخطط حتى هذا التاريخ، أي ${g.versusPlan >= 0 ? 'متقدم عن الخطة' : 'متأخر عن الخطة'} بمقدار ${short(Math.abs(g.versusPlan))}.`, `To ${dateText(g.reportingDate)}, ${short(g.collected)} was collected against ${short(g.plannedToDate)} planned to this date: ${g.versusPlan >= 0 ? 'ahead of' : 'behind'} the plan by ${short(Math.abs(g.versusPlan))}.`)}</p>
+                  {g.yearEnded
+                    ? <p>{L(`انتهت السنة دون تحقيق الهدف؛ الفجوة ${short(g.remaining)}.`, `The year ended without reaching the target; the gap is ${short(g.remaining)}.`)}</p>
+                    : <p>{L(`المتبقي للهدف ${short(g.remaining)} خلال ${g.pace.monthsLeft.toFixed(1)} شهراً تقريباً (الشهر الحالي بنسبة أيامه المتبقية)، أي متوسط تحصيل مطلوب ${short(g.pace.requiredPerMonth)} شهرياً، مقابل ${short(g.pace.plannedPerMonth)} شهرياً في الخطة.`, `${short(g.remaining)} remains to the target over about ${g.pace.monthsLeft.toFixed(1)} months (the current month counted by its remaining days): an average of ${short(g.pace.requiredPerMonth)} per month is needed, against ${short(g.pace.plannedPerMonth)} per month in the plan.`)}</p>}
+                </>
+              )}
+              <div className="muted" style={{ fontSize: 12 }}>{L('لا تُعرض إجراءات مقترحة لأن بيانات الفواتير وحدها لا تبيّن سبب الفجوة. ', 'No actions are suggested: the invoice data alone does not show why there is a gap. ')}<Link className="xref" to="/collection">{L('عرض الفواتير المتبقية (قائمة التحصيل)', 'Open the remaining invoices (collection worklist)')}</Link></div>
+            </div>
+          </>
+        )}
+      </AsyncBlock>
     </div>
   );
 }

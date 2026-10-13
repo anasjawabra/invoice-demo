@@ -303,7 +303,6 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
     indicator(bi('Uncollected', 'غير المحصّل'), money(T.outstanding), 'calculated', bi('Net billed − collected', 'صافي المفوتر − المحصّل')),
     indicator(bi('Net uncollected (standing balance at the cutoff)', 'الرصيد القائم (الرصيد القائم عند القطع)'), money(snapshot.stock.netUncollected), 'calculated', bi(`Overdue ${money(snapshot.stock.overdue)} · not yet due ${money(snapshot.stock.notYetDue)}. Different from net billed.`, `متأخر ${mAr(snapshot.stock.overdue)} · لم يحن ${mAr(snapshot.stock.notYetDue)}. يختلف عن صافي المفوتر.`)),
     indicator(bi('Collection rate', 'نسبة التحصيل'), formatRatio(T.collectedOverNet), 'calculated', bi('Collected ÷ net billed × 100', 'المحصّل ÷ صافي المفوتر × 100')),
-    indicator(bi('Received in period (all invoice periods)', 'المقبوض خلال الفترة (جميع فترات الإصدار)'), money(snapshot.receivedInPeriod.total), 'calculated', bi('Different population from "Collected"', 'مجتمع مختلف عن "المحصّل"'))
   );
 
   const ratioTxt = formatRatio(T.collectedOverNet);
@@ -348,13 +347,13 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
 
   out.assumptions.push(
     bi(`Exclusion rule set: ${snapshot.ruleSetVersion}. Only approved exclusions under enabled rules reduce net billed.`, `مجموعة قواعد الاستبعاد: ${snapshot.ruleSetVersion}. فقط الاستبعادات المعتمدة وفق قواعد مفعّلة تخفض صافي المفوتر.`),
-    bi('Collected counts payments up to the data cutoff on invoices issued in the period; receipts on earlier invoices appear only in "Received in period".', 'يحتسب المحصّل المدفوعات حتى قطع البيانات على فواتير صادرة في الفترة؛ أما المقبوضات على فواتير أقدم فتظهر فقط في "المقبوض خلال الفترة".')
+    bi('Collected counts payments up to the data cutoff on invoices issued in the period; receipts on earlier invoices appear only in "Received in period".', 'يحتسب المحصّل المدفوعات حتى قطع البيانات على فواتير صادرة في الفترة؛ أما الإيرادات المحصلة على فواتير أقدم فتظهر فقط في "الإيرادات المحصلة بتاريخ الدفع خلال الفترة".')
   );
   out.limitations.push(bi('Demo data (generated, labelled "تجريبية"); patterns are illustrative, not findings about real Amanahs.', 'بيانات تجريبية (مولّدة وموسومة "تجريبية")؛ الأنماط توضيحية وليست نتائج عن أمانات حقيقية.'));
 
   if (forecast) {
     if (forecast.ready) {
-      out.indicators.push(indicator(bi('Independent forecast: remaining-year receipts', 'التنبؤ المستقل: مقبوضات المتبقي من السنة'), money(forecast.fiscalYear.projectedRemainder), 'calculated', bi('Trend method; indicative range only', 'طريقة الاتجاه؛ نطاق إرشادي فقط')));
+      out.indicators.push(indicator(bi('Independent forecast: remaining-year receipts', 'التنبؤ المستقل: إيرادات محصلة المتبقي من السنة'), money(forecast.fiscalYear.projectedRemainder), 'calculated', bi('Trend method; indicative range only', 'طريقة الاتجاه؛ نطاق إرشادي فقط')));
       out.limitations.push(...forecast.limitations);
       out.assumptions.push(...forecast.assumptions);
     } else out.missing.push({ kind: 'fact', text: forecast.reasonNotReady, invoices: [] });
@@ -362,7 +361,7 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
   if (targetPos?.annualTarget != null && targetPos.projectedTotal != null) {
     out.indicators.push(indicator(bi('Approved annual target (demo input)', 'المستهدف السنوي المعتمد (مُدخل توضيحي)'), money(targetPos.annualTarget), 'fact', bi('Target is an input; forecast is independent', 'المستهدف مُدخل؛ والتنبؤ مستقل')));
   }
-  if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (المقبوضات ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
+  if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (الإيرادات المحصلة ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
   if (coverage) out.indicators.push(indicator(bi('Coverage of chapters 1–3 (own denominator)', 'تغطية الأبواب 1–3 (مقام مستقل)'), formatRatio(coverage.coverage), 'calculated', bi('Eligibility and transfer rules unresolved', 'قواعد الأهلية والمناقلة غير محسومة')));
 
   out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'سجل الفواتير') }];

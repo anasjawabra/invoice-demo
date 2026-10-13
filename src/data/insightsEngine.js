@@ -131,34 +131,9 @@ export function buildInsights({ snapshot, prev = null, comparison = null, foreca
     });
   }
 
-  /* ---------- 8. two reporting bases ---------- */
-  {
-    const r = snapshot.receivedInPeriod;
-    if (r.total > 0) out.push({
-      id: 'bases', kind: 'fact', severity: 'info',
-      title: bi('المحصّل على فواتير الفترة ≠ المقبوض خلال الفترة', 'Collected on period invoices ≠ received during the period'),
-      body: bi(`المقبوض حسب تاريخ الدفع خلال الفترة ${'{recv}'}، منه ${'{prior}'} على فواتير صدرت قبلها. أما «المحصّل» فهو ما سُدد من فواتير الفترة نفسها ${'{coll}'}. لا يُخلط المؤشران ولا يُقسم أحدهما على مقام الآخر.`, `Receipts dated in the period are {recv}, of which {prior} on invoices issued before it. “Collected” is what was paid against the period's own invoices: {coll}. The two are never mixed or divided by each other's denominator.`),
-      evidence: [{ k: bi('المقبوض خلال الفترة (تاريخ الدفع)', 'Received in period (payment date)'), v: r.total, fmt: 'money' }, { k: bi('منه على فواتير الفترة', 'on period invoices'), v: r.fromPeriodInvoices, fmt: 'money' }, { k: bi('منه على فواتير سابقة', 'on earlier invoices'), v: r.fromPriorInvoices, fmt: 'money' }, { k: bi('المحصّل على فواتير الفترة', 'Collected on period invoices'), v: T.collected, fmt: 'money' }],
-      tokens: { recv: r.total, prior: r.fromPriorInvoices, coll: T.collected },
-      basis: bi('أساسان مختلفان: تاريخ الدفع مقابل تاريخ إصدار الفاتورة', 'Two different bases: payment date vs invoice issue date'), drill: { to: '/insights?view=reports&report=trends', label: bi('تقرير الاتجاهات وأساس القياس', 'Trends and basis report') }, caveat: null
-    });
-  }
+  // (the «two reporting bases» note and the receipts forecast were removed: one collected-revenue measure is shown, and there is no forecasting here)
+  const fc = { available: false, reason: null };
 
-  /* ---------- 9. forecast (only when the history supports it) ---------- */
-  const fc = { available: !!forecast?.ready, reason: forecast && !forecast.ready ? forecast.reasonNotReady : null };
-  if (forecast?.ready) {
-    const lo = forecast.horizon.low.reduce((a, b) => a + b, 0); const hi = forecast.horizon.high.reduce((a, b) => a + b, 0); const pt = forecast.horizon.point.reduce((a, b) => a + b, 0);
-    out.push({
-      id: 'forecast', kind: 'estimate', severity: 'info',
-      title: bi('تقدير المقبوضات للأشهر القادمة (تقدير وليس حقيقة)', 'Receipts estimate for the coming months (an estimate, not a fact)'),
-      body: bi(`النقطة ${'{pt}'} ضمن نطاق ${'{lo}'} – ${'{hi}'} للأشهر ${forecast.horizon.months.join('، ')}. اتجاه خطي على المقبوضات الأساسية بعد عزل الاستثنائي منها؛ مستقل عن المستهدف.`, `Point {pt} within {lo} – {hi} for ${forecast.horizon.months.join(', ')}. A linear trend on the underlying receipts after separating exceptional ones; independent of the target.`),
-      evidence: [{ k: bi('تقدير النقطة', 'Point estimate'), v: pt, fmt: 'money' }, { k: bi('الحد الأدنى', 'Low'), v: lo, fmt: 'money' }, { k: bi('الحد الأعلى', 'High'), v: hi, fmt: 'money' }],
-      tokens: { pt, lo, hi }, basis: bi('المقبوضات الشهرية (تاريخ الدفع) لنطاق التحليل', 'Monthly receipts (payment date) of the analysis scope'),
-      drill: { to: '/planning#outlook', label: bi('تفاصيل التنبؤ وافتراضاته', 'Forecast details and assumptions') }, caveat: bi('يعتمد على اتجاه تاريخي قصير في بيانات تجريبية؛ لا يعكس أحداثاً مستقبلية.', 'Based on a short synthetic history; it does not anticipate future events.')
-    });
-  }
-
-  out.sort((a, b) => SEVERITY[b.severity] - SEVERITY[a.severity]);
   return { summary, insights: out, forecast: fc };
 }
 

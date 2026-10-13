@@ -20,7 +20,7 @@ function addMonthsFrom(date, n) { let y = Number(date.slice(0, 4)); let m = Numb
 
 export const FORECAST_METHOD = {
   id: 'ols_trend_v1',
-  label: { en: 'Linear trend over trailing monthly receipts (illustrative)', ar: 'اتجاه خطي على المقبوضات الشهرية السابقة (توضيحي)' },
+  label: { en: 'Linear trend over trailing monthly receipts (illustrative)', ar: 'اتجاه خطي على الإيرادات المحصلة الشهرية السابقة (توضيحي)' },
   windowMonths: 12,
   minPoints: 4
 };
@@ -129,7 +129,7 @@ export function forecastCore({ hist, fyValues, cfg, sc, horizonMonths, targets =
   return {
     method: FORECAST_METHOD,
     ready: !!fit,
-    reasonNotReady: fit ? null : { en: `At least ${FORECAST_METHOD.minPoints} months of receipts history are needed; ${adjusted.length} available in scope.`, ar: `يلزم ${FORECAST_METHOD.minPoints} أشهر على الأقل من سجل المقبوضات؛ المتاح ${adjusted.length} في النطاق.` },
+    reasonNotReady: fit ? null : { en: `At least ${FORECAST_METHOD.minPoints} months of receipts history are needed; ${adjusted.length} available in scope.`, ar: `يلزم ${FORECAST_METHOD.minPoints} أشهر على الأقل من سجل الإيرادات المحصلة؛ المتاح ${adjusted.length} في النطاق.` },
     cutoff: cfg.cutoff,
     scope: sc,
     history: { months: hist.months, values: hist.values, adjusted },
@@ -147,7 +147,7 @@ export function forecastCore({ hist, fyValues, cfg, sc, horizonMonths, targets =
     },
     bandLabel: { en: 'Indicative range (±1.28 residual SD of the trend fit) — not a validated confidence interval.', ar: 'نطاق إرشادي (±1.28 انحراف معياري للبواقي) — وليس فاصل ثقة مُتحقَّقاً منه.' },
     assumptions: [
-      { en: 'Receipts follow a linear monthly trend over the trailing window.', ar: 'تتبع المقبوضات اتجاهاً شهرياً خطياً خلال الفترة السابقة.' },
+      { en: 'Receipts follow a linear monthly trend over the trailing window.', ar: 'تتبع الإيرادات المحصلة اتجاهاً شهرياً خطياً خلال الفترة السابقة.' },
       { en: 'No seasonality, billing-calendar effects or policy changes are modelled.', ar: 'لا تُنمذج الموسمية أو تأثير التقويم المالي أو تغيّر السياسات.' },
       { en: excludeExceptional ? 'Exceptional single payments are removed from the fitted series and shown separately.' : 'Exceptional single payments are kept in the fitted series.', ar: excludeExceptional ? 'تُستبعد الدفعات الاستثنائية الكبيرة من السلسلة المُلائمة وتُعرض منفصلة.' : 'تُبقى الدفعات الاستثنائية في السلسلة المُلائمة.' },
       { en: 'The approved target is NOT used by the forecast.', ar: 'لا يُستخدم المستهدف المعتمد في التنبؤ.' }

@@ -746,15 +746,15 @@ export const METRIC_DEFINITIONS = {
     denominator: null,
     dateBasis: { en: 'Payment date ≤ data cutoff (or period end if configured)', ar: 'تاريخ الدفع ≤ تاريخ قطع البيانات (أو نهاية الفترة إن ضُبط)' },
     population: 'B',
-    notes: { en: 'Partial payments count as received; adjustments reduce the billed base; overpayments are shown separately.', ar: 'تُحتسب الدفعات الجزئية كمقبوضة؛ والتسويات تخفض الأساس المفوتر؛ والمدفوعات الزائدة تُعرض منفصلة.' }
+    notes: { en: 'Partial payments count as received; adjustments reduce the billed base; overpayments are shown separately.', ar: 'تُحتسب الدفعات الجزئية كمحصّلة؛ والتسويات تخفض الأساس المفوتر؛ والمدفوعات الزائدة تُعرض منفصلة.' }
   },
   received: {
-    label: { en: 'Received in period', ar: 'المقبوض خلال الفترة' },
+    label: { en: 'Received in period', ar: 'الإيرادات المحصلة بتاريخ الدفع خلال الفترة' },
     numerator: { en: 'All payments dated within the period, on invoices of ANY issue period', ar: 'جميع المدفوعات المؤرخة ضمن الفترة على فواتير من أي فترة إصدار' },
     denominator: null,
     dateBasis: { en: 'Payment date within the selected period', ar: 'تاريخ الدفع ضمن الفترة المحددة' },
     population: 'A',
-    notes: { en: 'Different population from "Collected": includes receipts on earlier-period invoices. Never divided by period-issued net billed.', ar: 'مجتمع مختلف عن "المحصّل": يشمل المقبوضات على فواتير فترات سابقة. لا يُقسم أبداً على صافي مفوتر الفترة.' }
+    notes: { en: 'Different population from "Collected": includes receipts on earlier-period invoices. Never divided by period-issued net billed.', ar: 'مجتمع مختلف عن "المحصّل": يشمل الإيرادات المحصلة على فواتير فترات سابقة. لا يُقسم أبداً على صافي مفوتر الفترة.' }
   },
   outstanding: {
     label: { en: 'Uncollected', ar: 'غير المحصّل' },
@@ -782,7 +782,7 @@ export const METRIC_DEFINITIONS = {
   },
   targetAchievement: {
     label: { en: 'Collection target achievement', ar: 'تحقيق مستهدف التحصيل' },
-    numerator: { en: 'Receipts, fiscal year to date (Population A)', ar: 'المقبوضات منذ بداية السنة المالية (المجتمع A)' },
+    numerator: { en: 'Receipts, fiscal year to date (Population A)', ar: 'الإيرادات المحصلة منذ بداية السنة المالية (المجتمع A)' },
     denominator: { en: 'Cumulative approved monthly target (annual target × monthly curve)', ar: 'المستهدف الشهري التراكمي المعتمد (المستهدف السنوي × المنحنى الشهري)' },
     dateBasis: { en: 'Fiscal year to the data cutoff', ar: 'السنة المالية حتى تاريخ قطع البيانات' },
     population: 'A',
@@ -790,7 +790,7 @@ export const METRIC_DEFINITIONS = {
   },
   coverage: {
     label: { en: 'Revenue coverage of chapters 1–3', ar: 'تغطية الإيرادات للأبواب 1–3' },
-    numerator: { en: 'Receipts, fiscal year to date', ar: 'المقبوضات منذ بداية السنة المالية' },
+    numerator: { en: 'Receipts, fiscal year to date', ar: 'الإيرادات المحصلة منذ بداية السنة المالية' },
     denominator: { en: 'Eligible ORIGINAL annual budget, chapters 1–3 only, prorated to elapsed months', ar: 'الميزانية الأصلية السنوية المؤهلة للأبواب 1–3 فقط، موزعة على الأشهر المنقضية' },
     dateBasis: { en: 'Fiscal year to the data cutoff', ar: 'السنة المالية حتى تاريخ قطع البيانات' },
     population: 'A',

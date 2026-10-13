@@ -3,8 +3,6 @@ import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
 import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
 import { metricDictionary } from '../data/metricDictionary';
-import { targetAchievementFrom, coverageFrom } from '../data/revenueMetrics';
-import { useAsync } from '../utils/useAsync';
 import SettingsNav from '../components/settings/SettingsNav';
 
 const KIND = {
@@ -20,18 +18,11 @@ export default function Metrics() {
   const { snapshot } = rev;
   const dict = useMemo(() => metricDictionary(snapshot), [snapshot]);
   const T = snapshot.totals; const S = snapshot.stock;
-  // target achievement and coverage are computed from the fiscal-year receipts series held by the data service
-  const { data: fy } = useAsync(() => {
-    const through = rev.scopeEff.to < rev.cfg.cutoff ? rev.scopeEff.to : rev.cfg.cutoff;
-    return rev.data.series({ amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status, from: `${rev.targets.fiscalYear}-01-01`, to: through }, { asOf: through });
-  }, [rev.data, rev.scopeEff.amanah, rev.scopeEff.source, rev.scopeEff.scopeType, rev.scopeEff.muni, rev.scopeEff.to, rev.cfg.cutoff, rev.targets.fiscalYear]);
-  const ach = useMemo(() => (fy ? targetAchievementFrom(fy, rev.scopeEff, rev.cfg, rev.targets) : null), [fy, rev.scopeEff, rev.cfg, rev.targets]);
-  const cov = useMemo(() => (fy ? coverageFrom(fy, rev.scopeEff, rev.cfg, rev.targets) : null), [fy, rev.scopeEff, rev.cfg, rev.targets]);
   const value = {
     gross: short(T.gross), adjustments: short(T.adjustments), cancelled: short(T.cancelled), exclusions: short(T.exclusions), net: short(T.net),
-    collected: short(T.collected), uncollected: short(T.outstanding), received: short(snapshot.receivedInPeriod.total), netUncollected: short(S.netUncollected), overdue: short(S.overdue), notYetDue: short(S.notYetDue),
+    collected: short(T.collected), uncollected: short(T.outstanding), netUncollected: short(S.netUncollected), overdue: short(S.overdue), notYetDue: short(S.notYetDue),
     collectedOverNet: ratioText(T.collectedOverNet, ar),
-    targetAchievement: ach ? ratioText(ach.achievement, ar) : '…', coverage: cov ? ratioText(cov.coverage, ar) : '…', forecast: '—'
+    adjustedTotal: '—', targetCollection: '—', remainingToTarget: '—'
   };
   return (
     <div className="rv-page">
