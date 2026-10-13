@@ -169,7 +169,7 @@ export function DataStatus() {
 
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
 export function ScopeBar({ compact = false, hideStatuses = [] }) {
-  const { scope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
+  const { scope, setPreset, setCustomRange, setAmanah, setSource, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
   const { L, B, lang, T, count } = useL();
   const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
   const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
@@ -196,12 +196,6 @@ export function ScopeBar({ compact = false, hideStatuses = [] }) {
             <option value="all">{L('All revenue sources', 'جميع مصادر الإيراد')}</option>
             {REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{lang === 'ar' ? REVENUE_SOURCES[k].ar : REVENUE_SOURCES[k].en}</option>)}
             {UNAVAILABLE_REVENUE_SOURCES.map((s) => <option key={s.id} value="__na" disabled>{(lang === 'ar' ? s.ar : s.en)} — {L('no records', 'لا سجلات')}</option>)}
-          </select>
-          <label className="rv-scope__lbl" htmlFor="rv-scopetype">{L('Central / internal', 'مركزي / داخلي')}</label>
-          <select id="rv-scopetype" className="select" value={scope.scopeType || 'all'} onChange={(e) => setScopeType(e.target.value)}>
-            <option value="all">{L('All', 'الكل')}</option>
-            <option value="central">{L('Central', 'مركزي')}</option>
-            <option value="internal">{L('Internal', 'داخلي')}</option>
           </select>
           <label className="rv-scope__lbl" htmlFor="rv-status">{L('Invoice status', 'حالة الفاتورة')}</label>
           <select id="rv-status" className="select" value={scope.status || 'all'} onChange={(e) => setStatus(e.target.value)}>

@@ -41,7 +41,7 @@ export default function Invoices() {
   const [amanahFilter, setAmanahFilter] = useState(mem.amanahFilter ?? (searchParams.get('amanah') || 'all'));
   const [collectionFilter, setCollectionFilter] = useState(mem.collectionFilter ?? 'all');
   const [search, setSearch] = useState(mem.search ?? (highlightCo || ''));
-  const [scopeType, setScopeType] = useState(mem.scopeType ?? 'all');
+  const scopeType = 'all'; // the central / internal filter was removed from every page
   const [muniFilter, setMuniFilter] = useState(mem.muniFilter ?? 'all');
   const [itemFilter, setItemFilter] = useState(mem.itemFilter ?? 'all');
   const [exFilter, setExFilter] = useState(mem.exFilter ?? 'all');
@@ -100,7 +100,7 @@ export default function Invoices() {
   // F-13: a drill-down link such as /invoices?src=fines writes the source into the SHARED filter (visible in the scope bar and used by the KPI strip), then drops the hidden URL parameter
   useEffect(() => { if (srcParam) { rev.setSource(srcParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const clearAll = () => {
-    setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); setScopeType('all'); setMuniFilter('all'); setItemFilter('all'); setExFilter('all'); setAgeFilter('all'); setContractFilter('all'); setExecFilter('all');
+    setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); setMuniFilter('all'); setItemFilter('all'); setExFilter('all'); setAgeFilter('all'); setContractFilter('all'); setExecFilter('all');
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
   };
   const selStyle = { height: 32, width: 'auto', paddingInline: 10, fontSize: 13 };
@@ -146,9 +146,6 @@ export default function Invoices() {
         <details className="oj-more" open={moreActive > 0}>
           <summary>{bi.L('More filters', 'فلاتر إضافية')}{moreActive ? ` (${moreActive})` : ''}</summary>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBlockStart: 6 }}>
-        <select id="f_scope" className="select" aria-label={bi.L('Central / internal', 'مركزي / داخلي')} style={selStyle} value={scopeType} onChange={(e) => setScopeType(e.target.value)}>
-          <option value="all">{bi.L('Central & internal', 'المركزي والداخلي')}</option><option value="central">{bi.L('Central', 'مركزي')}</option><option value="internal">{bi.L('Internal', 'داخلي')}</option>
-        </select>
         <select id="f_muni" className="select" aria-label={bi.L('Municipality', 'البلدية')} style={{ ...selStyle, minWidth: 150 }} value={muniFilter} onChange={(e) => setMuniFilter(e.target.value)} disabled={amanahFilter === 'all'}>
           <option value="all">{bi.L('All municipalities', 'كل البلديات')}</option>
           {muniOptions.map((m) => (<option key={m.key} value={m.key}>{lang === 'ar' ? m.ar : m.en}</option>))}

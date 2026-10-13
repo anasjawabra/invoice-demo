@@ -39,7 +39,7 @@ export function RevenueProvider({ children }) {
 
   const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
   // a stored preset always follows TODAY's date (a new day moves "year to date" / "this month" forward)
-  const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : scopeRaw; }, [scopeRaw]);
+  const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p], scopeType: 'all' } : { ...scopeRaw, scopeType: 'all' }; }, [scopeRaw]); // the central / internal filter no longer exists: a value stored earlier is ignored
   const [cfg, setCfg] = usePersistent('ib_rev_cfg3', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
   // The only editable target is the annual collection goal on the Strategic Dashboard (saved plans: src/data/collectionGoal.js). Nothing edited the old per-session copy of these demo defaults, so it is no longer stored.
   const targets = DEFAULT_TARGETS;

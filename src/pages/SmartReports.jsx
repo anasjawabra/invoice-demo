@@ -69,8 +69,6 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
       <div className="sr-filters__row">
         <label className="rv-scope__lbl" htmlFor="sr-st">{L('حالة الفاتورة', 'Invoice status')}</label>
         <select id="sr-st" className="select" value={d.status} onChange={(e) => setD({ ...d, status: e.target.value })}>{[['all', 'كل الحالات', 'All statuses'], ['collected', 'محصّلة', 'Collected'], ['open', 'قائمة', 'Open'], ['overdue', 'متأخرة', 'Overdue'], ['partial', 'جزئية', 'Partial'], ['not_due', 'لم تستحق', 'Not yet due'], ['cancelled', 'ملغاة', 'Cancelled'], ['excluded', 'مستبعدة', 'Excluded']].map(([k, a, e]) => <option key={k} value={k}>{L(a, e)}</option>)}</select>
-        <label className="rv-scope__lbl" htmlFor="sr-sc">{L('مركزي / داخلي', 'Central / internal')}</label>
-        <select id="sr-sc" className="select" value={d.scopeType} onChange={(e) => setD({ ...d, scopeType: e.target.value })}><option value="all">{L('الكل', 'All')}</option><option value="central">{L('مركزي', 'Central')}</option><option value="internal">{L('داخلي', 'Internal')}</option></select>
         <label className="rv-scope__lbl" htmlFor="sr-cm">{L('المقارنة', 'Comparison')}</label>
         <select id="sr-cm" className="select" value={d.compare} onChange={(e) => setD({ ...d, compare: e.target.value })}><option value="none">{L('بدون', 'None')}</option><option value="prev_year">{L('نفس الفترة من العام السابق', 'Same period last year')}</option><option value="prev_month">{L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)')}</option></select>
       </div>

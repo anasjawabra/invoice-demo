@@ -17,10 +17,10 @@ export default function FilterChips() {
     const am = s.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(s.amanah).map(labelOfAmanah).join('، ');
     const mu = s.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(s.muni).split('|')[0]).find((m) => m && m.key === s.muni)?.[ar ? 'ar' : 'en'] || s.muni);
     const st = { all: null, collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[s.status || 'all'];
-    return [[L('الفترة', 'Period'), fmtRangeText(s.from, s.to, ar ? 'ar' : 'en')], [L('الأمانة', 'Amanah'), am], [L('البلدية', 'Municipality'), mu], [L('المصدر', 'Source'), s.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(s.source) : sourceEn(s.source))], ...(st ? [[L('الحالة', 'Status'), st]] : []), ...(s.scopeType !== 'all' ? [[L('النطاق', 'Scope'), s.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central')]] : [])];
+    return [[L('الفترة', 'Period'), fmtRangeText(s.from, s.to, ar ? 'ar' : 'en')], [L('الأمانة', 'Amanah'), am], [L('البلدية', 'Municipality'), mu], [L('المصدر', 'Source'), s.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(s.source) : sourceEn(s.source))], ...(st ? [[L('الحالة', 'Status'), st]] : [])];
   }, [s, ar, L, labelOfAmanah]);
   // how many filters differ from the defaults (year to date · everything) — and one click to go back
-  const active = [rev.scope.preset !== 'ytd', s.amanah !== 'all', s.muni !== 'all', s.source !== 'all', (s.scopeType || 'all') !== 'all', (s.status || 'all') !== 'all'].filter(Boolean).length;
+  const active = [rev.scope.preset !== 'ytd', s.amanah !== 'all', s.muni !== 'all', s.source !== 'all', (s.status || 'all') !== 'all'].filter(Boolean).length;
   // F-20: the calculation settings (grace days, collection basis, CR statuses, rules) change every figure — say so when they are not the defaults
   const cfgChanged = (() => { const c = rev.cfg || {}; const J = JSON.stringify; return c.graceDays !== DEFAULT_CONFIG.graceDays || c.collectionsAsOf !== DEFAULT_CONFIG.collectionsAsOf || J(c.crStatuses) !== J(DEFAULT_CONFIG.crStatuses) || J(c.rules) !== J(DEFAULT_CONFIG.rules); })();
   return (
