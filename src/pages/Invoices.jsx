@@ -6,8 +6,6 @@ import { CATEGORY_LABELS } from '../data/revenueMetrics';
 import { pickBi } from '../data/revenueInsights';
 import { ProvenanceBadge, ScopeBar, DefinitionButton } from '../components/revenue/RevenueUI';
 import { useL, ratioText } from '../utils/bi';
-import { ITEMS } from '../data/catalog';
-import { AGING_BUCKETS } from '../data/assistantProtocol';
 import { useAsync } from '../utils/useAsync';
 import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
@@ -40,29 +38,26 @@ export default function Invoices() {
   const amanahParam = searchParams.get('amanah'); // a link such as /invoices?amanah=… sets the SHARED Amanah filter (the scope bar), then drops the parameter
   const [collectionFilter, setCollectionFilter] = useState(mem.collectionFilter ?? 'all');
   const [search, setSearch] = useState(mem.search ?? (highlightCo || ''));
-  const [itemFilter, setItemFilter] = useState(mem.itemFilter ?? 'all');
-  const [ageFilter, setAgeFilter] = useState(mem.ageFilter ?? 'all');
-  const [allPeriods, setAllPeriods] = useState(mem.allPeriods ?? !!highlightCo);
+  const allPeriods = !!highlightCo; // a contract link (?co=…) lists that contract's invoices of every period
   const [page, setPage] = useState(mem.page ?? 0);
   const [sort, setSort] = useState(mem.sort ?? { key: 'issue', dir: 'desc' });
-  useEffect(() => { writeListMemory('invoices', { collectionFilter, search, itemFilter, ageFilter, allPeriods, page, sort }); }, [collectionFilter, search, itemFilter, ageFilter, allPeriods, page, sort]);
+  useEffect(() => { writeListMemory('invoices', { collectionFilter, search, page, sort }); }, [collectionFilter, search, page, sort]);
   const debouncedSearch = useDebounced(search.trim(), 350);
 
-  const moreActive = [itemFilter, ageFilter].filter((v) => v !== 'all').length + (allPeriods ? 1 : 0);
-  const activeFilterCount = [collectionFilter, itemFilter, ageFilter].filter((v) => v !== 'all').length + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
+  const activeFilterCount = (collectionFilter !== 'all' ? 1 : 0) + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
 
   // any filter change returns to the first page
-  const filterKey = JSON.stringify([collectionFilter, itemFilter, ageFilter, allPeriods, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
+  const filterKey = JSON.stringify([collectionFilter, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
   const lastKey = useRef(filterKey);
   useEffect(() => { if (lastKey.current !== filterKey) { lastKey.current = filterKey; setPage(0); } }, [filterKey]);
 
   const request = useMemo(() => {
     const sc = rev.scopeEff;
     // the shared scope bar (period, Amanah, source, municipality) plus this page's own collection-state, revenue-item and age filters
-    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: 'all', muni: sc.muni, item: itemFilter };
-    const filters = { search: debouncedSearch, state: collectionFilter, age: ageFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
+    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: 'all', muni: sc.muni, item: 'all' };
+    const filters = { search: debouncedSearch, state: collectionFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
     return { scope, filters };
-  }, [rev.scopeEff, srcParam, itemFilter, debouncedSearch, collectionFilter, ageFilter, allPeriods, filterMode]);
+  }, [rev.scopeEff, srcParam, debouncedSearch, collectionFilter, allPeriods, filterMode]);
 
   const { data: res, loading, error } = useAsync(() => rev.data.list(request.scope, { filters: request.filters, page, pageSize: PAGE_SIZE, sort }), [rev.data, request, page, sort]);
   const rows = res?.rows || [];
@@ -88,7 +83,7 @@ export default function Invoices() {
   useEffect(() => { if (amanahParam) { rev.setAmanah(amanahParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('amanah'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (srcParam) { rev.setSource(srcParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const clearAll = () => {
-    setCollectionFilter('all'); setSearch(''); setItemFilter('all'); setAgeFilter('all');
+    setCollectionFilter('all'); setSearch('');
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
   };
   const selStyle = { height: 32, width: 'auto', paddingInline: 10, fontSize: 13 };
@@ -127,20 +122,6 @@ export default function Invoices() {
         )}
         <a className="btn btn-sm" href={exportHref} download>{bi.L('Export CSV', 'تصدير CSV')}</a>
         </div>
-        <details className="oj-more" open={moreActive > 0}>
-          <summary>{bi.L('More filters', 'فلاتر إضافية')}{moreActive ? ` (${moreActive})` : ''}</summary>
-          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBlockStart: 6 }}>
-        <select id="f_item" className="select" aria-label={bi.L('Revenue item', 'بند الإيراد')} style={{ ...selStyle, minWidth: 150 }} value={itemFilter} onChange={(e) => setItemFilter(e.target.value)}>
-          <option value="all">{bi.L('All revenue items', 'كل بنود الإيراد')}</option>
-          {ITEMS.map((i) => (<option key={i.key} value={i.key}>{bi.ar ? i.ar : i.en}</option>))}
-        </select>
-        <select id="f_age" className="select" aria-label={bi.L('Age', 'العمر')} style={selStyle} value={ageFilter} onChange={(e) => setAgeFilter(e.target.value)}>
-          <option value="all">{bi.L('Any age (from due date)', 'أي عمر (من الاستحقاق)')}</option>
-          {AGING_BUCKETS.map((b) => (<option key={b.key} value={b.key}>{bi.B(b.label)}</option>))}
-        </select>
-        <label className="rv-inline"><input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)} /> {bi.L('Ignore the period above', 'تجاهل الفترة أعلاه')}</label>
-          </div>
-        </details>
       </div>
 
       <div className="grid grid-3" role="group" aria-label={bi.L('Totals of the matching invoices', 'إجماليات الفواتير المطابقة')}>
