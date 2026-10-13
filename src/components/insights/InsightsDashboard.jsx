@@ -48,8 +48,6 @@ export default function InsightsDashboard() {
         <MetricTile metric="uncollected" label={L('غير المحصّل', 'Uncollected')} value={kp(T.outstanding)} sub={L('من فواتير الفترة', 'on the period’s invoices')} />
         <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('من الصافي', 'of net billed')} />
       </div>
-      <RevenueAnalysis />
-
       <div className="card st-card"><FinancialRelations totals={T} /></div>
       <ToDateFigure snapshot={snapshot} />
 
@@ -106,6 +104,8 @@ export default function InsightsDashboard() {
             </div>)}
         </div>
       </div>
+
+      <RevenueAnalysis />
     </div>
   );
 }
