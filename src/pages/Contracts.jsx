@@ -7,6 +7,7 @@ import { contractPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { ProvenanceBadge } from '../components/revenue/RevenueUI';
+import { PctBadge } from '../components/strategic/EntityMap';
 import { INSTALLMENT_STATES } from '../data/contracts';
 import { AMANAH_CATALOG, ENTITIES, ITEMS } from '../data/catalog';
 
@@ -32,9 +33,7 @@ export default function Contracts() {
   const list = useMemo(() => visible.filter((c) => {
     if (q && !`${c.contractNo} ${c.tenantAr} ${c.tenantEn}`.toLowerCase().includes(q.toLowerCase())) return false;
     if (filter === 'arrears') return c.totals.arrears > 0;
-    if (filter === 'exec') return c.requests.length > 0;
     if (filter === 'future') return c.totals.futureInstallments > 0;
-    if (filter === 'crinactive') return ['Deleted', 'Cancelled', 'Suspended'].includes(c.crStatusRaw);
     return true;
   }).sort((a, b) => b.totals.arrears - a.totals.arrears), [visible, q, filter]);
   const firstRun = React.useRef(true);
@@ -47,17 +46,17 @@ export default function Contracts() {
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">{L('Contracts, enforcement and registry', 'العقود والتنفيذ والسجل التجاري')}</h1>
-          <div className="page-sub">{L('Contracts, their payments and invoices, and the enforcement requests tied to them. Enforcement amounts are shown separately and never added to the debt again.', 'العقود ودفعاتها وفواتيرها وطلبات التنفيذ المرتبطة بها. وتُعرض مبالغ التنفيذ منفصلة ولا تُضاف إلى المديونية مرة ثانية.')}</div>
+          <h1 className="page-title">{L('Investment contracts', 'العقود الاستثمارية')}</h1>
+          <div className="page-sub">{L('Investment contracts and the payments linked to them only: how much was paid, what is overdue, what is invoiced but not yet due, and what is still to come.', 'العقود الاستثمارية والدفعات المرتبطة بها فقط: كم دُفع، وما المتأخر، وما فُوتر ولم يحن استحقاقه، وما هو قادم.')}</div>
         </div>
       </div>
 
       <div className="rv-tiles">
         <div className="rv-tile"><div className="rv-tile__label">{L('Contracts', 'العقود')}</div><div className="rv-tile__value">{count(visible.length)}</div><div className="rv-tile__sub">{roll.multiPayment} {L('with several payments', 'متعددة الدفعات')}</div></div>
+        <div className="rv-tile"><div className="rv-tile__label">{L('Collected on the payments', 'المحصّل من الدفعات')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.collected, 0))}</div><div className="rv-tile__sub">{L('of the contracts’ payments up to today', 'من دفعات العقود حتى اليوم')}</div></div>
         <div className="rv-tile rv-tile--bad"><div className="rv-tile__label">{L('Overdue installments', 'دفعات متأخرة')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.arrears, 0))}</div></div>
         <div className="rv-tile"><div className="rv-tile__label">{L('Invoiced, not yet due', 'مفوترة لم يحن استحقاقها')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.notDue, 0))}</div></div>
         <div className="rv-tile"><div className="rv-tile__label">{L('Future installments (not arrears)', 'دفعات مستقبلية (ليست متأخرات)')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.futureNotInvoiced, 0))}</div><div className="rv-tile__sub">{L('not invoiced yet', 'لم تُفوتر بعد')}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label">{L('Execution at contract level', 'تنفيذ على مستوى العقد')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0))}</div><div className="rv-tile__sub">{L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</div></div>
       </div>
 
       <div className="card card-pad">
@@ -68,14 +67,12 @@ export default function Contracts() {
               <option value="all">{L('All contracts', 'كل العقود')}</option>
               <option value="arrears">{L('With overdue installments', 'بدفعات متأخرة')}</option>
               <option value="future">{L('With future installments', 'بدفعات مستقبلية')}</option>
-              <option value="exec">{L('With an execution request', 'بطلب تنفيذ')}</option>
-              <option value="crinactive">{L('CR status not Active (raw)', 'السجل التجاري غير Active (خام)')}</option>
             </select>
           </label>
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th className="num">{L('Future', 'مستقبلية')}</th><th>{L('Execution', 'التنفيذ')}</th><th>{L('CR (raw)', 'السجل (خام)')}</th></tr></thead>
+            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Collected of what is due', 'المحصّل من المستحق')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th>{L('Payments', 'الدفعات')}</th></tr></thead>
             <tbody>
               {list.slice(page * PS, (page + 1) * PS).map((c) => (
                 <tr key={c.contractNo}>
@@ -84,13 +81,12 @@ export default function Contracts() {
                   <td>{amanahName(c.amanahEn, ar)}</td>
                   <td className="num">{short(c.totals.contractValue)}</td>
                   <td className="num">{short(c.totals.collected)}</td>
+                  <td className="num">{c.totals.dueToDate > 0 ? <PctBadge v={c.totals.collected / c.totals.dueToDate} text={`${(Math.round((c.totals.collected / c.totals.dueToDate) * 1000) / 10).toFixed(1)}%`} /> : '—'}</td>
                   <td className="num">{c.totals.arrears ? <b className="rv-neg">{short(c.totals.arrears)}</b> : '—'}</td>
-                  <td className="num">{count(c.totals.futureInstallments)}</td>
-                  <td>{c.requests.length ? `${c.requests.length} · ${short(c.execution.amount)}` : '—'}</td>
-                  <td dir="ltr">{c.crStatusRaw || '—'}</td>
+                  <td>{L(`${c.totals.installments} in all · ${c.totals.overdueInstallments} overdue · ${c.totals.futureInstallments} to come`, `${c.totals.installments} دفعة · ${c.totals.overdueInstallments} متأخرة · ${c.totals.futureInstallments} قادمة`)}</td>
                 </tr>
               ))}
-              {!list.length && <tr><td colSpan={9}><div className="rv-empty">{L('No contract matches.', 'لا عقد مطابق.')}</div></td></tr>}
+              {!list.length && <tr><td colSpan={8}><div className="rv-empty">{L('No contract matches.', 'لا عقد مطابق.')}</div></td></tr>}
             </tbody>
           </table>
         </div>
