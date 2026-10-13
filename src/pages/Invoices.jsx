@@ -2,12 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useRevenue } from '../context/RevenueContext';
-import { NONCOLLECTION_CATEGORIES, CATEGORY_LABELS, EXCLUSION_RULES } from '../data/revenueMetrics';
+import { CATEGORY_LABELS } from '../data/revenueMetrics';
 import { pickBi } from '../data/revenueInsights';
 import { ProvenanceBadge, ScopeBar, DefinitionButton } from '../components/revenue/RevenueUI';
 import { useL, ratioText } from '../utils/bi';
-import { amanahFilterOptions } from '../data/revenueLedger';
-import { ITEMS, municipalitiesOf } from '../data/catalog';
+import { ITEMS } from '../data/catalog';
 import { AGING_BUCKETS } from '../data/assistantProtocol';
 import { useAsync } from '../utils/useAsync';
 import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
@@ -38,44 +37,32 @@ export default function Invoices() {
   // coming BACK from a record page (the return link or the browser's Back) restores the filters, sorting, page and scroll position this list had
   const restore = useShouldRestore();
   const mem = useMemo(() => readListMemory('invoices', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [amanahFilter, setAmanahFilter] = useState(mem.amanahFilter ?? (searchParams.get('amanah') || 'all'));
+  const amanahParam = searchParams.get('amanah'); // a link such as /invoices?amanah=… sets the SHARED Amanah filter (the scope bar), then drops the parameter
   const [collectionFilter, setCollectionFilter] = useState(mem.collectionFilter ?? 'all');
   const [search, setSearch] = useState(mem.search ?? (highlightCo || ''));
-  const scopeType = 'all'; // the central / internal filter was removed from every page
-  const [muniFilter, setMuniFilter] = useState(mem.muniFilter ?? 'all');
   const [itemFilter, setItemFilter] = useState(mem.itemFilter ?? 'all');
-  const [exFilter, setExFilter] = useState(mem.exFilter ?? 'all');
   const [ageFilter, setAgeFilter] = useState(mem.ageFilter ?? 'all');
-  const [contractFilter, setContractFilter] = useState(mem.contractFilter ?? 'all');
-  const [execFilter, setExecFilter] = useState(mem.execFilter ?? 'all');
   const [allPeriods, setAllPeriods] = useState(mem.allPeriods ?? !!highlightCo);
   const [page, setPage] = useState(mem.page ?? 0);
   const [sort, setSort] = useState(mem.sort ?? { key: 'issue', dir: 'desc' });
-  useEffect(() => { writeListMemory('invoices', { amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort }); }, [amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort]);
+  useEffect(() => { writeListMemory('invoices', { collectionFilter, search, itemFilter, ageFilter, allPeriods, page, sort }); }, [collectionFilter, search, itemFilter, ageFilter, allPeriods, page, sort]);
   const debouncedSearch = useDebounced(search.trim(), 350);
 
-  const amanahOptions = useMemo(() => amanahFilterOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
-  const amanahLabel = (o) => (lang === 'zh' ? o.zh : lang === 'ar' ? o.ar : o.en);
-  const muniOptions = useMemo(() => (amanahFilter === 'all' ? [] : municipalitiesOf(amanahFilter)), [amanahFilter]);
-  const moreActive = [scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter].filter((v) => v !== 'all').length + (allPeriods ? 1 : 0);
-  const activeFilterCount = [amanahFilter, collectionFilter, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter].filter((v) => v !== 'all').length + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
+  const moreActive = [itemFilter, ageFilter].filter((v) => v !== 'all').length + (allPeriods ? 1 : 0);
+  const activeFilterCount = [collectionFilter, itemFilter, ageFilter].filter((v) => v !== 'all').length + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
 
   // any filter change returns to the first page
-  const filterKey = JSON.stringify([amanahFilter, collectionFilter, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
+  const filterKey = JSON.stringify([collectionFilter, itemFilter, ageFilter, allPeriods, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
   const lastKey = useRef(filterKey);
   useEffect(() => { if (lastKey.current !== filterKey) { lastKey.current = filterKey; setPage(0); } }, [filterKey]);
 
   const request = useMemo(() => {
     const sc = rev.scopeEff;
-    const scope = {
-      from: sc.from, to: sc.to,
-      amanah: amanahFilter !== 'all' ? amanahFilter : sc.amanah,
-      source: srcParam || sc.source, status: sc.status,
-      scopeType: scopeType !== 'all' ? scopeType : sc.scopeType, muni: muniFilter !== 'all' ? muniFilter : (amanahFilter === 'all' ? sc.muni : 'all'), item: itemFilter
-    };
-    const filters = { search: debouncedSearch, state: collectionFilter, rule: exFilter, age: ageFilter, contract: contractFilter, exec: execFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
+    // the shared scope bar (period, Amanah, source, municipality) plus this page's own collection-state, revenue-item and age filters
+    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: 'all', muni: sc.muni, item: itemFilter };
+    const filters = { search: debouncedSearch, state: collectionFilter, age: ageFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
     return { scope, filters };
-  }, [rev.scopeEff, amanahFilter, srcParam, scopeType, muniFilter, itemFilter, debouncedSearch, collectionFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, filterMode]);
+  }, [rev.scopeEff, srcParam, itemFilter, debouncedSearch, collectionFilter, ageFilter, allPeriods, filterMode]);
 
   const { data: res, loading, error } = useAsync(() => rev.data.list(request.scope, { filters: request.filters, page, pageSize: PAGE_SIZE, sort }), [rev.data, request, page, sort]);
   const rows = res?.rows || [];
@@ -98,9 +85,10 @@ export default function Invoices() {
 
   const viewLabel = bi.L('View details', 'عرض التفاصيل');
   // F-13: a drill-down link such as /invoices?src=fines writes the source into the SHARED filter (visible in the scope bar and used by the KPI strip), then drops the hidden URL parameter
+  useEffect(() => { if (amanahParam) { rev.setAmanah(amanahParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('amanah'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (srcParam) { rev.setSource(srcParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const clearAll = () => {
-    setAmanahFilter('all'); setCollectionFilter('all'); setSearch(''); setMuniFilter('all'); setItemFilter('all'); setExFilter('all'); setAgeFilter('all'); setContractFilter('all'); setExecFilter('all');
+    setCollectionFilter('all'); setSearch(''); setItemFilter('all'); setAgeFilter('all');
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
   };
   const selStyle = { height: 32, width: 'auto', paddingInline: 10, fontSize: 13 };
@@ -116,7 +104,7 @@ export default function Invoices() {
         </div>
       </div>
 
-      <ScopeBar />
+      <ScopeBar hideStatus />
 
       <div className="rv-tiles" aria-label={bi.L('Indicators for the scope above', 'مؤشرات النطاق أعلاه')}>
         <div className="rv-tile"><div className="rv-tile__label"><span>{bi.L('Gross billed', 'إجمالي المفوتر')}</span><DefinitionButton metric="gross" /></div><div className="rv-tile__value" dir="ltr" title={bi.sar(rev.snapshot.totals.gross)}>{bi.short(rev.snapshot.totals.gross)}</div><div className="rv-tile__sub">{bi.invoices(rev.snapshot.totals.count)}</div></div>
@@ -128,15 +116,11 @@ export default function Invoices() {
       <div className="card card-pad" style={{ padding: '10px 14px' }} role="search" aria-label={bi.L('Invoice filters', 'مرشحات الفواتير')}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <input id="inv_search" className="input" style={{ flex: '1 1 220px', height: 32, minWidth: 180 }} placeholder={bi.L('Invoice, SADAD, subscription, violation, CR, payer or contract', 'فاتورة أو سداد أو اشتراك أو مخالفة أو سجل تجاري أو دافع أو عقد')} aria-label={bi.L('Search', 'بحث')} value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select id="f_amanah" className="select" aria-label={bi.L('Amanah', 'الأمانة')} style={{ ...selStyle, minWidth: 170 }} value={amanahFilter} onChange={(e) => { setAmanahFilter(e.target.value); setMuniFilter('all'); }}>
-          <option value="all">{t('inv_filter_amanah_all')}</option>
-          {amanahOptions.map((o) => (<option key={o.key} value={o.key}>{amanahLabel(o)}</option>))}
-        </select>
         <select id="f_state" className="select" aria-label={bi.L('Collection state', 'حالة التحصيل')} style={{ ...selStyle, minWidth: 180 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
           <option value="all">{t('inv_filter_status_all')}</option>
           <option value="open">{bi.L('Any outstanding balance', 'أي رصيد متبقٍ')}</option>
-          <option value="collected">{bi.L('Collected', 'محصّلة')}</option>
-          {NONCOLLECTION_CATEGORIES.map((k) => (<option key={k} value={k}>{pickBi(CATEGORY_LABELS[k], lang)}</option>))}
+          <option value="collected">{bi.L('Collected in full', 'محصّلة بالكامل')}</option>
+          {['partial', 'overdue', 'not_due'].map((k) => (<option key={k} value={k}>{pickBi(CATEGORY_LABELS[k], lang)}</option>))}
         </select>
         {activeFilterCount > 0 && (
           <button type="button" className="btn btn-sm btn-ghost" onClick={clearAll}>{t('inv_filter_clear')} ({activeFilterCount}) ×</button>
@@ -146,27 +130,13 @@ export default function Invoices() {
         <details className="oj-more" open={moreActive > 0}>
           <summary>{bi.L('More filters', 'فلاتر إضافية')}{moreActive ? ` (${moreActive})` : ''}</summary>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBlockStart: 6 }}>
-        <select id="f_muni" className="select" aria-label={bi.L('Municipality', 'البلدية')} style={{ ...selStyle, minWidth: 150 }} value={muniFilter} onChange={(e) => setMuniFilter(e.target.value)} disabled={amanahFilter === 'all'}>
-          <option value="all">{bi.L('All municipalities', 'كل البلديات')}</option>
-          {muniOptions.map((m) => (<option key={m.key} value={m.key}>{lang === 'ar' ? m.ar : m.en}</option>))}
-        </select>
         <select id="f_item" className="select" aria-label={bi.L('Revenue item', 'بند الإيراد')} style={{ ...selStyle, minWidth: 150 }} value={itemFilter} onChange={(e) => setItemFilter(e.target.value)}>
           <option value="all">{bi.L('All revenue items', 'كل بنود الإيراد')}</option>
           {ITEMS.map((i) => (<option key={i.key} value={i.key}>{bi.ar ? i.ar : i.en}</option>))}
         </select>
-        <select id="f_excl" className="select" aria-label={bi.L('Exclusion reason', 'سبب الاستبعاد')} style={{ ...selStyle, minWidth: 150 }} value={exFilter} onChange={(e) => setExFilter(e.target.value)}>
-          <option value="all">{bi.L('Any exclusion reason', 'أي سبب استبعاد')}</option><option value="none">{bi.L('No exclusion record', 'بلا سجل استبعاد')}</option>
-          {EXCLUSION_RULES.filter((r) => !r.locked).map((r) => (<option key={r.id} value={r.id}>{r.id} · {bi.B(r.label)}</option>))}
-        </select>
         <select id="f_age" className="select" aria-label={bi.L('Age', 'العمر')} style={selStyle} value={ageFilter} onChange={(e) => setAgeFilter(e.target.value)}>
           <option value="all">{bi.L('Any age (from due date)', 'أي عمر (من الاستحقاق)')}</option>
           {AGING_BUCKETS.map((b) => (<option key={b.key} value={b.key}>{bi.B(b.label)}</option>))}
-        </select>
-        <select id="f_contract" className="select" aria-label={bi.L('Contract', 'العقد')} style={selStyle} value={contractFilter} onChange={(e) => setContractFilter(e.target.value)}>
-          <option value="all">{bi.L('Any contract state', 'أي حالة عقد')}</option><option value="linked">{bi.L('Contract linked', 'عقد مرتبط')}</option><option value="unmatched">{bi.L('Contract not matched', 'لم تتم مطابقة العقد')}</option><option value="confirmed_none">{bi.L('No contract (confirmed)', 'بدون عقد (مؤكد)')}</option><option value="not_applicable">{bi.L('Not a contract invoice', 'ليست فاتورة عقد')}</option>
-        </select>
-        <select id="f_exec" className="select" aria-label={bi.L('Enforcement', 'الإنفاذ')} style={selStyle} value={execFilter} onChange={(e) => setExecFilter(e.target.value)}>
-          <option value="all">{bi.L('Enforcement: any', 'الإنفاذ: أي')}</option><option value="inexec">{bi.L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{bi.L('Referred before, all orders closed', 'سبقت إحالتها، كل الأوامر مغلقة')}</option><option value="ever">{bi.L('Ever referred (any order status)', 'سبقت إحالتها (أي حالة أمر)')}</option><option value="none">{bi.L('Never referred', 'لم تُحَل إلى التنفيذ')}</option><option value="conflict">{bi.L('Cancelled yet referred (stays cancelled)', 'ملغاة ومحالة (تبقى ملغاة)')}</option>
         </select>
         <label className="rv-inline"><input type="checkbox" checked={allPeriods} onChange={(e) => setAllPeriods(e.target.checked)} /> {bi.L('Ignore the period above', 'تجاهل الفترة أعلاه')}</label>
           </div>

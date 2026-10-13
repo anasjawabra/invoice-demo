@@ -168,7 +168,7 @@ export function DataStatus() {
 }
 
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
-export function ScopeBar({ compact = false, hideStatuses = [] }) {
+export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = false }) {
   const { scope, setPreset, setCustomRange, setAmanah, setSource, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
   const { L, B, lang, T, count } = useL();
   const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
@@ -197,11 +197,13 @@ export function ScopeBar({ compact = false, hideStatuses = [] }) {
             {REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{lang === 'ar' ? REVENUE_SOURCES[k].ar : REVENUE_SOURCES[k].en}</option>)}
             {UNAVAILABLE_REVENUE_SOURCES.map((s) => <option key={s.id} value="__na" disabled>{(lang === 'ar' ? s.ar : s.en)} — {L('no records', 'لا سجلات')}</option>)}
           </select>
+          {!hideStatus && (<>
           <label className="rv-scope__lbl" htmlFor="rv-status">{L('Invoice status', 'حالة الفاتورة')}</label>
           <select id="rv-status" className="select" value={scope.status || 'all'} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">{L('All statuses', 'كل الحالات')}</option>
             {[['collected', L('Collected in full', 'محصّلة بالكامل')], ['open', L('Still owing (open)', 'قائمة (غير مسددة)')], ['overdue', L('Overdue', 'متأخرة')], ['partial', L('Partially collected', 'محصّلة جزئياً')], ['not_due', L('Not yet due', 'لم يحن استحقاقها')], ['cancelled', L('Cancelled', 'ملغاة')], ['excluded', L('Excluded', 'مستبعدة')]].filter(([k]) => !hideStatuses.includes(k)).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
+          </>)}
           {munis.length > 0 && (<>
             <label className="rv-scope__lbl" htmlFor="rv-muni">{L('Municipality', 'البلدية')}</label>
             <select id="rv-muni" className="select" value={scope.muni || 'all'} onChange={(e) => setMuni(e.target.value)}>
