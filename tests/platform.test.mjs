@@ -29,6 +29,7 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
+import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
 import { amanahOptionsOf as amanahsG, amanahFilterOptions } from '../src/data/revenueLedger.js';
@@ -1341,11 +1342,11 @@ await test('Review status and alerts: ONE matching-review value per order; unrea
 
 /* ------------------------------------------------------------------ Strategic Dashboard: the annual collection goal */
 const NOW26 = '2026-10-11';
-const mk = (o = {}) => ({ year: 2026, today: NOW26, rate: 0.6, gross: 100, approvedExclusions: 10, monthlyCollected: [2, 3, 3, 3, 3, 3, 3, 3, 3, 4], plan: null, ...o });
-await test('goal: the approved formulas — adjusted total, target, collection rate, remaining (progress below the target)', () => {
+const mk = (o = {}) => ({ year: 2026, today: NOW26, target: 54, monthlyCollected: [2, 3, 3, 3, 3, 3, 3, 3, 3, 4], plan: null, ...o });
+await test('goal: the formulas — share of the revenue appropriation collected, remaining (progress below the target)', () => {
   const g = computeGoal(mk());
-  assert.equal(g.state, 'ok'); assert.equal(g.adjustedTotal, 90); assert.ok(Math.abs(g.target - 54) < 1e-9);
-  assert.equal(g.collected, 30); assert.ok(Math.abs(g.collectionRate - 30 / 90) < 1e-12); assert.ok(Math.abs(g.remaining - 24) < 1e-9);
+  assert.equal(g.state, 'ok'); assert.equal(g.target, 54);
+  assert.equal(g.collected, 30); assert.ok(Math.abs(g.collectionRate - 30 / 54) < 1e-12); assert.ok(Math.abs(g.remaining - 24) < 1e-9);
   assert.equal(g.achieved, false); assert.equal(g.exceededBy, 0);
   assert.ok(g.versusPlan < 0, 'behind the plan'); // plan to date: 40.5 at the end of September + 11/31 of October's 4.5
   assert.ok(Math.abs(g.plannedToDate - (40.5 + 4.5 * (11 / 31))) < 1e-9);
@@ -1353,10 +1354,14 @@ await test('goal: the approved formulas — adjusted total, target, collection r
 await test('goal: target reached or exceeded — remaining is zero, never negative', () => {
   const exact = computeGoal(mk({ monthlyCollected: [54] })); assert.equal(exact.achieved, true); assert.equal(exact.remaining, 0); assert.equal(exact.exceededBy, 0);
   const over = computeGoal(mk({ monthlyCollected: [30, 30] })); assert.equal(over.achieved, true); assert.equal(over.remaining, 0); assert.ok(Math.abs(over.exceededBy - 6) < 1e-9);
-  assert.ok(over.collectionRate > 0.6); assert.equal(over.pace.requiredPerMonth, 0);
+  assert.ok(over.collectionRate > 1); assert.equal(over.pace.requiredPerMonth, 0);
 });
-await test('goal: no valid denominator — nothing is calculated, nothing is shown as zero', () => {
-  for (const [gross, ex] of [[0, 0], [10, 10], [10, 25], [NaN, 0]]) { const g = computeGoal(mk({ gross, approvedExclusions: ex })); assert.equal(g.state, 'no_denominator'); assert.equal(g.target, undefined); assert.equal(g.collectionRate, undefined); assert.equal(g.actual, undefined); }
+await test('goal: no valid revenue appropriation — no rate, no remainder, nothing achieved, zero collection is never success', () => {
+  for (const target of [0, null, undefined, NaN, -5, '']) { const g = computeGoal(mk({ target, monthlyCollected: [0] })); assert.equal(g.state, 'no_target', String(target)); assert.equal(g.achieved, undefined); assert.equal(g.target, undefined); assert.equal(g.remaining, undefined); assert.equal(g.collectionRate, undefined); assert.equal(g.collected, 0); }
+  const withPayments = computeGoal(mk({ target: 0 })); assert.equal(withPayments.state, 'no_target'); assert.equal(withPayments.collected, 30, 'the money collected is still reported'); assert.equal(withPayments.achieved, undefined);
+  assert.equal(computeGoal(mk({ monthlyCollected: [0] })).achieved, false, 'valid target, zero collected: not achieved');
+  assert.equal(computeGoal(mk({ target: 1e12, monthlyCollected: [1] })).achieved, false);
+  assert.equal(computeGoal(mk({ monthlyCollected: [54] })).achieved, true);
   assert.equal(computeGoal(mk({ year: 2027 })).state, 'future_year');
 });
 await test('goal: actual stops at the reporting date (future months have no value, not zero); a closed year is measured at its end', () => {
@@ -1374,35 +1379,33 @@ await test('goal: even monthly plan is labelled an assumption; the partial month
   assert.ok(Math.abs(plannedToDate(evenPlan(120), '2026-01-31') - 10) < 1e-9 && Math.abs(plannedToDate(evenPlan(120), '2026-12-31') - 120) < 1e-9);
   assert.equal(reportingDateFor(2026, NOW26), NOW26); assert.equal(reportingDateFor(2025, NOW26), '2025-12-31'); assert.equal(reportingDateFor(2027, NOW26), null);
 });
-await test('goal: a saved plan is never recalculated silently; an explicit update keeps the closed months', () => {
-  let store = savePlan(emptyGoalStore(), { year: 2026, amanah: 'all', rate: 0.6, annualTarget: 54, adjustedTotal: 90, at: 't0', by: 'x' });
+await test('goal: a saved (draft) plan is never recalculated silently; an explicit update keeps the closed months', () => {
+  let store = savePlan(emptyGoalStore(), { year: 2026, amanah: 'all', annualTarget: 54, at: 't0', by: 'x' });
   const key = planKey(2026, 'all'); const before = store.plans[key].months.slice();
-  const changed = computeGoal(mk({ gross: 200, plan: store.plans[key] })); // billed amounts doubled after the plan was saved
+  const changed = computeGoal(mk({ target: 190, plan: store.plans[key] })); // the appropriation was adjusted after the plan was saved
   assert.deepEqual(changed.plan.cumulative, before, 'the saved months are untouched'); assert.equal(changed.plan.source, 'saved');
-  assert.ok(changed.plan.drift && changed.plan.drift.saved === 54 && Math.abs(changed.plan.drift.live - 0.6 * 190) < 1e-9, 'the change is reported, not applied');
-  const live = changed.target; store = rebasePlan(store, { year: 2026, amanah: 'all', rate: 0.6, annualTarget: live, adjustedTotal: 190, today: NOW26, at: 't1', by: 'x' });
+  assert.ok(changed.plan.drift && changed.plan.drift.saved === 54 && changed.plan.drift.live === 190, 'the change is reported, not applied');
+  const live = changed.target; store = rebasePlan(store, { year: 2026, amanah: 'all', annualTarget: live, today: NOW26, at: 't1', by: 'x' });
   const after = store.plans[key].months; assert.deepEqual(after.slice(0, 9), before.slice(0, 9), 'closed months (Jan–Sep) keep their figures'); assert.ok(Math.abs(after[11] - live) < 1e-9);
   assert.ok(after.every((v, i, a) => i === 0 || v >= a[i - 1]), 'the plan still rises');
-  assert.equal(rebasePlan(savePlan(emptyGoalStore(), { year: 2025, amanah: 'all', rate: 0.6, annualTarget: 54, adjustedTotal: 90, at: 't', by: 'x' }), { year: 2025, amanah: 'all', rate: 0.6, annualTarget: 99, adjustedTotal: 1, today: NOW26, at: 't2', by: 'x' }).plans[planKey(2025, 'all')].annualTarget, 54, 'a closed year is never rebased');
+  assert.equal(rebasePlan(savePlan(emptyGoalStore(), { year: 2025, amanah: 'all', annualTarget: 54, at: 't', by: 'x' }), { year: 2025, amanah: 'all', annualTarget: 99, today: NOW26, at: 't2', by: 'x' }).plans[planKey(2025, 'all')].annualTarget, 54, 'a closed year is never rebased');
 });
-await test('goal data: collected revenue by month (capped) equals the snapshot collected; only approved exclusions apply; every Amanah (and the unassigned invoices) adds up to the national figure', () => {
+await test('appropriations: structure (chapters 1–3 only), the Ministry is the sum of its entities, an unknown year or entity has none', () => {
+  const keys = appropriationKeys(); assert.ok(keys.includes(HQ_KEY) && keys.length === 19, 'headquarters + 18 entities');
+  const T = appropriationTotal(); let rv = 0; let ex = 0; for (const k of keys) { const a = appropriationOf(k); assert.ok(a.revAdjusted >= 0 && a.expSpent <= a.expAdjusted * 1.0001 && a.expSpent > 0, k); rv += a.revAdjusted; ex += a.expSpent; }
+  assert.ok(Math.abs(T.revAdjusted - rv) < 1 && Math.abs(T.expSpent - ex) < 1);
+  assert.equal(appropriationOf(HQ_KEY).revAdjusted, 0, 'the headquarters collects no revenue of its own');
+  assert.equal(appropriationOf('Riyadh Amanah', 2025), null); assert.equal(appropriationOf('Unassigned'), null); assert.equal(appropriationTotal(['Unassigned']), null);
+  const am = amanahsG(); for (const a of am) assert.ok(keys.includes(a.key), `${a.key} has an appropriation row`);
+});
+await test('goal data: payments by month (payment date) equal the snapshot receipts; Amanah receipts add up to the national figure; only approved exclusions apply', () => {
   const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
-  const one = (am, year = 2026) => { const to = year === 2026 ? TODAY : `${year}-12-31`; const scope = { from: `${year}-01-01`, to, amanah: am, source: 'all' };
-    const sn = snapshot(st, { scope, cfg: approved }); const sr = series(st, { scope: { ...scope, issuedFrom: scope.from, issuedTo: to }, cfg: approved, capped: true });
-    return { T: sn.totals, sum: sr.values.reduce((a, b) => a + b, 0), months: sr.months.length }; };
-  const nat = one('all'); assert.ok(Math.abs(nat.sum - nat.T.collected) < 0.5, 'chart and tile come from the same collected revenue'); assert.equal(nat.T.exclusionsUnapproved, 0);
-  assert.ok(Math.abs(nat.T.gross - nat.T.exclusions - nat.T.net) < 1, 'adjusted total = gross − exclusions');
-  let g = 0; let x = 0; let c = 0; assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice'); for (const a of amanahFilterOptions()) { const r = one(a.key); assert.ok(Math.abs(r.sum - r.T.collected) < 0.5, a.key); g += r.T.gross; x += r.T.exclusions; c += r.sum; }
-  assert.ok(Math.abs(g - nat.T.gross) < 1 && Math.abs(x - nat.T.exclusions) < 1 && Math.abs(c - nat.sum) < 1, 'Amanah figures add up to the national figures');
-  const past = one('all', 2025); assert.equal(past.months, 12); assert.ok(Math.abs(past.sum - past.T.collected) < 0.5);
-});
-await test('goal: zero or missing target is never a success; zero denominator is never a rate', () => {
-  for (const rate of [0, null, undefined, NaN, -0.2, 1.5]) { const g = computeGoal(mk({ rate, monthlyCollected: [0] })); assert.equal(g.state, 'no_target', String(rate)); assert.equal(g.achieved, undefined); assert.equal(g.target, undefined); assert.equal(g.remaining, undefined); assert.equal(g.collected, 0); }
-  const g = computeGoal(mk({ gross: 0, approvedExclusions: 0, rate: 0, monthlyCollected: [0] })); assert.equal(g.state, 'no_denominator', 'no base wins over no target'); assert.equal(g.collectionRate, undefined);
-  assert.equal(computeGoal(mk({ monthlyCollected: [0] })).achieved, false, 'valid target, zero collected: not achieved');
-  assert.equal(computeGoal(mk({ rate: 0.0001, monthlyCollected: [0] })).achieved, false);
-  assert.equal(computeGoal(mk({ monthlyCollected: [54] })).achieved, true);
-  const split = computeGoal(mk({ approvedExclusions: undefined, cancelled: 6, ruleExclusions: 4 })); assert.equal(split.adjustedTotal, 90); assert.equal(split.cancelled, 6); assert.equal(split.ruleExclusions, 4); assert.equal(split.targetBasis, 'billed_to_date');
+  const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const sn = snapshot(st, { scope, cfg: approved }); const sr = series(st, { scope, cfg: approved });
+  const R = sn.receivedInPeriod; assert.ok(Math.abs(sr.values.reduce((a, b) => a + b, 0) - R.total) < 0.5, 'chart and tile come from the same payments'); assert.equal(sn.totals.exclusionsUnapproved, 0);
+  assert.ok(Math.abs(Object.values(R.byAmanah).reduce((a, b) => a + b, 0) - R.total) < 1, 'Amanah receipts (incl. unassigned) add up to the national figure');
+  for (const a of amanahFilterOptions()) { const one = snapshot(st, { scope: { ...scope, amanah: a.key }, cfg: approved }).receivedInPeriod.total; assert.ok(Math.abs(one - (R.byAmanah[a.key] || 0)) < 0.5, a.key); }
+  assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice');
 });
 await test('adjusted total = net billed everywhere: the DEFAULT configuration applies approved exclusion rules only; an unapproved rule is an explicit, flagged what-if', () => {
   assert.ok(RULES_G.filter((r) => r.approval !== 'approved').every((r) => !r.defaultEnabled), 'no unapproved rule is on by default');
@@ -1421,7 +1424,7 @@ await test('terminology: «المقبوضات» and its forms are gone from ever
   const entries = metricDictionary({ quality: { records: 1 }, cutoff: TODAY, scope: { amanah: 'all', source: 'all', from: '2026-01-01', to: TODAY } });
   assert.ok(entries.every((e) => e && typeof e.key === 'string' && e.label && e.definition && e.formula), 'every dictionary entry is complete (no empty slot)');
   const dict = entries.map((e) => e.key);
-  for (const k of ['adjustedTotal', 'targetCollection', 'remainingToTarget']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
+  for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'expenditureCh13']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

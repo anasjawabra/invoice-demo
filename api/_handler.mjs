@@ -1380,9 +1380,9 @@ function parseInvoiceId(s) {
 var sadadOf = (idKey) => String((BigInt(keyOf(idKey)) * A12 + B12) % M12).padStart(12, "0");
 var subscriptionOf = (idKey) => String((BigInt(keyOf(idKey)) * A10 + B10) % M10).padStart(10, "0");
 var violationOf = (idKey) => String((BigInt(keyOf(idKey)) * A14 + B14) % M14).padStart(14, "0");
-function decode(num, I, B, M2) {
+function decode(num, I, B, M3) {
   if (!/^\d+$/.test(num)) return null;
-  const x = Number(((BigInt(num) - B) % M2 + M2) % M2 * I % M2);
+  const x = Number(((BigInt(num) - B) % M3 + M3) % M3 * I % M3);
   return x < 3e8 ? idKeyOf(x) : null;
 }
 var idKeyFromSadad = (s) => decode(s, I12, B12, M12);
@@ -1419,18 +1419,18 @@ function payerName(idx) {
 var beneficiaryIdOf = (idx) => `10${String(mix(8, idx) % 1e8).padStart(8, "0")}`;
 var crNoOf = (c) => `10${String(Math.floor(mix(7, c) / 43)).padStart(8, "0").slice(-8)}`;
 var codec = (prefix, A, B, width) => {
-  const M2 = 10n ** BigInt(width);
-  const Ainv = inv(BigInt(A), M2);
-  const Bn = BigInt(B) % M2;
+  const M3 = 10n ** BigInt(width);
+  const Ainv = inv(BigInt(A), M3);
+  const Bn = BigInt(B) % M3;
   return {
-    of: (idKey) => `${prefix}${String((BigInt(keyOf(idKey)) * BigInt(A) + Bn) % M2).padStart(width, "0")}`,
-    num: (idKey) => String((BigInt(keyOf(idKey)) * BigInt(A) + Bn) % M2).padStart(width, "0"),
+    of: (idKey) => `${prefix}${String((BigInt(keyOf(idKey)) * BigInt(A) + Bn) % M3).padStart(width, "0")}`,
+    num: (idKey) => String((BigInt(keyOf(idKey)) * BigInt(A) + Bn) % M3).padStart(width, "0"),
     decode: (s) => {
       const t = String(s || "").trim().toUpperCase();
       if (!t.startsWith(prefix)) return null;
       const d = t.slice(prefix.length);
       if (!/^\d+$/.test(d) || d.length !== width) return null;
-      const x = Number(((BigInt(d) - Bn) % M2 + M2) % M2 * Ainv % M2);
+      const x = Number(((BigInt(d) - Bn) % M3 + M3) % M3 * Ainv % M3);
       return x < 3e8 ? idKeyOf(x) : null;
     }
   };
@@ -2594,6 +2594,48 @@ function currentStore(override2, size) {
   return loadStore(today, { size });
 }
 
+// src/data/appropriations.js
+var APPROPRIATION_YEAR = 2026;
+var M = 1e6;
+var TABLE = {
+  "Riyadh Amanah": { revOriginal: 2065, revAdjusted: 2150, expOriginal: 4290, expAdjusted: 5010, expSpent: 3870 },
+  "Jeddah Amanah": { revOriginal: 2480, revAdjusted: 2480, expOriginal: 5065, expAdjusted: 5240, expSpent: 4365 },
+  "Eastern Province Amanah": { revOriginal: 500, revAdjusted: 540, expOriginal: 1100, expAdjusted: 1280, expSpent: 1010 },
+  "Makkah Amanah": { revOriginal: 1295, revAdjusted: 1310, expOriginal: 3025, expAdjusted: 3760, expSpent: 2340 },
+  "Al Madinah Amanah": { revOriginal: 715, revAdjusted: 760, expOriginal: 1910, expAdjusted: 2125, expSpent: 1425 },
+  "Asir Amanah": { revOriginal: 750, revAdjusted: 835, expOriginal: 1810, expAdjusted: 2190, expSpent: 1795 },
+  "Taif Amanah": { revOriginal: 280, revAdjusted: 295, expOriginal: 710, expAdjusted: 735, expSpent: 545 },
+  "Al-Qassim Amanah": { revOriginal: 240, revAdjusted: 245, expOriginal: 535, expAdjusted: 615, expSpent: 435 },
+  "Al-Ahsa Amanah": { revOriginal: 105, revAdjusted: 105, expOriginal: 210, expAdjusted: 225, expSpent: 175 },
+  "Jazan Amanah": { revOriginal: 370, revAdjusted: 385, expOriginal: 695, expAdjusted: 815, expSpent: 670 },
+  "Tabuk Amanah": { revOriginal: 315, revAdjusted: 330, expOriginal: 650, expAdjusted: 810, expSpent: 660 },
+  "Ha'il Amanah": { revOriginal: 55, revAdjusted: 60, expOriginal: 130, expAdjusted: 150, expSpent: 100 },
+  "Northern Borders Amanah": { revOriginal: 435, revAdjusted: 475, expOriginal: 850, expAdjusted: 1005, expSpent: 805 },
+  "Najran Amanah": { revOriginal: 65, revAdjusted: 70, expOriginal: 165, expAdjusted: 185, expSpent: 150 },
+  "Al Bahah Amanah": { revOriginal: 80, revAdjusted: 85, expOriginal: 160, expAdjusted: 200, expSpent: 145 },
+  "Al Jawf Amanah": { revOriginal: 150, revAdjusted: 160, expOriginal: 435, expAdjusted: 490, expSpent: 375 },
+  "Housing Sector": { revOriginal: 1075, revAdjusted: 1120, expOriginal: 2515, expAdjusted: 2820, expSpent: 1995 },
+  "Hafr Al-Batin Amanah": { revOriginal: 90, revAdjusted: 90, expOriginal: 160, expAdjusted: 190, expSpent: 150 },
+  "__HQ__": { revOriginal: 0, revAdjusted: 0, expOriginal: 4420, expAdjusted: 4860, expSpent: 3010 }
+};
+var appropriationOf = (key, year = APPROPRIATION_YEAR) => {
+  const t = year === APPROPRIATION_YEAR ? TABLE[key] : null;
+  return t ? { revOriginal: t.revOriginal * M, revAdjusted: t.revAdjusted * M, expOriginal: t.expOriginal * M, expAdjusted: t.expAdjusted * M, expSpent: t.expSpent * M } : null;
+};
+var appropriationKeys = () => Object.keys(TABLE);
+function appropriationTotal(keys = appropriationKeys(), year = APPROPRIATION_YEAR) {
+  const t = { revOriginal: 0, revAdjusted: 0, expOriginal: 0, expAdjusted: 0, expSpent: 0 };
+  let any = false;
+  for (const k of keys) {
+    const a = appropriationOf(k, year);
+    if (a) {
+      any = true;
+      for (const f of Object.keys(t)) t[f] += a[f];
+    }
+  }
+  return any ? t : null;
+}
+
 // src/data/revenueMetrics.js
 function ratio(num, den) {
   const ok = Number.isFinite(num) && Number.isFinite(den) && den > 0;
@@ -2766,7 +2808,8 @@ var NONCOLLECTION_CATEGORIES = [
 var DEFAULT_TARGETS = {
   fiscalYear: Number(DATA_CUTOFF.slice(0, 4)),
   collectionRate: { value: 0.6, status: "demo", provenance: { en: "Illustrative demo input \u2014 no approved collection-rate target was supplied. Replace via configuration.", ar: "\u0645\u064F\u062F\u062E\u0644 \u062A\u0648\u0636\u064A\u062D\u064A \u2014 \u0644\u0645 \u064A\u064F\u0632\u0648\u064E\u0651\u062F \u0628\u0647\u062F\u0641 \u0645\u0639\u062A\u0645\u062F \u0644\u0645\u0639\u062F\u0644 \u0627\u0644\u062A\u062D\u0635\u064A\u0644. \u0627\u0633\u062A\u0628\u062F\u0644\u0647 \u0639\u0628\u0631 \u0627\u0644\u0625\u0639\u062F\u0627\u062F\u0627\u062A." }, version: 1 },
-  collectionAmountAnnual: { value: 17e9, status: "demo", provenance: { en: "Illustrative demo input (SAR) \u2014 scaled like the monthly reports; the approved annual collection target was not supplied.", ar: "\u0645\u064F\u062F\u062E\u0644 \u062A\u0648\u0636\u064A\u062D\u064A (\u0631\u064A\u0627\u0644) \u2014 \u0644\u0645 \u064A\u064F\u0632\u0648\u064E\u0651\u062F \u0628\u0627\u0644\u0647\u062F\u0641 \u0627\u0644\u0633\u0646\u0648\u064A \u0627\u0644\u0645\u0639\u062A\u0645\u062F \u0644\u0644\u062A\u062D\u0635\u064A\u0644." }, version: 1 },
+  // the annual collection target of the reports IS the revenue appropriation (the same figure as the Strategic Dashboard) — one target, not two
+  collectionAmountAnnual: { value: appropriationTotal().revAdjusted, status: "demo", provenance: { en: "Revenue appropriation after adjustment (chapters 1\u20133) \u2014 illustrative demo figure on the structure of the Ministry of Finance file; the same target as the Strategic Dashboard.", ar: "\u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F \u0645\u0642\u0627\u0628\u0644 \u0627\u0644\u0625\u064A\u0631\u0627\u062F \u0628\u0639\u062F \u0627\u0644\u062A\u0639\u062F\u064A\u0644 (\u0627\u0644\u0623\u0628\u0648\u0627\u0628 1\u20133) \u2014 \u0631\u0642\u0645 \u062A\u0648\u0636\u064A\u062D\u064A \u0639\u0644\u0649 \u0647\u064A\u0643\u0644 \u0645\u0644\u0641 \u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u0645\u0627\u0644\u064A\u0629\u061B \u0648\u0647\u0648 \u0646\u0641\u0633\u0647 \u0645\u0633\u062A\u0647\u062F\u0641 \u0644\u0648\u062D\u0629 \u0627\u0644\u062A\u062E\u0637\u064A\u0637 \u0627\u0644\u0645\u0627\u0644\u064A \u0648\u0627\u0644\u0627\u0633\u062A\u0631\u0627\u062A\u064A\u062C\u064A." }, version: 1 },
   // Monthly weights summing to 1: the meeting says the annual target is curved low early in the year and
   // rising toward year end; exact weights were not supplied, so this is a configurable demo shape.
   // curveMode 'equal' reproduces the pro-rata (annual ÷ 12) basis printed in the monthly revenue reports;
@@ -2787,7 +2830,7 @@ var DEC_BIT = RULE_BIT["DEC-1"];
 var BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 var NBITS = RULES.length;
 var K = 22;
-var M = { exclusionsRules: 21, count: 0, gross: 1, adjustments: 2, exclusions: 3, net: 4, collected: 5, outstanding: 6, overpayment: 7, receiptsOnExcluded: 8, excludedCount: 9, cancelled: 10, cancelledCount: 11, overlapCount: 12, overlapAmount: 13, multiReasonCount: 14, exclusionsApproved: 15, exclusionsUnapproved: 16, overdueOutstanding: 17, notDueOutstanding: 18, violationCount: 19, enforcementCount: 20 };
+var M2 = { exclusionsRules: 21, count: 0, gross: 1, adjustments: 2, exclusions: 3, net: 4, collected: 5, outstanding: 6, overpayment: 7, receiptsOnExcluded: 8, excludedCount: 9, cancelled: 10, cancelledCount: 11, overlapCount: 12, overlapAmount: 13, multiReasonCount: 14, exclusionsApproved: 15, exclusionsUnapproved: 16, overdueOutstanding: 17, notDueOutstanding: 18, violationCount: 19, enforcementCount: 20 };
 var Acc = class {
   constructor(groups) {
     this.a = new Float64Array(groups * K);
@@ -2796,45 +2839,45 @@ var Acc = class {
   add(g, D) {
     const a = this.a;
     const o = g * K;
-    a[o + M.count] += 1;
-    a[o + M.gross] += D.gross;
-    a[o + M.adjustments] += D.adj;
-    a[o + M.exclusions] += D.exclTotal;
-    a[o + M.exclusionsRules] += D.exclusionAmount;
-    a[o + M.net] += D.net;
-    a[o + M.collected] += D.collected;
-    a[o + M.outstanding] += D.outstanding;
-    a[o + M.overpayment] += D.overpayment;
+    a[o + M2.count] += 1;
+    a[o + M2.gross] += D.gross;
+    a[o + M2.adjustments] += D.adj;
+    a[o + M2.exclusions] += D.exclTotal;
+    a[o + M2.exclusionsRules] += D.exclusionAmount;
+    a[o + M2.net] += D.net;
+    a[o + M2.collected] += D.collected;
+    a[o + M2.outstanding] += D.outstanding;
+    a[o + M2.overpayment] += D.overpayment;
     if (D.excluded) {
-      a[o + M.excludedCount] += 1;
-      if (D.nReasons > 1) a[o + M.multiReasonCount] += 1;
-      if (D.primaryApproved) a[o + M.exclusionsApproved] += D.exclusionAmount;
-      else a[o + M.exclusionsUnapproved] += D.exclusionAmount;
+      a[o + M2.excludedCount] += 1;
+      if (D.nReasons > 1) a[o + M2.multiReasonCount] += 1;
+      if (D.primaryApproved) a[o + M2.exclusionsApproved] += D.exclusionAmount;
+      else a[o + M2.exclusionsUnapproved] += D.exclusionAmount;
     }
     if (D.cancelled) {
-      a[o + M.cancelled] += D.cancelledAmount;
-      a[o + M.cancelledCount] += 1;
+      a[o + M2.cancelled] += D.cancelledAmount;
+      a[o + M2.cancelledCount] += 1;
     }
     if (D.overlaps) {
-      a[o + M.overlapCount] += 1;
-      a[o + M.overlapAmount] += D.cancelledAmount;
-      if (D.nReasons > 1) a[o + M.multiReasonCount] += 1;
+      a[o + M2.overlapCount] += 1;
+      a[o + M2.overlapAmount] += D.cancelledAmount;
+      if (D.nReasons > 1) a[o + M2.multiReasonCount] += 1;
     }
     if (D.outstanding > 0) {
-      if (D.daysOverdue > 0) a[o + M.overdueOutstanding] += D.outstanding;
-      else a[o + M.notDueOutstanding] += D.outstanding;
+      if (D.daysOverdue > 0) a[o + M2.overdueOutstanding] += D.outstanding;
+      else a[o + M2.notDueOutstanding] += D.outstanding;
     }
   }
   addMeta(g, viol, enf) {
     const o = g * K;
-    if (viol) this.a[o + M.violationCount] += 1;
-    if (enf) this.a[o + M.enforcementCount] += 1;
+    if (viol) this.a[o + M2.violationCount] += 1;
+    if (enf) this.a[o + M2.enforcementCount] += 1;
   }
   toAgg(g) {
     const a = this.a;
     const o = g * K;
     const r = {};
-    for (const [k, i] of Object.entries(M)) r[k] = a[o + i];
+    for (const [k, i] of Object.entries(M2)) r[k] = a[o + i];
     r.billedAfterAdj = r.gross;
     r.grossBeforeAdjustments = r.gross - r.adjustments;
     r.collectedOverNet = ratio(r.collected, r.net);
@@ -3157,7 +3200,7 @@ function snapshot(st, req) {
   let ageSum = 0;
   let ageN = 0;
   let objAmt = 0;
-  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
+  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length), byEnt: new Float64Array(NE) };
   const q2 = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
   const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 }, sourceConflict: { count: 0, outstanding: 0 } };
   let ledgerInScope = 0;
@@ -3217,6 +3260,7 @@ function snapshot(st, req) {
       const a = st.pAmt[p];
       recv.total += a;
       recv.byChannel[st.pCh[p]] += a;
+      recv.byEnt[e] += a;
       if (st.issue[i] >= fromN && st.issue[i] <= toN) recv.fromPeriodInvoices += a;
       else recv.fromPriorInvoices += a;
     }
@@ -3328,7 +3372,7 @@ function snapshot(st, req) {
   const groupOut = (acc, count, labelFn, keyFn) => {
     const out = [];
     for (let g = 0; g < count; g += 1) {
-      if (acc.a[g * K + M.count] === 0) continue;
+      if (acc.a[g * K + M2.count] === 0) continue;
       out.push({ key: keyFn(g), label: labelFn(g), ...acc.toAgg(g) });
     }
     return out.sort((a, b) => b.outstanding - a.outstanding || b.gross - a.gross);
@@ -3357,7 +3401,7 @@ function snapshot(st, req) {
   const byMonth = [...accMonth.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([month, acc]) => ({ month, ...acc.toAgg(0) }));
   const byMunicipality = [];
   for (let g = 0; g < NE * 5; g += 1) {
-    if (accMuni.a[g * K + M.count] === 0) continue;
+    if (accMuni.a[g * K + M2.count] === 0) continue;
     const e = Math.floor(g / 5);
     const mu = municipalityOf(e, g % 5);
     byMunicipality.push({ key: `${ENTITIES[e].en}|${mu ? mu.key.split("|")[1] : "-"}`, amanah: ENTITIES[e].en, amanahLabel: labelOfEnt(e), municipality: mu ? { key: mu.key, ar: mu.ar, en: mu.en } : null, ...accMuni.toAgg(g) });
@@ -3365,7 +3409,7 @@ function snapshot(st, req) {
   byMunicipality.sort((a, b) => b.outstanding - a.outstanding);
   const byStatus = [];
   for (let k = 0; k < CLASSES.length; k += 1) {
-    if (accStatus.a[k * K + M.count] === 0) continue;
+    if (accStatus.a[k * K + M2.count] === 0) continue;
     byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) });
   }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
@@ -3458,6 +3502,8 @@ function snapshot(st, req) {
     conflictAmountAtStake: q2.conflictAtStake,
     completenessNote: { en: `${q2.checkable} of ${q2.records} records have line-item evidence for an amount check; the rest could not be checked.`, ar: `${q2.checkable} \u0645\u0646 ${q2.records} \u0633\u062C\u0644\u0627\u064B \u0644\u062F\u064A\u0647\u0627 \u0628\u0646\u0648\u062F \u062A\u0641\u0635\u064A\u0644\u064A\u0629 \u0644\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u0645\u0628\u0644\u063A\u061B \u0648\u0627\u0644\u0628\u0627\u0642\u064A \u062A\u0639\u0630\u0651\u0631 \u0641\u062D\u0635\u0647.` }
   };
+  const receivedByAmanah = {};
+  for (let e = 0; e < NE; e += 1) if (recv.byEnt[e]) receivedByAmanah[ENTITIES[e].en] = recv.byEnt[e];
   const byChannel = {};
   CHANNELS.forEach((c, k) => {
     if (recv.byChannel[k]) byChannel[c] = recv.byChannel[k];
@@ -3486,7 +3532,7 @@ function snapshot(st, req) {
     basis: { invoices: "issue_date", invoicesFrom: sc.from, invoicesTo: sc.to, collectionsAsOf: isoOf(periodAsOf), collectionsMode: periodAsOf === ctx.cutoffN ? "reference_date" : "period_end", referenceDate: ctx.cfg.cutoff, receiptsByPaymentDate: "separate_indicator", timezone: "Asia/Riyadh" },
     byAmanahSource,
     matrix,
-    receivedInPeriod: { total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
+    receivedInPeriod: { byAmanah: receivedByAmanah, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
     quality: quality2
   };
 }

@@ -655,3 +655,5 @@ Details: `docs/strategic-dashboard-simplification.md` §8.
 **S-07 — two target definitions remain (open).** The dashboard goal (rate × adjusted total) and the demo annual amount used by report «تحقق المستهدف» (17 bn, curved monthly weights, labelled demo). Not merged because the reports depend on it; needs a business decision (see handover).
 
 **S-08 — expenditure coverage had no real data (removed); forecasts are demo-based (labelled).**
+
+**S-09 — the annual target is now the revenue appropriation (Round 20).** Resolves S-07 (two targets) and the billing-to-date question. Appropriation and spending figures are illustrative, structured like the Ministry of Finance file. Open: coverage definition, which month of spending to compare with, per-entity appropriation for «غير محدد الأمانة».

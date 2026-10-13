@@ -102,3 +102,6 @@ The app is a static Vite build **plus** a data service (`server/`) that answers 
 
 ### Update — dashboard corrections (Round 19)
 Unapproved exclusion rules are off by default, so net billed = the dashboard's adjusted total everywhere (14.36 bn for 2026 to 13 Oct on the compact demo). Zero/missing target and no-base states added. Budget/expenditure/coverage features and the old planning modules were removed (see `docs/strategic-dashboard-simplification.md` §8). Open business decisions: are cancelled invoices an approved exclusion; which target definition is official (dashboard rate-based vs the report demo amount); is the target based on billing-to-date or expected full-year billing; who approves a monthly plan.
+
+### Update — dashboard on the Ministry of Finance file structure (Round 20)
+The Strategic Dashboard's target is the revenue appropriation (chapters 1–3) per entity/Ministry; spending on chapters 1–3 is shown beside it. Figures are illustrative (`src/data/appropriations.js`); replace that table to load the real workbook. Open decisions: collection-vs-spending coverage definition; whether collected counts payments by payment date (current) or on the year's own invoices; who approves the monthly plan.

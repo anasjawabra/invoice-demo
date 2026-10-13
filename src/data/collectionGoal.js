@@ -1,16 +1,16 @@
 // THE ANNUAL COLLECTION GOAL — the only calculation behind the Strategic Dashboard («التخطيط المالي والاستراتيجي»). Pure functions, no I/O.
 //
-// Approved calculations (all for ONE reporting period, ONE invoice scope and ONE Amanah selection):
-//   Adjusted Total Invoices      = Gross Billed Amount − Approved Exclusions
-//   Collection Rate              = Collected Revenue ÷ Adjusted Total Invoices
-//   Target Collection Amount     = Target Collection Rate × Adjusted Total Invoices
-//   Remaining Amount to Target   = max(Target Collection Amount − Collected Revenue, 0)
-// Collected Revenue comes from Tahseel payments, counted up to the REPORTING DATE only.
+// The goal is the REVENUE APPROPRIATION «الاعتماد مقابل الإيراد» of chapters 1–3 after adjustment: the amount the entity is expected to collect during the fiscal year
+// (src/data/appropriations.js). For ONE fiscal year, ONE entity (or the whole Ministry):
+//   Collected                    = payments received from 1 January to the reporting date (payment-date basis, any invoice; Tahseel)
+//   Share of the appropriation   = Collected ÷ Revenue appropriation
+//   Remaining to the appropriation = max(Revenue appropriation − Collected, 0)
+// A selection without a valid positive appropriation has NO target: nothing is rated, nothing is "achieved".
 //
 // Planning assumptions (no approved monthly plan exists, so each is stated on screen):
 //   * the annual target is spread EVENLY over the twelve months (cumulative = target × month ÷ 12);
 //   * the current, partly elapsed month is prorated by days when progress is compared with the plan and when the pace still needed is calculated;
-//   * a plan that has been SAVED is never recalculated silently: its closed months keep their figures when billed amounts or exclusions change; it is updated only by an explicit action.
+//   * a plan that has been SAVED is a DRAFT, not an approved plan, and is never recalculated silently: its closed months keep their figures when the appropriation changes; it is updated only by an explicit action.
 
 const pad = (n) => String(n).padStart(2, '0');
 export const daysInMonth = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate(); // month 1–12
@@ -44,35 +44,22 @@ export function monthsLeft(reportingDate) {
  * @param {object} i
  * @param {number} i.year
  * @param {string} i.today                   reference date (ISO) — the latest date with data
- * @param {number} i.rate                    target collection rate, 0–1
- * @param {number} i.gross                   gross billed amount of the invoices issued in the year (up to the reporting date)
- * @param {number} i.cancelled              cancelled invoices of those invoices — a SEPARATE deduction (not an approved rule exclusion; see docs)
- * @param {number} i.ruleExclusions          exclusions under business-APPROVED rules only
- * @param {number} [i.approvedExclusions]    shorthand for cancelled + ruleExclusions (used when the two are not given separately)
- * @param {number[]} i.monthlyCollected      collected revenue by payment month, January… up to the reporting month (Tahseel)
- * @param {object|null} i.plan               a saved plan { annualTarget, months:[12 cumulative] } or null
+ * @param {number} i.target                  the revenue appropriation after adjustment (riyals); missing / zero / negative = no valid target
+ * @param {number[]} i.monthlyCollected      payments received by payment month, January… up to the reporting month (Tahseel)
+ * @param {object|null} i.plan               a saved DRAFT plan { annualTarget, months:[12 cumulative] } or null
  *
- * States: future_year · no_denominator (adjusted total is zero or negative: no collection rate can be calculated) ·
- *         no_target (a valid denominator but no valid positive target rate: nothing can be "achieved") · ok.
- * The target is Target Rate × Adjusted Total of the invoices BILLED SO FAR this year (to the reporting date) — a target on current billing, not on expected full-year billing.
+ * States: future_year · no_target (no valid positive appropriation: no rate, no remainder, nothing is "achieved") · ok.
  */
-export function computeGoal({ year, today, rate, gross, cancelled, ruleExclusions, approvedExclusions, monthlyCollected = [], plan = null }) {
+export function computeGoal({ year, today, target: targetIn, monthlyCollected = [], plan = null }) {
   const reportingDate = reportingDateFor(year, today);
   if (!reportingDate) return { state: 'future_year', year };
-  const g = Number(gross) || 0; const sep = cancelled !== undefined || ruleExclusions !== undefined;
-  const can = sep ? Number(cancelled) || 0 : 0; const rul = sep ? Number(ruleExclusions) || 0 : Number(approvedExclusions) || 0;
-  const adjustedTotal = g - can - rul;
   const m = Number(reportingDate.slice(5, 7));
-  const base = { year, reportingDate, reportingMonth: m, yearEnded: reportingDate.slice(5) === '12-31', adjustedTotal, gross: g, cancelled: can, ruleExclusions: rul, approvedExclusions: can + rul, targetBasis: 'billed_to_date' };
-  if (!(adjustedTotal > 0) || !Number.isFinite(adjustedTotal)) return { ...base, state: 'no_denominator' };
-
   const monthly = Array.from({ length: m }, (_, k) => Number(monthlyCollected[k]) || 0);
   let run = 0; const actual = Array.from({ length: MONTHS }, (_, k) => (k < m ? (run += monthly[k]) : null)); // future months are NOT zero: they have no value
   const collected = run;
-  const r = Number(rate);
-  if (!(Number.isFinite(r) && r > 0 && r <= 1)) return { ...base, state: 'no_target', collected, collectionRate: collected / adjustedTotal, actual }; // a missing, zero or out-of-range rate is NOT a target
-
-  const target = r * adjustedTotal;
+  const base = { year, reportingDate, reportingMonth: m, yearEnded: reportingDate.slice(5) === '12-31', collected, actual };
+  const target = Number(targetIn);
+  if (!(Number.isFinite(target) && target > 0)) return { ...base, state: 'no_target' };
   const remaining = Math.max(target - collected, 0);
 
   const saved = plan && Array.isArray(plan.months) && plan.months.length === MONTHS ? plan : null;
@@ -82,8 +69,8 @@ export function computeGoal({ year, today, rate, gross, cancelled, ruleExclusion
   const drift = saved && Math.abs(saved.annualTarget - target) > 0.5 ? { saved: saved.annualTarget, live: target } : null;
 
   return {
-    ...base, state: 'ok', rate: r, target, collected, collectionRate: collected / adjustedTotal, remaining,
-    achieved: target > 0 && collected >= target, exceededBy: collected > target ? collected - target : 0,
+    ...base, state: 'ok', target, collectionRate: collected / target, remaining,
+    achieved: collected >= target, exceededBy: collected > target ? collected - target : 0,
     plan: { source: saved ? 'saved' : 'assumed', cumulative, annualTarget: saved ? saved.annualTarget : target, savedAt: saved?.savedAt || null, drift },
     plannedToDate: planned, versusPlan: collected - planned, actual,
     pace: { monthsLeft: left, requiredPerMonth: left > 0 && remaining > 0 ? remaining / left : 0, plannedPerMonth: left > 0 ? Math.max(cumulative[MONTHS - 1] - planned, 0) / left : 0 }
@@ -99,16 +86,16 @@ export function loadGoalStore(storage = (typeof localStorage !== 'undefined' ? l
 }
 export function saveGoalStore(store, storage = (typeof localStorage !== 'undefined' ? localStorage : null)) { try { storage?.setItem(GOAL_KEY, JSON.stringify(store)); return true; } catch { return false; } }
 
-// a new plan: the annual target spread evenly, all twelve months fixed from now on
-export function savePlan(store, { year, amanah, rate, annualTarget, adjustedTotal, at, by }) {
-  return { ...store, plans: { ...store.plans, [planKey(year, amanah)]: { year, amanah: amanah || 'all', rate, annualTarget, adjustedTotal, months: evenPlan(annualTarget), savedAt: at, savedBy: by, updatedAt: null } } };
+// a new DRAFT plan (saving is not approval): the annual target spread evenly, all twelve months fixed from now on
+export function savePlan(store, { year, amanah, annualTarget, at, by }) {
+  return { ...store, plans: { ...store.plans, [planKey(year, amanah)]: { year, amanah: amanah || 'all', annualTarget, basis: 'revenue_appropriation', months: evenPlan(annualTarget), savedAt: at, savedBy: by, updatedAt: null } } };
 }
 // an explicit update to today's figures: months that have CLOSED keep what they were; the new target is spread evenly over the current and later months
-export function rebasePlan(store, { year, amanah, rate, annualTarget, adjustedTotal, today, at, by }) {
-  const key = planKey(year, amanah); const old = store.plans[key]; if (!old) return savePlan(store, { year, amanah, rate, annualTarget, adjustedTotal, at, by });
+export function rebasePlan(store, { year, amanah, annualTarget, today, at, by }) {
+  const key = planKey(year, amanah); const old = store.plans[key]; if (!old) return savePlan(store, { year, amanah, annualTarget, at, by });
   const reporting = reportingDateFor(year, today); if (!reporting || reporting.slice(5) === '12-31' && year < Number(today.slice(0, 4))) return store; // a closed year is never rebased
   const m = Number(reporting.slice(5, 7)); const closed = m - 1; const start = closed > 0 ? old.months[closed - 1] : 0;
   const left = MONTHS - closed; const rest = Math.max(annualTarget - start, 0);
   const months = old.months.map((v, k) => (k < closed ? v : start + rest * ((k - closed + 1) / left)));
-  return { ...store, plans: { ...store.plans, [key]: { ...old, rate, annualTarget, adjustedTotal, months, updatedAt: at, updatedBy: by } } };
+  return { ...store, plans: { ...store.plans, [key]: { ...old, annualTarget, months, updatedAt: at, updatedBy: by } } };
 }

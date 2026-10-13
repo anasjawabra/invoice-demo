@@ -25,6 +25,7 @@
 //                       approval rules are unresolved, so it is NOT labelled "official".
 //   Collected / gross = analytical view before any exclusion.
 // ============================================================================
+import { appropriationTotal } from './appropriations';
 import { DATA_CUTOFF, DATA_START, addDays, daysBetween, monthOf, REVENUE_SOURCE_KEYS, accessibleLedger } from './revenueLedger';
 
 /* ---------- Not-calculable handling ---------- */
@@ -617,7 +618,8 @@ export const TARGET_STATUS = { demo: 'demo', approved: 'approved', unresolved: '
 export const DEFAULT_TARGETS = {
   fiscalYear: Number(DATA_CUTOFF.slice(0, 4)),
   collectionRate: { value: 0.6, status: 'demo', provenance: { en: 'Illustrative demo input — no approved collection-rate target was supplied. Replace via configuration.', ar: 'مُدخل توضيحي — لم يُزوَّد بهدف معتمد لمعدل التحصيل. استبدله عبر الإعدادات.' }, version: 1 },
-  collectionAmountAnnual: { value: 17000000000, status: 'demo', provenance: { en: 'Illustrative demo input (SAR) — scaled like the monthly reports; the approved annual collection target was not supplied.', ar: 'مُدخل توضيحي (ريال) — لم يُزوَّد بالهدف السنوي المعتمد للتحصيل.' }, version: 1 },
+  // the annual collection target of the reports IS the revenue appropriation (the same figure as the Strategic Dashboard) — one target, not two
+  collectionAmountAnnual: { value: appropriationTotal().revAdjusted, status: 'demo', provenance: { en: 'Revenue appropriation after adjustment (chapters 1–3) — illustrative demo figure on the structure of the Ministry of Finance file; the same target as the Strategic Dashboard.', ar: 'الاعتماد مقابل الإيراد بعد التعديل (الأبواب 1–3) — رقم توضيحي على هيكل ملف وزارة المالية؛ وهو نفسه مستهدف لوحة التخطيط المالي والاستراتيجي.' }, version: 1 },
   // Monthly weights summing to 1: the meeting says the annual target is curved low early in the year and
   // rising toward year end; exact weights were not supplied, so this is a configurable demo shape.
   // curveMode 'equal' reproduces the pro-rata (annual ÷ 12) basis printed in the monthly revenue reports;

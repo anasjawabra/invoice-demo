@@ -250,7 +250,7 @@ export function snapshot(st, req) {
   const accMonth = new Map(); // issue-month cohort: 'YYYY-MM' -> Acc(1) measured at the reference date
   const accMuni = new Acc(NE * 5); const accStatus = new Acc(CLASSES.length);
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
-  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length) };
+  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length), byEnt: new Float64Array(NE) };
   const q = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
   const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 }, sourceConflict: { count: 0, outstanding: 0 } }; // unique invoices by the state of their CONFIRMED enforcement orders at the reference date
   let ledgerInScope = 0; let issued = 0;
@@ -277,7 +277,7 @@ export function snapshot(st, req) {
       if (d < fromN || d > toN || d > ctx.cutoffN) continue;
       recv.count += 1;
       if (hasReason) { recv.onExcluded += st.pAmt[p]; continue; }
-      const a = st.pAmt[p]; recv.total += a; recv.byChannel[st.pCh[p]] += a;
+      const a = st.pAmt[p]; recv.total += a; recv.byChannel[st.pCh[p]] += a; recv.byEnt[e] += a;
       if (st.issue[i] >= fromN && st.issue[i] <= toN) recv.fromPeriodInvoices += a; else recv.fromPriorInvoices += a;
     }
     // ---- invoices issued in the period (population B)
@@ -372,6 +372,7 @@ export function snapshot(st, req) {
     conflictAmountAtStake: q.conflictAtStake,
     completenessNote: { en: `${q.checkable} of ${q.records} records have line-item evidence for an amount check; the rest could not be checked.`, ar: `${q.checkable} من ${q.records} سجلاً لديها بنود تفصيلية للتحقق من المبلغ؛ والباقي تعذّر فحصه.` }
   };
+  const receivedByAmanah = {}; for (let e = 0; e < NE; e += 1) if (recv.byEnt[e]) receivedByAmanah[ENTITIES[e].en] = recv.byEnt[e]; // payments in the period by Amanah (payment-date basis; excluded/cancelled invoices left out)
   const byChannel = {}; CHANNELS.forEach((c, k) => { if (recv.byChannel[k]) byChannel[c] = recv.byChannel[k]; });
   return {
     scope: { from: sc.from, to: sc.to, status: req.scope?.status ?? 'all', amanah: req.scope?.amanah ?? 'all', source: req.scope?.source ?? 'all', scopeType: req.scope?.scopeType ?? 'all', muni: req.scope?.muni ?? 'all', org: req.scope?.org || null, ...(req.scope?.basis ? { basis: req.scope.basis } : {}) },
@@ -385,7 +386,7 @@ export function snapshot(st, req) {
     byAmanah, bySource, byScope, byMonth, byMunicipality, byStatus, equation,
     basis: { invoices: 'issue_date', invoicesFrom: sc.from, invoicesTo: sc.to, collectionsAsOf: isoOf(periodAsOf), collectionsMode: periodAsOf === ctx.cutoffN ? 'reference_date' : 'period_end', referenceDate: ctx.cfg.cutoff, receiptsByPaymentDate: 'separate_indicator', timezone: 'Asia/Riyadh' },
     byAmanahSource, matrix,
-    receivedInPeriod: { total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
+    receivedInPeriod: { byAmanah: receivedByAmanah, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
     quality
   };
 }
