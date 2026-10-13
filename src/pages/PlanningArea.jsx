@@ -103,7 +103,6 @@ export default function PlanningArea() {
     <div className="card st-card cg-explain" role="region" aria-label={L('النفقات على الأبواب 1–3', 'Expenditure on chapters 1–3')}>
       <b>{L(`النفقات على الأبواب 1–3 — المنصرف التراكمي لدى وزارة المالية حتى ${asOfText}`, `Expenditure on chapters 1–3 — cumulative spending recorded by the Ministry of Finance to ${asOfText}`)}</b>
       <div className="rv-tiles cg-tiles">
-        <MetricTile label={L('اعتماد النفقات بعد التعديل', 'Expenditure appropriation (adjusted)')} value={short(A.expAdjusted)} sub={L(`الأصلي ${short(A.expOriginal)}`, `original ${short(A.expOriginal)}`)} />
         <MetricTile label={L('المنصرف التراكمي', 'Cumulative spending')} value={short(A.expSpent)} sub={L(`حتى ${asOfText} — آخر شهر أغلقته وزارة المالية`, `to ${asOfText} — the last month closed by the Ministry of Finance`)} />
         <MetricTile label={L('نسبة الصرف', 'Spending rate')} value={pct(A.expSpent / A.expAdjusted)} sub={L('المنصرف ÷ الاعتماد بعد التعديل', 'Spending ÷ adjusted appropriation')} />
         <MetricTile label={L('المتبقي من الاعتماد', 'Appropriation remaining')} value={short(Math.max(A.expAdjusted - A.expSpent, 0))} sub={L('الاعتماد − المنصرف', 'Appropriation − spending')} />
