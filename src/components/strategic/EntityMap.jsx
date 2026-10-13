@@ -6,22 +6,26 @@ import ProvinceMap from '../revenue/ProvinceMap';
 import { KSA_PROVINCES, KSA_PROVINCES_VIEWBOX } from '../../data/ksaProvinces';
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
-// percentages use the traffic-light colours: red (far below) · orange · yellow · green · blue (target reached / best band); amounts use one blue scale
+// EVERY percentage on this screen uses the same five colours and the same tiers, with 100 % = the target reached = green:
+//   red < 50 % · orange 50–<75 % · yellow 75–<100 % · green 100–<120 % · blue ≥ 120 %
 export const PCT_COLORS = ['#e53935', '#f4903b', '#fde85c', '#4caf2f', '#4a9be8'];
-export const PCT_CUTS = { share: [0.5, 0.65, 0.8, 1], coverage: [0.25, 0.3, 0.35, 0.4] };
-export const pctColor = (kind, v) => (Number.isFinite(v) ? PCT_COLORS[PCT_CUTS[kind].filter((c) => v >= c).length] : null);
+export const PCT_CUTS = [0.5, 0.75, 1, 1.2];
+export const pctColor = (_kind, v) => (Number.isFinite(v) ? PCT_COLORS[PCT_CUTS.filter((c) => v >= c).length] : null);
 // a percentage with its colour chip
 export const PctBadge = ({ kind, v, text }) => { const c = pctColor(kind, v); return <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{c && <i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: c, display: 'inline-block', border: '1px solid rgba(0,0,0,.15)' }} />}{text}</span>; };
-const BLUES = ['#dbeafe', '#93c5fd', '#3b82f6', '#1d4ed8', '#1e3a8a'];
 const NONE = 'var(--surface-2, #e5e7eb)';
 
-// the measures: value of one entity group, how it is written, and the tier limits (fractions for ratios, shares of the largest region for amounts)
+// the measures: `pct` colours the region (a share of 100 % in every case), `text` is the value written on it — a percentage or an amount, so an amount is still read against its own 100 %
 const sumOf = (rs, f) => rs.reduce((t, r) => t + f(r), 0);
+const shareOf = (rs) => { const rv = sumOf(rs, (r) => r.a?.revAdjusted || 0); return rv > 0 ? sumOf(rs, (r) => r.collected) / rv : null; };
+const spendRateOf = (rs) => { const ex = sumOf(rs, (r) => r.a?.expAdjusted || 0); return ex > 0 ? sumOf(rs, (r) => r.a?.expSpent || 0) / ex : null; };
+const coverageOf = (rs) => { const sp = sumOf(rs, (r) => r.a?.expSpent || 0); return sp > 0 ? sumOf(rs, (r) => r.cut) / sp : null; };
 const MEASURES = [
-  { id: 'share', ratio: true, cuts: PCT_CUTS.share, value: (rs) => { const rv = sumOf(rs, (r) => r.a?.revAdjusted || 0); return rv > 0 ? sumOf(rs, (r) => r.collected) / rv : null; } },
-  { id: 'collected', ratio: false, value: (rs) => { const x = sumOf(rs, (r) => r.collected); return x > 0 ? x : null; } },
-  { id: 'spent', ratio: false, value: (rs) => { const x = sumOf(rs, (r) => r.a?.expSpent || 0); return x > 0 ? x : null; } },
-  { id: 'coverage', ratio: true, cuts: PCT_CUTS.coverage, value: (rs) => { const sp = sumOf(rs, (r) => r.a?.expSpent || 0); return sp > 0 ? sumOf(rs, (r) => r.cut) / sp : null; } }
+  { id: 'share', pct: shareOf, amount: false },
+  { id: 'collected', pct: shareOf, amount: (rs) => sumOf(rs, (r) => r.collected) },
+  { id: 'spendRate', pct: spendRateOf, amount: false },
+  { id: 'spent', pct: spendRateOf, amount: (rs) => sumOf(rs, (r) => r.a?.expSpent || 0) },
+  { id: 'coverage', pct: coverageOf, amount: false }
 ];
 
 export default function EntityMap({ rows, hqRow, L, ar, short, nameOf, selected, onSelect, asOfText, cutDateText }) {
@@ -34,23 +38,23 @@ export default function EntityMap({ rows, hqRow, L, ar, short, nameOf, selected,
   const region = shown.find((p) => p.iso === iso) || null;
   const regionName = (p) => (ar ? p.nameAr : p.nameEn);
 
-  const values = shown.map((p) => measure.value(p.rows));
-  const max = Math.max(...values.filter((v) => v != null), 0);
-  const cuts = measure.ratio ? measure.cuts : [0.2, 0.4, 0.6, 0.8].map((f) => f * max);
-  const colorOf = (v) => (v == null ? NONE : (measure.ratio ? PCT_COLORS : BLUES)[cuts.filter((c) => v >= c).length]);
-  const fmt = (v) => (v == null ? '—' : measure.ratio ? pct(v) : short(v));
-  const legend = [...(measure.ratio ? PCT_COLORS : BLUES).map((c, i) => ({ c, text: i === 0 ? `< ${fmt(cuts[0])}` : i === 4 ? `≥ ${fmt(cuts[3])}` : `${fmt(cuts[i - 1])} – ${fmt(cuts[i])}` })), { c: NONE, text: L('غير متاح', 'n/a') }];
+  const colorOf = (v) => (v == null ? NONE : PCT_COLORS[PCT_CUTS.filter((c) => v >= c).length]);
+  const textOf = (rs) => { const v = measure.pct(rs); if (v == null) return '—'; return measure.amount ? short(measure.amount(rs)).replace(/\s*(ريال|SAR|riyals?)$/i, '') : pct(v); };
+  const pc = (x) => `${Math.round(x * 100)}%`;
+  const legend = [...PCT_COLORS.map((c, i) => ({ c, text: i === 0 ? L(`أقل من ${pc(PCT_CUTS[0])}`, `Below ${pc(PCT_CUTS[0])}`) : i === 4 ? L(`${pc(PCT_CUTS[3])} فأكثر`, `${pc(PCT_CUTS[3])} and above`) : L(`من ${pc(PCT_CUTS[i - 1])} إلى أقل من ${pc(PCT_CUTS[i])}`, `${pc(PCT_CUTS[i - 1])} to under ${pc(PCT_CUTS[i])}`) })), { c: NONE, text: L('غير متاح', 'n/a') }];
 
-  const labels = { share: L('نسبة المحصّل من الاعتماد', 'Share of the appropriation collected'), collected: L('المحصّل', 'Collected'), spent: L('المنصرف التراكمي', 'Cumulative spending'), coverage: L('تغطية المنصرف بالتحصيل', 'Spending covered by collection') };
+  const labels = { share: L('نسبة المحصّل من الاعتماد', 'Share of the appropriation collected'), collected: L('المحصّل', 'Collected'), spendRate: L('نسبة الصرف', 'Spending rate'), spent: L('المنصرف التراكمي', 'Cumulative spending'), coverage: L('تغطية المنصرف بالتحصيل', 'Spending covered by collection') };
+  const reading = { share: L('المحصّل ÷ الاعتماد مقابل الإيراد', 'Collected ÷ revenue appropriation'), collected: L('اللون: نسبته من الاعتماد · المكتوب: المبلغ المحصّل', 'Colour: its share of the appropriation · written: the amount collected'), spendRate: L('المنصرف التراكمي ÷ اعتماد النفقات (الأبواب 1–3)', 'Cumulative spending ÷ expenditure appropriation (chapters 1–3)'), spent: L('اللون: نسبة الصرف من اعتماد النفقات · المكتوب: المبلغ المنصرف', 'Colour: spending rate against the expenditure appropriation · written: the amount spent'), coverage: L('المحصّل حتى آخر شهر مغلق ÷ المنصرف التراكمي', 'Collected to the last closed month ÷ cumulative spending') };
   // the figures of the selection: one region, or all regions together (never the headquarters, which has no region)
   const sel = region ? region.rows : shown.flatMap((p) => p.rows);
-  const rv = sumOf(sel, (r) => r.a?.revAdjusted || 0); const col = sumOf(sel, (r) => r.collected); const sp = sumOf(sel, (r) => r.a?.expSpent || 0); const cut = sumOf(sel, (r) => r.cut);
+  const rv = sumOf(sel, (r) => r.a?.revAdjusted || 0); const col = sumOf(sel, (r) => r.collected); const sp = sumOf(sel, (r) => r.a?.expSpent || 0); const exa = sumOf(sel, (r) => r.a?.expAdjusted || 0); const cut = sumOf(sel, (r) => r.cut);
   const detail = [
     [L('الاعتماد مقابل الإيراد (بعد التعديل)', 'Revenue appropriation (adjusted)'), rv > 0 ? short(rv) : '—'],
     [L('المحصّل', 'Collected'), short(col)],
     [L('نسبة المحصّل من الاعتماد', 'Share collected'), rv > 0 ? <PctBadge kind="share" v={col / rv} text={pct(col / rv)} /> : '—'],
     [L('المتبقي للتحصيل', 'Remaining to collect'), rv > 0 ? short(Math.max(rv - col, 0)) : '—'],
     [L('المنصرف التراكمي (الأبواب 1–3)', 'Cumulative spending (chapters 1–3)'), sp > 0 ? short(sp) : '—'],
+    [L('نسبة الصرف', 'Spending rate'), exa > 0 ? <PctBadge kind="spend" v={sp / exa} text={pct(sp / exa)} /> : '—'],
     [L('تغطية المنصرف بالتحصيل', 'Spending covered by collection'), sp > 0 ? <PctBadge kind="coverage" v={cut / sp} text={pct(cut / sp)} /> : '—']
   ];
   const side = [hqRow, byKey.get('Housing Sector'), byKey.get('Unassigned')].filter(Boolean);
@@ -79,7 +83,7 @@ export default function EntityMap({ rows, hqRow, L, ar, short, nameOf, selected,
             <b style={{ fontSize: 18 }}>{region ? regionName(region) : L('إجمالي المناطق', 'All regions')}</b>
             <dl className="cg-geo__dl">{detail.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd dir="ltr">{v}</dd></React.Fragment>)}</dl>
             {region && region.rows.length > 1 && (
-              <div className="cg-geo__amanahs">{region.rows.map((r) => <button key={r.key} type="button" className={`rv-link${r.key === selected ? ' is-on' : ''}`} onClick={() => onSelect?.(r.key)}>{nameOf(r.key)}: {fmt(measure.value([r]))}</button>)}</div>
+              <div className="cg-geo__amanahs">{region.rows.map((r) => <button key={r.key} type="button" className={`rv-link${r.key === selected ? ' is-on' : ''}`} onClick={() => onSelect?.(r.key)}>{nameOf(r.key)}: {textOf([r])}</button>)}</div>
             )}
             <div className="muted" style={{ fontSize: 12 }}>{L(`التغطية محسوبة حتى ${cutDateText}؛ المنصرف حتى ${asOfText}.`, `Coverage is calculated to ${cutDateText}; spending is to ${asOfText}.`)}</div>
           </div>
@@ -98,12 +102,14 @@ export default function EntityMap({ rows, hqRow, L, ar, short, nameOf, selected,
         </div>
         <div className="cg-geo__map">
           <b>{labels[measureId]}</b>
+          <div className="muted" style={{ fontSize: 12 }}>{reading[measureId]}</div>
           <ProvinceMap provinces={shown} viewBox={KSA_PROVINCES_VIEWBOX} selectedIso={iso}
-            fillFor={(p) => colorOf(measure.value(p.rows))} onSelect={setIso}
-            titleFor={(p) => `${regionName(p)} — ${labels[measureId]}: ${fmt(measure.value(p.rows))}`} />
-          <div className="cg-geo__legend" aria-label={L('مفتاح الألوان', 'Colour key')}>{legend.map((x) => <span key={x.text}><i style={{ background: x.c }} /><bdi dir="ltr">{x.text}</bdi></span>)}</div>
+            fillFor={(p) => colorOf(measure.pct(p.rows))} onSelect={setIso}
+            labelFor={(p) => ({ name: regionName(p), value: textOf(p.rows) })}
+            titleFor={(p) => `${regionName(p)} — ${labels[measureId]}: ${textOf(p.rows)}${measure.amount ? ` (${pct(measure.pct(p.rows))})` : ''}`} />
+          <div className="cg-geo__legend" aria-label={L('مفتاح الألوان', 'Colour key')}>{legend.map((x) => <span key={x.text}><i style={{ background: x.c }} /><bdi>{x.text}</bdi></span>)}</div>
           <table className="sr-only"><caption>{labels[measureId]}</caption><thead><tr><th>{L('المنطقة', 'Region')}</th><th>{labels[measureId]}</th></tr></thead>
-            <tbody>{shown.map((p) => <tr key={p.iso}><td>{regionName(p)}</td><td>{fmt(measure.value(p.rows))}</td></tr>)}</tbody></table>
+            <tbody>{shown.map((p) => <tr key={p.iso}><td>{regionName(p)}</td><td>{textOf(p.rows)}</td></tr>)}</tbody></table>
         </div>
       </div>
     </div>
