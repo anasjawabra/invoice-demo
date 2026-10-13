@@ -51,6 +51,7 @@ export default function RevenueAnalysis() {
   const [heat, setHeat] = useState('rate');
   const [devType, setDevType] = useState('all');
   const [openNote, setOpenNote] = useState(null);
+  const [panel, setPanel] = useState('details'); // the lower sections are tabs, so the page stays short
 
   // the national snapshot of the selected period and the like-for-like previous period (the entity and source filters below are the analysis's own focus)
   const DATA = useAsync(async () => {
@@ -100,7 +101,7 @@ export default function RevenueAnalysis() {
   const levelLabel = { entity: L('جهة', 'Entity'), source: L('مصدر', 'Source'), entity_source: L('جهة › مصدر', 'Entity › source') };
   const typeLabel = { change: L('التغير عن الفترة المماثلة', 'Change vs like-for-like'), share: L('التغير في المساهمة', 'Change in contribution'), target: L('الانحراف عن المستهدف', 'Deviation from target') };
   const pathOf = (d) => (d.level === 'source' ? sname(d.source) : d.level === 'entity' ? name(d.entity) : `${name(d.entity)} › ${sname(d.source)}`);
-  const pickDev = (d) => { if (d.entity) { const p = regions.find((r) => r.keys.includes(d.entity)); setIso(p ? p.iso : null); setEntity(d.entity); } if (d.source) setSource(d.source); };
+  const pickDev = (d) => { setPanel('details'); if (d.entity) { const p = regions.find((r) => r.keys.includes(d.entity)); setIso(p ? p.iso : null); setEntity(d.entity); } if (d.source) setSource(d.source); };
 
   /* ---- analytic notes: rule-based, each with its supporting figures; a reason is never asserted without evidence ---- */
   const notes = useMemo(() => {
@@ -200,7 +201,7 @@ export default function RevenueAnalysis() {
                 <div className="ra-map__svg">
                   <ProvinceMap provinces={regions} viewBox={KSA_PROVINCES_VIEWBOX} selectedIso={iso}
                     fillFor={(p) => { const v = valOf(p.keys); return v.available ? colorOf(v.ratio) : NONE; }}
-                    onSelect={(x) => { setIso(x); setEntity(null); }} onHover={setHover}
+                    onSelect={(x) => { setIso(x); setEntity(null); setPanel('details'); }} onHover={setHover}
                     labelFor={(p) => ({ name: rname(p), value: textOf(valOf(p.keys)) })}
                     titleFor={(p) => { const v = valOf(p.keys); return `${rname(p)} — ${measureLabel[measure]}: ${v.available ? textOf(v) : whyNo[v.reason] || '—'}`; }} />
                   <div className="cg-geo__legend" aria-label={L('مفتاح الألوان', 'Colour key')}>
@@ -235,8 +236,12 @@ export default function RevenueAnalysis() {
               </div>
             </div>
 
+            <div className="sr-tabs" role="tablist" aria-label={L('تفاصيل التحليل', 'Analysis details')}>
+              {[['details', L('تفاصيل الجهة والمصادر', 'Entity and source details')], ['deviations', L(`الانحرافات (${A.deviations.length})`, `Deviations (${A.deviations.length})`)], ['matrix', L('المصفوفة الحرارية', 'Heat matrix')], ['notes', L('الملخص التحليلي', 'Analytic summary')]].map(([k, l]) => <button key={k} id={`ra-tab-${k}`} type="button" role="tab" aria-selected={panel === k} aria-controls={`ra-panel-${k}`} className={`sr-tab ${panel === k ? 'is-active' : ''}`} onClick={() => setPanel(k)}>{l}</button>)}
+            </div>
+
             {/* the focus: details, sources, municipalities, trend */}
-            <div className="card st-card ra-focus">
+            {panel === 'details' && <div className="card st-card ra-focus" role="tabpanel" id="ra-panel-details" aria-labelledby="ra-tab-details">
               <div className="cg-geo__head">
                 <div>
                   <b>{entity ? name(entity) : region ? rname(region) : L('الوزارة — كل الجهات', 'The Ministry — all entities')}{source ? ` · ${sname(source)}` : ''}</b>
@@ -294,10 +299,10 @@ export default function RevenueAnalysis() {
                 </div>
               )}
               {entity && !muniRows.length && <div className="muted" style={{ fontSize: 12 }}>{L('لا تتوفر بيانات بلديات لهذه الجهة.', 'No municipality data for this entity.')}</div>}
-            </div>
+            </div>}
 
             {/* deviations, ranked by value */}
-            <div className="card st-card">
+            {panel === 'deviations' && <div className="card st-card" role="tabpanel" id="ra-panel-deviations" aria-labelledby="ra-tab-deviations">
               <div className="cg-geo__head">
                 <div>
                   <b>{L('الانحرافات مرتبة بأثرها المالي', 'Deviations ranked by financial impact')}</b>
@@ -322,10 +327,10 @@ export default function RevenueAnalysis() {
                   </table>
                 </div>
               ) : <div className="rv-empty" style={{ padding: 12 }}>{A.comparable || A.targetAvailable ? L('لا انحرافات مادية في هذا الاختيار.', 'No material deviation in this selection.') : L('لا مقارنة ولا مستهدف لهذه الفترة: لا تُعرض انحرافات.', 'No comparison and no target for this period: no deviations are shown.')}</div>}
-            </div>
+            </div>}
 
             {/* the heat matrix */}
-            <div className="card st-card">
+            {panel === 'matrix' && <div className="card st-card" role="tabpanel" id="ra-panel-matrix" aria-labelledby="ra-tab-matrix">
               <div className="cg-geo__head">
                 <div>
                   <b>{L('مصفوفة حرارية: الجهات × مصادر الإيراد', 'Heat matrix: entities × revenue sources')}</b>
@@ -347,10 +352,10 @@ export default function RevenueAnalysis() {
                     </React.Fragment>))}
                 </div>
               </div>
-            </div>
+            </div>}
 
             {/* the analytic summary */}
-            <div className="card st-card ra-notes">
+            {panel === 'notes' && <div className="card st-card ra-notes" role="tabpanel" id="ra-panel-notes" aria-labelledby="ra-tab-notes">
               <b>{L('ملخص تحليلي من البيانات', 'Analytic summary from the data')}</b>
               <div className="muted" style={{ fontSize: 12 }}>{L('كل ملاحظة محسوبة من الأرقام أعلاه؛ لا تُنسب أسباب دون دليل، وما يحتاج فحصاً مذكور كذلك.', 'Every note is computed from the figures above; no reason is asserted without evidence, and what needs checking is said so.')}</div>
               <ul className="ra-notes__list">
@@ -364,7 +369,7 @@ export default function RevenueAnalysis() {
                     {openNote === n.id && <table className="table ra-notes__ev"><tbody>{n.ev.map(([k, v], i) => <tr key={i}><td>{k}</td><td dir="ltr">{v}</td></tr>)}</tbody></table>}
                   </li>))}
               </ul>
-            </div>
+            </div>}
 
             <div className="muted ra-limits" style={{ fontSize: 12 }}>
               <b>{L('حدود التحليل:', 'Limits of the analysis:')}</b>{' '}

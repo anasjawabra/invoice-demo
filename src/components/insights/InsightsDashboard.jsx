@@ -40,8 +40,6 @@ export default function InsightsDashboard() {
     <div className="st-page" style={{ gap: 14 }}>
       <p className="rv-line" role="status">{L(`${fmtInt(T.count)} فاتورة صدرت في هذه الفترة. `, `${fmtInt(T.count)} invoices issued in this period. `)}<b>{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</b></p>
 
-      <RevenueAnalysis />
-
       <div className="rv-tiles">
         <MetricTile metric="gross" to="/invoices" label={L('إجمالي المفوتر', 'Gross billed')} value={kp(T.gross)} sub={L('قبل الاستبعادات', 'before exclusions')} />
         <MetricTile metric="exclusions" label={L('الاستبعادات', 'Exclusions')} value={kp(T.exclusions)} sub={`${L('نسبة الاستبعاد', 'Exclusion rate')} ${pct(T.exclusionRate.calculable ? T.exclusionRate.value : null, L('غير متاحة', 'n/a'))}`} />
@@ -50,6 +48,8 @@ export default function InsightsDashboard() {
         <MetricTile metric="uncollected" label={L('غير المحصّل', 'Uncollected')} value={kp(T.outstanding)} sub={L('من فواتير الفترة', 'on the period’s invoices')} />
         <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('من الصافي', 'of net billed')} />
       </div>
+      <RevenueAnalysis />
+
       <div className="card st-card"><FinancialRelations totals={T} /></div>
       <ToDateFigure snapshot={snapshot} />
 
