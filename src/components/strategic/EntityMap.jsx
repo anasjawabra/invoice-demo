@@ -6,10 +6,10 @@ import ProvinceMap from '../revenue/ProvinceMap';
 import { KSA_PROVINCES, KSA_PROVINCES_VIEWBOX } from '../../data/ksaProvinces';
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
-// EVERY percentage on this screen uses the same five colours and the same tiers, with 100 % = the target reached = green:
-//   red < 50 % · orange 50–<75 % · yellow 75–<100 % · green 100–<120 % · blue ≥ 120 %
+// EVERY percentage on this screen uses the same five colours and the same tiers, green from 80 %:
+//   red < 40 % · orange 40–<60 % · yellow 60–<80 % · green 80–<120 % (100 % = target reached sits inside green) · blue ≥ 120 %
 export const PCT_COLORS = ['#e53935', '#f4903b', '#fde85c', '#4caf2f', '#4a9be8'];
-export const PCT_CUTS = [0.5, 0.75, 1, 1.2];
+export const PCT_CUTS = [0.4, 0.6, 0.8, 1.2];
 export const pctColor = (_kind, v) => (Number.isFinite(v) ? PCT_COLORS[PCT_CUTS.filter((c) => v >= c).length] : null);
 // a percentage with its colour chip
 export const PctBadge = ({ kind, v, text }) => { const c = pctColor(kind, v); return <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{c && <i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: c, display: 'inline-block', border: '1px solid rgba(0,0,0,.15)' }} />}{text}</span>; };

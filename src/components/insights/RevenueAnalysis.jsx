@@ -279,7 +279,7 @@ export default function RevenueAnalysis() {
                     {PCT_COLORS.map((c, i) => <span key={c}><i style={{ background: c }} /><bdi>{i === 0 ? L(`أقل من ${PCT_CUTS[0] * 100}%`, `Below ${PCT_CUTS[0] * 100}%`) : i === 4 ? L(`${PCT_CUTS[3] * 100}% فأكثر`, `${PCT_CUTS[3] * 100}% and above`) : L(`من ${PCT_CUTS[i - 1] * 100}% إلى أقل من ${PCT_CUTS[i] * 100}%`, `${PCT_CUTS[i - 1] * 100}% to under ${PCT_CUTS[i] * 100}%`)}</bdi></span>)}
                     <span><i style={{ background: NONE }} /><bdi>{L('لا بيانات / غير متاح (ليس صفراً)', 'no data / n/a (not zero)')}</bdi></span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11 }}>{L('100% = المرجع (معدل التحصيل الكامل، أو الاعتماد، أو الفترة المماثلة) = أخضر. المنطقة = مجموع أماناتها. جهات بلا منطقة: قطاع الإسكان و«غير محدد الأمانة».', '100% = the reference (full collection, the appropriation, or the like-for-like period) = green. A region is the sum of its Amanahs. Entities with no region: housing sector and Unassigned.')}</div>
+                  <div className="muted" style={{ fontSize: 11 }}>{L('الأخضر من 80% فأكثر، و100% = المرجع (معدل التحصيل الكامل، أو الاعتماد، أو الفترة المماثلة). المنطقة = مجموع أماناتها. جهات بلا منطقة: قطاع الإسكان و«غير محدد الأمانة».', 'Green from 80%; 100% = the reference (full collection, the appropriation, or the like-for-like period). A region is the sum of its Amanahs. Entities with no region: housing sector and Unassigned.')}</div>
                 </div>
                 <div className="ra-map__side">
                   <div className="cg-geo__card" role="status" aria-live="polite">
@@ -412,7 +412,7 @@ export default function RevenueAnalysis() {
                     <React.Fragment key={e.key}>
                       <div className="ra-heat__r"><button type="button" className="rv-link" onClick={() => { const p = regions.find((r) => r.keys.includes(e.key)); setIso(p ? p.iso : null); setEntity(e.key); }}>{name(e.key)}</button></div>
                       {heatCols.map((k) => { const c = heatCell(e, k); const on = entity === e.key && source === k; return (
-                        <button key={k} type="button" className={`ra-heat__c${on ? ' is-on' : ''}`} style={{ background: c.color, color: c.neutral ? 'var(--heading, #111827)' : c.ratio != null && c.ratio >= 0.5 && c.ratio < 0.75 ? '#111827' : undefined }} title={`${name(e.key)} › ${sname(k)}: ${c.text}${c.title ? ` (${c.title})` : ''}`}
+                        <button key={k} type="button" className={`ra-heat__c${on ? ' is-on' : ''}`} style={{ background: c.color, color: c.neutral ? 'var(--heading, #111827)' : c.ratio != null && c.ratio >= 0.6 && c.ratio < 0.8 ? '#111827' : undefined }} title={`${name(e.key)} › ${sname(k)}: ${c.text}${c.title ? ` (${c.title})` : ''}`}
                           onClick={() => { const p = regions.find((r) => r.keys.includes(e.key)); setIso(p ? p.iso : null); setEntity(e.key); setSource(k); }}><span dir="ltr">{c.text}</span></button>); })}
                     </React.Fragment>))}
                 </div>

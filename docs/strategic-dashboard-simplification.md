@@ -107,3 +107,5 @@ A new first section (`src/components/insights/RevenueAnalysis.jsx`, calculations
 **Reconciliation (tested).** Entities, sources and entity × source cells add up to the headline collected and net; shares add to 100 %; trends add to the totals; a region equals the sum of its Amanahs. The data service gained `matrix.amanahSourceMonth` (entity × source × issue month) and `receivedInPeriod.byAmanah`.
 
 **Limits.** No per-source targets; appropriation only for FY 2026 at entity level (illustrative); municipalities have no boundaries (listed, not drawn); the housing sector and «غير محدد الأمانة» have no region; revenue sources with no invoices are hidden.
+
+**Round 21b — the colour scale was recalibrated.** One scale for every percentage: red < 40 % · orange 40–<60 % · yellow 60–<80 % · **green 80–<120 %** · blue ≥ 120 %. (100 % = target reached sits inside green.) It replaces the earlier tiers (green from 100 %), so for example a 97 % collection rate is green and 56 % is orange.
