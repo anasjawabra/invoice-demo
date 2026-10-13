@@ -102,7 +102,7 @@ export function candidates(st, req) {
   const f = req.filters || {};
   const srch = resolveSearch(st, f.search);
   const ageB = f.age && f.age !== 'all' ? ['0', '1-30', '31-90', '91-180', '180+'].indexOf(f.age) : -1;
-  const stateIdx = f.state && f.state !== 'all' && f.state !== 'open' && f.state !== 'noncollected' ? CLASS_INDEX[f.state] : -1;
+  const stateIdx = f.state && f.state !== 'all' && f.state !== 'open' && f.state !== 'noncollected' && f.state !== 'paid' ? CLASS_INDEX[f.state] : -1;
   const ruleBit = f.rule && f.rule !== 'all' && f.rule !== 'none' && f.rule !== 'any' ? 1 << RULE_IDS.indexOf(f.rule) : 0;
   const cs = f.contract && f.contract !== 'all' ? (f.contract === 'issue' ? -2 : CSTAT.indexOf(f.contract)) : -1; // 'issue' = contract not matched or not linked
   const periodFilter = !f.allPeriods;
@@ -129,6 +129,7 @@ export function candidates(st, req) {
     if (stateIdx >= 0 && D.cls !== stateIdx) return;
     if (f.state === 'open' && !(D.outstanding > 0)) return;
     if (f.state === 'noncollected' && D.cls === CLASS_INDEX.collected) return;
+    if (f.state === 'paid' && D.cls !== CLASS_INDEX.collected && D.cls !== CLASS_INDEX.partial) return; // the invoice register: invoices with money collected (in full or in part)
     if (ageB >= 0 && !(D.outstanding > 0 && agingBucket(D.daysOverdue) === ageB)) return;
     if (f.ageMin != null && !(D.outstanding > 0 && !D.excluded && D.daysOverdue >= f.ageMin && D.daysOverdue <= f.ageMax)) return;
     if (f.tag) { const tg = tagsOf(st, i, D); if (f.tag === 'problem' ? !tg.some((x) => PROBLEM_TAGS.has(x)) : !tg.includes(f.tag)) return; }

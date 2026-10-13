@@ -55,7 +55,7 @@ export default function Invoices() {
     const sc = rev.scopeEff;
     // the shared scope bar (period, Amanah, source, municipality) plus this page's own collection-state, revenue-item and age filters
     const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: 'all', muni: sc.muni, item: 'all' };
-    const filters = { search: debouncedSearch, state: collectionFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
+    const filters = { search: debouncedSearch, state: collectionFilter === 'all' ? 'paid' : collectionFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
     return { scope, filters };
   }, [rev.scopeEff, srcParam, debouncedSearch, collectionFilter, allPeriods, filterMode]);
 
@@ -105,8 +105,7 @@ export default function Invoices() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
         <input id="inv_search" className="input" style={{ flex: '1 1 220px', height: 32, minWidth: 180 }} placeholder={bi.L('Invoice, SADAD, subscription, violation, CR, payer or contract', 'فاتورة أو سداد أو اشتراك أو مخالفة أو سجل تجاري أو دافع أو عقد')} aria-label={bi.L('Search', 'بحث')} value={search} onChange={(e) => setSearch(e.target.value)} />
         <select id="f_state" className="select" aria-label={bi.L('Collection state', 'حالة التحصيل')} style={{ ...selStyle, minWidth: 180 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
-          <option value="all">{t('inv_filter_status_all')}</option>
-          <option value="open">{bi.L('Any outstanding balance', 'أي رصيد متبقٍ')}</option>
+          <option value="all">{bi.L('All collected invoices (in full or in part)', 'كل الفواتير المحصّلة (كلياً أو جزئياً)')}</option>
           <option value="collected">{bi.L('Collected in full', 'محصّلة بالكامل')}</option>
           <option value="partial">{pickBi(CATEGORY_LABELS.partial, lang)}</option>
         </select>
