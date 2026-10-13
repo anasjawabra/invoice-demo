@@ -1,21 +1,16 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
-import { AGENTS, ORGS } from '../data/mock';
-import { SOURCE_SYSTEMS } from '../data/revenueLedger';
-import { api } from '../api/client';
-import { fmtInt } from '../utils/money';
+import { ORGS } from '../data/mock';
 
 export default function Login() {
   const { t, lang, setLang, T } = useI18n();
   const { login } = useAuth();
   const nav = useNavigate();
 
-  const [ytdInvoices, setYtdInvoices] = useState(null);
-  useEffect(() => { let off = false; api.meta().then((m) => { if (!off) setYtdInvoices(m.counts.invoicesYtd); }).catch(() => {}); return () => { off = true; }; }, []);
-  const [username, setUsername] = useState('demo');
-  const [password, setPassword] = useState('demo123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [orgId, setOrgId] = useState(ORGS[0]?.id || 'mof-hq');
   const [scopeByOrg, setScopeByOrg] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -50,36 +45,8 @@ export default function Login() {
 
       <section className="login-hero">
         <div>
-          <div className="hero-badge">{t('hero_badge')}</div>
           <div className="hero-title" dangerouslySetInnerHTML={{ __html: t('hero_title') }} />
           <p className="hero-sub">{t('hero_sub')}</p>
-
-          <div className="hero-stats">
-            <div className="hero-stat">
-              <b dir="ltr">{ytdInvoices == null ? '…' : fmtInt(ytdInvoices)}</b>
-              <span>{lang === 'ar' ? 'فاتورة تجريبية في السنة الحالية حتى اليوم' : 'demo invoices, year to date'}</span>
-            </div>
-            <div className="hero-stat">
-              <b>0 / {SOURCE_SYSTEMS.length - 1}</b>
-              <span>{lang === 'ar' ? 'أنظمة مصدرية متصلة' : 'source systems connected'}</span>
-            </div>
-            <div className="hero-stat">
-              <b>{lang === 'ar' ? 'عرض' : 'Demo'}</b>
-              <span>{lang === 'ar' ? 'بيانات غير إنتاجية' : 'non-production data'}</span>
-            </div>
-          </div>
-
-          <div className="hero-agents">
-            {AGENTS.map((a) => (
-              <span key={a.id} className="hero-chip">
-                {T(a, 'en') || a.en}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="muted" style={{ marginTop: 18, fontSize: 12, lineHeight: 1.6 }}>
-          <div dangerouslySetInnerHTML={{ __html: t('demo_hint') }} />
         </div>
       </section>
 
@@ -165,9 +132,6 @@ export default function Login() {
                   <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
                     {t('org_login_hint')}
                   </div>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.5 }}>
-                    {t('rbac_note')}
-                  </div>
                 </div>
               </div>
 
@@ -207,20 +171,6 @@ export default function Login() {
                 {busy ? t('logging_in') : t('btn_login')}
               </button>
               <div className="login-err">{err}</div>
-            </div>
-
-            <div className="field">
-              <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                {t('or_sso')}
-              </div>
-              <div className="sso-reserved" aria-disabled="true">
-                <span>{t('sso_reserved')}</span>
-                <span className="pill" style={{ fontSize: 12 }}>{t('sso_coming')}</span>
-              </div>
-            </div>
-
-            <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-              {t('org_scope')} · {t('org_scope_note')}
             </div>
           </form>
         </div>
