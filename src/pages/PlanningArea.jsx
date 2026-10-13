@@ -211,7 +211,6 @@ export default function PlanningArea() {
                   <th>{L('المحصّل', 'Collected')}</th>
                   <th>{L('نسبة المحصّل', 'Share collected')}</th>
                   <th>{L('المتبقي للتحصيل', 'Remaining to collect')}</th>
-                  <th>{L('اعتماد النفقات (بعد التعديل)', 'Expenditure appropriation (adjusted)')}</th>
                   <th>{L('المنصرف التراكمي', 'Cumulative spending')}</th>
                   <th>{L('نسبة الصرف', 'Spending rate')}</th>
                   <th>{L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')}</th>
@@ -224,7 +223,6 @@ export default function PlanningArea() {
                       <td dir="ltr">{r.collected > 0 || rv > 0 ? short(r.collected) : '—'}</td>
                       <td dir="ltr">{rv > 0 ? pct(r.collected / rv) : '—'}</td>
                       <td dir="ltr">{rv > 0 ? short(Math.max(rv - r.collected, 0)) : '—'}</td>
-                      <td dir="ltr">{r.a ? short(r.a.expAdjusted) : '—'}</td>
                       <td dir="ltr">{r.a ? short(r.a.expSpent) : '—'}</td>
                       <td dir="ltr">{r.a ? pct(r.a.expSpent / r.a.expAdjusted) : '—'}</td>
                       <td dir="ltr">{r.a && r.a.revAdjusted > 0 ? pct(cover(r.cut, r.a)) : '—'}</td>
@@ -236,7 +234,6 @@ export default function PlanningArea() {
                   <td dir="ltr"><b>{short(totalCollected)}</b></td>
                   <td dir="ltr"><b>{sum('revAdjusted') > 0 ? pct(totalCollected / sum('revAdjusted')) : '—'}</b></td>
                   <td dir="ltr"><b>{short(Math.max(sum('revAdjusted') - totalCollected, 0))}</b></td>
-                  <td dir="ltr"><b>{short(sum('expAdjusted'))}</b></td>
                   <td dir="ltr"><b>{short(sum('expSpent'))}</b></td>
                   <td dir="ltr"><b>{sum('expAdjusted') > 0 ? pct(sum('expSpent') / sum('expAdjusted')) : '—'}</b></td>
                   <td dir="ltr"><b>{sum('expSpent') > 0 ? pct(totalCut / sum('expSpent')) : '—'}</b></td>
