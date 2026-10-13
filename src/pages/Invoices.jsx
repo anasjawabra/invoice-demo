@@ -120,7 +120,7 @@ export default function Invoices() {
           <option value="all">{t('inv_filter_status_all')}</option>
           <option value="open">{bi.L('Any outstanding balance', 'أي رصيد متبقٍ')}</option>
           <option value="collected">{bi.L('Collected in full', 'محصّلة بالكامل')}</option>
-          {['partial', 'overdue', 'not_due'].map((k) => (<option key={k} value={k}>{pickBi(CATEGORY_LABELS[k], lang)}</option>))}
+          <option value="partial">{pickBi(CATEGORY_LABELS.partial, lang)}</option>
         </select>
         {activeFilterCount > 0 && (
           <button type="button" className="btn btn-sm btn-ghost" onClick={clearAll}>{t('inv_filter_clear')} ({activeFilterCount}) ×</button>
