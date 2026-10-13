@@ -168,7 +168,7 @@ export function DataStatus() {
 }
 
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
-export function ScopeBar({ compact = false }) {
+export function ScopeBar({ compact = false, hideStatuses = [] }) {
   const { scope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
   const { L, B, lang, T, count } = useL();
   const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
@@ -206,13 +206,7 @@ export function ScopeBar({ compact = false }) {
           <label className="rv-scope__lbl" htmlFor="rv-status">{L('Invoice status', 'حالة الفاتورة')}</label>
           <select id="rv-status" className="select" value={scope.status || 'all'} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">{L('All statuses', 'كل الحالات')}</option>
-            <option value="collected">{L('Collected in full', 'محصّلة بالكامل')}</option>
-            <option value="open">{L('Still owing (open)', 'قائمة (غير مسددة)')}</option>
-            <option value="overdue">{L('Overdue', 'متأخرة')}</option>
-            <option value="partial">{L('Partially collected', 'محصّلة جزئياً')}</option>
-            <option value="not_due">{L('Not yet due', 'لم يحن استحقاقها')}</option>
-            <option value="cancelled">{L('Cancelled', 'ملغاة')}</option>
-            <option value="excluded">{L('Excluded', 'مستبعدة')}</option>
+            {[['collected', L('Collected in full', 'محصّلة بالكامل')], ['open', L('Still owing (open)', 'قائمة (غير مسددة)')], ['overdue', L('Overdue', 'متأخرة')], ['partial', L('Partially collected', 'محصّلة جزئياً')], ['not_due', L('Not yet due', 'لم يحن استحقاقها')], ['cancelled', L('Cancelled', 'ملغاة')], ['excluded', L('Excluded', 'مستبعدة')]].filter(([k]) => !hideStatuses.includes(k)).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
           {munis.length > 0 && (<>
             <label className="rv-scope__lbl" htmlFor="rv-muni">{L('Municipality', 'البلدية')}</label>

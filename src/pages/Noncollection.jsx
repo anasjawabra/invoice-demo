@@ -53,6 +53,8 @@ export default function Noncollection() {
   const [page, setPage] = useState(mem.page ?? 0);
   const [regPage, setRegPage] = useState(mem.regPage ?? 0);
   const PS = 25;
+  // this page is about what is NOT collected: a «collected in full» status chosen on another page is cleared here, and the filter is not offered
+  useEffect(() => { if (rev.scope.status === 'collected') rev.setStatus('all'); }, [rev.scope.status]); // eslint-disable-line react-hooks/exhaustive-deps
   const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
   const resetKey = JSON.stringify([filter, scopeReq, rev.dataVersion]); const lastReset = React.useRef(resetKey);
   useEffect(() => { if (lastReset.current !== resetKey) { lastReset.current = resetKey; setPage(0); setRegPage(0); } }, [resetKey]); // only a real change of the filters / data returns to page 1 (not a re-render, not a return from a record)
@@ -88,7 +90,7 @@ export default function Noncollection() {
         </div>
       </div>
 
-      <ScopeBar />
+      <ScopeBar hideStatuses={['collected']} />
 
       <div className="rv-tiles">
         <MetricTile metric="uncollected" label={L('Uncollected (net billed − collected)', 'غير المحصّل (صافي المفوتر − المحصّل)')} value={short(T.outstanding)} sub={L(`${count(openInvoices)} invoices`, `${count(openInvoices)} فاتورة`)} />
