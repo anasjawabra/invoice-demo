@@ -195,7 +195,7 @@ export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
     bridge.unmatched.count > 0 && { k: 'unmatched', text: L(`${count(bridge.unmatched.count)} unpaid-report invoices not matched to the details (${money(bridge.unmatched.amount)})`, `${count(bridge.unmatched.count)} فاتورة في تقرير غير المسدد لم تُطابق مع التفاصيل (${money(bridge.unmatched.amount)})`), to: '/data-sources' },
     q.amountConflictCount > 0 && { k: 'conflicts', text: L(`${count(q.amountConflictCount)} invoices whose amount differs from the line items (${money(q.conflictAmountAtStake)})`, `${count(q.amountConflictCount)} فاتورة يختلف مبلغها عن بنودها (${money(q.conflictAmountAtStake)})`), to: '/risk' },
     q.contractIssueCount > 0 && { k: 'contracts', text: L(`${count(q.contractIssueCount)} investment invoices whose contract was not matched (kept in the base)`, `${count(q.contractIssueCount)} فاتورة استثمار لم تتم مطابقة عقدها (تبقى في الأساس)`), to: '/contracts' },
-    q.pendingExclusionCount > 0 && { k: 'pending', text: L(`${count(q.pendingExclusionCount)} exclusion candidates awaiting review`, `${count(q.pendingExclusionCount)} مرشح استبعاد بانتظار المراجعة`), to: '/noncollection' }
+    q.pendingExclusionCount > 0 && { k: 'pending', text: L(`${count(q.pendingExclusionCount)} exclusion candidates awaiting review`, `${count(q.pendingExclusionCount)} مرشح استبعاد بانتظار المراجعة`), to: '/collection' }
   ].filter(Boolean);
   return (
     <div className="rv-three">

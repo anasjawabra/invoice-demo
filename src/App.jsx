@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-do
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
-import Noncollection from './pages/Noncollection';
 import DataSources from './pages/DataSources';
 import InsightsHub from './pages/InsightsHub';
 import PlanningArea from './pages/PlanningArea';
@@ -50,7 +49,7 @@ export default function App() {
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
         <Route path="what-if" element={<Navigate to="/planning" replace />} />
-        <Route path="noncollection" element={<Noncollection />} />
+        <Route path="noncollection" element={<Navigate to="/collection" replace />} />
         <Route path="settings" element={<Navigate to="/settings/data-sources" replace />} />
         <Route path="settings/data-sources" element={<DataSources />} />
         <Route path="settings/data-quality" element={<DataQuality />} />

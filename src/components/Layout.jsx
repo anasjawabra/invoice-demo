@@ -148,7 +148,6 @@ function LayoutInner() {
       { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
       { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
-      { to: '/noncollection', icon: 'what-if', label: t('nav_noncollection') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
       { to: '/risk', icon: 'risk', label: t('nav_risk_deviations') }
@@ -175,7 +174,6 @@ function LayoutInner() {
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
-    if (p.startsWith('/noncollection')) return t('nav_noncollection');
     if (p.startsWith('/settings/data-sources')) return t('nav_data_sources');
     if (p.startsWith('/settings/data-quality')) return t('nav_data_quality');
     if (p.startsWith('/settings/metrics')) return t('nav_metrics');

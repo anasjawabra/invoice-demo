@@ -28,7 +28,7 @@ export default function FilterChips() {
       <div className="sr-context" role="region" aria-label={L('المرشحات المشتركة', 'Shared filters')}>
         <div className="sr-chips">{chips.map(([k, v]) => <span key={k} className="sr-chip"><em>{k}</em> <bdi>{v}</bdi></span>)}</div>
         {active > 0 && <><span className="st-tag st-tag--warn">{L(`مرشحات مفعّلة (${active})`, `Active filters (${active})`)}</span><button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetScope}>{L('إعادة الضبط', 'Reset')}</button></>}
-        {cfgChanged && <><span className="st-tag st-tag--warn">{L('إعدادات الاحتساب معدّلة عن الافتراضي', 'Calculation settings differ from the defaults')}</span><Link className="btn btn-sm btn-ghost" to="/noncollection">{L('عرض الإعدادات', 'View the settings')}</Link></>}
+        {cfgChanged && <><span className="st-tag st-tag--warn">{L('إعدادات الاحتساب معدّلة عن الافتراضي', 'Calculation settings differ from the defaults')}</span></>}
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
       </div>
       {open && <ScopeBar compact />}

@@ -148,7 +148,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       timeframe: bi('Status within 14 days (proposed)', 'الحالة خلال 14 يوماً (مقترح)'),
       impact: upperBoundImpact(snapshot, nc.objection.amount),
       followUp: bi('Track the objection outcome; reclassify when decided.', 'تتبع نتيجة الاعتراض وإعادة التصنيف عند صدور القرار.'),
-      drill: { to: '/noncollection' }
+      drill: { to: '/collection' }
     });
   }
 
@@ -207,7 +207,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       timeframe: bi('Next monthly KPI cut (proposed)', 'قبل قطع المؤشرات الشهري القادم (مقترح)'),
       impact: { kind: 'calculated_if_approved', pp: snapshot.totals.net > 0 ? Math.round((snapshot.totals.collected / (snapshot.totals.net - amount) - snapshot.totals.collected / snapshot.totals.net) * 1000) / 10 : null, method: bi('Change in collected ÷ net billed if all candidates were approved (arithmetic).', 'التغير في المحصّل ÷ صافي المفوتر لو اعتُمد جميع المرشحين (حساب).') },
       followUp: bi('Pending-exclusion count.', 'عدد الاستبعادات المعلقة.'),
-      drill: { to: '/noncollection' }
+      drill: { to: '/collection' }
     });
   }
 
@@ -363,7 +363,7 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
   }
   if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (الإيرادات المحصلة ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
 
-  out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'قائمة الفواتير المحصّلة') }];
+  out.links = [{ to: '/collection', label: bi('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة') }, { to: '/invoices', label: bi('Invoice library', 'قائمة الفواتير المحصّلة') }];
   if (invoiceId) out.links.unshift({ to: `/invoices/${encodeURIComponent(invoiceId)}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });
   return out;
 }

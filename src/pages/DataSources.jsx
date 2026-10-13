@@ -119,7 +119,7 @@ export default function DataSources() {
     { k: 'unassigned', n: quality.unassignedAmanah, text: L('Central invoices with no Amanah in Makeen (shown as “unassigned”)', 'فواتير مركزية بلا أمانة في مكين (تظهر «غير محدد»)'), to: '/invoices?amanah=Unassigned' },
     { k: 'contract', n: quality.contractUnmatched, text: L('Investment invoices whose contract was not matched (kept in the base — not “no contract”)', 'فواتير استثمار لم تتم مطابقة عقدها (تبقى في الأساس — وليست «بدون عقد»)'), to: '/contracts' },
     { k: 'conflicts', n: quality.amountConflicts, text: L('Invoices whose items do not add up to the invoice value', 'فواتير لا يطابق مجموع بنودها قيمة الفاتورة'), to: '/risk' },
-    { k: 'pending', n: quality.pendingExclusions, text: L('Exclusion candidates awaiting review', 'مرشحو استبعاد بانتظار المراجعة'), to: '/noncollection' },
+    { k: 'pending', n: quality.pendingExclusions, text: L('Exclusion candidates awaiting review', 'مرشحو استبعاد بانتظار المراجعة'), to: '/collection' },
     { k: 'efaa', n: rules.find((r) => r.id === 'M6')?.unmatched || 0, text: L('Violations whose Tahseel and Efaa statuses differ (both kept)', 'مخالفات تختلف حالتها بين تحصيل وإيفاء (تُحفظ الحالتان)'), to: '/invoices?src=fines' },
     { k: 'ocr', n: dq?.q.ocrLowConfidence || 0, text: L('CR numbers read by OCR with low confidence', 'أرقام سجل تجاري مقروءة بـ OCR بثقة منخفضة'), to: '/contracts' }
   ];

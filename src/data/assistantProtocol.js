@@ -134,7 +134,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
     source: BI('تحصيل · فرص · سند · إيفاء · CR View (بيانات تجريبية)', 'Tahseel · Furas · Sanad · Efaa · CR View (demo data)'),
     updatedAt: snap.cutoff,
     ruleVersion: snap.ruleSetVersion,
-    link: intent === 'uncollected' ? '/insights' : '/noncollection'
+    link: intent === 'uncollected' ? '/insights' : '/collection'
   };
 
   const steps = [

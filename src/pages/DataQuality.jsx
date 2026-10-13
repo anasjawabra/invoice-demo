@@ -37,7 +37,7 @@ export default function DataQuality() {
             <MetricTile label={L('Awaiting a decision', 'تنتظر قراراً')} value={count((counts.exclusion_pending || 0) + (counts.enforcement_candidate || 0))} sub={L('Exclusions and enforcement links — decided on their own screens', 'استبعادات وروابط إنفاذ — تُحسم في شاشاتها')} />
           </>
         )}
-        footer={<p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Exclusions awaiting review are decided on the Noncollection screen and enforcement links on Enforcement management; they are counted here so that nothing is left unseen. A record finding is a reason to complete or check the record, never a reason to change an amount.', 'تُحسم الاستبعادات المعلّقة في شاشة عدم التحصيل وروابط الإنفاذ في إدارة التنفيذ؛ وتُعدّ هنا كي لا يُغفل شيء. نتيجة السجل سبب لاستكماله أو التحقق منه، وليست سبباً لتغيير مبلغ.')} <Link to="/noncollection">{L('Noncollection', 'عدم التحصيل')}</Link> · <Link to="/enforcement">{L('Enforcement management', 'إدارة التنفيذ')}</Link></p>}
+        footer={<p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Exclusions awaiting review are decided on the invoice page itself (analysis and review) and enforcement links on Enforcement management; they are counted here so that nothing is left unseen. A record finding is a reason to complete or check the record, never a reason to change an amount.', 'تُحسم الاستبعادات المعلّقة في صفحة الفاتورة نفسها (التحليل والمراجعة) وروابط الإنفاذ في إدارة التنفيذ؛ وتُعدّ هنا كي لا يُغفل شيء. نتيجة السجل سبب لاستكماله أو التحقق منه، وليست سبباً لتغيير مبلغ.')} <Link to="/enforcement">{L('Enforcement management', 'إدارة التنفيذ')}</Link></p>}
       />
     </div>
   );

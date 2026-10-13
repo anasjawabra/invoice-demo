@@ -7,7 +7,7 @@ export const DEVIATION_RISK_CATEGORIES = ['value_anomaly'];                     
 export const RISK_FLAG_CATEGORIES = ['duplicate', 'struck_off_registry', 'deceased_person']; // possible duplicate · struck-off registry · deceased debtor
 export const QUALITY_CODES = ['missing_fields', 'contract_unlinked', 'contract_unmatched', 'exclusion_pending', 'enforcement_candidate'];
 // pending links and exclusions are worked on their own screens; the data-quality page counts them and points there
-export const QUALITY_WORKFLOW_PAGE = { exclusion_pending: '/noncollection', enforcement_candidate: '/enforcement' };
+export const QUALITY_WORKFLOW_PAGE = { exclusion_pending: '/collection', enforcement_candidate: '/enforcement' };
 
 // where a link from elsewhere in the app should land for a given finding
 export const issuePage = (code) => (QUALITY_CODES.includes(code) ? '/settings/data-quality' : '/risk');

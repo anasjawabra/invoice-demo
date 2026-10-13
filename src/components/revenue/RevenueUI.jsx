@@ -225,7 +225,7 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
               <li>{L('Today (Riyadh)', 'اليوم (الرياض)')}: <b>{fmtDateText(snapshot.cutoff, lang)}</b></li>
               {snapshot.basis && <li title={L('Invoices are selected by issue date; collections count payments up to the stated date.', 'تُختار الفواتير بتاريخ الإصدار؛ ويُحتسب المحصّل بالمدفوعات حتى التاريخ المذكور.')}>{L('Invoices are selected by issue date', 'تُختار الفواتير بتاريخ الإصدار')}</li>}
               {snapshot.equation && snapshot.equation.ok && <li>{L('Reconciliation checks passed', 'فحوص المطابقة سليمة')}</li>}
-              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{snapshot.ruleSetVersion}</span> · <Link to="/noncollection">{L('review', 'مراجعة')}</Link></li>
+              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{snapshot.ruleSetVersion}</span></li>
               <li>{L('Grace period: none applied (the policy is not yet decided)', 'فترة السماح: لا تُطبَّق حالياً (السياسة غير محسومة)')}</li>
             </ul>
           </details>
@@ -243,7 +243,7 @@ export function DataStatusStrip() {
   const { count } = useL();
   const items = [
     { k: 'conflicts', n: q.amountConflictCount, tone: q.amountConflictCount ? 'warn' : 'ok', text: L('amount conflicts', 'تعارضات في المبالغ'), to: '/risk' },
-    { k: 'pending', n: q.pendingExclusionCount, tone: q.pendingExclusionCount ? 'warn' : 'ok', text: L('exclusions awaiting review', 'استبعادات بانتظار المراجعة'), to: '/noncollection' },
+    { k: 'pending', n: q.pendingExclusionCount, tone: q.pendingExclusionCount ? 'warn' : 'ok', text: L('exclusions awaiting review', 'استبعادات بانتظار المراجعة'), to: '/collection' },
     { k: 'missing', n: q.missingFieldCount, tone: q.missingFieldCount ? 'warn' : 'ok', text: L('records with missing mandatory fields', 'سجلات بحقول إلزامية ناقصة'), to: '/settings/data-quality' },
     { k: 'contract', n: q.contractIssueCount, tone: q.contractIssueCount ? 'warn' : 'ok', text: L('investment invoices without a linked contract', 'فواتير استثمار بلا عقد مرتبط'), to: '/settings/data-quality' }
   ];
