@@ -3,9 +3,11 @@ import { useParams } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useAsync } from '../utils/useAsync';
 import { useL } from '../utils/bi';
-import { RecordHeader, StatusGroup, Figures, Facts, Section, RecordState, Finding } from '../components/record/RecordPage';
+import { RecordHeader, StatusGroup, Facts, Section, RecordState, Finding } from '../components/record/RecordPage';
 import PdfPreview, { useDocFiles } from '../components/record/PdfPreview';
 import SourceRecordSection from '../components/revenue/SourceRecordSection';
+import { MoneyPanel, PaymentPanel, InfoGroups, SectionNav } from '../components/record/InvoiceParts';
+import { paymentFacts } from '../data/invoicePayments';
 import { PayStatusChip, OrderStatusChip, Chip, EnforcementChips, LINK_STATUS_LABEL, CONFLICT_LABEL, SOURCE_LABEL, Enf1Explainer } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { orderPath, contractPath } from '../utils/paths';
@@ -61,6 +63,8 @@ export default function InvoicePage() {
 
   const reasons = RULE_IDS.filter((_, b) => der.reasonMask & (1 << b)).sort((a, b) => (a === der.primaryRuleId ? -1 : b === der.primaryRuleId ? 1 : 0));
   const records = exclusionRecordsOf(rec);
+  const today = rev.cfg.cutoff;
+  const pf = paymentFacts({ payments: rec.payments, dueDate: rec.dueDate, issueDate: rec.issueDate, net: der.net, payStatus: der.payStatus, today });
   const pendingEx = records.filter((e) => e.reviewStatus === 'pending' || !e.reviewStatus);
   const proposedLinks = enf.proposed;
   const decide = (ruleId, d) => { const r = rev.decideExclusion(id, d, '', ruleId); setMsg(r.ok ? { ok: true, t: L('Analysis decision recorded. It does not imply payment or legal approval.', 'سُجّل القرار التحليلي. ولا يعني سداداً ولا اعتماداً قانونياً.') } : { ok: false, t: B(ERR[r.error] || ERR.no_permission) }); };
@@ -106,31 +110,43 @@ export default function InvoicePage() {
   return (
     <div className="rp">
       <RecordHeader
-        crumbs={crumbs} ret={ret} kind={L('Invoice', 'فاتورة')} title={id} id={null}
+        crumbs={crumbs} ret={ret} kind={`${L('Invoice', 'فاتورة')} · ${typeLabel} · ${rec.sourcePlatform}`} title={id} id={null}
         statuses={<>
           <StatusGroup label={L('Payment status', 'حالة السداد')} hint={L('what was paid — separate from enforcement and review', 'ما سُدّد — منفصلة عن الإنفاذ والمراجعة')}><PayStatusChip status={der.payStatus} />{der.daysOverdue > 0 && der.outstanding > 0 && <span className="rv-tag rv-tag--warn">{der.daysOverdue} {L('days overdue', 'يوماً متأخرة')}</span>}</StatusGroup>
           <StatusGroup label={L('Enforcement status', 'حالة الإنفاذ')} hint={L('from confirmed orders only; “referred before” stays after an order closes', 'من الأوامر المؤكدة فقط؛ وتبقى «سبقت إحالتها» بعد إغلاق الأمر')}><EnforcementChips enf={enf} /></StatusGroup>
           <StatusGroup label={L('Review (this analysis)', 'المراجعة (هذا التحليل)')} hint={L('an analysis decision — not a payment or a legal approval', 'قرار تحليلي — وليس سداداً ولا اعتماداً قانونياً')}>{findings.filter((f) => f.action).length ? <span className="rv-tag rv-tag--warn">{L(`${findings.filter((f) => f.action).length} awaiting your decision`, `${findings.filter((f) => f.action).length} بانتظار قرارك`)}</span> : <span className="rv-tag rv-tag--ok">{L('No decision pending', 'لا قرار معلّق')}</span>}</StatusGroup>
         </>}
-        actions={<><span className="rv-cat">{typeLabel}</span><span className="rv-tag">{rec.sourcePlatform}</span><button type="button" className="btn btn-sm" onClick={() => exportReview(rec, der, enf, notes, evidence)}>{L('Export review report (CSV)', 'تصدير تقرير المراجعة (CSV)')}</button></>}
+        actions={<><button type="button" className="btn btn-sm" onClick={() => exportReview(rec, der, enf, notes, evidence)}>{L('Export review report (CSV)', 'تصدير تقرير المراجعة (CSV)')}</button></>}
       />
 
-      <Figures label={L('Financial summary', 'الملخص المالي')} items={[
-        { label: L('Gross billed', 'إجمالي المفوتر'), value: sar(der.gross) },
-        { label: L('Exclusions', 'الاستبعادات'), value: sar(der.exclusionsTotal), note: der.cancelled ? L('cancelled', 'ملغاة') : reasons[0] || null },
-        { label: L('Net billed', 'صافي المفوتر'), value: sar(der.net) },
-        { label: L('Collected', 'المحصّل'), value: sar(der.collected), tone: der.collected > 0 ? 'good' : undefined },
-        { label: L('Remaining balance', 'الرصيد المتبقي'), value: sar(der.outstanding), tone: der.outstanding > 0 && der.daysOverdue > 0 ? 'bad' : undefined }
+      <div className="ip-top">
+        <PaymentPanel pf={pf} rec={rec} today={today} ar={ar} sar={sar} L={L} />
+        <MoneyPanel der={der} sar={sar} L={L} />
+      </div>
+
+      <InfoGroups groups={[
+        { title: L('Invoice', 'الفاتورة'), items: [
+          { k: L('Invoice no.', 'رقم الفاتورة'), v: rec.id, ltr: true }, rec.sadadNo && { k: L('SADAD no.', 'رقم سداد'), v: rec.sadadNo, ltr: true }, rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true },
+          { k: L('Revenue source', 'مصدر الإيراد'), v: typeLabel }, { k: L('System', 'النظام'), v: rec.sourcePlatform, ltr: true }
+        ] },
+        { title: L('Payer and location', 'الدافع والموقع'), items: [
+          { k: L('Payer', 'الدافع'), v: ar ? rec.entityAr : rec.entityEn }, rec.beneficiaryId && { k: L('Payer ID', 'هوية الدافع'), v: rec.beneficiaryId, ltr: true },
+          { k: L('Amanah', 'الأمانة'), v: ar ? rec.amanahAr : rec.amanahEn }, rec.municipalityEn && { k: L('Municipality', 'البلدية'), v: ar ? rec.municipalityAr : rec.municipalityEn }
+        ] },
+        { title: L('Status in the source systems', 'الحالة في أنظمة المصدر'), items: [
+          { k: L('Source status (Tahseel)', 'حالة المصدر (تحصيل)'), v: rec.statusRawTahseel || '—' }, rec.statusRawEfaa && { k: L('Source status (Efaa)', 'حالة المصدر (إيفاء)'), v: rec.statusRawEfaa },
+          { k: L('Unified state', 'الحالة الموحدة'), v: <span className={`rv-cat rv-cat--${det.cls}`}>{det.cls === 'collected' ? L('Collected', 'محصّلة') : B(CATEGORY_LABELS[det.cls])}</span> }
+        ] }
       ]} />
 
-      <section className="rp-section" aria-label={L('Essential information', 'المعلومات الأساسية')}>
-        <Facts items={[
-          { k: L('Issue date', 'تاريخ الإصدار'), v: fmtDateText(rec.issueDate, ar ? 'ar' : 'en'), ltr: true }, { k: L('Due date', 'تاريخ الاستحقاق'), v: fmtDateText(rec.dueDate, ar ? 'ar' : 'en'), ltr: true },
-          { k: L('Payer', 'الدافع'), v: <>{ar ? rec.entityAr : rec.entityEn}{rec.beneficiaryId ? <span className="muted" dir="ltr"> · {rec.beneficiaryId}</span> : null}</> },
-          { k: L('Amanah · municipality', 'الأمانة · البلدية'), v: `${ar ? rec.amanahAr : rec.amanahEn}${rec.municipalityEn ? ` · ${ar ? rec.municipalityAr : rec.municipalityEn}` : ''}` },
-          { k: L('Invoice no.', 'رقم الفاتورة'), v: rec.id, ltr: true }, rec.sadadNo && { k: L('SADAD no.', 'رقم سداد'), v: rec.sadadNo, ltr: true }, rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true }
-        ]} />
-      </section>
+      <SectionNav label={L('On this page', 'في هذه الصفحة')} items={[
+        findings.length > 0 && { id: 'findings', label: L('Findings', 'ما يحتاج مراجعة'), count: findings.length },
+        { id: 'payments', label: L('Payments', 'المدفوعات'), count: rec.payments.length },
+        { id: 'analysis', label: L('Analysis and review', 'التحليل والمراجعة') },
+        { id: 'orders', label: L('Enforcement', 'الإنفاذ'), count: orderLinks.length },
+        { id: 'contract', label: L('Contract', 'العقد') },
+        { id: 'history', label: L('History', 'السجل'), count: timeline.length }
+      ]} />
 
       {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" aria-live="polite">{msg.t}</div>}
 
@@ -162,22 +178,20 @@ export default function InvoicePage() {
         </Section>
       )}
 
-      <Section id="info" title={L('Invoice information and payments', 'بيانات الفاتورة والمدفوعات')}>
+      <Section id="payments" title={L('Payments', 'المدفوعات')} count={pf.count} note={<div className="rp-limit">{L('Payments up to the reference date, in date order. «Against the due date» compares each payment date with the due date; the balance is net billed minus what had been paid up to that payment.', 'المدفوعات حتى تاريخ المرجع بترتيب التاريخ. «مقابل الاستحقاق» يقارن تاريخ كل دفعة بتاريخ الاستحقاق، والرصيد هو صافي المفوتر ناقص المدفوع حتى تلك الدفعة.')}</div>}>
         <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Payments', 'المدفوعات')}>
-          <thead><tr><th>{L('Payment date', 'تاريخ الدفع')}</th><th>{L('Channel', 'القناة')}</th><th className="num">{L('Amount', 'المبلغ')}</th></tr></thead>
-          <tbody>{rec.payments.length ? rec.payments.map((p, i) => <tr key={i}><td dir="ltr">{p.date}</td><td>{B(CHANNEL[p.channel] || { en: p.channel, ar: p.channel })}</td><td className="num" dir="ltr">{sar(p.amount)}</td></tr>) : <tr><td colSpan={3} className="muted">{L('No payment recorded up to the reference date.', 'لا دفعات مسجّلة حتى التاريخ المرجعي.')}</td></tr>}</tbody>
+          <thead><tr><th>{L('Payment date', 'تاريخ الدفع')}</th><th>{L('Channel', 'القناة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Against the due date', 'مقابل الاستحقاق')}</th><th className="num">{L('Balance after', 'الرصيد بعدها')}</th></tr></thead>
+          <tbody>{pf.rows.length ? pf.rows.map((p, i) => <tr key={i}><td dir="ltr">{p.date}{pf.settled === p.date && <> <span className="rv-tag rv-tag--ok">{L('settled', 'سداد كامل')}</span></>}</td><td>{B(CHANNEL[p.channel] || { en: p.channel, ar: p.channel })}</td><td className="num" dir="ltr">{sar(p.amount)}</td><td>{p.offset == null ? '—' : p.offset > 0 ? <span className="rp-bad">{L(`${p.offset} d after`, `بعد ${p.offset} يوماً`)}</span> : p.offset < 0 ? L(`${-p.offset} d before`, `قبل ${-p.offset} يوماً`) : L('on the due date', 'في يوم الاستحقاق')}</td><td className="num" dir="ltr">{sar(p.balance)}</td></tr>) : <tr><td colSpan={5} className="muted">{L('No payment recorded up to the reference date.', 'لا دفعات مسجلة حتى التاريخ المرجعي.')}</td></tr>}</tbody>
+          {pf.rows.length > 1 && <tfoot><tr><th colSpan={2}>{L('Total paid', 'إجمالي المدفوع')}</th><td className="num" dir="ltr"><b>{sar(pf.paid)}</b></td><td /><td className="num" dir="ltr">{sar(pf.remaining)}</td></tr></tfoot>}
         </table></div>
-        <Facts items={[
-          { k: L('Source status (Tahseel)', 'حالة المصدر (تحصيل)'), v: rec.statusRawTahseel || '—' }, rec.statusRawEfaa && { k: L('Source status (Efaa)', 'حالة المصدر (إيفاء)'), v: rec.statusRawEfaa },
-          { k: L('Unified state', 'الحالة الموحدة'), v: <span className={`rv-cat rv-cat--${det.cls}`}>{det.cls === 'collected' ? L('Collected', 'محصّلة') : B(CATEGORY_LABELS[det.cls])}</span> }
-        ]} />
-        <Section id="items" secondary title={L('Line items and source record', 'البنود والسجل المصدري')}>
-          <div className="rp-tablewrap" tabIndex={0}><table>
-            <thead><tr><th>#</th><th>{L('Item', 'البند')}</th><th className="num">{L('Amount', 'المبلغ')}</th></tr></thead>
-            <tbody>{(rec.lineItems || []).map((li) => <tr key={li.no}><td>{li.no}</td><td dir="auto">{li.name}</td><td className="num" dir="ltr">{sar(li.amount)}</td></tr>)}</tbody>
-          </table></div>
-          <SourceRecordSection sr={det.sourceRecord} />
-        </Section>
+      </Section>
+
+      <Section id="items" secondary title={L('Line items and source record', 'البنود والسجل المصدري')}>
+        <div className="rp-tablewrap" tabIndex={0}><table>
+          <thead><tr><th>#</th><th>{L('Item', 'البند')}</th><th className="num">{L('Amount', 'المبلغ')}</th></tr></thead>
+          <tbody>{(rec.lineItems || []).map((li) => <tr key={li.no}><td>{li.no}</td><td dir="auto">{li.name}</td><td className="num" dir="ltr">{sar(li.amount)}</td></tr>)}</tbody>
+        </table></div>
+        <SourceRecordSection sr={det.sourceRecord} />
       </Section>
 
       <Section id="analysis" title={L('Analysis and review', 'التحليل والمراجعة')}>

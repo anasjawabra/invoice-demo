@@ -30,6 +30,7 @@ import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.j
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
 import { appropriationOf, appropriationTotal, appropriationKeys, appropriationAsOfEnd, HQ_KEY } from '../src/data/appropriations.js';
+import { paymentFacts } from '../src/data/invoicePayments.js';
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
@@ -1497,6 +1498,19 @@ await test('analysis: the trend by issue month adds up to the headline collected
   const con = concentration(A); assert.ok(con.entities.share >= 0.5 && con.entities.rows.length <= A.entities.length);
   for (const f of needsFollowUp(A)) assert.ok(f.rate < A.total.rate && f.uncollected > 0);
   assert.ok(decompose({ net: 120, collected: 90 }, { net: 100, collected: 60 }).total === 30);
+});
+await test('invoice payment story: settlement date, offset from the due date, partial and unpaid states, running balance', () => {
+  const base = { dueDate: '2026-04-07', issueDate: '2026-03-08', net: 100, today: '2026-10-14' };
+  const settled = paymentFacts({ ...base, payStatus: 'collected', payments: [{ date: '2026-05-01', amount: 40 }, { date: '2026-04-01', amount: 60 }] });
+  assert.equal(settled.state, 'settled'); assert.equal(settled.first, '2026-04-01'); assert.equal(settled.last, '2026-05-01'); assert.equal(settled.settled, '2026-05-01'); assert.equal(settled.settledOffset, 24); assert.equal(settled.daysFromIssue, 54);
+  assert.deepEqual(settled.rows.map((r) => [r.balance, r.offset]), [[40, -6], [0, 24]], 'balance after each payment, offset from the due date (negative = before)');
+  const early = paymentFacts({ ...base, payStatus: 'collected', payments: [{ date: '2026-03-20', amount: 100 }] }); assert.equal(early.settledOffset, -18);
+  const part = paymentFacts({ ...base, payStatus: 'partial', payments: [{ date: '2026-04-20', amount: 30 }] });
+  assert.equal(part.state, 'partial'); assert.equal(part.remaining, 70); assert.equal(part.settled, null); assert.equal(part.daysOverdue, 190);
+  const none = paymentFacts({ ...base, payStatus: 'overdue', payments: [] }); assert.equal(none.state, 'unpaid'); assert.equal(none.first, null); assert.equal(none.daysOverdue, 190);
+  const notDue = paymentFacts({ ...base, today: '2026-04-01', payStatus: 'not_due', payments: [] }); assert.equal(notDue.daysOverdue, 0); assert.equal(notDue.daysToDue, 6);
+  assert.equal(paymentFacts({ ...base, net: 0, payStatus: 'cancelled', payments: [{ date: '2026-04-01', amount: 10 }] }).state, 'cancelled', 'a cancelled invoice is never «paid», its payments are only listed');
+  assert.equal(paymentFacts({ ...base, payStatus: 'collected', payments: [{ date: '2026-04-01', amount: 130 }] }).over, 30);
 });
 await test('terminology: «المقبوضات» and its forms are gone from every screen text; the approved terms are defined', () => {
   const hits = []; const walk = (d) => { for (const e of nodeFs.readdirSync(d, { withFileTypes: true })) { const p = nodePath.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(jsx?|mjs)$/.test(e.name) && /مقبوض/.test(nodeFs.readFileSync(p, 'utf8'))) hits.push(p); } };
