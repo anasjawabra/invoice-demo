@@ -63,7 +63,7 @@ export default function Invoices() {
   const rows = res?.rows || [];
   const total = res?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const sums = res?.sums || { gross: 0, exclusions: 0, net: 0, collected: 0, outstanding: 0 };
+  const ST = rev.snapshot.totals; // the shared snapshot of the scope bar: every invoice of the period
 
   const openRecord = useOpenRecord(); // a row opens the invoice's own full page; «back» returns here with everything as it was
   const openDetail = useCallback((row) => openRecord(invoicePath(row.id)), [openRecord]);
@@ -116,17 +116,17 @@ export default function Invoices() {
         </div>
       </div>
 
-      <section className="card card-pad inv-stats" aria-label={bi.L('Collection statistics of the matching invoices', 'إحصاءات التحصيل للفواتير المطابقة')}>
-        <h2 className="ip-h">{bi.L('Collection statistics — the matching invoices', 'إحصاءات التحصيل — الفواتير المطابقة')}</h2>
+      {/* the system-level figures of the scope above (every invoice of the period, not only the ones listed below): no exclusions, no uncollected */}
+      <section className="card card-pad inv-stats" aria-label={bi.L('Collection statistics of all invoices in the scope', 'إحصاءات التحصيل لكل الفواتير في النطاق')}>
+        <h2 className="ip-h">{bi.L('Collection statistics — all invoices in the scope above', 'إحصاءات التحصيل — كل الفواتير في النطاق أعلاه')}</h2>
         <div className="inv-stats__grid">
-          <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{loading && !res ? '…' : bi.count(total)}</b></div>
-          <div><span className="ip-k">{bi.L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr" title={bi.sar(sums.net)}>{bi.short(sums.net)}</b></div>
-          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big ip-good" dir="ltr" title={bi.sar(sums.collected)}>{bi.short(sums.collected)}</b></div>
-          <div><span className="ip-k">{bi.L('Uncollected', 'غير المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(sums.outstanding)}>{bi.short(sums.outstanding)}</b></div>
-          <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big" dir="ltr">{sums.net > 0 ? `${(Math.round((sums.collected / sums.net) * 1000) / 10).toFixed(1)}%` : '—'}</b></div>
+          <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{bi.count(ST.count)}</b></div>
+          <div><span className="ip-k">{bi.L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.net)}>{bi.short(ST.net)}</b></div>
+          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big ip-good" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
+          <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big" dir="ltr">{ST.net > 0 ? `${(Math.round((ST.collected / ST.net) * 1000) / 10).toFixed(1)}%` : '—'}</b></div>
         </div>
-        {sums.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(sums.collected / sums.net, 1) * 100}%` }} /><i className="ip-bar__left" style={{ width: `${Math.max(1 - sums.collected / sums.net, 0) * 100}%` }} /></div>}
-        <div className="muted" style={{ fontSize: 12 }}>{bi.L('Collection rate = collected ÷ net billed of the invoices that match the filters above.', 'نسبة التحصيل = المحصّل ÷ صافي المفوتر للفواتير المطابقة للمرشحات أعلاه.')}</div>
+        {ST.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(ST.collected / ST.net, 1) * 100}%` }} /></div>}
+        <div className="muted" style={{ fontSize: 12 }}>{bi.L('Collection rate = collected ÷ net billed, for every invoice of the period (the same figures as the dashboard). The list below shows only the collected invoices.', 'نسبة التحصيل = المحصّل ÷ صافي المفوتر لكل فواتير الفترة (نفس أرقام لوحة المعلومات). والقائمة أدناه تعرض الفواتير المحصّلة فقط.')}</div>
       </section>
 
       <div className="card card-pad">
