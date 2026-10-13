@@ -699,3 +699,11 @@
 .ra-notes__ev { max-width: 520px; }
 .ra-limits { line-height: 1.8; }
 @media (max-width: 900px) { .ra-map__body, .ra-two { grid-template-columns: minmax(0, 1fr); } }
+.rv-rel__seg { cursor: pointer; min-width: 4px; font-family: inherit; text-align: start; }
+.rv-rel__seg:not(.rv-rel__seg--gap) { border: 0; }
+.rv-rel__seg.is-on, .rv-rel__seg:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; position: relative; z-index: 1; }
+.rv-rel__legend { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+.rv-rel__key { display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; background: none; font: inherit; color: inherit; cursor: pointer; padding: 2px 6px; border-radius: 6px; }
+.rv-rel__key.is-on, .rv-rel__key:hover { border-color: var(--line-strong, #9ca3af); background: var(--surface-2, transparent); }
+.rv-rel__swatch { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0, 0, 0, .15); }
+.rv-rel__detail { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); display: grid; gap: 4px; }
