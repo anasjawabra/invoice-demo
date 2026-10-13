@@ -16,7 +16,7 @@
 // ============================================================================
 import { INVOICES, RECON, SANAD_ENFORCEMENT } from './mock';
 import { DEMO_TODAY, addDaysIso } from './clock';
-import { SOURCES, ENTITIES, N_AMANAH } from './catalog';
+import { SOURCES, ENTITIES, N_AMANAH, ENT_UNASSIGNED } from './catalog';
 
 /* ---------- Data cutoff & provenance ---------- */
 
@@ -299,4 +299,9 @@ export function accessibleLedger(ledger, org) {
 
 export function amanahOptionsOf() {
   return ENTITIES.slice(0, N_AMANAH + 1).map((e) => ({ key: e.en, en: e.en, ar: e.ar, zh: e.zh })).sort((a, b) => a.en.localeCompare(b.en));
+}
+// Every Amanah PLUS the invoices Makeen assigns to none («غير محدد الأمانة»), listed last — the choice for every Amanah filter, so the Amanah figures add up to the national figure.
+export function amanahFilterOptions() {
+  const u = ENTITIES[ENT_UNASSIGNED];
+  return [...amanahOptionsOf(), { key: u.en, en: u.en, ar: u.ar, zh: u.zh }];
 }

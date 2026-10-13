@@ -45,8 +45,8 @@ add('h-section', 'ما أكبر فجوات التحصيل هذا الشهر؟', 
 add('h-section', 'ما نسبة الاستبعاد؟', { kind: 'question', sections: ['exclusions'] });
 add('h-section', 'جودة بيانات الفواتير', { sections: ['quality'] });
 add('h-section', 'show payment channels for last month', { sections: ['channels'], from: '2026-09-01', to: '2026-09-30' });
-add('h-section', 'how much is the remaining budget?', { kind: 'question', only: ['budget'] });
-add('h-section', 'تقرير عن الإنفاق والميزانية', { sections: ['budget'] });
+add('h-section', 'how much is the remaining budget?', { kind: 'clarify', says: 'budget' });
+add('h-section', 'تقرير عن الإنفاق والميزانية', { kind: 'clarify', says: 'الإنفاق' });
 // comparison
 add('h-compare', 'هل التحصيل هذا الشهر أحسن من الشهر اللي فات؟', { kind: 'question', compare: 'prev_month' });
 add('h-compare', 'قارن أداء هذا العام بالعام الماضي', { compare: 'prev_year', from: '2026-01-01', to: TODAY });

@@ -56,7 +56,8 @@ export function formatRatio(r, lang = 'en', digits = 1) {
    Each rule carries: version, enabled-by-default flag, `priority` (lowest number
    wins when an invoice carries several reasons — ONE primary reason, counted
    once), and `approval`. `approval: 'unapproved'` means the business has not
-   confirmed the rule; it stays configurable and its effect is always shown as
+   confirmed the rule: it is OFF by default, so no headline figure (adjusted total, net billed, collection rate) deducts anything the business has not approved.
+   It stays configurable as an explicit what-if in the rule registry, and then its effect is always shown as
    "غير معتمدة / unapproved" — it is never presented as an official figure. */
 export const EXCLUSION_RULE_SET_VERSION = 'EXCL-RULES v2 (demo configuration)';
 
@@ -67,19 +68,19 @@ export const EXCLUSION_RULES = [
   { id: 'CR-1', category: 'struck_off_registry', version: 1, priority: 2, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
     label: { en: 'Struck-off commercial registration', ar: 'سجل تجاري مشطوب' },
     note: { en: 'Meeting: all invoices of a struck-off registration are ready for exclusion without judgement. The raw CR status is kept as-is; only statuses listed in the rule parameter qualify, and only after human review.', ar: 'الاجتماع: جميع فواتير السجل التجاري المشطوب جاهزة للاستبعاد دون تقدير. تُحفظ حالة السجل الخام كما هي؛ والحالات المدرجة في معامل القاعدة فقط هي المؤهلة، وبعد المراجعة البشرية.' } },
-  { id: 'DEC-1', category: 'deceased_debtor', version: 1, priority: 3, defaultEnabled: true, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'DEC-1', category: 'deceased_debtor', version: 1, priority: 3, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
     label: { en: 'Deceased debtor (evidence required)', ar: 'مدين متوفى (يتطلب دليلاً)' },
     note: { en: 'Proposed category; requires human review of evidence before it affects net billed.', ar: 'فئة مقترحة؛ تتطلب مراجعة بشرية للدليل قبل أن تؤثر على صافي المفوتر.' } },
-  { id: 'NOC-1', category: 'no_contract', version: 1, priority: 4, defaultEnabled: true, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'NOC-1', category: 'no_contract', version: 1, priority: 4, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
     label: { en: 'Investment invoice with no contract (confirmed by Furas)', ar: 'فاتورة استثمار بلا عقد (مؤكد من فرص)' },
     note: { en: 'Applies only when Furas confirms no contract exists. An UNMATCHED contract (not found) is never excluded — it stays in net billed and is flagged.', ar: 'تنطبق فقط عند تأكيد فرص عدم وجود عقد. العقد غير المطابق (لم يُعثر عليه) لا يُستبعد أبداً — يبقى في صافي المفوتر ويُعلَّم.' } },
-  { id: 'INC-1', category: 'incomplete_data', version: 1, priority: 5, defaultEnabled: true, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'INC-1', category: 'incomplete_data', version: 1, priority: 5, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
     label: { en: 'Incomplete data (Efaa incomplete-violations report)', ar: 'بيانات غير مكتملة (تقرير إيفاء للمخالفات غير المكتملة)' },
     note: { en: 'Candidate rule from the Efaa incomplete report. Not confirmed by the business; configurable.', ar: 'قاعدة مرشحة من تقرير إيفاء غير المكتمل. غير مؤكدة من الجهة؛ قابلة للضبط.' } },
-  { id: 'EXE-1', category: 'executed_against', version: 1, priority: 6, defaultEnabled: true, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'EXE-1', category: 'executed_against', version: 1, priority: 6, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
     label: { en: 'Executed-against list (Efaa)', ar: 'قائمة المنفذ ضده (إيفاء)' },
     note: { en: 'Candidate rule. Being executed against does not mean the amount ended; treated as a configurable, unapproved exclusion.', ar: 'قاعدة مرشحة. كون المدين منفذاً ضده لا يعني انتهاء المبلغ؛ تُعامل كاستبعاد قابل للضبط وغير معتمد.' } },
-  { id: 'EFA-1', category: 'outside_efaa', version: 1, priority: 7, defaultEnabled: true, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'EFA-1', category: 'outside_efaa', version: 1, priority: 7, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
     label: { en: 'Violation not present in Efaa (system of record)', ar: 'مخالفة غير موجودة في إيفاء (النظام المرجعي)' },
     note: { en: 'Candidate rule. Tahseel and Efaa statuses are kept separate; a missing Efaa match is evidence for review, not proof.', ar: 'قاعدة مرشحة. تُحفظ حالتا تحصيل وإيفاء منفصلتين؛ غياب المطابقة في إيفاء دليل للمراجعة وليس إثباتاً.' } },
   { id: 'OBJ-1', category: 'objection', version: 1, priority: 8, defaultEnabled: false, locked: false, basis: 'unresolved', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
@@ -608,7 +609,7 @@ export function monthlyFromCumulative(series) {
   return { ok: problems.length === 0, values: out, problems };
 }
 
-/* ---------- Targets & coverage (separate metrics, separate denominators) ---------- */
+/* ---------- Targets ---------- */
 export const TARGET_STATUS = { demo: 'demo', approved: 'approved', unresolved: 'unresolved' };
 
 // Approved management target — an INPUT, never computed from data. These
@@ -621,17 +622,7 @@ export const DEFAULT_TARGETS = {
   // rising toward year end; exact weights were not supplied, so this is a configurable demo shape.
   // curveMode 'equal' reproduces the pro-rata (annual ÷ 12) basis printed in the monthly revenue reports;
   // 'curved' follows the meeting's description. Which one is the approved basis is unresolved.
-  monthlyCurve: { curveMode: 'curved', weights: [0.05, 0.06, 0.07, 0.08, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.10, 0.10], equalWeights: Array(12).fill(1 / 12), status: 'demo' },
-  coverage: {
-    status: 'demo',
-    // Eligible ORIGINAL (start-of-year) budget for chapters 1-3 only. Chapter 4 and Vision-programme initiative
-    // costs are excluded; no reinforcement, revised appropriation or actual spend is substituted.
-    chapters: { ch1: 14900000000, ch2: 8800000000, ch3: 3300000000 },
-    visionInitiativeDeduction: { value: 0, status: 'unresolved', note: { en: 'Amount of Vision-programme initiative costs sitting inside chapters 1-3 was not supplied; left at 0.', ar: 'لم يُزوَّد بمبلغ تكاليف مبادرات الرؤية داخل الأبواب 1-3؛ تُركت صفراً.' } },
-    targetPct: { value: 0.66, status: 'demo', provenance: { en: 'Illustrative demo input (the transcript example mentions a 66% ask; the Implementation Card mentions 85% — neither is confirmed as the live target).', ar: 'مُدخل توضيحي (مثال الاجتماع يذكر 66% وبطاقة التنفيذ تذكر 85% — ولا أيٌّ منهما مؤكد كهدف حالي).' } },
-    proration: 'equal_monthly',
-    transferRules: { status: 'unresolved', note: { en: 'Inter-chapter transfer eligibility rules unresolved (MoF matter).', ar: 'قواعد المناقلة بين الأبواب غير محسومة (شأن وزارة المالية).' } }
-  }
+  monthlyCurve: { curveMode: 'curved', weights: [0.05, 0.06, 0.07, 0.08, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.10, 0.10], equalWeights: Array(12).fill(1 / 12), status: 'demo' }
 };
 
 export function curveWeights(targets) {
@@ -681,37 +672,6 @@ export function computeTargetAchievement(ledger, scope, cfgIn, targets = DEFAULT
   const sc = normalizeScope(scope, cfg);
   const through = sc.to < cfg.cutoff ? sc.to : cfg.cutoff;
   return targetAchievementFrom(monthlyReceipts(ledger, { ...sc, from: `${targets.fiscalYear}-01-01`, to: through }, cfg, decisions), scope, cfgIn, targets);
-}
-
-// Revenue coverage: receipts / eligible original budget prorated to elapsed months. Own numerator and denominator.
-export function coverageFrom(fyReceipts, scope, cfgIn, targets = DEFAULT_TARGETS) {
-  const cfg = normalizeConfig(cfgIn);
-  const sc = normalizeScope(scope, cfg);
-  const cov = targets.coverage;
-  const through = sc.to < cfg.cutoff ? sc.to : cfg.cutoff;
-  const elapsedMonths = through.startsWith(String(targets.fiscalYear)) ? Number(through.slice(5, 7)) : (through > `${targets.fiscalYear}-12-31` ? 12 : 0);
-  const annualEligible = Object.values(cov.chapters).reduce((s, v) => s + v, 0) - (cov.visionInitiativeDeduction.value || 0);
-  const proratedBudget = annualEligible * (elapsedMonths / 12);
-  const receipts = fyReceipts.values.reduce((s, v) => s + v, 0);
-  return {
-    receiptsYtd: receipts,
-    annualEligibleBudget: annualEligible,
-    elapsedMonths,
-    proratedBudget,
-    coverage: ratio(receipts, proratedBudget),
-    targetPct: cov.targetPct.value,
-    targetStatus: cov.targetPct.status,
-    // The denominator is the department's eligible ORIGINAL budget; the figures are demo inputs until an approved budget is loaded.
-    denominatorStatus: cov.status || 'demo',
-    scopeCaveat: sc.amanah !== 'all' || sc.source !== 'all' || !!sc.org?.amanahKeys,
-    unresolved: ['vision_initiative_deduction', 'transfer_rules']
-  };
-}
-export function computeCoverage(ledger, scope, cfgIn, targets = DEFAULT_TARGETS, decisions = {}) {
-  const cfg = normalizeConfig(cfgIn);
-  const sc = normalizeScope(scope, cfg);
-  const through = sc.to < cfg.cutoff ? sc.to : cfg.cutoff;
-  return coverageFrom(monthlyReceipts(ledger, { ...sc, from: `${targets.fiscalYear}-01-01`, to: through }, cfg, decisions), scope, cfgIn, targets);
 }
 
 /* ---------- Metric definitions shown in the UI ---------- */
@@ -786,14 +746,6 @@ export const METRIC_DEFINITIONS = {
     denominator: { en: 'Cumulative approved monthly target (annual target × monthly curve)', ar: 'المستهدف الشهري التراكمي المعتمد (المستهدف السنوي × المنحنى الشهري)' },
     dateBasis: { en: 'Fiscal year to the data cutoff', ar: 'السنة المالية حتى تاريخ قطع البيانات' },
     population: 'A',
-    notes: { en: 'Target is an input, never derived from data. Shown separately from coverage.', ar: 'المستهدف مُدخل وليس مشتقاً من البيانات. يُعرض منفصلاً عن التغطية.' }
-  },
-  coverage: {
-    label: { en: 'Revenue coverage of chapters 1–3', ar: 'تغطية الإيرادات للأبواب 1–3' },
-    numerator: { en: 'Receipts, fiscal year to date', ar: 'الإيرادات المحصلة منذ بداية السنة المالية' },
-    denominator: { en: 'Eligible ORIGINAL annual budget, chapters 1–3 only, prorated to elapsed months', ar: 'الميزانية الأصلية السنوية المؤهلة للأبواب 1–3 فقط، موزعة على الأشهر المنقضية' },
-    dateBasis: { en: 'Fiscal year to the data cutoff', ar: 'السنة المالية حتى تاريخ قطع البيانات' },
-    population: 'A',
-    notes: { en: 'Excludes chapter 4 and Vision-programme initiative costs. No revised appropriation or actual spend is substituted. Eligibility and transfer rules remain unresolved.', ar: 'يستثني الباب الرابع وتكاليف مبادرات الرؤية. لا يُستبدل بالاعتماد المعدّل أو الصرف الفعلي. قواعد الأهلية والمناقلة غير محسومة.' }
+    notes: { en: 'Target is an input, never derived from data. ', ar: 'المستهدف مُدخل وليس مشتقاً من البيانات. يُعرض منفصلاً عن التغطية.' }
   }
 };

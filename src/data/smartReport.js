@@ -14,7 +14,7 @@ import { caseSummary } from './enforcementMatching';
 
 export const REPORT_FOCUS = ['revenue', 'amanah', 'noncollection', 'investment'];
 
-export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos, achievement, coverage, cards = [], anomalies = [], cases = [], focus = 'revenue', lang = 'en', request = '' }) {
+export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos, achievement, cards = [], anomalies = [], cases = [], focus = 'revenue', lang = 'en', request = '' }) {
   const ar = lang === 'ar';
   const L = (en, a) => (ar ? a : en);
   const B = (o) => pickBi(o, lang);
@@ -49,7 +49,6 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
     { label: L('Net uncollected (standing balance)', 'الرصيد القائم'), value: M(snapshot.stock.netUncollected), caption: L(`All issue periods. Overdue ${M(snapshot.stock.overdue)}, not yet due ${M(snapshot.stock.notYetDue)} at ${snapshot.cutoff}. Different from the period's uncollected.`, `كل فترات الإصدار. متأخر ${M(snapshot.stock.overdue)} ولم يحن ${M(snapshot.stock.notYetDue)} عند ${snapshot.cutoff}. يختلف عن غير المحصّل للفترة.`) },
   ];
   if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Collection target achievement', 'تحقيق مستهدف التحصيل'), value: formatRatio(achievement.achievement, ar ? 'ar' : 'en'), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs cumulative target ${M(achievement.targetYtd || 0)} (target is a demo input)`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المستهدف التراكمي ${M(achievement.targetYtd || 0)} (المستهدف مُدخل توضيحي)`) });
-  if (coverage && !coverage.scopeCaveat) keyMetrics.push({ label: L('Revenue coverage, chapters 1–3', 'تغطية الإيرادات للأبواب 1–3'), value: formatRatio(coverage.coverage, ar ? 'ar' : 'en'), caption: L(`Receipts ÷ eligible original budget prorated to ${coverage.elapsedMonths}/12 (${M(coverage.proratedBudget)}). Separate from target achievement; eligibility and transfer rules unresolved.`, `الإيرادات المحصلة ÷ الميزانية الأصلية المؤهلة موزعة على ${coverage.elapsedMonths}/12 (${M(coverage.proratedBudget)}). مستقلة عن تحقيق المستهدف؛ وقواعد الأهلية والمناقلة غير محسومة.`) });
 
   const analysisTable = {
     headers: [L('Amanah', 'الأمانة'), L('Invoices', 'الفواتير'), L(`Gross (${unitName})`, `الإجمالي (${unitName})`), L(`Exclusions (${unitName})`, `الاستبعادات (${unitName})`), L(`Net (${unitName})`, `الصافي (${unitName})`), L(`Collected (${unitName})`, `المحصّل (${unitName})`), L(`Uncollected (${unitName})`, `غير المحصّل (${unitName})`), L('Collection rate', 'نسبة التحصيل')],
@@ -85,7 +84,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   const pendingCases = cases.filter((c) => caseSummary(c).state !== 'linked');
   if (pendingCases.length) risks.push({ priority: L('Medium', 'متوسطة'), title: L(`${pendingCases.length} enforcement order(s) not fully matched to invoices`, `${pendingCases.length} أمر إنفاذ غير مطابق بالكامل مع الفواتير`), rationale: L('Recoveries on these cases cannot yet be tied to receivables; candidate matches need human review.', 'لا يمكن ربط متحصلات هذه القضايا بالمستحقات بعد؛ والمطابقات المقترحة تحتاج مراجعة بشرية.') });
   risks.push({ priority: L('Medium', 'متوسطة'), title: L('All figures are demo data', 'جميع الأرقام بيانات تجريبية'), rationale: L('Records are generated demo data standing in for periodic uploads / feeds from Tahseel, Furas, Sanad, Efaa and CR View. They are labelled demo and are not the Ministry\'s actual figures.', 'السجلات بيانات تجريبية مولّدة تحل محل الرفع الدوري أو التغذية من تحصيل وفرص وسند وإيفاء وCR View. وهي موسومة تجريبية وليست أرقام الوزارة الفعلية.'), timeframe: L('Until real reports are uploaded', 'حتى رفع التقارير الفعلية'), confidence: L('Certain', 'مؤكد') });
-  risks.push({ priority: L('Medium', 'متوسطة'), title: L('Unresolved business definitions', 'تعريفات أعمال غير محسومة'), rationale: L('Grace-period treatment, the exclusion approval authority and category list, the approved collection-rate target and the coverage eligibility/transfer rules are unresolved and kept configurable.', 'معاملة فترة السماح وجهة اعتماد الاستبعاد وقائمة فئاته والمستهدف المعتمد لمعدل التحصيل وقواعد أهلية التغطية والمناقلة غير محسومة وتبقى قابلة للضبط.') });
+  risks.push({ priority: L('Medium', 'متوسطة'), title: L('Unresolved business definitions', 'تعريفات أعمال غير محسومة'), rationale: L('Grace-period treatment, the exclusion approval authority and category list, the approved collection-rate target are unresolved and kept configurable.', 'معاملة فترة السماح وجهة اعتماد الاستبعاد وقائمة فئاته والمستهدف المعتمد لمعدل التحصيل غير محسومة وتبقى قابلة للضبط.') });
 
   const predictions = [];
   if (forecast?.ready) {

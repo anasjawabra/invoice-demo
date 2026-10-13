@@ -1,12 +1,11 @@
 // Backup / restore of what the demo keeps in THIS browser (EQ10): plans and objectives, the action register and the Smart-report conversations.
 // A backup is a plain JSON file; an import is validated before anything is written and replaces the three records as a unit.
-import { validScenariosShape, validScenarioLogShape } from './namedScenarios';
 import { validStoreShape } from './orderMatching';
 export const BACKUP_FORMAT = 'revenue-demo-local-backup';
 export const BACKUP_KEYS = ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1'];
 // Enforcement-order work (links, document records, extracted references, history). OPTIONAL: an older backup without it never removes what is in the browser.
 // The PDF files themselves are NOT in the backup (only their names, hashes and extracted references) — a restored order asks for the file again.
-export const OPTIONAL_KEYS = ['ib_enforcement_v1'];
+export const OPTIONAL_KEYS = ['ib_enforcement_v1', 'ib_collection_goal_v1']; // the second: the draft monthly plans saved on the Strategic Dashboard
 
 export function buildBackup(storage, now = new Date()) {
   const data = {};
@@ -21,11 +20,11 @@ export function validateBackup(obj) {
   if (obj.version !== 1) return { ok: false, error: 'unsupported_version' };
   const d = obj.data || {};
   if (d.ib_plans_v1 != null && !(Array.isArray(d.ib_plans_v1.plans) && Array.isArray(d.ib_plans_v1.objectives))) return { ok: false, error: 'bad_plans' };
-  if (d.ib_plans_v1 != null && !(validScenariosShape(d.ib_plans_v1.scenarios) && validScenarioLogShape(d.ib_plans_v1.scenarioLog))) return { ok: false, error: 'bad_scenarios' };
   if (d.ib_actions_v1 != null && !(Array.isArray(d.ib_actions_v1.actions))) return { ok: false, error: 'bad_actions' };
   if (d.ib_smart_convs_v1 != null && !Array.isArray(d.ib_smart_convs_v1)) return { ok: false, error: 'bad_conversations' };
   if (d.ib_enforcement_v1 != null && !validStoreShape(d.ib_enforcement_v1)) return { ok: false, error: 'bad_enforcement' };
-  return { ok: true, summary: { plans: d.ib_plans_v1?.plans.length ?? 0, objectives: d.ib_plans_v1?.objectives.length ?? 0, scenarios: Object.values(d.ib_plans_v1?.scenarios || {}).reduce((t, l) => t + l.length, 0), actions: d.ib_actions_v1?.actions.length ?? 0, proposals: d.ib_actions_v1?.proposed?.length ?? 0, conversations: d.ib_smart_convs_v1?.length ?? 0, ...(d.ib_enforcement_v1 ? { enforcementOrders: Object.keys(d.ib_enforcement_v1.orders).length } : {}), createdAt: obj.createdAt } };
+  if (d.ib_collection_goal_v1 != null && !(d.ib_collection_goal_v1.v === 1 && d.ib_collection_goal_v1.plans && typeof d.ib_collection_goal_v1.plans === 'object')) return { ok: false, error: 'bad_goal_plans' };
+  return { ok: true, summary: { plans: d.ib_plans_v1?.plans.length ?? 0, objectives: d.ib_plans_v1?.objectives.length ?? 0, goalPlans: Object.keys(d.ib_collection_goal_v1?.plans || {}).length, actions: d.ib_actions_v1?.actions.length ?? 0, proposals: d.ib_actions_v1?.proposed?.length ?? 0, conversations: d.ib_smart_convs_v1?.length ?? 0, ...(d.ib_enforcement_v1 ? { enforcementOrders: Object.keys(d.ib_enforcement_v1.orders).length } : {}), createdAt: obj.createdAt } };
 }
 
 // replaces the three records (a key that is null in the backup is removed). Returns the validation result.

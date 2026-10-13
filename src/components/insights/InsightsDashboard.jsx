@@ -1,9 +1,8 @@
 // «لوحة المعلومات» — monitoring view: works immediately, no prompt. ONE copy of the headline indicators; detail lives in the fixed reports
 // (every card links to its report or to the supporting invoices).
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useRevenue } from '../../context/RevenueContext';
-import { useAsync } from '../../utils/useAsync';
 import { useAr } from '../../utils/useAr';
 import { fmtMoney, fmtInt, unitOfValues, scaled, unitLabel } from '../../utils/money';
 import { MetricTile, PpDelta, ToDateFigure } from '../revenue/RevenueUI';
@@ -11,8 +10,6 @@ import { basisLabel, BASIS } from '../../data/measure';
 import FinancialRelations from '../revenue/FinancialRelations';
 import { AmanahMap } from '../revenue/ExecutiveParts';
 import UnitBar from '../strategic/UnitBar';
-import { AsyncBlock } from '../strategic/AsyncState';
-import { generateFinance, budgetExecution, operatingCoverage, financeCompatible, FINANCE_STATUS } from '../../data/syntheticFinance';
 import { sourceAr, sourceEn, buildInsights } from '../../data/insightsEngine';
 import { fillTokens } from '../../data/reportFormat';
 import { fmtDateText, fmtRangeText, fmtMonthText } from '../../data/clock';
@@ -30,9 +27,6 @@ export default function InsightsDashboard() {
   const attention = useMemo(() => buildInsights({ snapshot, prev: comparable ? prevSnapshot : null, comparison, forecast: null, targets }).insights.filter((i) => i.severity === 'action').slice(0, 3), [snapshot, prevSnapshot, comparison, targets, comparable]); // eslint-disable-line react-hooks/exhaustive-deps
   const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
   const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
-  const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
-  const [rt, setRt] = useState(0);
-  const fy = useAsync(async () => { if (!financeOk) return null; const r = await data.series({ amanah: 'all', source: 'all', from: `${today.slice(0, 4)}-01-01`, to: today }, { asOf: today }); return r.values.reduce((t, v) => t + v, 0); }, [data, financeOk, today, rt]);
   if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه المرشحات؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
 
   const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: u });
@@ -40,7 +34,6 @@ export default function InsightsDashboard() {
   const aging = snapshot.stock.aging; const uA = unitOfValues(aging.map((a) => a.amount));
   const src = snapshot.bySource.slice().sort((a, b) => b.outstanding - a.outstanding); const prevSrc = new Map((prevSnapshot?.bySource || []).map((g) => [g.key, g]));
   const mun = snapshot.byMunicipality.filter((g) => g.municipality).sort((a, b) => b.outstanding - a.outstanding).slice(0, 5); const uM = unitOfValues(mun.map((g) => g.outstanding));
-  const ex = budgetExecution(fin); const cov = fy.data != null ? operatingCoverage(fin, fy.data) : null;
 
   return (
     <div className="st-page" style={{ gap: 14 }}>
@@ -110,23 +103,6 @@ export default function InsightsDashboard() {
             </div>)}
         </div>
       </div>
-
-      <div className="card st-card">
-        <b>{L('الميزانية والصرف (بيانات تجريبية)', 'Budget and spending (demo data)')}</b>
-        {financeOk ? (
-          <AsyncBlock state={fy} onRetry={() => setRt((n) => n + 1)} height={90}>
-            <div className="st-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))' }}>
-              <div className="rv-tile"><div className="rv-tile__label">{L('الميزانية حتى اليوم', 'Budget to date')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.budgetToDate, { lang })}</div></div>
-              <div className="rv-tile"><div className="rv-tile__label">{L('الالتزامات', 'Commitments')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.commitments, { lang })}</div></div>
-              <div className="rv-tile"><div className="rv-tile__label">{L('المصروف نقداً', 'Paid (cash)')}</div><div className="rv-tile__value" dir="ltr">{fmtMoney(ex.total.paid, { lang })}</div><div className="rv-tile__sub">{L('من الميزانية حتى اليوم', 'of the budget to date')} {pct(ex.total.execution, '—')}</div></div>
-              <div className="rv-tile"><div className="rv-tile__label">{L('تغطية المصروفات التشغيلية', 'Operating-spending coverage')}</div><div className="rv-tile__value" dir="ltr">{pct(cov?.ratio, L('غير متاحة', 'n/a'))}</div><div className="rv-tile__sub">{L('الإيرادات المحصلة ÷ المصروف نقداً', 'receipts ÷ cash paid')}</div></div>
-            </div>
-            <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=budget">{L('تقرير الميزانية والتنفيذ', 'Budget execution report')}</Link> · <Link className="xref" to="/planning">{L('التخطيط المالي', 'Financial planning')}</Link></div>
-          </AsyncBlock>
-        ) : <div className="rv-empty" style={{ padding: 14 }}><b>{L('البيانات غير متاحة لهذا النطاق', 'Data not available for this scope')}</b><div style={{ fontSize: 13 }}>{L('الميزانية والإنفاق على مستوى وطني لكل المصادر فقط؛ أزل مرشحات الأمانة والبلدية والمصدر والحالة لعرضها.', 'Budget and expenditure exist at national level for all sources only; clear the Amanah, municipality, source and status filters to see them.')}</div></div>}
-      </div>
-
-
     </div>
   );
 }

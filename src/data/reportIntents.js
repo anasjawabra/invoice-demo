@@ -43,8 +43,7 @@ const SECTION_WORDS = [
   ['status', /(حاله الدفع|حالات الفواتير|حاله الفاتوره|عدد الفواتير|حسب الحاله)/],
   ['quality', /(جوده (?:ال)?بيانات|اكتمال|مطابقه|تعارضات)/],
   ['bases', /(اساس القياس|اساسين|اساس التقرير)/],
-  ['channels', /(قنوات الدفع|قنوات السداد|قنوات)/],
-  ['budget', /(الميزانيه|الميزانيات|المصروفات|المصاريف|الانفاق|النفقات|نغطي|تغطيه|تغطي|\bbudget\b|\bexpenditure\b|\bspending\b)/]
+  ['channels', /(قنوات الدفع|قنوات السداد|قنوات)/]
 ];
 // English wording for the same sections (kept apart so the Arabic table stays readable)
 const SECTION_WORDS_EN = [['sources', /\b(by|per) (revenue )?source|revenue sources/], ['amanah', /\b(by|per) amanah|compare amanahs|amanahs? performance/], ['aging', /\baging\b|\boverdue (balances|amounts|debts)\b|arrears/], ['exclusions', /\bexclusions?\b/], ['trends', /\b(monthly )?trend\b|month by month/], ['gaps', /\b(collection )?gaps\b|priorities/], ['status', /payment status|invoice status breakdown/], ['quality', /data quality|reconciliation/], ['channels', /payment channels/]];

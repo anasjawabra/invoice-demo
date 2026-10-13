@@ -13,13 +13,12 @@
 // Task states: queued, running, completed, completed_with_limitations,
 // failed, cancelled.
 // ============================================================================
-import { normalizeConfig, normalizeScope, scopeKey, previousScope, targetAchievementFrom, coverageFrom, DEFAULT_TARGETS } from '../data/revenueMetrics';
-import { forecastReceipts, targetVsForecast, applyScenario, DEFAULT_SCENARIO } from '../data/revenueOutlook';
+import { normalizeConfig, normalizeScope, scopeKey, previousScope, targetAchievementFrom, DEFAULT_TARGETS } from '../data/revenueMetrics';
+import { forecastReceipts, targetVsForecast } from '../data/revenueOutlook';
 import { buildDecisionCards, buildAnalysisResult, bi, money, mAr, worklistRows, anomalyRows, describeScope } from '../data/revenueInsights';
 import { caseSummary } from '../data/enforcementMatching';
 import { explainChange } from '../data/changeExplanation';
 import { loadComparison } from '../data/comparison';
-import { analyzeScenario as analyzeWhatIf, baseFromSnapshot, baseWindowScope, OPERATING_PROFILE } from '../data/strategicModel';
 
 // The task runner never sees invoices: every figure comes from the data service through `ctx.data`
 // ({ snapshot, bridge, series, worklist, anomalies, invoice, contracts }).
@@ -98,7 +97,6 @@ const S = {
       const through = ctx.scope.to < ctx.cfg.cutoff ? ctx.scope.to : ctx.cfg.cutoff;
       const fy = await ctx.data.series({ ...scopeOnly(ctx.scope), from: `${ctx.targets.fiscalYear}-01-01`, to: through }, { asOf: through });
       ctx.achievement = targetAchievementFrom(fy, ctx.scope, ctx.cfg, ctx.targets);
-      ctx.coverage = coverageFrom(fy, ctx.scope, ctx.cfg, ctx.targets);
       if (ctx.achievement.scopeCaveat) h.warn(bi('The annual target is national; it is not allocated to this narrower scope, so target achievement is shown for context only.', 'المستهدف السنوي وطني وغير موزع على هذا النطاق الأضيق، لذا يُعرض تحقق المستهدف للسياق فقط.'), { limitation: true });
     }
   },
@@ -161,7 +159,6 @@ const S = {
         references: ctx.references || [],
         forecast: ctx.forecast || null,
         targetPos: ctx.targetPos || null,
-        coverage: ctx.coverage || null,
         achievement: ctx.achievement || null,
         cards: ctx.cards || [],
         enforcementCases: ctx.cases || [],
@@ -261,96 +258,6 @@ export const TASK_KINDS = {
         }
       },
       S.prepare('forecast')
-    ],
-    modal: true
-  },
-  scenario: {
-    title: bi('Calculating the scenario', 'جارٍ احتساب السيناريو'),
-    stages: () => [
-      S.scope(),
-      S.calculate,
-      {
-        id: 'scenario_baseline',
-        label: bi('Build the independent baseline', 'بناء خط الأساس المستقل'),
-        active: bi('Re-using the independent forecast as the baseline', 'إعادة استخدام التنبؤ المستقل كخط أساس'),
-        async run(ctx, h) {
-          ctx.forecast = await runForecast(ctx, { targets: ctx.targets || DEFAULT_TARGETS });
-          if (!ctx.forecast.ready) throw new Error('baseline_unavailable');
-          h.detail(bi('Baseline ready', 'خط الأساس جاهز'));
-        }
-      },
-      {
-        id: 'scenario_apply',
-        label: bi('Apply user-defined scenario inputs', 'تطبيق مدخلات السيناريو المحددة من المستخدم'),
-        active: bi('Applying the scenario on top of the forecast (kept as a separate series)', 'تطبيق السيناريو فوق التنبؤ (كسلسلة منفصلة)'),
-        async run(ctx, h) {
-          ctx.scenario = applyScenario(ctx.forecast, ctx.snapshot, { ...DEFAULT_SCENARIO, ...(ctx.params?.scenario || {}) });
-          ctx.extra = { scenario: ctx.scenario };
-          h.detail(bi(`Scenario adds ${money(ctx.scenario.deltaVsForecast)} vs the forecast`, `يضيف السيناريو ${money(ctx.scenario.deltaVsForecast)} مقارنة بالتنبؤ`));
-        }
-      },
-      S.prepare('scenario')
-    ],
-    modal: true
-  },
-  whatif: {
-    title: bi('Calculating the what-if scenario', 'جارٍ احتساب سيناريو ماذا لو'),
-    stages: () => [
-      S.scope(),
-      S.calculate,
-      {
-        id: 'whatif_base',
-        label: bi('Take the starting point from the shared metric layer', 'أخذ نقطة البداية من الطبقة المشتركة'),
-        active: bi('Reading the 90-day billing base, exclusion share and current recovery from the shared metric layer', 'قراءة أساس الفوترة ونسبة الاستبعاد والتحصيل الحالي من اللقطة المشتركة'),
-        async run(ctx, h) {
-          // 90-day billing base ending at the data cutoff, in the same (access / Amanah / source) scope.
-          ctx.base = baseFromSnapshot(await ctx.data.snapshot(scopeOnly(baseWindowScope({ ...ctx.scope, from: undefined, to: undefined }, ctx.cfg.cutoff))));
-          if (!(ctx.base.portfolioTotal > 0)) throw new Error('baseline_unavailable');
-          h.detail(bi(`Billing base ${money(ctx.base.portfolioTotal)} from ${ctx.base.count} invoices`, `أساس الفوترة ${money(ctx.base.portfolioTotal)} من ${ctx.base.count} فاتورة`));
-        }
-      },
-      {
-        id: 'whatif_run',
-        label: bi('Apply the user-defined levers and measure sensitivity', 'تطبيق الروافع المحددة وقياس الحساسية'),
-        active: bi('Applying lever assumptions to the starting point and ranking sensitivities', 'تطبيق افتراضات الروافع على نقطة البداية وترتيب الحساسيات'),
-        async run(ctx, h) {
-          ctx.whatif = { input: ctx.params.input, base: ctx.base, result: analyzeWhatIf(ctx.params.input, ctx.base) };
-          h.detail(bi('Scenario computed', 'تم احتساب السيناريو'));
-        }
-      },
-      {
-        id: 'prepare',
-        label: bi('Prepare recommendations', 'إعداد التوصيات'),
-        active: bi('Separating the user scenario from the forecast and the approved target', 'فصل سيناريو المستخدم عن التنبؤ والمستهدف المعتمد'),
-        async run(ctx, h) {
-          const w = ctx.whatif;
-          const r = w.result;
-          const inp = w.input;
-          const covOpex = r.projected.sustainabilityCoverage;
-          const ach = r.targetAmount > 0 ? r.projected.collected / r.targetAmount : null;
-          ctx.result = {
-            kind: 'whatif', cutoff: ctx.cfg.cutoff, scope: ctx.scope,
-            provenance: bi('Illustrative demo data — a user-defined what-if, not a forecast.', 'بيانات توضيحية — سيناريو يحدده المستخدم وليس تنبؤاً.'),
-            executiveSummary: bi(
-              `User-defined scenario over ${inp.days} days: projected collections ${money(r.projected.collected)} against a modeled target of ${money(r.targetAmount)} (${ach == null ? 'not calculable' : `${(ach * 100).toFixed(0)}% target achievement`}). Coverage in this tool is ${covOpex.toFixed(0)}% of the eligible original budget (chapters 1–3) prorated to the horizon (${money(r.projected.opex)}). Coverage and target achievement are two different ratios with different denominators. This scenario is neither the independent forecast nor the approved target.`,
-              `سيناريو يحدده المستخدم لمدة ${inp.days} يوماً: التحصيل المتوقع ${money(r.projected.collected)} مقابل هدف مُنمذج ${money(r.targetAmount)} (${ach == null ? 'غير قابل للاحتساب' : `تحقق الهدف ${(ach * 100).toFixed(0)}%`}). التغطية في هذه الأداة ${covOpex.toFixed(0)}% من الميزانية الأصلية المؤهلة (الأبواب 1–3) موزعة على الأفق (${money(r.projected.opex)}). والتغطية وتحقق الهدف نسبتان مختلفتان بمقامين مختلفين. هذا السيناريو ليس التنبؤ المستقل وليس المستهدف المعتمد.`
-            ),
-            indicators: [
-              { label: bi('Projected collections (scenario)', 'التحصيل المتوقع (السيناريو)'), value: money(r.projected.collected), kind: 'calculated', note: bi('User-defined lever assumptions', 'افتراضات روافع يحددها المستخدم') },
-              { label: bi('Modeled target amount', 'مبلغ الهدف المُنمذج'), value: money(r.targetAmount), kind: 'fact', note: bi('User input', 'مُدخل المستخدم') },
-              { label: bi('Target achievement (÷ target)', 'تحقق الهدف (÷ الهدف)'), value: ach == null ? 'Not calculable' : `${(ach * 100).toFixed(0)}%`, kind: 'calculated' },
-              { label: bi('Coverage (÷ eligible original budget, chapters 1–3, prorated)', 'التغطية (÷ الميزانية الأصلية المؤهلة، الأبواب 1–3، موزعة)'), value: `${covOpex.toFixed(0)}%`, kind: 'calculated', note: bi('Own denominator; eligibility and transfer rules unresolved', 'مقام مستقل؛ وقواعد الأهلية والمناقلة غير محسومة') }
-            ],
-            references: [], confirmed: [],
-            hypotheses: r.actions.map((a) => ({ kind: 'hypothesis', text: bi(`Moving "${a.key}" from ${a.from}% to ${a.to}% would add about ${money(a.gain)} under this tool's assumptions.`, `رفع "${a.key}" من ${a.from}% إلى ${a.to}% قد يضيف نحو ${money(a.gain)} وفق افتراضات الأداة.`) })),
-            missing: [], recommendations: [{ kind: 'recommendation', text: bi('Use these results to frame questions for the business owners; validate each lever with data before acting.', 'استخدم النتائج لصياغة أسئلة لأصحاب الأعمال؛ وتحقق من كل رافعة بالبيانات قبل التنفيذ.') }],
-            assumptions: [bi(`Starting point from the shared metric layer (90-day billing base): ${money(w.base.portfolioTotal)}, exclusion share ${(w.base.exclusionRate * 100).toFixed(1)}%, current recovery ${(w.base.baselineRecovery * 100).toFixed(1)}% of gross billed.`, `نقطة البداية من الطبقة المشتركة (أساس فوترة 90 يوماً): ${money(w.base.portfolioTotal)}، نسبة الاستبعاد ${(w.base.exclusionRate * 100).toFixed(1)}%، التحصيل الحالي ${(w.base.baselineRecovery * 100).toFixed(1)}% من الإجمالي.`), bi(`Coverage denominator: eligible original budget of chapters 1–3, ${money(OPERATING_PROFILE.monthlyOpex)}/month (demo budget input). Lever sizes, status-ready and write-off rates are assumptions, not measured elasticities.`, `مقام التغطية: الميزانية الأصلية المؤهلة للأبواب 1–3، ${money(OPERATING_PROFILE.monthlyOpex)}/شهر (مُدخل ميزانية توضيحي). وأحجام الروافع ونسب الجاهزية والشطب افتراضات وليست مرونات مقاسة.`)],
-            limitations: [bi('Lever effects are illustrative; no accuracy figure is claimed.', 'آثار الروافع توضيحية؛ ولا تُدّعى نسبة دقة.')],
-            links: []
-          };
-          h.detail(bi('Findings ready', 'النتائج جاهزة'));
-        }
-      }
     ],
     modal: true
   },
@@ -467,7 +374,7 @@ export async function runTask(state, { data, cases, decisions, cfg, targets, onU
   task.result = ctx.result || null;
   task.snapshotTotals = ctx.snapshot ? { gross: ctx.snapshot.totals.gross, net: ctx.snapshot.totals.net, collected: ctx.snapshot.totals.collected, outstanding: ctx.snapshot.totals.outstanding } : null;
   task.finishedAt = ctx.cfg.cutoff;
-  task.out = { prevSnapshot: ctx.prevSnapshot, currAtEnd: ctx.currAtEnd, explanation: ctx.explanation, invoice: ctx.invoiceDetail, result: ctx.result || null, whatif: ctx.whatif, bridge: ctx.bridge, snapshot: ctx.snapshot, forecast: ctx.forecast, targetPos: ctx.targetPos, scenario: ctx.scenario, achievement: ctx.achievement, coverage: ctx.coverage, cards: ctx.cards, worklist: ctx.worklist, anomalies: ctx.anomalies, match: ctx.match, case: ctx.case };
+  task.out = { prevSnapshot: ctx.prevSnapshot, currAtEnd: ctx.currAtEnd, explanation: ctx.explanation, invoice: ctx.invoiceDetail, result: ctx.result || null, bridge: ctx.bridge, snapshot: ctx.snapshot, forecast: ctx.forecast, targetPos: ctx.targetPos, achievement: ctx.achievement, cards: ctx.cards, worklist: ctx.worklist, anomalies: ctx.anomalies, match: ctx.match, case: ctx.case };
   emit();
   return task;
 }

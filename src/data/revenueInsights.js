@@ -271,7 +271,7 @@ export function describeScope(scope, lang = 'en') {
   return `${scope.from} → ${scope.to} · ${a} · ${s}${extra.length ? ` · ${extra.join(' · ')}` : ''}`;
 }
 
-export function buildAnalysisResult(kind, { snapshot, bridge = null, references = [], forecast = null, targetPos = null, coverage = null, achievement = null, cards = [], enforcementCases = [], invoiceId = null, limitations = [] }) {
+export function buildAnalysisResult(kind, { snapshot, bridge = null, references = [], forecast = null, targetPos = null, achievement = null, cards = [], enforcementCases = [], invoiceId = null, limitations = [] }) {
   const T = snapshot.totals;
   const q = snapshot.quality;
   const qn = { pending: q.pendingExclusionCount ?? q.pendingExclusions.length, conflicts: q.amountConflictCount ?? q.amountConflicts.length, contract: q.contractIssueCount ?? q.contractIssues.length, missing: q.missingFieldCount ?? q.missingFieldRecords.length };
@@ -362,7 +362,6 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
     out.indicators.push(indicator(bi('Approved annual target (demo input)', 'المستهدف السنوي المعتمد (مُدخل توضيحي)'), money(targetPos.annualTarget), 'fact', bi('Target is an input; forecast is independent', 'المستهدف مُدخل؛ والتنبؤ مستقل')));
   }
   if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (الإيرادات المحصلة ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
-  if (coverage) out.indicators.push(indicator(bi('Coverage of chapters 1–3 (own denominator)', 'تغطية الأبواب 1–3 (مقام مستقل)'), formatRatio(coverage.coverage), 'calculated', bi('Eligibility and transfer rules unresolved', 'قواعد الأهلية والمناقلة غير محسومة')));
 
   out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'سجل الفواتير') }];
   if (invoiceId) out.links.unshift({ to: `/invoices/${encodeURIComponent(invoiceId)}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });

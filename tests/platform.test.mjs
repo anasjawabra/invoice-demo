@@ -13,17 +13,9 @@ import { buildInsights } from '../src/data/insightsEngine.js';
 import { interpret, defaultSpec, previousMonthScope } from '../src/data/reportIntents.js';
 import { buildReportModel, SECTION_ORDER } from '../src/data/reportModel.js';
 import { tableToText } from '../src/data/reportFormat.js';
-import { runScenario, scenarioBase, validateScenario, fairComparison, requiredPace, DEFAULT_SCENARIO } from '../src/data/strategicCalc.js';
-import { createAction, updateAction, rejectProposal, pendingProposals } from '../src/data/actionRegister.js';
+import { fairComparison } from '../src/data/amanahComparison.js';
 import { buildProposals } from '../src/data/proposals.js';
-import { answer as strategicAnswer, parseNumber } from '../src/data/strategicAssistant.js';
-import { buildCommandModel } from '../src/data/commandModel.js';
-import { generateFinance, budgetExecution, operatingCoverage, financeCompatible, plannedByMonth, CHAPTERS } from '../src/data/syntheticFinance.js';
-import { financeProjection } from '../src/data/strategicCalc.js';
-import { newPlan, saveVersion, patchPlan, approvePlan, addObjective, updateObjective, objectiveProgress, editPlan, unsavedChanges } from '../src/data/planStore.js';
-import { addProposal, earlierDecisions } from '../src/data/actionRegister.js';
 import { actorName } from '../src/utils/actor.js';
-import { listScenarioLog, validScenarioLogShape, MAX_SCENARIOS, addScenario, renameScenario, updateScenario, duplicateScenario, deleteScenario, listScenarios, cleanScenario, changedLevers, checkName, validScenariosShape } from '../src/data/namedScenarios.js';
 import { PRESETS, presetRange, detectPreset } from '../src/data/periodPresets.js';
 import { buildBackup, validateBackup, applyBackup, BACKUP_FORMAT } from '../src/data/localBackup.js';
 import { FIXED_REPORTS } from '../src/data/fixedReports.js';
@@ -33,14 +25,13 @@ import { describeChange } from '../src/data/reportIntents.js';
 import { checkRange, rangeMessage } from '../src/data/dateRange.js';
 import { fmtRiyadh, riyadhDateOf, lastCompleteMonths } from '../src/data/clock.js';
 import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisLabel } from '../src/data/measure.js';
-import { planScopeOf, cfgHash, DEFAULT_PLAN_SCOPE, scopeLabelOf } from '../src/data/planStore.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
 import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
-import { amanahOptionsOf as amanahsG } from '../src/data/revenueLedger.js';
+import { amanahOptionsOf as amanahsG, amanahFilterOptions } from '../src/data/revenueLedger.js';
 import nodeFs from 'node:fs';
 import { metricDictionary } from '../src/data/metricDictionary.js';
 import nodePath from 'node:path';
@@ -210,7 +201,8 @@ await test('filters recompute everything from the matching records: source, cent
   const mAm = ytd.byAmanah.find((g) => g.key !== 'Unassigned');
 });
 await test('an invoice with several exclusion reasons (or cancelled + a reason) leaves gross exactly once; payments on excluded invoices never enter «collected»', () => {
-  const ctx = makeCtx(st, { cfg }); let multi = 0; let overlap = 0; let badOnce = 0; let paidExcluded = 0;
+  const whatIfCfg = { cutoff: TODAY, rules: Object.fromEntries(['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1'].map((id) => [id, true])) }; // the mechanism is tested with every rule on (unapproved rules are off by default)
+  const ctx = makeCtx(st, { cfg: whatIfCfg }); let multi = 0; let overlap = 0; let badOnce = 0; let paidExcluded = 0;
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
     if (D.nReasons > 1) multi += 1; if (D.overlaps) overlap += 1;
@@ -484,101 +476,22 @@ await test('exports carry what is displayed: the same context, tables and totals
 });
 
 /* ------------------------------------------------------------ strategic command dashboard */
-await test('scenario model: levers share one pool (no double counting), resolving cases is never cash, billing is separate from collection, inputs are validated', () => {
-  const base = scenarioBase(cYtd); const r0 = base.C / base.N;
-  const none = runScenario(base, DEFAULT_SCENARIO); assert.ok(Math.abs(none.scenario.collected - base.C) < 1e-6 && Math.abs(none.scenario.net - base.N) < 1e-6);
-  const resolveOnly = runScenario(base, { resolve: 100, approve: 100 }); assert.equal(resolveOnly.scenario.collected, base.C, 'resolving cases moves NO cash'); assert.ok(resolveOnly.scenario.net <= base.N && resolveOnly.scenario.rate >= none.scenario.rate, 'only the denominator moves');
-  const keep = runScenario(base, { resolve: 100, approve: 0 }); assert.equal(keep.scenario.net, base.N); assert.equal(keep.scenario.collected, base.C, 'resolved as collectible: no change in amounts');
-  const bill = runScenario(base, { billing: 10 }); assert.ok(Math.abs(bill.deltaCollected - base.N * 0.1 * r0) < 1e-3, 'added billing is collected only at the baseline rate'); assert.ok(Math.abs(bill.scenario.rate - r0) < 1e-9);
-  const rate = runScenario(base, { dRate: 5 }); assert.ok(Math.abs(rate.deltaCollected - base.N * 0.05) < 1e-3, '+5 pp = 5 % of net billed');
-  const both = runScenario(base, { dRate: 30, recovery: 100, billing: 50, resolve: 100, approve: 100 });
-  assert.ok(both.scenario.collected <= both.scenario.net + 1e-6 && both.scenario.uncollected >= -1e-6, 'collected can never exceed net billed');
-  assert.ok(Math.abs(both.deltaCollected - (both.deltaCash.billing + both.deltaCash.rate + both.deltaCash.recovery)) < 1e-3, 'the cash effects add up to the change');
-  const sepRate = runScenario(base, { dRate: 10 }).deltaCash.rate; const sepRec = runScenario(base, { recovery: 100 }).deltaCash.recovery; const comb = runScenario(base, { dRate: 10, recovery: 100 });
-  assert.ok(comb.deltaCash.rate + comb.deltaCash.recovery <= sepRate + sepRec + 1e-6, 'recovery is reduced by what the rate lever already collected');
-  const v = validateScenario({ dRate: 99, recovery: -5, resolve: 'x', approve: 50, billing: 70 }); assert.equal(v.value.dRate, 30); assert.equal(v.value.recovery, 0); assert.equal(v.value.billing, 50); assert.ok(v.warnings.length >= 3);
-});
 await test('fair comparison: the mix-expected rates reproduce the overall rate; ranking uses the index, small samples are flagged', () => {
   const f = fairComparison(cYtd); const T = cYtd.totals;
   assert.ok(Math.abs(f.reduce((t, r) => t + (r.expectedRate == null ? 0 : r.net * r.expectedRate), 0) - T.collected) < 1, 'Σ net × expected = collected overall');
   assert.ok(f.some((r) => r.smallSample) && f.every((r) => r.gapShare == null || (r.gapShare >= 0 && r.gapShare <= 1)));
   assert.ok(Math.abs(f.reduce((t, r) => t + (r.gapShare || 0), 0) - 1) < 1e-9, 'gap shares add up to 100 %');
-  const p = requiredPace({ achievement: { annualTarget: 12e9, receiptsYtd: 6e9, scopeCaveat: false }, series: { values: [1e9, 1e9, 1e9, 1e9, 0.5e9] }, today: '2026-10-09', planDate: '2026-12-31' });
-  assert.ok(p.available && Math.abs(p.remaining - 6e9) < 1 && p.monthsLeft > 2.5 && p.monthsLeft < 2.8 && Math.abs(p.perMonth * p.monthsLeft - 6e9) < 1);
-  assert.equal(requiredPace({ achievement: { annualTarget: 12e9, receiptsYtd: 1, scopeCaveat: true }, series: null, today: '2026-10-09', planDate: '2026-12-31' }).available, false, 'a narrowed scope has no target to pace against');
-});
-await test('action register: proposals are not decisions, no owner is invented, every change is logged, rejected/approved proposals leave the queue', () => {
-  const props = buildProposals({ snapshot: cYtd, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'x' });
-  assert.ok(props.length >= 3 && new Set(props.map((p) => p.id)).size === props.length); assert.ok(props.every((p) => !('owner' in p) && p.evidence && p.expectedImpact && p.expectedImpact.kind));
-  let reg = { actions: [], rejected: [] }; assert.equal(pendingProposals(reg, props).length, props.length);
-  reg = createAction(reg, { by: 'مراجع', proposal: props[0], fields: {} }); const a = reg.actions[0];
-  assert.equal(a.owner, null, 'no owner unless the reviewer enters one'); assert.equal(a.status, 'approved'); assert.equal(a.history.length, 1); assert.equal(a.evidence, props[0].evidence);
-  reg = updateAction(reg, a.id, { owner: 'جهة يحددها المراجع', status: 'in_progress', dueDate: '2026-10-30' }, 'مراجع'); assert.equal(reg.actions[0].history.length, 4);
-  reg = updateAction(reg, a.id, { status: 'in_progress' }, 'مراجع'); assert.equal(reg.actions[0].history.length, 4, 'a no-op change is not logged');
-  reg = rejectProposal(reg, props[1], 'مراجع', 'ليس أولوية'); const left = pendingProposals(reg, props); assert.equal(left.length, props.length - 2);
-});
-await test('assistant: answers from the active scope with the same figures as the snapshot, keeps context for follow-ups, labels itself, and declines the unknown', async () => {
-  const mk = (extra = {}) => { const applied = []; return { applied, ctx: { lang: 'ar', today: TODAY, scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' }, targets: DEFAULT_TARGETS, register: { actions: [], rejected: [] }, proposals: buildProposals({ snapshot: cYtd, targets: DEFAULT_TARGETS, cases: [], scopeText: 'x' }), labelOfAmanah: (k) => k, compare: compareSnapshots,
-    fetchSnap: async (sc) => snapshot(cst, { scope: { amanah: 'all', source: 'all', ...sc }, cfg }), fetchPrev: async () => null, getAchievement: async () => null, applyFilters: (o) => applied.push(o), ...extra } }; };
-  const T = cYtd.totals; const M = (v) => fmtBn(v, { lang: 'ar' });
-  let { ctx } = mk(); const gap = await strategicAnswer('أين أكبر فجوة في التحصيل؟', ctx); assert.equal(gap.intent, 'gap'); assert.ok(gap.text.includes(M(T.outstanding)), 'quotes the snapshot figure'); assert.ok(gap.simulated && gap.table.rows.length >= 3 && gap.drill.to.startsWith('/invoices'));
-  const sc = await strategicAnswer('ماذا يحدث إذا ارتفع معدل التحصيل خمس نقاط مئوية؟', ctx); assert.equal(sc.intent, 'scenario'); const r = runScenario(scenarioBase(cYtd), { dRate: 5 }); assert.ok(sc.text.includes(M(r.scenario.collected))); assert.equal(sc.actions[0].patch.dRate, 5);
-  assert.equal(parseNumber('خمس نقاط'), 5); assert.equal(parseNumber('٧ نقاط'), 7);
-  const m = mk(); const month = await strategicAnswer('أين أكبر فجوة في التحصيل هذا الشهر؟', m.ctx); assert.equal(month.scope.from, '2026-10-01'); assert.deepEqual(m.applied[0], { from: '2026-10-01', to: TODAY }, 'the period is applied to the SHARED filters');
-  const fu = await strategicAnswer('وماذا عن أمانة الرياض فقط؟', { ...ctx, last: { intent: 'gap', scope: ctx.scope } }); assert.equal(fu.intent, 'gap', 'a follow-up keeps the previous question'); assert.equal(fu.scope.amanah, 'Riyadh Amanah');
-  const unk = await strategicAnswer('طقس الغد', ctx); assert.equal(unk.intent, 'unknown'); assert.ok(unk.text.includes('وليس بنموذج لغوي') || unk.text.includes('not a language model'));
-  const pr = await strategicAnswer('ما الإجراءات ذات الأولوية خلال الثلاثين يومًا القادمة؟', ctx); assert.equal(pr.intent, 'priorities'); assert.ok(pr.table.rows.length >= 1);
-});
-await test('executive summary export: same figures and filters, adds target / mix-adjusted comparison / scenario / action sections, marks unavailable data and unapproved targets', async () => {
-  const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
-  const reg = createAction({ actions: [], rejected: [] }, { by: 'x', fields: { title: 'إجراء يدوي', owner: '', dueDate: '2026-10-30' } });
-  const model = buildCommandModel({ lang: 'ar', today: TODAY, spec: { preset: 'ytd', scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' } }, out: mkOut(cYtd), prev, prevScope: { from: '2025-01-01', to: '2025-10-08' }, cash: null, bridge: null, targets: DEFAULT_TARGETS, cases: [], meta: { size: 'compact', counts: { invoicesTotal: cst.n } }, fair: fairComparison(cYtd), achievement: null, pace: { available: false }, forecast: { ready: false, reasonNotReady: { ar: 'لا يكفي', en: 'short' } }, scenario: { ...DEFAULT_SCENARIO, dRate: 5 }, planDate: '2026-12-31', register: reg });
-  const keys = model.sections.map((x) => x.key); for (const k of ['executive', 'fair', 'targets', 'scenario', 'actions', 'assumptions']) assert.ok(keys.includes(k), k);
-  assert.equal(model.totals.net, cYtd.totals.net); assert.ok(model.context.some((c) => c.k === 'period'));
-  const txt = JSON.stringify(model); assert.ok(txt.includes('البيانات غير متاحة') && txt.includes('غير معتمد') && txt.includes('غير مسند'), 'unavailable data, unapproved targets and the unassigned owner are explicit'); assert.ok(!txt.includes('ألف مليون'));
-  const wb = buildWorkbook(model); assert.ok(wb.SheetNames.includes('amounts_sar'));
 });
 
 /* ------------------------------------------------------------ restructuring: two management areas */
-await test('synthetic finance: labelled, no actual after today, commitment ≥ accrual ≥ payment, budget kept apart; coverage only on a compatible national scope', () => {
-  const fin = generateFinance(TODAY); assert.equal(fin.status, 'synthetic'); assert.ok(fin.label.ar.includes('تجريبية'));
-  for (const c of fin.chapters) { assert.equal(c.months.length, Number(TODAY.slice(5, 7))); assert.ok(c.months.at(-1).month <= TODAY.slice(0, 7)); for (const m of c.months) { assert.ok(m.commit >= m.accrued - 1e-6 && m.accrued >= m.paid - 1e-6, `${c.key} ${m.month}`); assert.ok(m.cumBudget > 0 && m.cumPaid > 0); } }
-  const again = generateFinance(TODAY); assert.equal(JSON.stringify(again), JSON.stringify(fin), 'deterministic');
-  const ex = budgetExecution(fin); assert.ok(Math.abs(ex.rows.reduce((t, r) => t + r.paid, 0) - ex.total.paid) < 1e-3); assert.ok(ex.total.commitments >= ex.total.accrued && ex.total.accrued >= ex.total.paid);
-  const next = generateFinance('2026-10-10'); assert.equal(next.chapters[0].months.slice(0, -1).map((m) => m.paid).join(), fin.chapters[0].months.slice(0, -1).map((m) => m.paid).join(), 'past months do not change when a day is added');
-  assert.ok(Math.abs(plannedByMonth(2026).reduce((t, p) => t + p.planned, 0) - CHAPTERS.reduce((t, c) => t + c.annual, 0)) < 1, 'the monthly plan adds up to the annual budget');
-  assert.equal(financeCompatible({ amanah: 'all', source: 'all', muni: 'all', scopeType: 'all', status: 'all' }), true); assert.equal(financeCompatible({ amanah: 'Riyadh Amanah', source: 'all' }), false); assert.equal(financeCompatible({ amanah: 'all', source: 'fines' }), false);
-  const cov = operatingCoverage(fin, 8e9); assert.ok(Math.abs(cov.ratio - 8e9 / ex.operating.paid) < 1e-9 && cov.basis.ar.includes('نقدي'));
-});
-await test('funding projection: baseline receipts and payments are both cash by payment date; the scenario is NOT combined with them (no scenario receipts, payments or balance) and its effects are returned separately', () => {
-  const base = { receiptsYtd: 8e9, paymentsYtd: 16e9, series: { values: [1e9, 1e9, 1e9, 1e9, 0.5e9] }, paymentsByMonth: [1.6e9, 1.6e9, 1.6e9, 1.6e9, 0.8e9], forecast: { ready: false }, monthsLeft: 2.5 };
-  const p0 = financeProjection({ ...base }); assert.ok(p0.available && p0.method === 'illustrative');
-  const p1 = financeProjection({ ...base, scenarioDeltaCash: 1e9, scenario: { slip: 25, expense: 10 } });
-  assert.equal(p1.scenario, undefined, 'no combined scenario figure'); assert.deepEqual(p1.base, p0.base, 'the baseline does not move with the scenario');
-  assert.ok(Math.abs(p1.scenarioEffects.collectionDelta - 1e9) < 1 && Math.abs(p1.scenarioEffects.collectionSlipped - 0.25e9) < 1 && Math.abs(p1.scenarioEffects.remainingPaymentsDelta - p0.restPay * 0.1) < 1);
-  assert.equal(financeProjection({ ...base, receiptsYtd: null }).available, false);
-});
-await test('plans: version, owner, approval; a new version returns an approved plan to draft; scenarios never touch targets; objectives need review to be approved', () => {
-  let pl = newPlan({ by: 'x', name: 'خطة', scope: { amanah: 'all' }, period: { from: '2026-01-01', to: '2026-12-31' } }); assert.equal(pl.version, 0); assert.equal(pl.owner, null); assert.equal(pl.status, 'draft');
-  pl = saveVersion({ ...pl, owner: 'جهة', scenario: { ...DEFAULT_SCENARIO, dRate: 5 } }, { by: 'x', summary: { rate: 0.6 } }); assert.equal(pl.version, 1); assert.equal(pl.versions[0].scenario.dRate, 5);
-  pl = approvePlan(pl, 'مراجع'); assert.equal(pl.status, 'approved'); pl = saveVersion(pl, { by: 'x', summary: {} }); assert.equal(pl.status, 'draft'); assert.equal(pl.approvedBy, null); assert.equal(pl.version, 2);
-  const before = JSON.stringify(DEFAULT_TARGETS); runScenario(scenarioBase(cYtd), { dRate: 30, billing: 50 }, DEFAULT_TARGETS.collectionRate.value); assert.equal(JSON.stringify(DEFAULT_TARGETS), before, 'a scenario run leaves targets untouched');
-  let st = { plans: [pl], objectives: [], activeId: pl.id }; st = addObjective(st, { by: 'x', fields: { title: 'هدف', metric: 'collection_rate', target: 60 } }); assert.equal(st.objectives[0].status, 'proposed');
-  st = updateObjective(st, st.objectives[0].id, { status: 'approved', approvedBy: 'مراجع' }, 'مراجع'); assert.equal(st.objectives[0].history.length, 3);
-  assert.equal(objectiveProgress(st.objectives[0], { collection_rate: 57.8 }).state, 'on_track'); assert.equal(objectiveProgress(st.objectives[0], { collection_rate: null }).state, 'unavailable'); assert.equal(objectiveProgress(st.objectives[0], { collection_rate: 61 }).state, 'met');
-});
-await test('fixed reports: every established report builds directly from the shared snapshot (no prompt), reconciles with it, states units, and the budget report marks synthetic / unavailable data', () => {
-  const fin = generateFinance(TODAY); const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
-  assert.equal(FIXED_REPORTS.length, 9);
+await test('fixed reports: every established report builds directly from the shared snapshot (no prompt), reconciles with it, states units', () => {
+  const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
+  assert.equal(FIXED_REPORTS.length, 8); assert.ok(!FIXED_REPORTS.some((d) => d.sections.includes('budget')) && !SECTION_ORDER.includes('budget'), 'no budget / expenditure report');
   for (const def of FIXED_REPORTS) {
-    const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: def.sections, compare: def.compare }, lang: 'ar', out: mkOut(cYtd), prev: def.compare === 'none' ? null : prev, compare: def.compare, prevScope: { from: '2025-01-01', to: '2025-10-08' }, cash: { months: cYtd.byMonth.map((x) => x.month), values: cYtd.byMonth.map((x) => x.collected) }, bridge: null, targets: DEFAULT_TARGETS, meta: { size: 'compact', counts: { invoicesTotal: cst.n } }, finance: fin, financeOk: true, fyReceiptsYtd: 8e9 });
+    const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: def.sections, compare: def.compare }, lang: 'ar', out: mkOut(cYtd), prev: def.compare === 'none' ? null : prev, compare: def.compare, prevScope: { from: '2025-01-01', to: '2025-10-08' }, cash: { months: cYtd.byMonth.map((x) => x.month), values: cYtd.byMonth.map((x) => x.collected) }, bridge: null, targets: DEFAULT_TARGETS, meta: { size: 'compact', counts: { invoicesTotal: cst.n } } });
     assert.ok(m.sections.length >= 1 && m.totals.gross === cYtd.totals.gross, def.key); assert.ok(!JSON.stringify(m).includes('ألف مليون'));
     for (const sec of m.sections) for (const b of sec.blocks) if (b.type === 'table') { const tx = tableToText(b, 'ar'); if (tx.unitText) assert.ok(tx.headers.some((h) => h.includes(tx.unitText)), `${def.key}/${b.id}`); }
   }
-  const b = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['budget'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS, finance: fin, financeOk: false });
-  assert.ok(JSON.stringify(b).includes('البيانات غير متاحة'), 'a filtered scope shows the budget as unavailable, not zero');
-  const ok = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['budget'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS, finance: fin, financeOk: true, fyReceiptsYtd: 8e9 });
-  assert.ok(JSON.stringify(ok).includes('تجريبية اصطناعية')); const t = ok.sections[0].blocks.find((x) => x.id === 'budget'); assert.ok(Math.abs(t.rows.reduce((s2, r) => s2 + r[5], 0) - t.total[5]) < 1, 'chapters add up to the total paid');
   const am = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['amanah'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS }); const fair = am.sections[0].blocks.find((x) => x.id === 'fair'); assert.ok(fair && fair.rows.length > 5);
 });
 await test('smart reports: ambiguous requests get ONE focused clarification inside the conversation; follow-ups keep the context', () => {
@@ -587,11 +500,6 @@ await test('smart reports: ambiguous requests get ONE focused clarification insi
   const base = interpret('أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم', null, TODAY).spec; const f1 = interpret('أضف تحليل الاستبعادات', base, TODAY); assert.ok(f1.spec.sections.includes('exclusions') && f1.spec.sections.includes('executive')); assert.equal(f1.spec.scope.from, '2026-10-01');
   const f2 = interpret('حوّله إلى ملخص تنفيذي', f1.spec, TODAY); assert.deepEqual(f2.spec.sections, ['executive']); assert.equal(f2.spec.scope.from, '2026-10-01');
   const shared = { ...defaultSpec(TODAY), scope: { ...defaultSpec(TODAY).scope, amanah: 'Jeddah Amanah' } }; const n = interpret('حلّل المتأخرات حسب مصدر الإيراد', null, TODAY, { base: shared }); assert.equal(n.spec.scope.amanah, 'Jeddah Amanah', 'a new conversation starts from the shared filters'); assert.deepEqual(n.spec.sections, ['sources', 'aging']);
-});
-await test('the planning assistant stays inside planning and hands descriptive questions to Smart reports', async () => {
-  const ctx = { mode: 'planning', lang: 'ar', today: TODAY, scope: { ...YTD, scopeType: 'all', muni: 'all', status: 'all' }, targets: DEFAULT_TARGETS, register: { actions: [], rejected: [] }, proposals: [], labelOfAmanah: (k) => k, compare: compareSnapshots, fetchSnap: async (sc) => snapshot(cst, { scope: { amanah: 'all', source: 'all', ...sc }, cfg }), fetchPrev: async () => null, getAchievement: async () => null, applyFilters: () => {} };
-  const r = await strategicAnswer('قارن أداء الأمانات', ctx); assert.equal(r.intent, 'redirect'); assert.ok(r.drill.to.startsWith('/insights?view=smart&q='));
-  assert.equal((await strategicAnswer('ماذا يحدث إذا ارتفع معدل التحصيل خمس نقاط مئوية؟', ctx)).intent, 'scenario');
 });
 
 /* ------------------------------------------------------------ Phase 0 · batch 1 (F-02, F-03, F-09, F-10, F-11) */
@@ -625,8 +533,8 @@ await test('F-09: every bilingual proposal field has Arabic in .ar and Latin tex
 await test('F-10: long tables are paginated (the total row is kept); Excel gets a notes sheet and «%» on percentage headers; sheet names are cut at a word boundary', () => {
   const rows = Array.from({ length: 25 }, (_, i) => [`r${i}`]); const pages = paginateRows(rows);
   assert.equal(pages.flat().length, 25); assert.equal(pages.at(-1).at(-1)[0], 'r24'); assert.ok(pages.every((p) => p.length <= 11));
-  const fin = generateFinance(TODAY); const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
-  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive', 'amanah'], compare: 'prev_year' }, lang: 'ar', out: mkOut(cYtd), prev, compare: 'prev_year', prevScope: { from: '2025-01-01', to: '2025-10-08' }, targets: DEFAULT_TARGETS, finance: fin });
+  const prev = snapshot(cst, { scope: { from: '2025-01-01', to: '2025-10-08', amanah: 'all', source: 'all' }, cfg: { cutoff: TODAY, collectionsAsOf: 'periodEnd' } });
+  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive', 'amanah'], compare: 'prev_year' }, lang: 'ar', out: mkOut(cYtd), prev, compare: 'prev_year', prevScope: { from: '2025-01-01', to: '2025-10-08' }, targets: DEFAULT_TARGETS });
   const wb = buildWorkbook(m);
   assert.ok(wb.SheetNames.includes('ملاحظات التقرير'), 'notes sheet'); assert.ok(wb.SheetNames.every((n) => n.length <= 31));
   const notes = XLSX_utils_to_rows(wb, 'ملاحظات التقرير').flat().join(' '); assert.ok(notes.includes('نسبة التحصيل'), 'the relations block (incl. rates) is exported');
@@ -672,33 +580,6 @@ await test('D-07: every timestamp shown to people is Asia/Riyadh (UTC+3), includ
 });
 
 /* ------------------------------------------------------------ Phase 0 · batch 3 (governance guards: F-06, F-07, F-15) */
-await test('F-06: a scenario proposal waits for review — it is never an approved action, and repeating it does not duplicate it', () => {
-  const reg0 = { actions: [], rejected: [], proposed: [] }; const p = { id: 'scenario:PLAN-1:dRate=3', title: { ar: 'س', en: 's' }, priority: 'medium' };
-  const reg1 = addProposal(reg0, p, 'Reviewer'); assert.equal(reg1.actions.length, 0, 'nothing enters the register as approved'); assert.equal(pendingProposals(reg1, []).length, 1);
-  assert.equal(addProposal(reg1, p, 'Reviewer').proposed.length, 1, 'same scenario → same proposal');
-  const reg2 = createAction(reg1, { by: 'Approver', proposal: p }); assert.equal(pendingProposals(reg2, []).length, 0, 'once approved it leaves the queue'); assert.equal(reg2.actions[0].approvedBy, 'Approver'); assert.ok(reg2.actions[0].approvedAt);
-});
-await test('F-07: editing an approved plan returns it to draft (logged, saved version untouched); typing does not flood the history; unsaved changes are detectable', () => {
-  let pl = newPlan({ by: 'A', name: 'خطة', scope: {}, period: { from: '2026-01-01', to: '2026-12-31' } });
-  pl = saveVersion({ ...pl, scenario: { ...pl.scenario, dRate: 3 } }, { by: 'A', summary: {} }); pl = approvePlan(pl, 'A'); assert.equal(pl.status, 'approved'); assert.equal(unsavedChanges(pl), false);
-  const edited = editPlan(pl, { scenario: { ...pl.scenario, dRate: 8 } }, 'B');
-  assert.equal(edited.status, 'draft'); assert.equal(edited.approvedBy, null); assert.equal(edited.version, 1); assert.equal(edited.versions[0].scenario.dRate, 3, 'the saved version still holds what was approved'); assert.equal(unsavedChanges(edited), true);
-  assert.ok(edited.history.some((h) => h.change === 'returned to draft') && edited.history.some((h) => h.change === 'scenario changed'));
-  let typed = edited; for (const nm of ['خ', 'خط', 'خطة', 'خطة أ']) typed = editPlan(typed, { name: nm }, 'B'); assert.equal(typed.history.filter((h) => h.change === 'name changed').length, 1, 'consecutive edits of one field are one entry');
-  const noop = editPlan(pl, { scenario: { ...pl.scenario } }, 'B'); assert.equal(noop.status, 'approved', 'an edit that changes nothing does not revoke approval');
-  assert.equal(actorName({ name: '李芳军', nameEn: 'Li Fangjun', nameAr: 'طارق' }, 'ar'), 'طارق'); assert.equal(actorName({ name: '李芳军', nameEn: 'Li Fangjun', nameAr: 'طارق' }, 'en'), 'Li Fangjun');
-});
-await test('F-15: a proposal id carries its period and scope — the same finding under another period is a new proposal, and earlier decisions on it stay visible', () => {
-  const a = buildProposals({ snapshot: cYtd, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'x' });
-  const monthSnap = snapshot(cst, { scope: { from: '2026-10-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
-  const b = buildProposals({ snapshot: monthSnap, prev: null, comparison: null, targets: DEFAULT_TARGETS, cases: [], scopeText: 'y' });
-  assert.ok(a.every((p) => p.id.includes('@2026-01-01..')) && b.every((p) => p.id.includes('@2026-10-01..')));
-  const common = a.find((p) => b.some((q) => q.id.split('@')[0] === p.id.split('@')[0])); assert.ok(common, 'a finding recurs across periods');
-  const reg = createAction({ actions: [], rejected: [], proposed: [] }, { by: 'A', proposal: common });
-  const pendingB = pendingProposals(reg, b); const same = pendingB.find((q) => q.id.split('@')[0] === common.id.split('@')[0]);
-  assert.ok(same, 'approved for the year-to-date scope, but still proposed for this month'); assert.equal(earlierDecisions(reg, same)[0].kind, 'approved');
-  assert.equal(pendingProposals(reg, a).some((q) => q.id === common.id), false, 'under the SAME scope it is no longer pending');
-});
 
 /* ------------------------------------------------------------ Phase 0 · batch 4 (F-05 golden phrases: the audit's verified mis-readings) */
 await test('F-05 golden phrases: every request in the audit table is read as the user meant — or answered with a question, never with a silent wrong report', () => {
@@ -713,7 +594,7 @@ await test('F-05 golden phrases: every request in the audit table is read as the
   const sep = run('تقرير الاستبعادات شهر سبتمبر مقارنة بأغسطس'); assert.deepEqual([sep.spec.scope.from, sep.spec.scope.to, sep.spec.compare], ['2026-09-01', '2026-09-30', 'prev_month']);
   assert.equal(run('تقرير الاستبعادات شهر مارس مقارنة بأغسطس').kind, 'clarify', 'a comparison with a month that is not the previous one is declined openly');
   const jed = run('ما نسبة التحصيل في جدة؟'); assert.equal(jed.spec.scope.amanah, key(/جدة/));
-  assert.deepEqual(run('ما الميزانية المتبقية؟').spec.sections, ['budget']); assert.deepEqual(run('هل نغطي المصروفات؟').spec.sections, ['budget']);
+  for (const q of ['ما الميزانية المتبقية؟', 'هل نغطي المصروفات؟', 'how much is the remaining budget?']) { const r = run(q); assert.ok(['clarify', 'unsupported'].includes(r.kind) && r.unapplied?.includes('expenditure'), `${q}: expenditure/budget is declined openly (no expenditure data)`); }
   const two = run('قارن الرياض بجدة'); assert.deepEqual([].concat(two.spec.scope.amanah).sort(), [key(/الرياض/), key(/جدة/)].sort()); assert.ok(two.spec.sections.includes('amanah'));
   const cm = run('compare with last month', run('أنشئ تقرير الإيرادات لهذا الشهر حتى اليوم').spec); assert.equal(cm.spec.compare, 'prev_month'); assert.equal(cm.spec.scope.from, '2026-10-01', 'English «compare with last month» does not change the period');
   assert.equal(run('تقرير الإيرادات قبل شهرين').kind, 'clarify', 'an unresolved period phrase is asked about, not ignored');
@@ -746,11 +627,11 @@ await test('EQ1: the headline measures collections at the period end; «to today
   const open = { from: '2026-10-01', to: TD, amanah: 'all', source: 'all' };
   assert.equal(snapshot(st, { scope: open, cfg: cfgTD }).totals.collected, snapshot(st, { scope: open, cfg: cfgFor(cfgTD, BASIS.TO_DATE) }).totals.collected, 'an open period ends today: no difference');
 });
-await test('AC-A1/A2 parity: Dashboard, Fixed-report headline, Smart report (with and without comparison) and the Planning baseline give identical figures and the same comparison, over 13 selections', () => {
+await test('AC-A1/A2 parity: Dashboard, Fixed-report headline, Smart report (with and without comparison) and a plain request give identical figures and the same comparison, over 13 selections', () => {
   for (const { key, scope } of scopesMatrix()) {
     const dash = snapshot(st, { scope, cfg: cfgTD });                                             // Dashboard: shared request, default config
     const smart = snapshot(st, { scope, cfg: headlineCfg(cfgTD) });                               // Smart: headline basis via measure()
-    const plan = snapshot(st, { scope: planScopeOf({ period: { from: scope.from, to: scope.to }, scope: { amanah: scope.amanah, source: scope.source } }, TD), cfg: cfgTD }); // Planning baseline
+    const plan = snapshot(st, { scope: { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source }, cfg: cfgTD }); // the same request through any other screen
     const model = buildReportModel({ spec: { ...defaultSpec(TD), scope, sections: ['executive'] }, lang: 'ar', out: mkOut(dash), targets: DEFAULT_TARGETS });
     const fields = ['count', 'gross', 'exclusions', 'net', 'collected', 'outstanding'];
     for (const f of fields) { assert.equal(smart.totals[f], dash.totals[f], `${key} smart ${f}`); assert.equal(plan.totals[f], dash.totals[f], `${key} plan ${f}`); assert.equal(model.totals[f], dash.totals[f], `${key} fixed ${f}`); }
@@ -763,34 +644,16 @@ await test('AC-A1/A2 parity: Dashboard, Fixed-report headline, Smart report (wit
     }
   }
 });
-await test('EQ4: plan figures are computed from the PLAN period and scope: the plan scope object ignores any dashboard filter, caps the end at the cut-off, and a version stores its calculation context', () => {
-  const plan = { period: { from: '2026-01-01', to: '2026-12-31' }, scope: { amanah: 'Riyadh Amanah', source: 'all', label: 'x' } };
-  assert.deepEqual(planScopeOf(plan, TD), { from: '2026-01-01', to: TD, amanah: 'Riyadh Amanah', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
-  assert.deepEqual(planScopeOf({ period: { from: '2026-01-01', to: '2026-06-30' }, scope: null }, TD).to, '2026-06-30'); assert.equal(planScopeOf({ period: plan.period, scope: null }, TD).amanah, 'all');
-  assert.ok(scopeLabelOf({ amanah: 'Riyadh Amanah', source: 'fines' }, true).includes('الرياض') && scopeLabelOf(DEFAULT_PLAN_SCOPE, false) === 'All Amanahs · All sources');
-  assert.equal(cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: { A: true } }), cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: { A: true } })); assert.notEqual(cfgHash({ graceDays: 0, collectionsAsOf: 'periodEnd', rules: {} }), cfgHash({ graceDays: 5, collectionsAsOf: 'periodEnd', rules: {} }));
-  const p0 = newPlan({ by: 'A', name: 'n', scope: DEFAULT_PLAN_SCOPE, period: plan.period }); const ctx = { period: p0.period, scope: p0.scope, basis: 'periodEnd', cutoff: TD, config: 'abc', targets: { collectionRate: 0.6, status: 'demo' } };
-  const v = saveVersion(p0, { by: 'A', summary: {}, context: ctx }); assert.deepEqual(v.versions[0].context, ctx);
-  assert.equal(unsavedChanges(editPlan(v, { period: { from: '2026-02-01', to: '2026-12-31' } }, 'A')), true, 'changing the period is an unsaved change');
-  assert.equal(unsavedChanges(editPlan(v, { scope: { ...DEFAULT_PLAN_SCOPE, amanah: 'Riyadh Amanah', label: 'y' } }, 'A')), true, 'changing the scope is an unsaved change');
-});
-await test('manual and scenario actions both start as PROPOSED: nothing enters the register until a reviewer approves it, and a manual approval keeps its manual origin', () => {
-  const reg0 = { actions: [], rejected: [] };
-  const man = { id: 'manual:x1', source: 'manual', title: 'عنوان', issue: '', action: '', priority: 'medium', suggestedOwner: 'وحدة', suggestedDue: '2026-11-01', expectedImpact: null, evidence: { text: 't', scope: 's', figures: [] } };
-  const reg1 = addProposal(addProposal(reg0, man, 'A'), { id: 'scenario:P:dRate=3', title: 's', priority: 'medium' }, 'A');
-  assert.equal(reg1.actions.length, 0); assert.equal(pendingProposals(reg1, []).length, 2); assert.equal('proposed' in reg0, false, 'the input record is not mutated');
-  const reg2 = createAction(reg1, { by: 'B', proposal: man, fields: { owner: man.suggestedOwner, dueDate: man.suggestedDue, priority: man.priority } });
-  assert.equal(reg2.actions[0].status, 'approved'); assert.equal(reg2.actions[0].source, 'manual'); assert.equal(reg2.actions[0].approvedBy, 'B'); assert.equal(pendingProposals(reg2, []).length, 1);
-});
 
 await test('EQ10: backup/export/import of the browser-local records — validated before anything is written, replaces the three records as a unit, round-trips exactly', () => {
   const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), _m: m }; };
   const a = mem(); a.setItem('ib_plans_v1', JSON.stringify({ plans: [{ id: 'P1' }], objectives: [], activeId: 'P1' })); a.setItem('ib_actions_v1', JSON.stringify({ actions: [{ id: 'A1' }], rejected: [] })); a.setItem('ib_smart_convs_v1', JSON.stringify([{ id: 'C1', messages: [] }]));
-  const b = buildBackup(a, new Date('2026-10-09T10:00:00Z')); assert.equal(b.format, BACKUP_FORMAT); assert.deepEqual(validateBackup(b), { ok: true, summary: { plans: 1, objectives: 0, scenarios: 0, actions: 1, proposals: 0, conversations: 1, createdAt: '2026-10-09T10:00:00.000Z' } });
+  const b = buildBackup(a, new Date('2026-10-09T10:00:00Z')); assert.equal(b.format, BACKUP_FORMAT); assert.deepEqual(validateBackup(b), { ok: true, summary: { plans: 1, objectives: 0, goalPlans: 0, actions: 1, proposals: 0, conversations: 1, createdAt: '2026-10-09T10:00:00.000Z' } });
   const t = mem(); t.setItem('ib_plans_v1', 'old'); const r = applyBackup(JSON.parse(JSON.stringify(b)), t); assert.equal(r.ok, true);
   for (const k of ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1']) assert.deepEqual(JSON.parse(t.getItem(k)), JSON.parse(a.getItem(k)), `${k} round-trips`);
   const before = JSON.stringify([...t._m]); for (const bad of [null, {}, { format: 'x' }, { ...b, version: 2 }, { ...b, data: { ib_plans_v1: { plans: 'no' } } }, { ...b, data: { ib_actions_v1: {} } }, { ...b, data: { ib_smart_convs_v1: {} } }]) { assert.equal(applyBackup(bad, t).ok, false); }
   assert.equal(JSON.stringify([...t._m]), before, 'an invalid file writes nothing');
+  const g = mem(); g.setItem('ib_collection_goal_v1', JSON.stringify({ v: 1, plans: { '2026|all': { year: 2026 } } })); const gb = buildBackup(g); assert.equal(validateBackup(gb).summary.goalPlans, 1); const gt = mem(); applyBackup(gb, gt); assert.deepEqual(JSON.parse(gt.getItem('ib_collection_goal_v1')), JSON.parse(g.getItem('ib_collection_goal_v1')), 'saved dashboard plans round-trip'); assert.equal(validateBackup({ ...gb, data: { ib_collection_goal_v1: { v: 2 } } }).ok, false);
   const empty = mem(); const bb = buildBackup(empty); assert.equal(bb.data.ib_plans_v1, null); applyBackup(bb, t); assert.equal(t.getItem('ib_plans_v1'), null, 'a record absent from the backup is removed');
 });
 
@@ -826,42 +689,6 @@ await test('AC-D2/D3: every preset equals its definition for 24 reference dates 
   assert.equal(detectPreset('2026-01-01', '2026-10-09', '2026-10-09'), 'ytd'); assert.equal(detectPreset('2026-02-03', '2026-02-04', '2026-10-09'), 'custom'); assert.equal(PRESETS.length, 7);
 });
 
-await test('Named scenarios: up to four per plan; save / rename / duplicate / update / delete; unique names; separate from the plan; backup validates the shape', () => {
-  const plan = approvePlan(saveVersion(newPlan({ by: 'A', name: 'P', scope: DEFAULT_PLAN_SCOPE, period: { from: '2026-01-01', to: '2026-12-31' } }), { by: 'A', summary: { rate: 0.5 } }), 'A');
-  let st = { plans: [plan], objectives: [], activeId: plan.id, scenarios: {} };
-  const before = JSON.stringify(st.plans);
-  let r = addScenario(st, plan.id, { name: ' تحسّن التحصيل ', scenario: { dRate: 2, recovery: 999, bogus: 5 }, by: 'A' }); assert.ok(r.ok); st = r.st;
-  assert.equal(listScenarios(st, plan.id)[0].name, 'تحسّن التحصيل', 'the name is trimmed');
-  assert.deepEqual(listScenarios(st, plan.id)[0].scenario, { ...DEFAULT_SCENARIO, dRate: 2, recovery: 100 }, 'levers are clamped to their limits and unknown keys dropped');
-  assert.equal(JSON.stringify(st.plans), before, 'saving a scenario does not touch the plan, its status or its versions (still approved)');
-  assert.equal(st.plans[0].status, 'approved');
-  assert.deepEqual(addScenario(st, plan.id, { name: 'تحسّن التحصيل', scenario: {}, by: 'A' }), { ok: false, error: 'name_dup' }, 'names are unique within a plan');
-  r = addScenario(st, plan.id, { name: 'TAHSIN التحصيل', scenario: {}, by: 'A' }); assert.ok(r.ok); st = r.st;
-  assert.equal(checkName(st, plan.id, 'Same', null), null); assert.equal(checkName(st, plan.id, '   '), 'name_empty'); assert.equal(checkName(st, plan.id, 'x'.repeat(61)), 'name_long');
-  r = duplicateScenario(st, plan.id, listScenarios(st, plan.id)[0].id, 'B', 'نسخة من'); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id).length, 3);
-  assert.equal(listScenarios(st, plan.id)[2].name, 'نسخة من تحسّن التحصيل'); assert.deepEqual(listScenarios(st, plan.id)[2].scenario, listScenarios(st, plan.id)[0].scenario);
-  r = addScenario(st, plan.id, { name: 'الرابع', scenario: { billing: 10 }, by: 'A' }); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id).length, MAX_SCENARIOS);
-  assert.deepEqual(addScenario(st, plan.id, { name: 'الخامس', scenario: {}, by: 'A' }), { ok: false, error: 'limit' }, 'a fifth scenario is refused');
-  assert.deepEqual(duplicateScenario(st, plan.id, listScenarios(st, plan.id)[0].id, 'A'), { ok: false, error: 'limit' });
-  const id4 = listScenarios(st, plan.id)[3].id;
-  r = renameScenario(st, plan.id, id4, 'نمو الفوترة', 'C'); assert.ok(r.ok); st = r.st; assert.equal(listScenarios(st, plan.id)[3].name, 'نمو الفوترة'); assert.equal(listScenarios(st, plan.id)[3].updatedBy, 'C'); assert.equal(listScenarios(st, plan.id)[3].createdBy, 'A');
-  assert.equal(renameScenario(st, plan.id, id4, 'تحسّن التحصيل', 'C').error, 'name_dup'); assert.equal(renameScenario(st, plan.id, id4, 'نمو الفوترة', 'C').ok, true, 'keeping its own name is allowed');
-  r = updateScenario(st, plan.id, id4, { scenario: { billing: -5, dRate: 1 } }, 'C'); st = r.st; assert.deepEqual(changedLevers(listScenarios(st, plan.id)[3].scenario), [['dRate', 1], ['billing', -5]].sort((a, b) => Object.keys(DEFAULT_SCENARIO).indexOf(a[0]) - Object.keys(DEFAULT_SCENARIO).indexOf(b[0])));
-  st = deleteScenario(st, plan.id, id4).st; assert.equal(listScenarios(st, plan.id).length, 3);
-  assert.equal(addScenario(st, 'OTHER', { name: 'تحسّن التحصيل', scenario: {}, by: 'A' }).ok, true, 'scenarios belong to a plan: the same name may exist in another plan');
-  assert.equal(JSON.stringify(st.plans), before, 'plan, status and saved versions are unchanged after every operation'); assert.equal(st.plans[0].versions.length, 1);
-  const log = listScenarioLog(st, plan.id); assert.ok(log.length >= 7, 'every create / duplicate / rename / update / delete is recorded'); assert.equal(log[0].action, 'deleted'); assert.ok(log.some((e) => e.action === 'renamed' && e.detail.from === 'نسخة من تحسّن التحصيل') || log.some((e) => e.action === 'renamed'));
-  assert.equal(JSON.stringify(st.plans), before, 'the scenario history is separate: the plan (content, status, history, versions) is untouched'); assert.equal(st.plans[0].history.length, plan.history.length);
-  assert.equal(validScenarioLogShape(st.scenarioLog), true); assert.equal(validScenarioLogShape([]), false); assert.equal(validScenarioLogShape({ P: [{ at: 1 }] }), false);
-  assert.equal(validScenariosShape(st.scenarios), true); assert.equal(validScenariosShape(undefined), true); assert.equal(validScenariosShape([]), false); assert.equal(validScenariosShape({ P: 'x' }), false); assert.equal(validScenariosShape({ P: [{ id: 1 }] }), false);
-  assert.equal(validScenariosShape({ P: [1, 2, 3, 4, 5].map((i) => ({ id: `S${i}`, name: `n${i}`, scenario: {} })) }), false, 'more than four per plan is not a valid store');
-  const b = buildBackup({ getItem: (k) => (k === 'ib_plans_v1' ? JSON.stringify(st) : null) }); const v = validateBackup(b); assert.ok(v.ok); assert.equal(v.summary.scenarios, 3);
-  b.data.ib_plans_v1.scenarios = { P: 'bad' }; assert.deepEqual(validateBackup(b), { ok: false, error: 'bad_scenarios' });
-  // comparison: a scenario at the defaults equals the baseline; a changed lever moves the collected amount in the stated direction
-  const base = { N: 1000, C: 600, U: 400, pool: 200, pending: 50, rate: 0.6 };
-  const rs0 = runScenario(base, cleanScenario({}), 0.7); assert.equal(rs0.scenario.collected, rs0.baseline.collected);
-  const rs1 = runScenario(base, cleanScenario({ dRate: 5 }), 0.7); assert.ok(rs1.scenario.collected > rs1.baseline.collected);
-});
 
 await test('D-15: a partly typed date (year 0002 / 0202) is incomplete — never applied and never reported as a data-coverage error', () => {
   for (const y of ['0002', '0020', '0202', '1899']) assert.deepEqual(checkRange({ from: `${y}-02-01`, to: '2026-03-01' }, { today: '2026-10-09' }), { ok: false, code: 'incomplete' });
@@ -1565,9 +1392,28 @@ await test('goal data: collected revenue by month (capped) equals the snapshot c
     return { T: sn.totals, sum: sr.values.reduce((a, b) => a + b, 0), months: sr.months.length }; };
   const nat = one('all'); assert.ok(Math.abs(nat.sum - nat.T.collected) < 0.5, 'chart and tile come from the same collected revenue'); assert.equal(nat.T.exclusionsUnapproved, 0);
   assert.ok(Math.abs(nat.T.gross - nat.T.exclusions - nat.T.net) < 1, 'adjusted total = gross − exclusions');
-  let g = 0; let x = 0; let c = 0; for (const a of [...amanahsG(), { key: 'Unassigned' }]) { const r = one(a.key); assert.ok(Math.abs(r.sum - r.T.collected) < 0.5, a.key); g += r.T.gross; x += r.T.exclusions; c += r.sum; }
+  let g = 0; let x = 0; let c = 0; assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice'); for (const a of amanahFilterOptions()) { const r = one(a.key); assert.ok(Math.abs(r.sum - r.T.collected) < 0.5, a.key); g += r.T.gross; x += r.T.exclusions; c += r.sum; }
   assert.ok(Math.abs(g - nat.T.gross) < 1 && Math.abs(x - nat.T.exclusions) < 1 && Math.abs(c - nat.sum) < 1, 'Amanah figures add up to the national figures');
   const past = one('all', 2025); assert.equal(past.months, 12); assert.ok(Math.abs(past.sum - past.T.collected) < 0.5);
+});
+await test('goal: zero or missing target is never a success; zero denominator is never a rate', () => {
+  for (const rate of [0, null, undefined, NaN, -0.2, 1.5]) { const g = computeGoal(mk({ rate, monthlyCollected: [0] })); assert.equal(g.state, 'no_target', String(rate)); assert.equal(g.achieved, undefined); assert.equal(g.target, undefined); assert.equal(g.remaining, undefined); assert.equal(g.collected, 0); }
+  const g = computeGoal(mk({ gross: 0, approvedExclusions: 0, rate: 0, monthlyCollected: [0] })); assert.equal(g.state, 'no_denominator', 'no base wins over no target'); assert.equal(g.collectionRate, undefined);
+  assert.equal(computeGoal(mk({ monthlyCollected: [0] })).achieved, false, 'valid target, zero collected: not achieved');
+  assert.equal(computeGoal(mk({ rate: 0.0001, monthlyCollected: [0] })).achieved, false);
+  assert.equal(computeGoal(mk({ monthlyCollected: [54] })).achieved, true);
+  const split = computeGoal(mk({ approvedExclusions: undefined, cancelled: 6, ruleExclusions: 4 })); assert.equal(split.adjustedTotal, 90); assert.equal(split.cancelled, 6); assert.equal(split.ruleExclusions, 4); assert.equal(split.targetBasis, 'billed_to_date');
+});
+await test('adjusted total = net billed everywhere: the DEFAULT configuration applies approved exclusion rules only; an unapproved rule is an explicit, flagged what-if', () => {
+  assert.ok(RULES_G.filter((r) => r.approval !== 'approved').every((r) => !r.defaultEnabled), 'no unapproved rule is on by default');
+  const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
+  const dflt = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY }) }); const appr = snapshot(st, { scope, cfg: approved });
+  assert.equal(dflt.totals.net, appr.totals.net, 'default net billed = the dashboard adjusted total'); assert.equal(dflt.totals.exclusionsUnapproved, 0); assert.deepEqual(dflt.unapprovedRulesApplied, []);
+  assert.ok(Math.abs(appr.totals.gross - appr.totals.cancelled - appr.totals.exclusionsRules - appr.totals.net) < 1, 'adjusted total = billed − cancelled − approved-rule exclusions');
+  const all = Object.fromEntries(RULES_G.map((r) => [r.id, !r.locked && r.id !== 'OBJ-1']));
+  const whatIf = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY, rules: all }) });
+  assert.ok(whatIf.totals.net < dflt.totals.net && whatIf.unapprovedRulesApplied.length > 0, 'switching on unapproved rules lowers net billed and is flagged'); assert.ok(Math.abs(dflt.totals.net - whatIf.totals.net - whatIf.totals.exclusionsUnapproved) < 1, 'the whole difference is the unapproved-rule exclusions');
 });
 await test('terminology: «المقبوضات» and its forms are gone from every screen text; the approved terms are defined', () => {
   const hits = []; const walk = (d) => { for (const e of nodeFs.readdirSync(d, { withFileTypes: true })) { const p = nodePath.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(jsx?|mjs)$/.test(e.name) && /مقبوض/.test(nodeFs.readFileSync(p, 'utf8'))) hits.push(p); } };

@@ -6,7 +6,7 @@ import { NONCOLLECTION_CATEGORIES, CATEGORY_LABELS, EXCLUSION_RULES } from '../d
 import { pickBi } from '../data/revenueInsights';
 import { ProvenanceBadge, ScopeBar, DefinitionButton } from '../components/revenue/RevenueUI';
 import { useL, ratioText } from '../utils/bi';
-import { amanahOptionsOf } from '../data/revenueLedger';
+import { amanahFilterOptions } from '../data/revenueLedger';
 import { ITEMS, municipalitiesOf } from '../data/catalog';
 import { AGING_BUCKETS } from '../data/assistantProtocol';
 import { useAsync } from '../utils/useAsync';
@@ -54,7 +54,7 @@ export default function Invoices() {
   useEffect(() => { writeListMemory('invoices', { amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort }); }, [amanahFilter, collectionFilter, search, scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter, allPeriods, page, sort]);
   const debouncedSearch = useDebounced(search.trim(), 350);
 
-  const amanahOptions = useMemo(() => amanahOptionsOf().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
+  const amanahOptions = useMemo(() => amanahFilterOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
   const amanahLabel = (o) => (lang === 'zh' ? o.zh : lang === 'ar' ? o.ar : o.en);
   const muniOptions = useMemo(() => (amanahFilter === 'all' ? [] : municipalitiesOf(amanahFilter)), [amanahFilter]);
   const moreActive = [scopeType, muniFilter, itemFilter, exFilter, ageFilter, contractFilter, execFilter].filter((v) => v !== 'all').length + (allPeriods ? 1 : 0);

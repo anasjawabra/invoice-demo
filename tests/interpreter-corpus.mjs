@@ -136,9 +136,9 @@ add('sections', 'تقرير الاتجاه الشهري', { sections: ['trends']
 add('sections', 'ما فجوات التحصيل؟', { kind: 'question', sections: ['gaps'] });
 add('sections', 'جودة البيانات', { sections: ['quality'] });
 add('sections', 'قنوات الدفع', { sections: ['channels'] });
-add('sections', 'ما الميزانية المتبقية؟', { kind: 'question', only: ['budget'] });
-add('sections', 'هل نغطي المصروفات؟', { kind: 'question', only: ['budget'] });
-add('sections', 'تقرير الإنفاق', { sections: ['budget'] });
+add('sections', 'ما الميزانية المتبقية؟', { kind: 'clarify', says: 'الميزانية' });
+add('sections', 'هل نغطي المصروفات؟', { kind: 'clarify', says: 'المصروفات' });
+add('sections', 'تقرير الإنفاق', { kind: 'clarify', says: 'الإنفاق' });
 add('sections', 'تقرير تفصيلي', { sections: ['executive', 'trends', 'amanah', 'sources'] });
 add('sections', 'ملخص تنفيذي', { only: ['executive'] });
 add('sections', 'جهّز تقريراً شهرياً مشابهاً للتقارير المرفقة', { sections: ['executive', 'sources', 'amanah', 'exclusions', 'gaps'], compare: 'prev_year' });

@@ -13,7 +13,7 @@ import SmartReports from './SmartReports';
 import { Skeleton } from '../components/strategic/AsyncState';
 import { LEGACY_SECTION_TO_REPORT, FIXED_REPORTS } from '../data/fixedReports';
 import { fmtRangeText } from '../data/clock';
-import { amanahOptionsOf } from '../data/revenueLedger';
+import { amanahFilterOptions } from '../data/revenueLedger';
 import { sourceAr, sourceEn } from '../data/insightsEngine';
 
 const VIEWS = [['dashboard', 'لوحة المعلومات', 'Dashboard'], ['reports', 'التقارير الثابتة', 'Fixed reports'], ['smart', 'التقارير الذكية', 'Smart reports']];
@@ -29,7 +29,7 @@ export default function InsightsHub() {
   if (badReport) report = null;
   const go = (v, extra = {}) => { const n = new URLSearchParams(); n.set('view', v); Object.entries(extra).forEach(([k, x]) => x && n.set(k, x)); setSp(n); };
   const initialQuery = sp.get('q');
-  const sEff = rev.scopeEff; const amName = (k) => { const x = amanahOptionsOf().find((o) => o.key === k); return x ? (ar ? x.ar : x.en) : k; };
+  const sEff = rev.scopeEff; const amName = (k) => { const x = amanahFilterOptions().find((o) => o.key === k); return x ? (ar ? x.ar : x.en) : k; };
   const scopeSummary = [sEff.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(sEff.amanah).map(amName).join(ar ? '، ' : ', '), sEff.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(sEff.source) : sourceEn(sEff.source))].join(' · ');
 
   return (

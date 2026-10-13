@@ -12,15 +12,12 @@ import { actorName } from '../utils/actor';
 import { AsyncBlock } from '../components/strategic/AsyncState';
 import CollectionChart from '../components/strategic/CollectionChart';
 import { MetricTile } from '../components/revenue/RevenueUI';
-import { amanahOptionsOf, DATA_START } from '../data/revenueLedger';
-import { ENTITIES, ENT_UNASSIGNED } from '../data/catalog';
-import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
+import { amanahFilterOptions, DATA_START } from '../data/revenueLedger';
+import { EXCLUSION_RULES, DEFAULT_TARGETS, normalizeConfig } from '../data/revenueMetrics';
 import { fmtDateText } from '../data/clock';
 import { computeGoal, reportingDateFor, loadGoalStore, saveGoalStore, savePlan, rebasePlan, planKey } from '../data/collectionGoal';
 
 const pct = (v) => `${(v * 100).toFixed(1)}%`;
-// every Amanah, plus the invoices that Makeen assigns to none — so that the Amanah figures add up to the national figures
-const allAmanahOptions = () => [...amanahOptionsOf(), { key: ENTITIES[ENT_UNASSIGNED].en, en: ENTITIES[ENT_UNASSIGNED].en, ar: ENTITIES[ENT_UNASSIGNED].ar }];
 
 export default function PlanningArea() {
   const rev = useRevenue(); const { user } = useAuth();
@@ -30,11 +27,11 @@ export default function PlanningArea() {
   const [year, setYear] = useState(todayYear);
   const [amanah, setAmanah] = useState('all');
   const [retry, setRetry] = useState(0);
-  const amanahOptions = useMemo(() => allAmanahOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
+  const amanahOptions = useMemo(() => amanahFilterOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
   const [store, setStore] = useState(loadGoalStore);
   const key = planKey(year, amanah); const saved = store.plans[key] || null;
-  const [rateText, setRateText] = useState(() => String(Math.round(rev.targets.collectionRate.value * 100)));
-  useEffect(() => { setRateText(String(Math.round((saved?.rate ?? rev.targets.collectionRate.value) * 100))); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- a different year or Amanah starts from its saved goal (or the default)
+  const [rateText, setRateText] = useState(() => String(Math.round(DEFAULT_TARGETS.collectionRate.value * 100)));
+  useEffect(() => { setRateText(String(Math.round((saved?.rate ?? DEFAULT_TARGETS.collectionRate.value) * 100))); }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- a different year or Amanah starts from its saved goal (or the default)
   const rateNum = Number(rateText); const rateValid = Number.isFinite(rateNum) && rateNum >= 1 && rateNum <= 100;
   const canEdit = rev.canReview; const by = actorName(user, lang) || 'user';
   const [toast, setToast] = useState('');
@@ -49,22 +46,38 @@ export default function PlanningArea() {
       rev.data.snapshot(scope, { cfg: approvedCfg }),
       rev.data.series({ ...scope, issuedFrom: scope.from, issuedTo: reporting }, { cfg: approvedCfg, capped: true })
     ]);
-    return { gross: snap.totals.gross, exclusions: snap.totals.exclusions, monthly: ser.values, invoices: snap.population.issuedInPeriod };
+    const T = snap.totals; const R = snap.receivedInPeriod || {};
+    // cancelled invoices and rule exclusions stay SEPARATE figures; only rules the business approved are applied (approvedCfg)
+    return { gross: T.gross, cancelled: T.cancelled, cancelledCount: T.cancelledCount, ruleExclusions: T.exclusionsRules, monthly: ser.values, invoices: snap.population.issuedInPeriod, paidByDate: R.total, paidOnPriorYears: R.fromPriorInvoices };
   }, [rev.data, year, amanah, reporting, approvedCfg, retry]);
 
-  const g = useMemo(() => (DATA.data ? computeGoal({ year, today, rate: rateValid ? rateNum / 100 : 0, gross: DATA.data.gross, approvedExclusions: DATA.data.exclusions, monthlyCollected: DATA.data.monthly, plan: saved }) : null), [DATA.data, year, today, rateNum, rateValid, saved]);
+  const g = useMemo(() => (DATA.data ? computeGoal({ year, today, rate: rateValid ? rateNum / 100 : null, gross: DATA.data.gross, cancelled: DATA.data.cancelled, ruleExclusions: DATA.data.ruleExclusions, monthlyCollected: DATA.data.monthly, plan: saved }) : null), [DATA.data, year, today, rateNum, rateValid, saved]);
   const dateText = (iso) => fmtDateText(iso, lang);
-  const amanahName = amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : (() => { const a = allAmanahOptions().find((x) => x.key === amanah); return a ? (ar ? a.ar : a.en) : amanah; })();
+  const amanahName = amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : (() => { const a = amanahFilterOptions().find((x) => x.key === amanah); return a ? (ar ? a.ar : a.en) : amanah; })();
 
   const commit = (fn, msg) => { const next = fn(store); setStore(next); saveGoalStore(next); setToast(msg); };
   const planArgs = () => ({ year, amanah, rate: rateNum / 100, annualTarget: g.target, adjustedTotal: g.adjustedTotal, at: new Date().toISOString(), by });
-  const doSave = () => commit((s) => savePlan(s, planArgs()), L('حُفظت الخطة الشهرية: أشهرها ثابتة ولا تتغير عند تغيّر المفوتر أو الاستبعادات.', 'The monthly plan is saved: its months stay fixed when billed amounts or exclusions change.'));
-  const doRebase = () => commit((s) => rebasePlan(s, { ...planArgs(), today }), L('حُدّثت الخطة: الأشهر المنتهية كما هي، والهدف الجديد موزّع بالتساوي على بقية الأشهر.', 'The plan is updated: closed months are unchanged, the new target is spread evenly over the remaining months.'));
+  const doSave = () => commit((s) => savePlan(s, planArgs()), L('حُفظت مسودة الخطة الشهرية (غير معتمدة): أشهرها ثابتة ولا تتغير عند تغيّر المفوتر أو الاستبعادات.', 'The draft monthly plan is saved (not approved): its months stay fixed when billed amounts or exclusions change.'));
+  const doRebase = () => commit((s) => rebasePlan(s, { ...planArgs(), today }), L('حُدّثت مسودة الخطة: الأشهر المنتهية كما هي، والهدف الجديد موزّع بالتساوي على بقية الأشهر.', 'The draft plan is updated: closed months are unchanged, the new target is spread evenly over the remaining months.'));
   useEffect(() => { if (!toast) return undefined; const t = setTimeout(() => setToast(''), 6000); return () => clearTimeout(t); }, [toast]);
 
   const ok = g && g.state === 'ok';
+  const noTarget = g && g.state === 'no_target';
+  const D = DATA.data;
+  const whatIf = EXCLUSION_RULES.some((r) => r.approval !== 'approved' && !r.locked && rev.cfg.rules[r.id]); // the rule registry has an unapproved rule switched on as a what-if
   const planned = ok ? g.plan.cumulative : [];
   const closedYear = ok && year < todayYear; // a closed year's saved plan is never updated
+
+  const basis = (ok || noTarget) && D ? (
+    <div className="muted cg-basis">
+      <div>{L(`الفترة: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (تاريخ التقرير) · ${amanahName} · فواتير صدرت في ${year}.`, `Period: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (reporting date) · ${amanahName} · invoices issued in ${year}.`)}</div>
+      <div>{L(`إجمالي الفواتير المعدّل ${short(g.adjustedTotal)} = المفوتر ${short(g.gross)} − الفواتير الملغاة ${short(g.cancelled)} (${D.cancelledCount}) − استبعادات القواعد المعتمدة ${short(g.ruleExclusions)}.`, `Adjusted total ${short(g.adjustedTotal)} = billed ${short(g.gross)} − cancelled invoices ${short(g.cancelled)} (${D.cancelledCount}) − approved-rule exclusions ${short(g.ruleExclusions)}.`)}</div>
+      <div><span className="rv-tag rv-tag--warn">{L('تصنيف غير محسوم', 'Classification unresolved')}</span> {L('الفواتير الملغاة بند خصم مستقل ولم تؤكد المتطلبات أنها «استبعاد معتمد»؛ تُخصم لأن الفاتورة الملغاة لا تُطالَب، وتُعرض منفصلة ليتمكن صاحب القرار من تأكيد هذا التصنيف.', 'Cancelled invoices are a separate deduction; the requirements do not confirm them as an "approved exclusion". They are deducted because a cancelled invoice is not claimed, and shown separately so the business can confirm the classification.')}</div>
+      <div>{L('الإيرادات المحصلة = مدفوعات تحصيل على فواتير هذه السنة فقط (بتاريخ الدفع حتى تاريخ التقرير، وبحد أقصى قيمة الفاتورة)، وهو نفس أساس نسبة التحصيل.', 'Collected revenue = Tahseel payments on this year\'s invoices only (by payment date up to the reporting date, capped at the invoice amount) — the same basis as the collection rate.')}
+        {D.paidByDate > 0 && <> {L(`للمقارنة: إجمالي المدفوعات بتاريخ الدفع في الفترة ${short(D.paidByDate)}، منها ${short(D.paidOnPriorYears)} على فواتير سنوات سابقة؛ أساس مختلف لا يدخل في هذه النسبة.`, `For comparison: all payments by payment date in the period total ${short(D.paidByDate)}, of which ${short(D.paidOnPriorYears)} are on prior-year invoices — a different basis, not used in this rate.`)}</>}</div>
+      {whatIf && <div><span className="rv-tag rv-tag--warn">{L('تنبيه', 'Note')}</span> {L('سجل القواعد يطبّق قاعدة غير معتمدة كاحتمال تجريبي في الصفحات الأخرى؛ هذه الشاشة تستخدم القواعد المعتمدة فقط، فقد تختلف أرقام «صافي المفوتر» هناك.', 'The rule registry has an unapproved rule switched on as a what-if on other pages; this screen uses approved rules only, so net billed there may differ.')}</div>}
+    </div>
+  ) : null;
 
   return (
     <div className="st-page" dir={ar ? 'rtl' : 'ltr'}>
@@ -89,8 +102,8 @@ export default function PlanningArea() {
           <input id="cg-rate" type="number" className="input" min="1" max="100" step="1" value={rateText} onChange={(e) => setRateText(e.target.value)} aria-invalid={!rateValid} aria-describedby="cg-rate-note" />
         </label>
         <div className="cg-equiv" id="cg-rate-note" role="status">
-          {!rateValid ? <span className="rv-neg">{L('أدخل نسبة بين 1 و100.', 'Enter a rate between 1 and 100.')}</span> : ok ? <>{L('المبلغ المستهدف المكافئ', 'Equivalent target amount')}: <b dir="ltr">{short(g.target)}</b> <span className="muted">({rateNum}% × {short(g.adjustedTotal)})</span></> : <span className="muted">{L('يُحتسب بعد توفر إجمالي فواتير معدّل.', 'Calculated once an adjusted invoice total is available.')}</span>}
-          <div className="muted" style={{ fontSize: 12 }}>{L('النسبة مُدخل تجريبي إلى أن تُعتمد.', 'The rate is a demo input until it is approved.')}</div>
+          {!rateValid ? <span className="rv-neg">{L('أدخل نسبة بين 1 و100.', 'Enter a rate between 1 and 100.')}</span> : ok ? <>{L('المبلغ المستهدف المكافئ', 'Equivalent target amount')}: <b dir="ltr">{short(g.target)}</b> <span className="muted">({rateNum}% × {short(g.adjustedTotal)} {L('إجمالي الفواتير المعدّل حتى', 'adjusted total to')} {dateText(g.reportingDate)})</span></> : <span className="muted">{L('يُحتسب بعد إدخال نسبة صالحة وتوفر قاعدة صالحة لاحتساب نسبة التحصيل.', 'Calculated once a valid rate is entered and a valid base for the collection rate exists.')}</span>}
+          <div className="muted" style={{ fontSize: 12 }}>{L('النسبة مُدخل تجريبي إلى أن تُعتمد. المستهدف مبني على الفوترة الحالية (الفواتير الصادرة حتى تاريخ التقرير)، وليس على الفوترة المتوقعة لكامل السنة.', 'The rate is a demo input until it is approved. The target is based on current billing (invoices issued up to the reporting date), not on expected full-year billing.')}</div>
         </div>
       </div>
 
@@ -99,22 +112,33 @@ export default function PlanningArea() {
       <AsyncBlock state={DATA} onRetry={() => setRetry((n) => n + 1)} height={260}>
         {g && g.state === 'no_denominator' && (
           <div className="rv-callout rv-callout--warn" role="status">
-            <b>{L('لا يمكن احتساب الهدف: لا يوجد إجمالي فواتير معدّل لهذا الاختيار.', 'The target cannot be calculated: there is no adjusted invoice total for this selection.')}</b>
-            <div style={{ fontSize: 13, marginTop: 4 }}>{L(`الفترة ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: المفوتر ${short(g.gross)} − الاستبعادات المعتمدة ${short(g.approvedExclusions)} = ${short(g.adjustedTotal)}. لا تُعرض نسبة ولا هدف ولا رسم دون مقام صالح.`, `Period ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: billed ${short(g.gross)} − approved exclusions ${short(g.approvedExclusions)} = ${short(g.adjustedTotal)}. No rate, target or chart is shown without a valid denominator.`)}</div>
+            <b>{L('لا توجد قاعدة صالحة لاحتساب نسبة التحصيل.', 'There is no valid base for calculating the collection rate.')}</b>
+            <div style={{ fontSize: 13, marginTop: 4 }}>{L(`الفترة ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: المفوتر ${short(g.gross)} − الملغاة ${short(g.cancelled)} − استبعادات القواعد المعتمدة ${short(g.ruleExclusions)} = ${short(g.adjustedTotal)}. لا تُعرض نسبة ولا هدف ولا رسم دون قاعدة صالحة، ولا يُعدّ التحصيل الصفري نجاحاً.`, `Period ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} · ${amanahName}: billed ${short(g.gross)} − cancelled ${short(g.cancelled)} − approved-rule exclusions ${short(g.ruleExclusions)} = ${short(g.adjustedTotal)}. No rate, target or chart is shown without a valid base, and zero collection is never shown as success.`)}</div>
           </div>
+        )}
+        {noTarget && (
+          <>
+            {basis}
+            <div className="rv-callout rv-callout--warn" role="status">
+              <b>{L('لم يتم تحديد مستهدف تحصيل صالح.', 'No valid collection target has been set.')}</b>
+              <div style={{ fontSize: 13, marginTop: 4 }}>{L('أدخل نسبة مستهدفة بين 1 و100 لاحتساب المبلغ المستهدف والمتبقي والمخطط. لا يُعرض «تم تحقيق المستهدف» دون مستهدف موجب صالح.', 'Enter a target rate between 1 and 100 to calculate the target amount, the remainder and the plan. "Target reached" is never shown without a valid positive target.')}</div>
+            </div>
+            <div className="rv-tiles cg-tiles">
+              <MetricTile label={L(`الإيرادات المحصلة حتى ${dateText(g.reportingDate)}`, `Collected revenue to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — حتى تاريخ التقرير', 'year to date — to the reporting date')} />
+              <MetricTile label={L('نسبة التحصيل الحالية', 'Current collection rate')} value={pct(g.collectionRate)} sub={L('الإيرادات المحصلة ÷ إجمالي الفواتير المعدّل', 'Collected revenue ÷ adjusted total')} />
+              <MetricTile label={L('المبلغ المستهدف تحصيله', 'Target collection amount')} value={L('غير محدد', 'Not set')} sub={L('لا يوجد مستهدف صالح', 'no valid target')} />
+            </div>
+          </>
         )}
         {ok && (
           <>
-            <div className="muted cg-basis">
-              {L(`الفترة: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (تاريخ التقرير) · ${amanahName} · فواتير صدرت في ${year}. إجمالي الفواتير المعدّل ${short(g.adjustedTotal)} = المفوتر ${short(g.gross)} − الاستبعادات المعتمدة ${short(g.approvedExclusions)}. الإيرادات المحصلة من تحصيل (تاريخ الدفع) حتى تاريخ التقرير.`,
-                `Period ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (reporting date) · ${amanahName} · invoices issued in ${year}. Adjusted total ${short(g.adjustedTotal)} = billed ${short(g.gross)} − approved exclusions ${short(g.approvedExclusions)}. Collected revenue from Tahseel (payment date) up to the reporting date.`)}
-            </div>
+            {basis}
 
             <div className="rv-tiles cg-tiles">
               <MetricTile label={L('المبلغ المستهدف تحصيله (سنوي)', 'Target collection amount (annual)')} value={short(g.target)} sub={L(`${Math.round(g.rate * 100)}% من إجمالي الفواتير المعدّل`, `${Math.round(g.rate * 100)}% of the adjusted total`)} />
               <MetricTile label={L(`الإيرادات المحصلة حتى ${dateText(g.reportingDate)}`, `Collected revenue to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — حتى تاريخ التقرير', 'year to date — to the reporting date')} />
               <MetricTile label={L('نسبة التحصيل الحالية', 'Current collection rate')} value={pct(g.collectionRate)} tone={g.achieved ? 'good' : undefined} sub={L(`الإيرادات المحصلة ÷ إجمالي الفواتير المعدّل (الهدف ${Math.round(g.rate * 100)}%)`, `Collected revenue ÷ adjusted total (target ${Math.round(g.rate * 100)}%)`)} />
-              <MetricTile label={L('المتبقي للوصول إلى الهدف', 'Remaining to reach the target')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تحقق الهدف', 'Target reached') : L('الهدف السنوي − الإيرادات المحصلة', 'Annual target − collected revenue')} />
+              <MetricTile label={L('المتبقي للوصول إلى الهدف', 'Remaining to reach the target')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تم تحقيق المستهدف', 'Target reached') : L('الهدف السنوي − الإيرادات المحصلة', 'Annual target − collected revenue')} />
             </div>
 
             <div className="card st-card cg-chart">
@@ -125,19 +149,19 @@ export default function PlanningArea() {
                 <tbody>{planned.map((p, i) => <tr key={i}><td>{i + 1}</td><td>{sar(p)}</td><td>{g.actual[i] == null ? '—' : sar(g.actual[i])}</td></tr>)}</tbody></table>
               <div className="cg-plan">
                 {g.plan.source === 'assumed'
-                  ? <span><b>{L('افتراض تخطيطي:', 'Planning assumption:')}</b> {L('لا توجد خطة شهرية معتمدة، فالهدف السنوي موزّع بالتساوي على 12 شهراً. الفعلي يُعرض حتى تاريخ التقرير فقط.', 'There is no approved monthly plan, so the annual target is spread evenly over 12 months. Actual is shown only up to the reporting date.')}</span>
-                  : <span>{L(`خطة محفوظة (${dateText(g.plan.savedAt.slice(0, 10))}) بهدف سنوي ${short(g.plan.annualTarget)}؛ أشهرها ثابتة ولا تتغير تلقائياً.`, `Saved plan (${dateText(g.plan.savedAt.slice(0, 10))}) with an annual target of ${short(g.plan.annualTarget)}; its months stay fixed and are never changed automatically.`)}</span>}
+                  ? <span><b>{L('افتراض تخطيطي:', 'Planning assumption:')}</b> {L('لا توجد خطة شهرية معتمدة، فالمستهدف موزّع بالتساوي على 12 شهراً (افتراض بلا أساس موسمي). الفعلي يُعرض حتى تاريخ التقرير فقط.', 'There is no approved monthly plan, so the target is spread evenly over 12 months (an assumption with no seasonal basis). Actual is shown only up to the reporting date.')}</span>
+                  : <span>{L(`مسودة خطة محفوظة (${dateText(g.plan.savedAt.slice(0, 10))}) بهدف سنوي ${short(g.plan.annualTarget)}؛ حفظها لا يعني اعتمادها — لم يعتمدها أحد بعد. أشهرها ثابتة ولا تتغير تلقائياً.`, `Draft plan saved (${dateText(g.plan.savedAt.slice(0, 10))}) with an annual target of ${short(g.plan.annualTarget)}. Saving is not approval — nobody has approved it. Its months stay fixed and are never changed automatically.`)}</span>}
                 {g.plan.drift && <div className="rv-callout rv-callout--warn" role="status" style={{ marginTop: 8 }}>{L(`تغيّر الهدف المحتسب منذ حفظ الخطة: المحفوظ ${short(g.plan.drift.saved)}، والحالي ${short(g.plan.drift.live)} (تغيّر المفوتر أو الاستبعادات أو النسبة). الرسم يعرض الخطة المحفوظة.`, `The calculated target has changed since the plan was saved: saved ${short(g.plan.drift.saved)}, now ${short(g.plan.drift.live)} (billed amounts, exclusions or the rate changed). The chart shows the saved plan.`)}
-                  {canEdit && !closedYear && rateValid && <> <button type="button" className="btn btn-sm" onClick={doRebase}>{L('تحديث الخطة', 'Update the plan')}</button></>}</div>}
-                {g.plan.source === 'assumed' && canEdit && rateValid && <> <button type="button" className="btn btn-sm" onClick={doSave}>{L('حفظ الخطة (تثبيت الأشهر)', 'Save the plan (fix the months)')}</button></>}
-                {!canEdit && <div className="muted" style={{ fontSize: 12 }}>{L('دورك للقراءة فقط: لا يمكنك حفظ الخطة.', 'Your role is read-only: you cannot save the plan.')}</div>}
+                  {canEdit && !closedYear && rateValid && <> <button type="button" className="btn btn-sm" onClick={doRebase}>{L('تحديث المسودة', 'Update the draft')}</button></>}</div>}
+                {g.plan.source === 'assumed' && canEdit && rateValid && <> <button type="button" className="btn btn-sm" onClick={doSave}>{L('حفظ مسودة الخطة (تثبيت الأشهر)', 'Save as draft plan (fix the months)')}</button></>}
+                {!canEdit && <div className="muted" style={{ fontSize: 12 }}>{L('دورك للقراءة فقط: لا يمكنك حفظ مسودة الخطة.', 'Your role is read-only: you cannot save a draft plan.')}</div>}
               </div>
             </div>
 
             <div className="card st-card cg-explain" role="region" aria-label={L('تقدم الإيرادات المحصلة مقابل الخطة', 'Progress against the plan')}>
               <b>{L('أين نحن من الخطة؟', 'Where are we against the plan?')}</b>
-              {g.achieved ? (
-                <p>{L(`تحقق الهدف السنوي: حُصّل ${short(g.collected)} من هدف ${short(g.target)}${g.exceededBy > 0 ? ` (بزيادة ${short(g.exceededBy)})` : ''}.`, `The annual target is reached: ${short(g.collected)} collected against a target of ${short(g.target)}${g.exceededBy > 0 ? ` (${short(g.exceededBy)} above it)` : ''}.`)}</p>
+              {g.achieved && g.target > 0 ? (
+                <p>{L(`تم تحقيق المستهدف: حُصّل ${short(g.collected)} من هدف ${short(g.target)}${g.exceededBy > 0 ? ` (بزيادة ${short(g.exceededBy)})` : ''}.`, `The target is reached: ${short(g.collected)} collected against a target of ${short(g.target)}${g.exceededBy > 0 ? ` (${short(g.exceededBy)} above it)` : ''}.`)}</p>
               ) : (
                 <>
                   <p>{L(`حتى ${dateText(g.reportingDate)} حُصّل ${short(g.collected)} مقابل ${short(g.plannedToDate)} مخطط حتى هذا التاريخ، أي ${g.versusPlan >= 0 ? 'متقدم عن الخطة' : 'متأخر عن الخطة'} بمقدار ${short(Math.abs(g.versusPlan))}.`, `To ${dateText(g.reportingDate)}, ${short(g.collected)} was collected against ${short(g.plannedToDate)} planned to this date: ${g.versusPlan >= 0 ? 'ahead of' : 'behind'} the plan by ${short(Math.abs(g.versusPlan))}.`)}</p>

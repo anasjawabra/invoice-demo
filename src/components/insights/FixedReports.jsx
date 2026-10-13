@@ -8,7 +8,6 @@ import { ToDateFigure } from '../revenue/RevenueUI';
 import { AsyncBlock } from '../strategic/AsyncState';
 import { FIXED_REPORTS, FIXED_GROUPS } from '../../data/fixedReports';
 import { buildReportModel } from '../../data/reportModel';
-import { generateFinance, financeCompatible } from '../../data/syntheticFinance';
 import { forecastReceipts } from '../../data/revenueOutlook';
 import { buildDecisionCards } from '../../data/revenueInsights';
 import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../../utils/exportReportModel';
@@ -18,25 +17,23 @@ function ReportBody({ def }) {
   const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const s = rev.scopeEff; const today = cfg.cutoff;
   const [exporting, setExporting] = useState(''); const [rt, setRt] = useState(0); const [exportErr, setExportErr] = useState(''); const [exportDone, setExportDone] = useState('');
   const needs = def.sections;
-  const financeOk = financeCompatible(s, rev.org); const fin = useMemo(() => generateFinance(today), [today]);
   const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
   const X = useAsync(async () => {
     const sc = { from: s.from, to: s.to, ...scopeBase };
-    const [cash, bridge, fyRec, forecast] = await Promise.all([
+    const [cash, bridge, forecast] = await Promise.all([
       needs.includes('trends') ? data.series(sc, { asOf: s.to < today ? s.to : today }) : null,
       needs.includes('quality') ? data.bridge({ ...scopeBase, from: '2000-01-01', to: today }) : null,
-      needs.includes('budget') && financeOk ? data.series({ amanah: 'all', source: 'all', from: `${today.slice(0, 4)}-01-01`, to: today }, { asOf: today }).then((r) => r.values.reduce((t, v) => t + v, 0)) : null,
       needs.includes('executive') ? forecastReceipts(data, scopeBase, cfg, { targets }) : null
     ]);
-    return { cash, bridge, fyRec, forecast };
-  }, [data, JSON.stringify(scopeBase), s.from, s.to, today, def.key, financeOk, cfg, targets, rt]);
+    return { cash, bridge, forecast };
+  }, [data, JSON.stringify(scopeBase), s.from, s.to, today, def.key, cfg, targets, rt]);
   const yoy = comparison?.comparable && comparison.basis === 'same_period_last_year';
   const compare = def.compare !== 'none' && yoy ? 'prev_year' : 'none';
   const model = useMemo(() => {
     if (!X.data) return null;
     const spec = { title: B({ ar: def.ar, en: def.en }), preset: rev.scope.preset, scope: { from: s.from, to: s.to, ...scopeBase }, compare, depth: 'summary', sections: def.sections };
     const forecast = X.data.forecast || { ready: false, reasonNotReady: { ar: 'غير مطلوب في هذا التقرير', en: 'not needed in this report' } };
-    return buildReportModel({ spec, lang, out: { snapshot, forecast, targetPos: null, achievement: null, coverage: null, cards: needs.includes('executive') ? buildDecisionCards(snapshot, { enforcementCases: rev.cases }) : [], anomalies: [] }, prev: compare === 'prev_year' ? prevSnapshot : null, compare, prevScope: prevSnapshot?.scope, cash: X.data.cash, bridge: X.data.bridge, targets, cases: rev.cases, meta: rev.meta, finance: fin, financeOk, fyReceiptsYtd: X.data.fyRec });
+    return buildReportModel({ spec, lang, out: { snapshot, forecast, targetPos: null, achievement: null, cards: needs.includes('executive') ? buildDecisionCards(snapshot, { enforcementCases: rev.cases }) : [], anomalies: [] }, prev: compare === 'prev_year' ? prevSnapshot : null, compare, prevScope: prevSnapshot?.scope, cash: X.data.cash, bridge: X.data.bridge, targets, cases: rev.cases, meta: rev.meta });
   }, [X.data, snapshot, prevSnapshot, compare, lang, def.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const doExport = async (kind) => { if (!model || exporting) return; setExporting(kind); setExportErr(''); setExportDone(''); try { if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model); setExportDone({ docx: 'Word', xlsx: 'Excel', pptx: 'PowerPoint' }[kind]); } catch (e) { setExportErr(String(e.message || e)); } finally { setExporting(''); } };
   return (

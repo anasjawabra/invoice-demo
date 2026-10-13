@@ -640,3 +640,18 @@ Details: `docs/navigation-structure.md`.
 Details: `docs/strategic-dashboard-simplification.md`.
 
 **S-01 — the Strategic Dashboard was a six-section planning suite on two measures of collected revenue (replaced).** `/planning` now answers four questions with one set of approved calculations (adjusted total = gross − approved exclusions; collection rate; target amount; remaining amount): year and optional Amanah, the goal rate with its equivalent amount, four figures, one plan-versus-actual chart, a short explanation. Actual stops at the reporting date (no zero for future months); the even monthly spread and the day-prorated current month are stated assumptions; a saved plan is never recalculated silently. No scenarios, forecasts, assistant, action register, exports or configuration screens. **S-02 — «المقبوضات» is not a defined term (removed everywhere).** «الإيرادات المحصلة» (aggregate) and «المبلغ المحصل» (one invoice); a test fails if the retired term reappears in any source file; duplicate receipts metrics, indicators and insights removed, the underlying data kept. **S-03 — regression caught and fixed during verification:** an empty slot in the metric dictionary crashed every tile with a «?» help button (the test now asserts every entry is complete). **S-04 — Amanah figures did not add up to the national figure** because the Amanah list omitted «غير محدد الأمانة»; the dashboard's selector includes it. **Open business questions** are listed in the document (basis of the annual target, treatment of cancelled invoices, approved-only exclusions solution-wide, goal granularity, plan approval). **Tests:** 140. Production build and the Vercel function bundle regenerated.
+
+
+---
+
+# Round 19 — dashboard corrections (branch `main`)
+
+Details: `docs/strategic-dashboard-simplification.md` §8.
+
+**S-05 — zero collected revenue could read as success; a zero denominator printed a message about "adjusted total" (fixed).** Distinct `no_denominator` / `no_target` states; «تم تحقيق المستهدف» only for a positive target.
+
+**S-06 — adjusted total 14.36 bn (dashboard) vs net billed 13.55 bn (elsewhere) (fixed).** Cause: 811.0 M of exclusions under unapproved rules (NOC-1, EFA-1, INC-1) applied by default outside the dashboard. Unapproved rules are now off by default everywhere; both figures are 14,364.2 M. Residual: cancelled invoices (579.7 M) are deducted as a separate item whose classification as an «approved exclusion» is unconfirmed — flagged on screen.
+
+**S-07 — two target definitions remain (open).** The dashboard goal (rate × adjusted total) and the demo annual amount used by report «تحقق المستهدف» (17 bn, curved monthly weights, labelled demo). Not merged because the reports depend on it; needs a business decision (see handover).
+
+**S-08 — expenditure coverage had no real data (removed); forecasts are demo-based (labelled).**

@@ -152,7 +152,7 @@ export function classify(text) {
   if (has(s, ['why did collection', 'why has collection', 'why collection', 'collection fell', 'collection fall', 'collection drop', 'collection decline', 'collection decrease', 'لماذا انخفض', 'لماذا تراجع', 'ليه انخفض', 'انخفاض التحصيل', 'تراجع التحصيل'])) return 'why_decline';
   if (has(s, ['report', 'تقرير'])) return 'report';
   if (has(s, ['forecast', 'predict', 'projection', 'next month', 'rest of the year', 'تنبؤ', 'توقع'])) return 'forecast';
-  if (has(s, ['coverage', 'target', 'budget', 'chapter', 'تغطية', 'مستهدف', 'هدف', 'ميزانية', 'الباب'])) return 'target_coverage';
+  if (has(s, ['target', 'مستهدف', 'هدف'])) return 'target_coverage';
   if (has(s, ['exclu', 'استبعاد', 'مستبعد'])) return 'exclusions';
   if (has(s, ['why', 'reason', 'noncollect', 'not collected', 'uncollected', 'outstanding', 'overdue', 'unpaid', 'لماذا', 'سبب', 'عدم التحصيل', 'متأخر', 'متبقي', 'غير محصل'])) return 'noncollection';
   if (has(s, ['sanad', 'efaa', 'enforcement', 'سند', 'إفاء', 'إنفاذ', 'تنفيذ'])) return 'enforcement';

@@ -10,14 +10,13 @@ import { isSingleMonth } from './clock';
 import { PRESETS, detectPreset } from './periodPresets';
 import { buildSmartReport } from './smartReport';
 import { buildInsights, sourceAr, sourceEn } from './insightsEngine';
-import { fairComparison } from './strategicCalc';
+import { fairComparison } from './amanahComparison';
 import { CATEGORY_LABELS, EXCLUSION_RULES, compareSnapshots } from './revenueMetrics';
 import { fmtMoney, unitOfValues, unitLabel, scaled, fmtInt } from '../utils/money';
-import { budgetExecution, operatingCoverage, FINANCE_STATUS } from './syntheticFinance';
 import { BRIDGE_LABELS } from './bridgeLabels';
-import { amanahOptionsOf } from './revenueLedger';
+import { amanahFilterOptions } from './revenueLedger';
 
-export const SECTION_ORDER = ['executive', 'trends', 'amanah', 'sources', 'aging', 'exclusions', 'gaps', 'status', 'budget', 'quality', 'bases', 'channels'];
+export const SECTION_ORDER = ['executive', 'trends', 'amanah', 'sources', 'aging', 'exclusions', 'gaps', 'status', 'quality', 'bases', 'channels'];
 export const SECTION_META = {
   executive: { ar: 'الملخص التنفيذي', en: 'Executive summary', purpose: { ar: 'ما الوضع الآن؟ العلاقات المالية بين الإجمالي والاستبعادات والصافي والمحصّل.', en: 'What is the situation? The relationships between gross, exclusions, net and collected.' } },
   trends: { ar: 'الاتجاه الشهري', en: 'Monthly trend', purpose: { ar: 'الأداء شهراً بشهر ومقابل العام السابق: فواتير كل شهر (أساس الإصدار) منفصلة عن الإيرادات المحصلة خلال الشهر (أساس الدفع).', en: 'Month-by-month performance and against last year: invoices of each month (issue basis) separate from receipts during the month (payment basis).' } },
@@ -27,7 +26,6 @@ export const SECTION_META = {
   exclusions: { ar: 'الاستبعادات وأسبابها', en: 'Exclusions & reasons', purpose: { ar: 'ما أُخرج من إجمالي المفوتر ولماذا؛ كل فاتورة تُخصم مرة واحدة تحت سببها الرئيسي.', en: 'What was taken out of gross billed and why; each invoice is deducted once under its primary reason.' } },
   gaps: { ar: 'فجوات التحصيل وأولويات المتابعة', en: 'Collection gaps & priorities', purpose: { ar: 'أكبر فرص رفع التحصيل: فجوة كل خلية أمانة × مصدر مقابل مستهدف تجريبي.', en: 'The biggest opportunities: each Amanah × source cell against a demo target.' } },
   status: { ar: 'الفواتير وحالة الدفع', en: 'Invoices & payment status', purpose: { ar: 'عدد كل حالة ومبلغها؛ مجموع الحالات يساوي مجموع الفواتير.', en: 'The count and amount of each state; the states add up to the total.' } },
-  budget: { ar: 'الميزانية وتنفيذ الإنفاق', en: 'Budget and expenditure execution', purpose: { ar: 'الميزانية المعتمدة مقابل الالتزام والاستحقاق والصرف النقدي، وتغطية الإيرادات المحصّلة للإنفاق التشغيلي — على المستوى الوطني وبأساس معلن.', en: 'Approved budget versus commitment, accrual and cash payment, and coverage of operating expenditure by collected revenue — national level, stated basis.' } },
   quality: { ar: 'اكتمال البيانات والمطابقة', en: 'Completeness & reconciliation', purpose: { ar: 'هل يمكن الوثوق بالأرقام؟ فحوص المطابقة ومشاكل الاكتمال والقياسات غير المتاحة.', en: 'Can the numbers be trusted? Reconciliation checks, completeness issues and unavailable measures.' } },
   bases: { ar: 'أساس القياس', en: 'Measurement basis', purpose: { ar: 'يفصل المحصّل على فواتير الفترة عن الإيرادات المحصلة بتاريخ الدفع خلال الفترة.', en: 'Keeps collected on period invoices apart from receipts dated in the period.' } },
   channels: { ar: 'قنوات الدفع', en: 'Payment channels', purpose: { ar: 'من أين تأتي الإيرادات المحصلة (سداد، تحويل، بطاقة، محفظة، تنفيذ).', en: 'Where receipts come from (SADAD, transfer, card, wallet, enforcement).' } }
@@ -59,15 +57,15 @@ export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah
   return chips;
 }
 
-export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare = 'none', prevScope = null, cash = null, bridge = null, targets, cases = [], meta = null, finance = null, financeOk = false, fyReceiptsYtd = null, generatedAt = new Date() }) {
+export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare = 'none', prevScope = null, cash = null, bridge = null, targets, cases = [], meta = null, generatedAt = new Date() }) {
   const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const B = (o) => (o == null ? '' : typeof o === 'string' ? o : (ar ? o.ar : o.en) || o.en || '');
   const snapshot = out.snapshot; const T = snapshot.totals; const comparable = !!prev && prev.totals.count > 0;
   const comparison = comparable ? compareSnapshots(snapshot, prev) : null;
-  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || (() => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; })(); // never a raw key (an Amanah with no invoices in the selection still has a name)
+  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || (() => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; })(); // never a raw key (an Amanah with no invoices in the selection still has a name)
   const labelOfMuni = (k) => { const m = snapshot.byMunicipality.find((x) => x.municipality?.key === k)?.municipality; return m ? (ar ? m.ar : m.en) : String(k).split('|').pop(); };
   const chips = contextChips(spec, { lang, snapshot, snapshotMeta: meta, labelOfAmanah, labelOfMuni, prevScope, compare });
   const insightsRes = buildInsights({ snapshot, prev: comparable ? prev : null, comparison, forecast: out.forecast, targets });
-  const legacy = buildSmartReport({ snapshot, bridge: out.bridge || bridge, forecast: out.forecast, targetPos: out.targetPos, achievement: out.achievement, coverage: out.coverage, cards: out.cards || [], anomalies: out.anomalies || [], cases, focus: spec.sections.includes('exclusions') ? 'noncollection' : spec.sections.includes('amanah') ? 'amanah' : 'revenue', lang, request: '' });
+  const legacy = buildSmartReport({ snapshot, bridge: out.bridge || bridge, forecast: out.forecast, targetPos: out.targetPos, achievement: out.achievement, cards: out.cards || [], anomalies: out.anomalies || [], cases, focus: spec.sections.includes('exclusions') ? 'noncollection' : spec.sections.includes('amanah') ? 'amanah' : 'revenue', lang, request: '' });
   // the relations block and the exports read the same typed contract as the Dashboard: amounts + the two rates + the cancelled share of exclusions
   const ctxTotals = { count: T.count, gross: T.gross, exclusions: T.exclusions, cancelled: T.cancelled, net: T.net, collected: T.collected, outstanding: T.outstanding, collectedOverNet: T.collectedOverNet, exclusionRate: T.exclusionRate };
 
@@ -182,20 +180,6 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
       snapshot.byStatus.slice().sort((a, b) => b.count - a.count).map((g) => [B(STATUS[g.key]) || g.key, g.count, ratio(g.count, T.count), g.gross, g.exclusions, g.net, g.collected, g.outstanding]),
       { total: [L('الإجمالي', 'Total'), T.count, 1, T.gross, T.exclusions, T.net, T.collected, T.outstanding], note: L('لكل فاتورة حالة واحدة (الإلغاء والاستبعاد لهما الأسبقية). لا تُحتسب مدفوعات الفواتير الملغاة/المستبعدة محصّلة. الأعداد أعداد فواتير ولا تُحوَّل لوحدة المبالغ.', 'Each invoice has exactly one status (cancelled and excluded take precedence). Payments on cancelled/excluded invoices are not collected. Counts are invoice counts, never converted to the money unit.') })
   ];
-  sections.budget = () => {
-    if (!financeOk || !finance) return [{ type: 'callout', tone: 'info', text: L('البيانات غير متاحة لهذا النطاق: الميزانية والإنفاق متوفران (بصورة تجريبية) على المستوى الوطني لكل المصادر فقط. أزل مرشحات الأمانة والبلدية والمصدر والحالة.', 'Data not available for this scope: budget and expenditure exist (synthetic) at national level for all sources only. Clear the Amanah, municipality, source and status filters.') }];
-    const ex = budgetExecution(finance); const cov = operatingCoverage(finance, fyReceiptsYtd);
-    return [
-      { type: 'callout', tone: 'warn', text: `${B(FINANCE_STATUS)} — ${L('تُعرض لإظهار الوظيفة فقط؛ الأرقام الفعلية تتطلب ربط نظام المالية الحكومي.', 'shown only to demonstrate the function; actual figures need the government financial system integration.')}` },
-      tbl('budget', L('تنفيذ الميزانية حسب الباب (من بداية السنة حتى اليوم)', 'Budget execution by chapter (year to date)'), [H(L('الباب', 'Chapter')), H(L('الميزانية السنوية المعتمدة', 'Approved annual budget'), 'money'), H(L('الميزانية المتناسبة حتى اليوم', 'Budget prorated to date'), 'money'), H(L('الالتزامات', 'Commitments'), 'money'), H(L('المستحق (الاستحقاق)', 'Accrued'), 'money'), H(L('المصروف نقداً', 'Paid (cash)'), 'money'), H(L('نسبة الصرف من الميزانية المتناسبة', 'Payments ÷ prorated budget'), 'pct'), H(L('المتبقي بعد الالتزامات', 'Left after commitments'), 'money')],
-        ex.rows.map((r) => [B(r.label), r.annual, r.budgetToDate, r.commitments, r.accrued, r.paid, r.execution, r.remaining]),
-        { total: [L('الإجمالي', 'Total'), ex.total.annual, ex.total.budgetToDate, ex.total.commitments, ex.total.accrued, ex.total.paid, ex.total.execution, ex.rows.reduce((t, r) => t + r.remaining, 0)], note: L('الميزانية والالتزام والاستحقاق والصرف أربعة مفاهيم مختلفة لا تُجمع ولا تُقارن بغير أساسها: الالتزام ≥ الاستحقاق ≥ الصرف.', 'Budget, commitment, accrual and payment are four different things; they are not added together and are compared only on their stated basis: commitment ≥ accrual ≥ payment.') }),
-      { type: 'chart', kind: 'bar', title: L('الصرف الشهري مقابل الميزانية الشهرية (الأبواب 1–4)', 'Monthly payments vs monthly budget (chapters 1–4)'), labels: finance.chapters[0].months.map((m) => m.month), series: [{ label: L('الميزانية الشهرية', 'Monthly budget'), values: finance.chapters[0].months.map((_, i) => finance.chapters.reduce((t, c) => t + c.months[i].planned, 0)) }, { label: L('المصروف نقداً', 'Paid (cash)'), values: finance.chapters[0].months.map((_, i) => finance.chapters.reduce((t, c) => t + c.months[i].paid, 0)) }] },
-      tbl('coverage', L('تغطية الإنفاق التشغيلي من الإيرادات المحصّلة', 'Operating-expenditure coverage by collected revenue'), [H(L('البند', 'Item')), H(L('القيمة', 'Value'), 'money'), H(L('النسبة', 'Ratio'), 'pct')],
-        cov.ratio == null ? [[L('الإيرادات المحصلة (تاريخ الدفع) منذ بداية السنة', 'Receipts (payment date) year to date'), cov.receiptsYtd, null], [L('صرف الأبواب 1–3 للفترة نفسها', 'Payments of chapters 1–3, same period'), cov.paid, null]] : [[L('الإيرادات المحصلة (تاريخ الدفع) منذ بداية السنة', 'Receipts (payment date) year to date'), cov.receiptsYtd, null], [L('صرف الأبواب 1–3 للفترة نفسها', 'Payments of chapters 1–3, same period'), cov.paid, null], [L('نسبة التغطية', 'Coverage ratio'), null, cov.ratio]],
-        { note: B(cov.basis) + L(' — لا تُحسب إلا للسنة المالية حتى اليوم لأن الأساس والفترة والنطاق يجب أن تتطابق.', ' — only calculated for the fiscal year to date because basis, period and scope must match.') })
-    ];
-  };
   sections.quality = () => {
     const eq = snapshot.equation; const q = snapshot.quality; const un = snapshot.byAmanah.find((g) => g.key === 'Unassigned');
     const checks = [
@@ -239,7 +223,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   }
   if (spec.depth === 'detailed') {
     tail.push({ key: 'findings', title: L('نتائج من السجلات (محسوبة) وتعارضات', 'Findings from the records (calculated) and conflicts'), purpose: '', blocks: [{ type: 'list', items: legacy.discoveries }, { type: 'list', items: legacy.risks.map((r) => `[${r.priority}] ${r.title} — ${r.rationale}`) }] });
-    tail.push({ key: 'forecast', title: L('التنبؤ وحدوده', 'Forecast and its limits'), purpose: '', blocks: [{ type: 'list', items: legacy.predictions.map((p) => `${p.prediction} (${legacy.labels.confidence}: ${p.confidence}; ${legacy.labels.timeframe}: ${p.timeframe})`) }] });
+    tail.push({ key: 'forecast', title: L('التنبؤ وحدوده (توضيحي — مبني على بيانات تجريبية)', 'Forecast and its limits (illustrative — based on demo data)'), purpose: '', blocks: [{ type: 'callout', tone: 'warn', text: L('هذا التنبؤ مبني على بيانات تجريبية اصطناعية ومُدخلات مستهدف غير معتمدة؛ هو توضيح للوظيفة وليس توقعاً معتمداً ولا يُبنى عليه قرار.', 'This forecast rests on synthetic demo data and unapproved target inputs; it illustrates the function and is not an approved projection. No decision should rest on it.') }, { type: 'list', items: legacy.predictions.map((p) => `${p.prediction} (${legacy.labels.confidence}: ${p.confidence}; ${legacy.labels.timeframe}: ${p.timeframe})`) }] });
   }
   tail.push({ key: 'assumptions', title: L('البيانات والافتراضات', 'Data and assumptions'), purpose: '', blocks: [{ type: 'list', items: [
     L('البيانات اصطناعية وليست بيانات الوزارة الفعلية، وعدد الفواتير لا يمثل الحجم التشغيلي.', 'The data is synthetic, not the Ministry’s actual data, and the invoice count does not represent operational volume.'),
@@ -251,7 +235,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   return {
     id: `rpt-${generatedAt.getTime()}`, title, subtitle: chips.find((c) => c.k === 'period').value,
     generatedAt: generatedAt.toISOString(), cutoff: snapshot.cutoff, lang, depth: spec.depth, compare, synthetic: true, context: chips,
-    totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: keys.length && keys.every((k) => k === 'budget' || k === 'quality') ? [] : headline(), sections: [...out2, ...tail], // F-21: the billing/collection KPI strip is not the headline of a budget-execution or data-quality report
+    totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: keys.length && keys.every((k) => k === 'quality') ? [] : headline(), sections: [...out2, ...tail], // F-21: the billing/collection KPI strip is not the headline of a data-quality report
     summaryText: insightsRes.summary.text[ar ? 'ar' : 'en']
   };
 }

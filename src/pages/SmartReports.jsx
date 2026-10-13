@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { municipalitiesOf } from '../data/catalog';
-import { amanahOptionsOf, REVENUE_SOURCE_KEYS } from '../data/revenueLedger';
+import { amanahFilterOptions, REVENUE_SOURCE_KEYS } from '../data/revenueLedger';
 import { previousScope } from '../data/revenueMetrics';
 import { startOfYear, startOfMonth } from '../data/clock';
 import { interpret, defaultSpec, describeChange, previousMonthScope, SUPPORTED_HELP } from '../data/reportIntents';
@@ -51,7 +51,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   const munis = d.amanah !== 'all' && d.amanah !== '__multi' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
   const [badRange, setBadRange] = useState(false); const [rk, setRk] = useState(0);
   const preset = (from, to) => { setBadRange(false); setRk((n) => n + 1); setD((x) => ({ ...x, from, to })); };
-  const ams = amanahOptionsOf();
+  const ams = amanahFilterOptions();
   return (
     <div className="sr-filters card" role="region" aria-label={L('المرشحات', 'Filters')}>
       <div className="sr-filters__row">
@@ -126,7 +126,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all' } }; }, [rev.scopeEff, rev.scope.preset, today]);
   const conv = convs.find((c) => c.id === activeId) || null;
   const spec = conv?.spec || null;
-  const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
+  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
 
   usePersistOnChange(convs, saveConvs); // written only after a user action, never when the page loads or a stored conversation is reopened
   // follow the conversation only when it GROWS while it is open (never on arrival or when reopening — F-16a)

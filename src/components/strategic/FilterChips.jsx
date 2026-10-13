@@ -6,13 +6,13 @@ import { DEFAULT_CONFIG } from '../../data/revenueMetrics';
 import { useAr } from '../../utils/useAr';
 import { ScopeBar } from '../revenue/RevenueUI';
 import { municipalitiesOf } from '../../data/catalog';
-import { amanahOptionsOf } from '../../data/revenueLedger';
+import { amanahFilterOptions } from '../../data/revenueLedger';
 import { sourceAr, sourceEn } from '../../data/insightsEngine';
 import { fmtRangeText } from '../../data/clock';
 
 export default function FilterChips() {
   const rev = useRevenue(); const { L, ar } = useAr(); const s = rev.scopeEff; const [open, setOpen] = useState(false);
-  const labelOfAmanah = useCallback((k) => { const a = amanahOptionsOf().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
+  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
   const chips = useMemo(() => {
     const am = s.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(s.amanah).map(labelOfAmanah).join('، ');
     const mu = s.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(s.muni).split('|')[0]).find((m) => m && m.key === s.muni)?.[ar ? 'ar' : 'en'] || s.muni);

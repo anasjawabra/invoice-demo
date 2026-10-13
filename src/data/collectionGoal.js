@@ -46,23 +46,33 @@ export function monthsLeft(reportingDate) {
  * @param {string} i.today                   reference date (ISO) — the latest date with data
  * @param {number} i.rate                    target collection rate, 0–1
  * @param {number} i.gross                   gross billed amount of the invoices issued in the year (up to the reporting date)
- * @param {number} i.approvedExclusions      approved exclusions of those invoices (cancelled invoices included — see docs)
+ * @param {number} i.cancelled              cancelled invoices of those invoices — a SEPARATE deduction (not an approved rule exclusion; see docs)
+ * @param {number} i.ruleExclusions          exclusions under business-APPROVED rules only
+ * @param {number} [i.approvedExclusions]    shorthand for cancelled + ruleExclusions (used when the two are not given separately)
  * @param {number[]} i.monthlyCollected      collected revenue by payment month, January… up to the reporting month (Tahseel)
  * @param {object|null} i.plan               a saved plan { annualTarget, months:[12 cumulative] } or null
+ *
+ * States: future_year · no_denominator (adjusted total is zero or negative: no collection rate can be calculated) ·
+ *         no_target (a valid denominator but no valid positive target rate: nothing can be "achieved") · ok.
+ * The target is Target Rate × Adjusted Total of the invoices BILLED SO FAR this year (to the reporting date) — a target on current billing, not on expected full-year billing.
  */
-export function computeGoal({ year, today, rate, gross, approvedExclusions, monthlyCollected = [], plan = null }) {
+export function computeGoal({ year, today, rate, gross, cancelled, ruleExclusions, approvedExclusions, monthlyCollected = [], plan = null }) {
   const reportingDate = reportingDateFor(year, today);
   if (!reportingDate) return { state: 'future_year', year };
-  const adjustedTotal = (Number(gross) || 0) - (Number(approvedExclusions) || 0);
+  const g = Number(gross) || 0; const sep = cancelled !== undefined || ruleExclusions !== undefined;
+  const can = sep ? Number(cancelled) || 0 : 0; const rul = sep ? Number(ruleExclusions) || 0 : Number(approvedExclusions) || 0;
+  const adjustedTotal = g - can - rul;
   const m = Number(reportingDate.slice(5, 7));
-  const base = { year, reportingDate, reportingMonth: m, yearEnded: reportingDate.slice(5) === '12-31', adjustedTotal, gross: Number(gross) || 0, approvedExclusions: Number(approvedExclusions) || 0 };
+  const base = { year, reportingDate, reportingMonth: m, yearEnded: reportingDate.slice(5) === '12-31', adjustedTotal, gross: g, cancelled: can, ruleExclusions: rul, approvedExclusions: can + rul, targetBasis: 'billed_to_date' };
   if (!(adjustedTotal > 0) || !Number.isFinite(adjustedTotal)) return { ...base, state: 'no_denominator' };
 
-  const r = Math.min(Math.max(Number(rate) || 0, 0), 1);
-  const target = r * adjustedTotal;
   const monthly = Array.from({ length: m }, (_, k) => Number(monthlyCollected[k]) || 0);
   let run = 0; const actual = Array.from({ length: MONTHS }, (_, k) => (k < m ? (run += monthly[k]) : null)); // future months are NOT zero: they have no value
   const collected = run;
+  const r = Number(rate);
+  if (!(Number.isFinite(r) && r > 0 && r <= 1)) return { ...base, state: 'no_target', collected, collectionRate: collected / adjustedTotal, actual }; // a missing, zero or out-of-range rate is NOT a target
+
+  const target = r * adjustedTotal;
   const remaining = Math.max(target - collected, 0);
 
   const saved = plan && Array.isArray(plan.months) && plan.months.length === MONTHS ? plan : null;

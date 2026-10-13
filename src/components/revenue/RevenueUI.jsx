@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRevenue, SCOPE_PRESETS } from '../../context/RevenueContext';
 import { useL, ratioText } from '../../utils/bi';
-import { amanahOptionsOf, REVENUE_SOURCES, REVENUE_SOURCE_KEYS, UNAVAILABLE_REVENUE_SOURCES } from '../../data/revenueLedger';
+import { amanahFilterOptions, REVENUE_SOURCES, REVENUE_SOURCE_KEYS, UNAVAILABLE_REVENUE_SOURCES } from '../../data/revenueLedger';
 import { METRIC_DEFINITIONS } from '../../data/revenueMetrics';
 import { metricDictionary } from '../../data/metricDictionary';
 import { municipalitiesOf } from '../../data/catalog';
@@ -171,7 +171,7 @@ export function DataStatus() {
 export function ScopeBar({ compact = false }) {
   const { scope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
   const { L, B, lang, T, count } = useL();
-  const amanahs = useMemo(() => amanahOptionsOf().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
+  const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
   const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
   const munis = useMemo(() => (scope.amanah === 'all' || Array.isArray(scope.amanah) ? [] : municipalitiesOf(scope.amanah).filter(Boolean)), [scope.amanah]);
   const presets = PRESETS.map((p) => [p.key, lang === 'ar' ? p.ar : p.en]);

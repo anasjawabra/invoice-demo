@@ -5,7 +5,6 @@ import { ANCHOR_ENFORCEMENT_SEED, DATA_CUTOFF, DATA_START } from '../data/revenu
 import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
 import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
-import { DEFAULT_SCENARIO } from '../data/revenueOutlook';
 import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference, recordManualReferences, restoreLegacyRecord } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
@@ -41,8 +40,9 @@ export function RevenueProvider({ children }) {
   const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
   // a stored preset always follows TODAY's date (a new day moves "year to date" / "this month" forward)
   const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : scopeRaw; }, [scopeRaw]);
-  const [cfg, setCfg] = usePersistent('ib_rev_cfg2', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
-  const [targets, setTargets] = usePersistent('ib_rev_targets', DEFAULT_TARGETS);
+  const [cfg, setCfg] = usePersistent('ib_rev_cfg3', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
+  // The only editable target is the annual collection goal on the Strategic Dashboard (saved plans: src/data/collectionGoal.js). Nothing edited the old per-session copy of these demo defaults, so it is no longer stored.
+  const targets = DEFAULT_TARGETS;
   const [decisions, setDecisions] = usePersistent('ib_rev_decisions', {});
   // the older review state (sessionStorage) is only READ, shown as it was; the enforcement work of this version is kept in ib_enforcement_v1 and written only on a user action
   const casesSaved = useMemo(() => { try { const raw = sessionStorage.getItem('ib_rev_cases'); return raw ? JSON.parse(raw) : null; } catch { return null; } }, []);
@@ -50,8 +50,6 @@ export function RevenueProvider({ children }) {
   const enfRef = useRef(enfStore);
   const [uploads, setUploads] = usePersistent('ib_rev_uploads', { log: [], count: 0 });
   const [notes, setNotes] = usePersistent('ib_rev_notes', {});
-  const [scenario, setScenario] = usePersistent('ib_rev_scenario', DEFAULT_SCENARIO);
-  const [forecastVersions, setForecastVersions] = usePersistent('ib_rev_fc_versions', []);
 
   const cfgN = useMemo(() => normalizeConfig(cfg), [cfg]);
 
@@ -218,7 +216,7 @@ export function RevenueProvider({ children }) {
   const setCrStatuses = useCallback((list) => setCfg((c) => ({ ...c, crStatuses: list })), [setCfg]);
   const setGraceDays = useCallback((n) => setCfg((c) => ({ ...c, graceDays: Math.max(0, Number(n) || 0) })), [setCfg]);
   const setCollectionsAsOf = useCallback((v) => setCfg((c) => ({ ...c, collectionsAsOf: v })), [setCfg]);
-  const resetConfig = useCallback(() => { setCfg({ graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, crStatuses: DEFAULT_CONFIG.crStatuses, rules: DEFAULT_CONFIG.rules }); setTargets(DEFAULT_TARGETS); }, [setCfg, setTargets]);
+  const resetConfig = useCallback(() => { setCfg({ graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, crStatuses: DEFAULT_CONFIG.crStatuses, rules: DEFAULT_CONFIG.rules }); }, [setCfg]);
 
   /* ---------- analysis tasks ---------- */
   const [tasks, setTasks] = useState([]);
@@ -293,28 +291,16 @@ export function RevenueProvider({ children }) {
     return !!task.followsGlobal && task.scopeKey !== currentScopeKey;
   }, [dataVersion, currentScopeKey]);
 
-  const saveForecastVersion = useCallback((forecast) => {
-    if (!forecast?.ready) return;
-    setForecastVersions((v) => [...v, {
-      id: `FCV-${v.length + 1}`,
-      savedFromCutoff: forecast.cutoff,
-      scopeKey: scopeKey(forecast.scope),
-      method: forecast.method.id,
-      rows: forecast.horizon.months.map((m, i) => ({ month: m, forecast: forecast.horizon.point[i], low: forecast.horizon.low[i], high: forecast.horizon.high[i] }))
-    }]);
-  }, [setForecastVersions]);
 
   const value = {
     user, org, canReview, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
     scope, scopeEff, currentScopeKey, resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus,
     cfg: cfgN, setCrStatuses, setRuleEnabled, setGraceDays, setCollectionsAsOf, resetConfig,
-    targets, setTargets,
+    targets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,
     decideExclusion,
     cases, enforcement, enf1Decisions: enfStore?.enf1 || {}, legacyRecords: enfStore?.legacy || {},
     uploads, commitUpload, clearUploads, notes, addNote,
-    scenario, setScenario,
-    forecastVersions, saveForecastVersion,
     tasks, modalTaskId, resultTaskId, viewResult, closeResult, startAnalysis, cancelTask, sendToBackground, dismissTask, closeModal, openTask, isStale
   };
   // F-31: the sign-in page does not wait for (or fail with) the data service; the provider keeps one stable shape so signing in or out never remounts the tree

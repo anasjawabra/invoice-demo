@@ -2644,7 +2644,7 @@ var EXCLUSION_RULES = [
     category: "deceased_debtor",
     version: 1,
     priority: 3,
-    defaultEnabled: true,
+    defaultEnabled: false,
     locked: false,
     basis: "proposed",
     approval: "unapproved",
@@ -2658,7 +2658,7 @@ var EXCLUSION_RULES = [
     category: "no_contract",
     version: 1,
     priority: 4,
-    defaultEnabled: true,
+    defaultEnabled: false,
     locked: false,
     basis: "proposed",
     approval: "unapproved",
@@ -2672,7 +2672,7 @@ var EXCLUSION_RULES = [
     category: "incomplete_data",
     version: 1,
     priority: 5,
-    defaultEnabled: true,
+    defaultEnabled: false,
     locked: false,
     basis: "proposed",
     approval: "unapproved",
@@ -2686,7 +2686,7 @@ var EXCLUSION_RULES = [
     category: "executed_against",
     version: 1,
     priority: 6,
-    defaultEnabled: true,
+    defaultEnabled: false,
     locked: false,
     basis: "proposed",
     approval: "unapproved",
@@ -2700,7 +2700,7 @@ var EXCLUSION_RULES = [
     category: "outside_efaa",
     version: 1,
     priority: 7,
-    defaultEnabled: true,
+    defaultEnabled: false,
     locked: false,
     basis: "proposed",
     approval: "unapproved",
@@ -2777,17 +2777,7 @@ var DEFAULT_TARGETS = {
   // rising toward year end; exact weights were not supplied, so this is a configurable demo shape.
   // curveMode 'equal' reproduces the pro-rata (annual ÷ 12) basis printed in the monthly revenue reports;
   // 'curved' follows the meeting's description. Which one is the approved basis is unresolved.
-  monthlyCurve: { curveMode: "curved", weights: [0.05, 0.06, 0.07, 0.08, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.1, 0.1], equalWeights: Array(12).fill(1 / 12), status: "demo" },
-  coverage: {
-    status: "demo",
-    // Eligible ORIGINAL (start-of-year) budget for chapters 1-3 only. Chapter 4 and Vision-programme initiative
-    // costs are excluded; no reinforcement, revised appropriation or actual spend is substituted.
-    chapters: { ch1: 149e8, ch2: 88e8, ch3: 33e8 },
-    visionInitiativeDeduction: { value: 0, status: "unresolved", note: { en: "Amount of Vision-programme initiative costs sitting inside chapters 1-3 was not supplied; left at 0.", ar: "\u0644\u0645 \u064A\u064F\u0632\u0648\u064E\u0651\u062F \u0628\u0645\u0628\u0644\u063A \u062A\u0643\u0627\u0644\u064A\u0641 \u0645\u0628\u0627\u062F\u0631\u0627\u062A \u0627\u0644\u0631\u0624\u064A\u0629 \u062F\u0627\u062E\u0644 \u0627\u0644\u0623\u0628\u0648\u0627\u0628 1-3\u061B \u062A\u064F\u0631\u0643\u062A \u0635\u0641\u0631\u0627\u064B." } },
-    targetPct: { value: 0.66, status: "demo", provenance: { en: "Illustrative demo input (the transcript example mentions a 66% ask; the Implementation Card mentions 85% \u2014 neither is confirmed as the live target).", ar: "\u0645\u064F\u062F\u062E\u0644 \u062A\u0648\u0636\u064A\u062D\u064A (\u0645\u062B\u0627\u0644 \u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639 \u064A\u0630\u0643\u0631 66% \u0648\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u062A\u0630\u0643\u0631 85% \u2014 \u0648\u0644\u0627 \u0623\u064A\u064C\u0651 \u0645\u0646\u0647\u0645\u0627 \u0645\u0624\u0643\u062F \u0643\u0647\u062F\u0641 \u062D\u0627\u0644\u064A)." } },
-    proration: "equal_monthly",
-    transferRules: { status: "unresolved", note: { en: "Inter-chapter transfer eligibility rules unresolved (MoF matter).", ar: "\u0642\u0648\u0627\u0639\u062F \u0627\u0644\u0645\u0646\u0627\u0642\u0644\u0629 \u0628\u064A\u0646 \u0627\u0644\u0623\u0628\u0648\u0627\u0628 \u063A\u064A\u0631 \u0645\u062D\u0633\u0648\u0645\u0629 (\u0634\u0623\u0646 \u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u0645\u0627\u0644\u064A\u0629)." } }
-  }
+  monthlyCurve: { curveMode: "curved", weights: [0.05, 0.06, 0.07, 0.08, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.1, 0.1], equalWeights: Array(12).fill(1 / 12), status: "demo" }
 };
 
 // server/engine.js

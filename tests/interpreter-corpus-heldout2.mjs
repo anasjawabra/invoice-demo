@@ -47,7 +47,7 @@ add('p2-section', 'show overdue invoices only for last month', { status: 'overdu
 add('p2-section', 'كم الاستبعادات هذا الشهر؟', { kind: 'question', from: '2026-10-01', to: TODAY, sections: ['exclusions'] });
 add('p2-section', 'ما هي مصادر الإيراد الأقل تحصيلاً؟', { kind: 'question', sections: ['sources'] });
 add('p2-section', 'trend of collections by month', { sections: ['trends'] });
-add('p2-section', 'هل ننفق أكثر من الميزانية؟', { kind: 'question', only: ['budget'] });
+add('p2-section', 'هل ننفق أكثر من الميزانية؟', { kind: 'clarify', says: 'الميزانية' });
 add('p2-section', 'تقرير المطابقة وجودة البيانات', { sections: ['quality'] });
 add('p2-section', 'قارن الشهر الحالي بنفس الشهر من السنة الماضية', { compare: 'prev_year', from: '2026-10-01', to: TODAY });
 add('p2-section', 'هل ارتفع التحصيل عن الشهر الماضي؟', { kind: 'question', compare: 'prev_month' });
