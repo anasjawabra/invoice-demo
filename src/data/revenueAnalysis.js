@@ -165,7 +165,7 @@ export function mapValue(A, keys, measure, source = null) {
 export function trendOf(A, entity = null, source = null) {
   const pick = (snap) => {
     const by = new Map();
-    for (const r of snap?.matrix?.amanahSourceMonth || []) { if (entity && r.amanah !== entity) continue; if (source && r.source !== source) continue; const v = by.get(r.month) || { net: 0, collected: 0 }; v.net += r.net; v.collected += r.collected; by.set(r.month, v); }
+    for (const r of snap?.matrix?.amanahSourceMonth || []) { if (entity && (Array.isArray(entity) ? !entity.includes(r.amanah) : r.amanah !== entity)) continue; if (source && r.source !== source) continue; const v = by.get(r.month) || { net: 0, collected: 0 }; v.net += r.net; v.collected += r.collected; by.set(r.month, v); }
     return [...by.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1));
   };
   const c = pick(A.cur); const p = A.comparable ? pick(A.prev) : [];
@@ -173,42 +173,50 @@ export function trendOf(A, entity = null, source = null) {
 }
 
 // improving / declining / stable from the like-for-like change of the collected amount AND of the rate
-export function direction(A) {
-  const t = A.total; if (!A.comparable || t.changePct == null) return { state: 'unknown' };
+export function direction(A, measure = null) {
+  const t = measure || A.total; if (!A.comparable || t.changePct == null) return { state: 'unknown' };
   const pp = t.rate != null && t.prevRate != null ? (t.rate - t.prevRate) * 100 : null;
   const up = t.changePct >= 0.02; const down = t.changePct <= -0.02;
   const state = up && (pp == null || pp >= -1) ? 'improving' : down && (pp == null || pp <= 1) ? 'declining' : up || down ? 'mixed' : 'stable';
   return { state, changePct: t.changePct, change: t.change, pp };
 }
 
-// where collection concentrates: the smallest set of entities (and of sources) that reaches ≥ 50 % of the collection
-export function concentration(A) {
-  const top = (rows) => { const sorted = [...rows].filter((r) => r.collected > EPS).sort((a, b) => b.collected - a.collected); const out = []; let acc = 0; for (const r of sorted) { out.push(r); acc += r.share || 0; if (acc >= 0.5) break; } return { rows: out, share: acc }; };
-  return { entities: top(A.entities), sources: top(A.sources) };
+// where collection concentrates: the smallest set (of entities, and of sources) that reaches ≥ 50 % — inside the focus (entities in `keys`, one source) when there is one
+const topHalf = (rows) => { const sorted = [...rows].filter((r) => r.collected > EPS).sort((a, b) => b.collected - a.collected); const out = []; let acc = 0; for (const r of sorted) { out.push(r); acc += r.share || 0; if (acc >= 0.5) break; } return { rows: out, share: acc }; };
+export function concentration(A, keys = [], source = null) {
+  const ks = keys.length ? keys.filter((k) => A.entityKeys.includes(k)) : A.entityKeys;
+  const per = ks.map((k) => ({ key: k, label: entityLabel(k), ...A.group(k, source) }));
+  const tot = per.reduce((t, r) => t + r.collected, 0);
+  const entities = topHalf(per.map((r) => ({ ...r, share: tot > EPS ? r.collected / tot : null })));
+  const f = focusBreakdown(A, ks);
+  const sources = topHalf(source ? f.sources.filter((x) => x.key === source).map((x) => ({ ...x, share: 1 })) : f.sources);
+  return { entities, sources, entityCount: ks.length, collected: tot };
 }
 
-// entities / sources that need follow-up: collection rate clearly below the overall one with a material amount still uncollected
-export function needsFollowUp(A, limit = 6) {
-  const overall = A.total.rate; if (overall == null) return [];
-  const rows = [];
-  for (const e of A.entities) { const out = e.net - e.collected; if (e.rate != null && e.rate < overall - 0.05 && out > A.total.net * 0.003) rows.push({ level: 'entity', entity: e.key, rate: e.rate, uncollected: out, gap: (overall - e.rate) * e.net, weight: (overall - e.rate) * e.net }); }
-  for (const e of A.entities) for (const [k, s] of Object.entries(e.sources)) { const out = s.net - s.collected; if (s.rate != null && s.rate < overall - 0.15 && out > A.total.net * 0.003) rows.push({ level: 'entity_source', entity: e.key, source: k, rate: s.rate, uncollected: out, gap: (overall - s.rate) * s.net, weight: (overall - s.rate) * s.net }); }
+// entities / sources that need follow-up: collection rate clearly below the reference rate (the focus's own rate, or the Ministry's) with a material amount still uncollected
+export function needsFollowUp(A, limit = 6, { keys = [], source = null } = {}) {
+  const ks = keys.length ? keys.filter((k) => A.entityKeys.includes(k)) : A.entityKeys;
+  const ref = focusBreakdown(A, keys, source).total; const overall = ref.rate; if (overall == null) return [];
+  const floor = ref.net * 0.003; const rows = [];
+  if (ks.length > 1 || !keys.length) for (const k of ks) { const g = A.group(k, source); const out = g.net - g.collected; if (g.rate != null && g.rate < overall - 0.05 && out > floor) rows.push({ level: source ? 'entity_source' : 'entity', entity: k, source: source || undefined, rate: g.rate, uncollected: out, gap: (overall - g.rate) * g.net, weight: (overall - g.rate) * g.net }); }
+  if (!source) for (const k of ks) for (const [sk, x] of Object.entries(A.entities.find((e) => e.key === k)?.sources || {})) { const out = x.net - x.collected; if (x.rate != null && x.rate < overall - 0.15 && out > floor) rows.push({ level: 'entity_source', entity: k, source: sk, rate: x.rate, uncollected: out, gap: (overall - x.rate) * x.net, weight: (overall - x.rate) * x.net }); }
   return rows.sort((a, b) => b.weight - a.weight).slice(0, limit);
 }
 
 /* ---------------------------------------------------------------- a focus: any set of entities (a region, one Amanah, or none = the whole Ministry) and its sources */
-export function focusBreakdown(A, keys = []) {
+export function focusBreakdown(A, keys = [], source = null) {
   const ks = keys.length ? keys.filter((k) => A.entityKeys.includes(k)) : A.entityKeys;
   const cells = (map, s) => ks.map((k) => map?.get(`${k}|${s}`)).filter(Boolean);
-  const all = (map) => A.sourceKeys.flatMap((s) => cells(map, s));
-  const total = measureOf(all(A.cc), A.pc ? all(A.pc) : null);
+  const all = (map, only = null) => (only ? [only] : A.sourceKeys).flatMap((s) => cells(map, s));
+  const base = measureOf(all(A.cc), A.pc ? all(A.pc) : null);           // every source of the entities
+  const total = source ? measureOf(all(A.cc, source), A.pc ? all(A.pc, source) : null) : base; // the chosen source only, or all
   const sources = A.sourceKeys.map((s) => {
     const m = measureOf(cells(A.cc, s), A.pc ? cells(A.pc, s) : null);
-    const share = div(m.collected, total.collected); const prevShare = m.prevCollected != null ? div(m.prevCollected, total.prevCollected) : null;
+    const share = div(m.collected, base.collected); const prevShare = m.prevCollected != null ? div(m.prevCollected, base.prevCollected) : null;
     return { key: s, label: sourceLabel(s), ...m, share, prevShare, shiftPp: share != null && prevShare != null ? (share - prevShare) * 100 : null };
   }).filter((x) => x.count > 0 || x.hasPrev);
   const shareOfMinistry = div(total.collected, A.total.collected);
-  const targets = ks.map((k) => A.entities.find((e) => e.key === k)?.target).filter(Boolean);
+  const targets = source ? [] : ks.map((k) => A.entities.find((e) => e.key === k)?.target).filter(Boolean); // the appropriation is never split across sources
   const target = targets.length ? (() => { const t = targets.reduce((a, x) => ({ appropriation: a.appropriation + x.appropriation, pay: a.pay + x.pay, expected: a.expected + x.expected }), { appropriation: 0, pay: 0, expected: 0 }); return { ...t, attainment: t.pay / t.appropriation, deviation: t.pay - t.expected, deviationPct: t.expected > 0 ? t.pay / t.expected - 1 : null, paceRatio: t.expected > 0 ? t.pay / t.expected : null }; })() : null;
-  return { keys: ks, total, sources, shareOfMinistry, target };
+  return { keys: ks, total, base, sources, shareOfMinistry, target };
 }

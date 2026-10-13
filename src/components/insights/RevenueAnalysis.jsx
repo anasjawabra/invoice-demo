@@ -98,7 +98,7 @@ export default function RevenueAnalysis() {
   const regions = useMemo(() => KSA_PROVINCES.map((p) => ({ ...p, keys: A ? p.amanahKeys.filter((k) => A.entityKeys.includes(k)) : [] })).filter((p) => p.keys.length), [A]);
   const region = regions.find((p) => p.iso === iso) || null;
   const focusKeys = entity ? [entity] : region ? region.keys : [];
-  const F = useMemo(() => (A ? focusBreakdown(A, focusKeys) : null), [A, entity, iso]); // eslint-disable-line react-hooks/exhaustive-deps
+  const F = useMemo(() => (A ? focusBreakdown(A, focusKeys, source) : null), [A, entity, iso, source]); // eslint-disable-line react-hooks/exhaustive-deps
   const name = (k) => { const l = entityLabel(k); return ar ? l.ar.replace(/^أمانة\s*/, 'أمانة ') : l.en; };
   const sname = (k) => { const l = sourceLabel(k); return ar ? l.ar : l.en; };
   const rname = (p) => (ar ? p.nameAr : p.nameEn);
@@ -124,14 +124,15 @@ export default function RevenueAnalysis() {
   const tipRegion = hoverRegion || region;
 
   /* ---- summary band ---- */
-  const dir = A ? direction(A) : null; const con = A ? concentration(A) : null; const follow = A ? needsFollowUp(A) : [];
-  const topDev = A ? A.deviations.slice(0, 3) : [];
-  const trendFocusEntity = entity || (region && region.keys.length === 1 ? region.keys[0] : null);
-  const trendRows = A ? trendOf(A, trendFocusEntity, source) : []; // the ONE trend chart follows the entity and source in focus
+  // every answer below follows the entity and source in focus (the filters above); with nothing chosen it is the whole Ministry
+  const dir = A ? direction(A, F.total) : null; const con = A ? concentration(A, focusKeys, source) : null; const follow = A ? needsFollowUp(A, 6, { keys: focusKeys, source }) : [];
+  const trendRows = A ? trendOf(A, focusKeys.length ? focusKeys : null, source) : []; // the ONE trend chart follows the entity (or region) and source in focus
 
   /* ---- deviations list (filtered by the focus) ---- */
-  const inFocus = (d) => (!focusKeys.length || !d.entity || focusKeys.includes(d.entity)) && (!source || d.source === source); // a source focus keeps only items of that source (the target belongs to the entity as a whole)
-  const devAll = A ? A.deviations.filter((d) => inFocus(d) && (devType === 'all' || d.type === devType)) : [];
+  const inFocus = (d) => (!focusKeys.length || (d.entity && focusKeys.includes(d.entity))) && (!source || d.source === source); // a source focus keeps only items of that source (the target belongs to the entity as a whole)
+  const devFocus = A ? A.deviations.filter(inFocus) : [];
+  const devAll = devFocus.filter((d) => devType === 'all' || d.type === devType);
+  const topDev = devFocus.slice(0, 3);
   const levelLabel = { entity: L('جهة', 'Entity'), source: L('مصدر', 'Source'), entity_source: L('جهة › مصدر', 'Entity › source') };
   const typeLabel = { change: L('التغير عن الفترة المماثلة', 'Change vs like-for-like'), share: L('التغير في المساهمة', 'Change in contribution'), target: L('الانحراف عن المستهدف', 'Deviation from target') };
   const pathOf = (d) => (d.level === 'source' ? sname(d.source) : d.level === 'entity' ? name(d.entity) : `${name(d.entity)} › ${sname(d.source)}`);
@@ -206,41 +207,54 @@ export default function RevenueAnalysis() {
             </div>
 
             <div className="ra-answers">
-              <div className="card st-card ra-ans">
-                <b>{L('أين يتركز التحصيل؟', 'Where does collection concentrate?')}</b>
-                <div className="ra-big">{pct(con.entities.share, 0)}</div>
-                <div className="muted" style={{ fontSize: 12 }}>{L(`من المحصّل في ${con.entities.rows.length} جهات`, `of collection in ${con.entities.rows.length} entities`)}</div>
-                <ul className="ra-list">{con.entities.rows.slice(0, 3).map((e) => <li key={e.key}><button type="button" className="rv-link" onClick={() => { const p = regions.find((r) => r.keys.includes(e.key)); setIso(p ? p.iso : null); setEntity(e.key); }}>{name(e.key)}</button><span dir="ltr">{pct(e.share, 0)}</span></li>)}</ul>
-                <div className="ra-tags">{con.sources.rows.slice(0, 3).map((x) => <button key={x.key} type="button" className="rv-tag" onClick={() => setSource(x.key)}>{sname(x.key)} {pct(x.share, 0)}</button>)}</div>
-              </div>
+              {(() => {
+                const single = focusKeys.length === 1; const byEntity = !single && con.entityCount > 1; // which dimension answers «where»
+                const primary = byEntity ? con.entities : con.sources;
+                const ctx = focused ? `${entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}${source ? ` · ${sname(source)}` : ''}` : null;
+                return (
+                  <div className="card st-card ra-ans">
+                    <b>{L('أين يتركز التحصيل؟', 'Where does collection concentrate?')}</b>
+                    {ctx && <div className="ra-ctx">{ctx}</div>}
+                    {single && source ? (
+                      <><div className="ra-big" dir="ltr">{short(F.total.collected)}</div><div className="muted" style={{ fontSize: 12 }}>{L(`محصّل ${sname(source)} في ${name(focusKeys[0])}: ${pct(F.total.share ?? F.shareOfMinistry)} من تحصيل الوزارة`, `${sname(source)} in ${name(focusKeys[0])}: ${pct(F.shareOfMinistry)} of Ministry collection`)}</div></>
+                    ) : (
+                      <>
+                        <div className="ra-big">{pct(primary.share, 0)}</div>
+                        <div className="muted" style={{ fontSize: 12 }}>{byEntity ? L(`من المحصّل${source ? ` (${sname(source)})` : ''} في ${primary.rows.length} جهات`, `of collection${source ? ` (${sname(source)})` : ''} in ${primary.rows.length} entities`) : L(`من تحصيل ${ctx || 'الوزارة'} في ${primary.rows.length} مصادر`, `of ${ctx || 'the Ministry'}’s collection in ${primary.rows.length} sources`)}</div>
+                        <ul className="ra-list">{primary.rows.slice(0, 3).map((r) => <li key={r.key}><button type="button" className="rv-link" onClick={() => { if (byEntity) { const p = regions.find((x) => x.keys.includes(r.key)); setIso(p ? p.iso : null); setEntity(r.key); } else setSource(r.key); }}>{byEntity ? name(r.key) : sname(r.key)}</button><span dir="ltr">{pct(r.share, 0)}</span></li>)}</ul>
+                        {!single && !source && <div className="ra-tags">{con.sources.rows.slice(0, 3).map((x) => <button key={x.key} type="button" className="rv-tag" onClick={() => setSource(x.key)}>{sname(x.key)} {pct(x.share, 0)}</button>)}</div>}
+                      </>
+                    )}
+                  </div>); })()}
               <div className="card st-card ra-ans">
                 <b>{L('ما يحتاج إلى متابعة', 'Needs follow-up')}</b>
+                {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
                 <div className="ra-big">{follow.length}</div>
-                <div className="muted" style={{ fontSize: 12 }}>{L('جهات أو مصادر معدل تحصيلها دون المعدل العام بفارق مادي', 'entities or sources collecting materially below the overall rate')}</div>
+                <div className="muted" style={{ fontSize: 12 }}>{focused ? L(`جهات أو مصادر معدل تحصيلها دون معدل الاختيار الحالي (${pct(F.total.rate, 0)}) بفارق مادي`, `entities or sources collecting materially below the current choice’s rate (${pct(F.total.rate, 0)})`) : L('جهات أو مصادر معدل تحصيلها دون المعدل العام بفارق مادي', 'entities or sources collecting materially below the overall rate')}</div>
                 <ul className="ra-list">{follow.slice(0, 3).map((f, i) => <li key={i}><button type="button" className="rv-link" onClick={() => pickDev({ entity: f.entity, source: f.source, level: f.level })}>{f.level === 'entity' ? name(f.entity) : `${name(f.entity)} › ${sname(f.source)}`}</button><Chip ratio={f.rate}>{pct(f.rate, 0)}</Chip></li>)}</ul>
                 {!follow.length && <div className="muted" style={{ fontSize: 12 }}>{L('لا شيء بفارق مادي.', 'Nothing with a material gap.')}</div>}
               </div>
               <div className="card st-card ra-ans">
                 <b>{L('أكبر الانحرافات المؤثرة', 'Largest material deviations')}</b>
-                {topDev.length ? <ul className="ra-list ra-list--dev">{topDev.map((d) => <li key={d.id}><button type="button" className="rv-link" onClick={() => pickDev(d)}>{pathOf(d)}</button><span className="muted" style={{ fontSize: 11 }}>{typeLabel[d.type]}</span><b>{d.type === 'share' ? `${spp(d.value)} ${L('نقطة', 'pp')}` : `${sgn(d.value)}${d.pct != null ? ` · ${spct(d.pct)}` : ''}`}</b></li>)}</ul> : <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا انحرافات مادية، أو لا مقارنة متاحة.', 'No material deviation, or no comparison available.')}</div>}
+                {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
+                {topDev.length ? <ul className="ra-list ra-list--dev">{topDev.map((d) => <li key={d.id}><button type="button" className="rv-link" onClick={() => pickDev(d)}>{pathOf(d)}</button><span className="muted" style={{ fontSize: 11 }}>{typeLabel[d.type]}</span><b>{d.type === 'share' ? `${spp(d.value)} ${L('نقطة', 'pp')}` : `${sgn(d.value)}${d.pct != null ? ` · ${spct(d.pct)}` : ''}`}</b></li>)}</ul> : <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا انحرافات مادية في هذا الاختيار، أو لا مقارنة متاحة.', 'No material deviation in this choice, or no comparison available.')}</div>}
               </div>
               <div className="card st-card ra-ans">
                 <b>{L('هل الأداء يتحسن أم يتراجع؟', 'Is performance improving or declining?')}</b>
+                {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
                 {dir.state === 'unknown' ? <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا توجد فترة مماثلة للمقارنة.', 'No like-for-like period to compare with.')}</div> : (
                   <>
                     <div className="ra-big"><Chip ratio={dir.state === 'improving' ? 1.0 : dir.state === 'declining' ? 0.3 : dir.state === 'mixed' ? 0.8 : null}>{{ improving: L('يتحسن', 'Improving'), declining: L('يتراجع', 'Declining'), mixed: L('مختلط', 'Mixed'), stable: L('مستقر', 'Stable') }[dir.state]}</Chip></div>
                     <div className="muted" style={{ fontSize: 12 }}>{L(`المحصّل ${spct(dir.changePct)} (${sgn(dir.change)}) ومعدل التحصيل ${dir.pp == null ? '—' : `${spp(dir.pp)} نقطة`} عن ${compLabel(DATA.data.basis)}`, `Collected ${spct(dir.changePct)} (${sgn(dir.change)}) and collection rate ${dir.pp == null ? '—' : `${spp(dir.pp)} pp`} vs ${compLabel(DATA.data.basis)}`)}</div>
                   </>
                 )}
-                <div className="muted" style={{ fontSize: 12 }}>{L('الاتجاه بحسب شهر الإصدار', 'Trend by issue month')}: <b>{trendFocusEntity ? name(trendFocusEntity) : L('الوزارة', 'the Ministry')}{source ? ` · ${sname(source)}` : ''}</b></div>
                 <TrendBars rows={trendRows} L={L} short={short} label={L('المحصّل بحسب شهر الإصدار مقابل الفترة المماثلة', 'Collected by issue month against the like-for-like period')} />
-                {region && region.keys.length > 1 && !entity && <div className="muted" style={{ fontSize: 11 }}>{L('اختر أمانة داخل المنطقة لعرض اتجاهها منفردة.', 'Choose an Amanah in the region to see its own trend.')}</div>}
               </div>
             </div>
             <div className="ra-kpis">
-              <div className="ra-kpi"><span>{L('معدل التحصيل', 'Collection rate')}</span><b><PctBadge v={A.total.rate} text={pct(A.total.rate)} /></b><small className="muted">{L('المحصّل ÷ صافي المفوتر (فواتير الفترة)', 'collected ÷ net billed (the period’s invoices)')}</small></div>
-              <div className="ra-kpi"><span>{L('نسبة تحقيق الاعتماد مقابل الإيراد', 'Attainment of the revenue appropriation')}</span><b>{A.ministryTarget ? <PctBadge v={A.ministryTarget.attainment} text={pct(A.ministryTarget.attainment)} /> : '—'}</b><small className="muted">{A.ministryTarget ? L('المدفوعات المستلمة ÷ الاعتماد (للعام المالي حتى تاريخه)', 'payments received ÷ appropriation (fiscal year to date)') : L('تُحسب للعام المالي حتى تاريخه فقط', 'calculated for the fiscal year to date only')}</small></div>
-              <div className="ra-kpi"><span>{L('الانحراف عن المتناسب مع الوقت', 'Deviation from the time-proportional target')}</span><b>{A.ministryTarget ? <Chip ratio={A.ministryTarget.paceRatio}>{sgn(A.ministryTarget.deviation)}</Chip> : '—'}</b><small className="muted">{L('توزيع متساوٍ بتوجيه الأعمال', 'even spread by business direction')}</small></div>
+              <div className="ra-kpi"><span>{L('معدل التحصيل', 'Collection rate')}</span><b><PctBadge v={F.total.rate} text={pct(F.total.rate)} /></b><small className="muted">{L('المحصّل ÷ صافي المفوتر (فواتير الفترة)', 'collected ÷ net billed (the period’s invoices)')}{F.total.prevRate != null ? L(` · سابقاً ${pct(F.total.prevRate)}`, ` · before ${pct(F.total.prevRate)}`) : ''}</small></div>
+              <div className="ra-kpi"><span>{L('نسبة تحقيق الاعتماد مقابل الإيراد', 'Attainment of the revenue appropriation')}</span><b>{F.target ? <PctBadge v={F.target.attainment} text={pct(F.target.attainment)} /> : '—'}</b><small className="muted">{source ? L('لا مستهدف لكل مصدر: الاعتماد للجهة كلها', 'no per-source target: the appropriation belongs to the entity as a whole') : F.target ? L('المدفوعات المستلمة ÷ الاعتماد (للعام المالي حتى تاريخه)', 'payments received ÷ appropriation (fiscal year to date)') : L('غير متاحة لهذه الفترة أو الجهة (للعام المالي حتى تاريخه فقط)', 'not available for this period or entity (fiscal year to date only)')}</small></div>
+              <div className="ra-kpi"><span>{L('الانحراف عن المتناسب مع الوقت', 'Deviation from the time-proportional target')}</span><b>{F.target ? <Chip ratio={F.target.paceRatio}>{sgn(F.target.deviation)}</Chip> : '—'}</b><small className="muted">{L('توزيع متساوٍ بتوجيه الأعمال', 'even spread by business direction')}</small></div>
             </div>
 
             {/* the map and the focus */}

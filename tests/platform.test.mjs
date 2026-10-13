@@ -1476,6 +1476,19 @@ await test('analysis: a focus (region / Amanah / the Ministry) breaks down into 
   assert.ok(Math.abs(focusBreakdown(A, []).total.collected - anaCur.totals.collected) < 1);
   assert.ok(Math.abs(focusBreakdown(A, ['Jeddah Amanah', 'Makkah Amanah']).total.collected - A.entities.filter((e) => ['Jeddah Amanah', 'Makkah Amanah'].includes(e.key)).reduce((t, e) => t + e.collected, 0)) < 1);
 });
+await test('analysis: every answer follows the focus — concentration, follow-up, direction and the breakdown restrict to the chosen entities and source', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  const region = ['Jeddah Amanah', 'Makkah Amanah', 'Taif Amanah'];
+  const fb = focusBreakdown(A, region, 'fines'); const only = [...A.cc.entries()].filter(([k]) => region.some((e) => k === `${e}|fines`)).reduce((t, [, c]) => t + c.collected, 0);
+  assert.ok(Math.abs(fb.total.collected - only) < 1, 'the total of a source focus is that source in those entities'); assert.ok(fb.target === null, 'no per-source target');
+  assert.ok(Math.abs(fb.base.collected - focusBreakdown(A, region).total.collected) < 1, 'base = every source of the entities');
+  const c = concentration(A, region); assert.ok(c.entities.rows.every((r) => region.includes(r.key)) && c.entityCount === 3, 'only the focus entities'); assert.ok(Math.abs(c.sources.rows.reduce((t, r) => t + r.collected, 0) - c.sources.rows.reduce((t, r) => t + r.collected, 0)) < 1);
+  const cs = concentration(A, [], 'fines'); assert.ok(cs.entities.rows.length >= 1 && Math.abs(cs.collected - A.sources.find((x) => x.key === 'fines').collected) < 1, 'one source: the entities add up to the source');
+  for (const f of needsFollowUp(A, 10, { keys: region })) assert.ok(region.includes(f.entity), 'follow-up stays inside the focus');
+  const nf = needsFollowUp(A, 10, { keys: [], source: 'fines' }); assert.ok(nf.every((f) => f.source === 'fines'));
+  assert.deepEqual(direction(A, focusBreakdown(A, ['Riyadh Amanah']).total).changePct, A.entities.find((e) => e.key === 'Riyadh Amanah').changePct, 'direction of a focus = its own like-for-like change');
+  const tr = trendOf(A, region); assert.ok(Math.abs(tr.reduce((t, m) => t + m.collected, 0) - focusBreakdown(A, region).total.collected) < 1, 'the trend of a region = the sum of its Amanahs');
+});
 await test('analysis: the trend by issue month adds up to the headline collected; concentration and follow-up are computed from the same rows', () => {
   const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
   const tr = trendOf(A); assert.ok(Math.abs(tr.reduce((t, m) => t + m.collected, 0) - anaCur.totals.collected) < 1);
