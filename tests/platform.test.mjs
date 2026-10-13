@@ -29,7 +29,7 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
-import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
+import { appropriationOf, appropriationTotal, appropriationKeys, appropriationAsOfEnd, HQ_KEY } from '../src/data/appropriations.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
 import { amanahOptionsOf as amanahsG, amanahFilterOptions } from '../src/data/revenueLedger.js';
@@ -1398,6 +1398,15 @@ await test('appropriations: structure (chapters 1–3 only), the Ministry is the
   assert.equal(appropriationOf('Riyadh Amanah', 2025), null); assert.equal(appropriationOf('Unassigned'), null); assert.equal(appropriationTotal(['Unassigned']), null);
   const am = amanahsG(); for (const a of am) assert.ok(keys.includes(a.key), `${a.key} has an appropriation row`);
 });
+await test('coverage: collected (payments, not billing) to the end of the last closed month ÷ cumulative spending of the same period; entities add up to the Ministry', () => {
+  assert.equal(appropriationAsOfEnd(), '2026-08-31');
+  const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
+  const cut = snapshot(st, { scope: { from: '2026-01-01', to: appropriationAsOfEnd(), amanah: 'all', source: 'all' }, cfg: approved }).receivedInPeriod;
+  const now = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg: approved }).receivedInPeriod;
+  assert.ok(cut.total > 0 && cut.total < now.total, 'later payments are not in the like-for-like period');
+  assert.ok(Math.abs(Object.values(cut.byAmanah).reduce((a, b) => a + b, 0) - cut.total) < 1, 'entities add up to the Ministry');
+  const spent = appropriationTotal().expSpent; const ratio = cut.total / spent; assert.ok(ratio > 0 && ratio < 1, 'a ratio, not a percentage of billing');
+});
 await test('goal data: payments by month (payment date) equal the snapshot receipts; Amanah receipts add up to the national figure; only approved exclusions apply', () => {
   const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
   const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
@@ -1424,7 +1433,7 @@ await test('terminology: «المقبوضات» and its forms are gone from ever
   const entries = metricDictionary({ quality: { records: 1 }, cutoff: TODAY, scope: { amanah: 'all', source: 'all', from: '2026-01-01', to: TODAY } });
   assert.ok(entries.every((e) => e && typeof e.key === 'string' && e.label && e.definition && e.formula), 'every dictionary entry is complete (no empty slot)');
   const dict = entries.map((e) => e.key);
-  for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'expenditureCh13']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
+  for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'expenditureCh13', 'spendingCoverage']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

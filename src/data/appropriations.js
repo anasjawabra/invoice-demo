@@ -5,6 +5,8 @@
 // Amounts are in millions of riyals here and converted to riyals by `appropriationOf`. When the real workbook is loaded, only this table is replaced.
 export const APPROPRIATION_YEAR = 2026;
 export const APPROPRIATION_AS_OF = '2026-08'; // the last month closed by the Ministry of Finance (it lags the invoice data)
+// the last day of that closed month — the date up to which collection is compared with spending (like for like)
+export const appropriationAsOfEnd = () => { const [y, m] = APPROPRIATION_AS_OF.split('-').map(Number); return `${APPROPRIATION_AS_OF}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`; };
 export const HQ_KEY = '__HQ__';          // the Ministry headquarters: expenditure only, it collects no revenue of its own
 const M = 1e6;
 const TABLE = {

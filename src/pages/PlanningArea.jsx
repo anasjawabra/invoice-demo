@@ -16,7 +16,7 @@ import { amanahFilterOptions, DATA_START } from '../data/revenueLedger';
 import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
 import { fmtDateText } from '../data/clock';
 import { computeGoal, reportingDateFor, loadGoalStore, saveGoalStore, savePlan, rebasePlan, planKey } from '../data/collectionGoal';
-import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY, APPROPRIATION_YEAR, APPROPRIATION_AS_OF } from '../data/appropriations';
+import { appropriationOf, appropriationTotal, appropriationKeys, appropriationAsOfEnd, HQ_KEY, APPROPRIATION_YEAR, APPROPRIATION_AS_OF } from '../data/appropriations';
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
 const UNASSIGNED = 'Unassigned';
@@ -47,12 +47,15 @@ export default function PlanningArea() {
   const DATA = useAsync(async () => {
     if (!reporting) return null;
     const scope = { from: `${year}-01-01`, to: reporting, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
-    const [snap, ser] = await Promise.all([
+    // coverage compares spending with collection over the SAME period: payments from 1 January to the end of the last month the Ministry of Finance has closed
+    const asOfEnd = appropriationAsOfEnd(); const sameCut = year === APPROPRIATION_YEAR && asOfEnd < reporting ? asOfEnd : reporting;
+    const [snap, ser, snapCut] = await Promise.all([
       rev.data.snapshot(scope, { cfg: approvedCfg }),
-      rev.data.series({ ...scope, amanah }, { cfg: approvedCfg })
+      rev.data.series({ ...scope, amanah }, { cfg: approvedCfg }),
+      sameCut === reporting ? null : rev.data.snapshot({ ...scope, to: sameCut }, { cfg: approvedCfg })
     ]);
-    const R = snap.receivedInPeriod;
-    return { byAmanah: R.byAmanah || {}, total: R.total, monthly: ser.values };
+    const R = snap.receivedInPeriod; const C = (snapCut || snap).receivedInPeriod;
+    return { byAmanah: R.byAmanah || {}, total: R.total, monthly: ser.values, cutByAmanah: C.byAmanah || {}, cutTotal: C.total, cutDate: sameCut };
   }, [rev.data, year, amanah, reporting, approvedCfg, retry]);
 
   const g = useMemo(() => (DATA.data ? computeGoal({ year, today, target: A?.revAdjusted, monthlyCollected: DATA.data.monthly, plan: saved }) : null), [DATA.data, year, today, A, saved]);
@@ -75,13 +78,16 @@ export default function PlanningArea() {
   const rows = useMemo(() => {
     if (!DATA.data) return [];
     const recv = DATA.data.byAmanah;
-    const list = visibleKeys.map((k) => { const a = appropriationOf(k, year); return { key: k, a, collected: recv[k] || 0 }; })
+    const cut = DATA.data.cutByAmanah;
+    const list = visibleKeys.map((k) => { const a = appropriationOf(k, year); return { key: k, a, collected: recv[k] || 0, cut: cut[k] || 0 }; })
       .sort((x, y) => (y.a?.revAdjusted || 0) - (x.a?.revAdjusted || 0) || (y.a?.expAdjusted || 0) - (x.a?.expAdjusted || 0));
-    if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, collected: recv[UNASSIGNED] || 0 });
+    if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, collected: recv[UNASSIGNED] || 0, cut: cut[UNASSIGNED] || 0 });
     return list;
   }, [DATA.data, visibleKeys, year, rev.org]);
   const sum = (f) => rows.reduce((t, r) => t + (r.a ? r.a[f] : 0), 0);
   const totalCollected = rows.reduce((t, r) => t + r.collected, 0);
+  const totalCut = rows.reduce((t, r) => t + r.cut, 0);
+  const cover = (collectedCut, a) => (a && a.expSpent > 0 && collectedCut != null ? collectedCut / a.expSpent : null);
   const asOfText = monthText(APPROPRIATION_AS_OF);
 
   const basis = (ok || noTarget) ? (
@@ -92,7 +98,8 @@ export default function PlanningArea() {
     </div>
   ) : null;
 
-  const expenditure = A ? (
+  const cutCollected = DATA.data ? (amanah === 'all' ? DATA.data.cutTotal : DATA.data.cutByAmanah[amanah] || 0) : 0;
+  const expenditure = A && DATA.data ? (
     <div className="card st-card cg-explain" role="region" aria-label={L('النفقات على الأبواب 1–3', 'Expenditure on chapters 1–3')}>
       <b>{L(`النفقات على الأبواب 1–3 — المنصرف التراكمي لدى وزارة المالية حتى ${asOfText}`, `Expenditure on chapters 1–3 — cumulative spending recorded by the Ministry of Finance to ${asOfText}`)}</b>
       <div className="rv-tiles cg-tiles">
@@ -100,8 +107,9 @@ export default function PlanningArea() {
         <MetricTile label={L('المنصرف التراكمي', 'Cumulative spending')} value={short(A.expSpent)} sub={L(`حتى ${asOfText} — آخر شهر أغلقته وزارة المالية`, `to ${asOfText} — the last month closed by the Ministry of Finance`)} />
         <MetricTile label={L('نسبة الصرف', 'Spending rate')} value={pct(A.expSpent / A.expAdjusted)} sub={L('المنصرف ÷ الاعتماد بعد التعديل', 'Spending ÷ adjusted appropriation')} />
         <MetricTile label={L('المتبقي من الاعتماد', 'Appropriation remaining')} value={short(Math.max(A.expAdjusted - A.expSpent, 0))} sub={L('الاعتماد − المنصرف', 'Appropriation − spending')} />
+        <MetricTile label={L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')} value={pct(cover(cutCollected, A))} tone={cover(cutCollected, A) >= 1 ? 'good' : undefined} sub={L(`المحصّل حتى ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ المنصرف التراكمي`, `Collected to ${dateText(DATA.data.cutDate)} (${short(cutCollected)}) ÷ cumulative spending`)} />
       </div>
-      <div className="muted" style={{ fontSize: 12 }}>{L('المنصرف يُحدَّث شهرياً من وزارة المالية فيتأخر عن بيانات الفواتير؛ لا تُحسب نسبة تغطية بين التحصيل والصرف قبل اعتماد تعريفها.', 'Spending is updated monthly by the Ministry of Finance, so it lags the invoice data; no coverage ratio between collection and spending is calculated until its definition is approved.')}</div>
+      <div className="muted" style={{ fontSize: 12 }}>{L('التغطية = ما حُصّل (مدفوعات «تحصيل» الفعلية، لا الفوترة) من بداية العام حتى نهاية آخر شهر أغلقته وزارة المالية ÷ المنصرف التراكمي على الأبواب 1–3 في الفترة نفسها، فيُقارَن الرقمان على فترة واحدة. المنصرف يُحدَّث شهرياً من وزارة المالية فيتأخر عن بيانات الفواتير.', 'Coverage = what was actually collected (Tahseel payments, not billing) from the start of the year to the end of the last month closed by the Ministry of Finance ÷ cumulative spending on chapters 1–3 over the same period, so both figures cover one period. Spending is updated monthly by the Ministry of Finance, so it lags the invoice data.')}</div>
     </div>
   ) : null;
 
@@ -164,7 +172,7 @@ export default function PlanningArea() {
                 <tbody>{planned.map((p, i) => <tr key={i}><td>{i + 1}</td><td>{sar(p)}</td><td>{g.actual[i] == null ? '—' : sar(g.actual[i])}</td></tr>)}</tbody></table>
               <div className="cg-plan">
                 {g.plan.source === 'assumed'
-                  ? <span><b>{L('افتراض تخطيطي:', 'Planning assumption:')}</b> {L('لا توجد خطة شهرية معتمدة، فالمستهدف موزّع بالتساوي على 12 شهراً (افتراض بلا أساس موسمي). الفعلي يُعرض حتى تاريخ التقرير فقط.', 'There is no approved monthly plan, so the target is spread evenly over 12 months (an assumption with no seasonal basis). Actual is shown only up to the reporting date.')}</span>
+                  ? <span><b>{L('التوزيع الشهري:', 'Monthly spread:')}</b> {L('المستهدف موزّع بالتساوي على 12 شهراً وفق توجيه الأعمال (لا توزيع موسمي). الفعلي يُعرض حتى تاريخ التقرير فقط، والخطة المحفوظة مسودة إلى أن تُعتمد.', 'The target is spread evenly over 12 months as the business directed (no seasonal spread). Actual is shown only up to the reporting date, and a saved plan stays a draft until it is approved.')}</span>
                   : <span>{L(`مسودة خطة محفوظة (${dateText(g.plan.savedAt.slice(0, 10))}) بهدف سنوي ${short(g.plan.annualTarget)}؛ حفظها لا يعني اعتمادها — لم يعتمدها أحد بعد. أشهرها ثابتة ولا تتغير تلقائياً.`, `Draft plan saved (${dateText(g.plan.savedAt.slice(0, 10))}) with an annual target of ${short(g.plan.annualTarget)}. Saving is not approval — nobody has approved it. Its months stay fixed and are never changed automatically.`)}</span>}
                 {g.plan.drift && <div className="rv-callout rv-callout--warn" role="status" style={{ marginTop: 8 }}>{L(`تغيّر الاعتماد منذ حفظ الخطة: المحفوظ ${short(g.plan.drift.saved)}، والحالي ${short(g.plan.drift.live)}. الرسم يعرض الخطة المحفوظة.`, `The appropriation has changed since the plan was saved: saved ${short(g.plan.drift.saved)}, now ${short(g.plan.drift.live)}. The chart shows the saved plan.`)}
                   {canEdit && !closedYear && <> <button type="button" className="btn btn-sm" onClick={doRebase}>{L('تحديث المسودة', 'Update the draft')}</button></>}</div>}
@@ -206,6 +214,7 @@ export default function PlanningArea() {
                   <th>{L('اعتماد النفقات (بعد التعديل)', 'Expenditure appropriation (adjusted)')}</th>
                   <th>{L('المنصرف التراكمي', 'Cumulative spending')}</th>
                   <th>{L('نسبة الصرف', 'Spending rate')}</th>
+                  <th>{L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')}</th>
                 </tr></thead>
                 <tbody>
                   {rows.map((r) => { const rv = r.a?.revAdjusted || 0; return (
@@ -218,6 +227,7 @@ export default function PlanningArea() {
                       <td dir="ltr">{r.a ? short(r.a.expAdjusted) : '—'}</td>
                       <td dir="ltr">{r.a ? short(r.a.expSpent) : '—'}</td>
                       <td dir="ltr">{r.a ? pct(r.a.expSpent / r.a.expAdjusted) : '—'}</td>
+                      <td dir="ltr">{r.a && r.a.revAdjusted > 0 ? pct(cover(r.cut, r.a)) : '—'}</td>
                     </tr>); })}
                 </tbody>
                 <tfoot><tr>
@@ -229,10 +239,11 @@ export default function PlanningArea() {
                   <td dir="ltr"><b>{short(sum('expAdjusted'))}</b></td>
                   <td dir="ltr"><b>{short(sum('expSpent'))}</b></td>
                   <td dir="ltr"><b>{sum('expAdjusted') > 0 ? pct(sum('expSpent') / sum('expAdjusted')) : '—'}</b></td>
+                  <td dir="ltr"><b>{sum('expSpent') > 0 ? pct(totalCut / sum('expSpent')) : '—'}</b></td>
                 </tr></tfoot>
               </table>
             </div>
-            <div className="muted" style={{ fontSize: 12 }}>{L('المحصّل في الجهة «غير محدد الأمانة» لا يقابله اعتماد، لكنه داخل إجمالي الوزارة. ديوان عام الوزارة بلا إيراد خاص به: نفقات فقط.', 'Payments in «Unassigned» have no appropriation but are inside the Ministry total. The headquarters has no revenue of its own: spending only.')}</div>
+            <div className="muted" style={{ fontSize: 12 }}>{L('المحصّل في الجهة «غير محدد الأمانة» لا يقابله اعتماد، لكنه داخل إجمالي الوزارة. ديوان عام الوزارة بلا إيراد خاص به: نفقات فقط، فلا تُحسب له تغطية، ويدخل منصرفه في إجمالي الوزارة. تغطية كل جهة محسوبة حتى نهاية آخر شهر مغلق لدى وزارة المالية.', 'Payments in «Unassigned» have no appropriation but are inside the Ministry total. The headquarters has no revenue of its own: spending only, so it has no coverage figure, and its spending is inside the Ministry total. Each entity’s coverage is calculated to the end of the last month closed by the Ministry of Finance.')}</div>
           </div>
         )}
       </AsyncBlock>

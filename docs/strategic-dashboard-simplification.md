@@ -87,3 +87,5 @@ Source: the monthly financial-performance workbook (August 2026) for the Ministr
 **Data.** `src/data/appropriations.js` holds ILLUSTRATIVE, invented figures on the structure of the file (loaded for 2026 only; headquarters = spending only). They are labelled «بيانات توضيحية» on screen; the real workbook's numbers are not in the repository. When real data is loaded only that table is replaced.
 
 **Not done on purpose.** No coverage ratio (collection ÷ spending): its definition is a business decision (see below).
+
+**Round 20b — answers from the business.** Coverage = cumulative spending on chapters 1–3 against what was actually collected (payments, not billing), compared over ONE period: collected from 1 January to the end of the last month closed by the Ministry of Finance ÷ cumulative spending. Shown for the Ministry (tile) and for every entity with revenue (table column); the headquarters has none. Collected stays on the payment-date basis. The monthly spread is equal (business direction), a saved plan remains a draft. Still open: whether payments in «غير محدد الأمانة» belong to the Ministry total only (current) and who approves the monthly plan.
