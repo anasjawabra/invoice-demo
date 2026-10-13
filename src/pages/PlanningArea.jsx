@@ -11,6 +11,7 @@ import { useAr } from '../utils/useAr';
 import { actorName } from '../utils/actor';
 import { AsyncBlock } from '../components/strategic/AsyncState';
 import CollectionChart from '../components/strategic/CollectionChart';
+import EntityMap from '../components/strategic/EntityMap';
 import { MetricTile } from '../components/revenue/RevenueUI';
 import { amanahFilterOptions, DATA_START } from '../data/revenueLedger';
 import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
@@ -84,9 +85,6 @@ export default function PlanningArea() {
     if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, collected: recv[UNASSIGNED] || 0, cut: cut[UNASSIGNED] || 0 });
     return list;
   }, [DATA.data, visibleKeys, year, rev.org]);
-  const sum = (f) => rows.reduce((t, r) => t + (r.a ? r.a[f] : 0), 0);
-  const totalCollected = rows.reduce((t, r) => t + r.collected, 0);
-  const totalCut = rows.reduce((t, r) => t + r.cut, 0);
   const cover = (collectedCut, a) => (a && a.expSpent > 0 && collectedCut != null ? collectedCut / a.expSpent : null);
   const asOfText = monthText(APPROPRIATION_AS_OF);
 
@@ -199,47 +197,7 @@ export default function PlanningArea() {
         {(ok || noTarget) && expenditure}
 
         {(ok || noTarget) && year === APPROPRIATION_YEAR && rows.length > 0 && (
-          <div className="card st-card">
-            <b>{L(`الاعتماد مقابل الإيراد والمنصرف حسب الجهة — العام المالي ${year}`, `Revenue appropriation and spending by entity — fiscal year ${year}`)}</b>
-            <div className="st-table-wrap" tabIndex={0}>
-              <table className="table" aria-label={L('الاعتماد مقابل الإيراد والمنصرف حسب الجهة', 'Revenue appropriation and spending by entity')}>
-                <thead><tr>
-                  <th>{L('الجهة', 'Entity')}</th>
-                  <th>{L('الاعتماد مقابل الإيراد (بعد التعديل)', 'Revenue appropriation (adjusted)')}</th>
-                  <th>{L('المحصّل', 'Collected')}</th>
-                  <th>{L('نسبة المحصّل', 'Share collected')}</th>
-                  <th>{L('المتبقي للتحصيل', 'Remaining to collect')}</th>
-                  <th>{L('المنصرف التراكمي', 'Cumulative spending')}</th>
-                  <th>{L('نسبة الصرف', 'Spending rate')}</th>
-                  <th>{L('تغطية المنصرف بالتحصيل', 'Spending covered by collection')}</th>
-                </tr></thead>
-                <tbody>
-                  {rows.map((r) => { const rv = r.a?.revAdjusted || 0; return (
-                    <tr key={r.key} aria-current={r.key === amanah ? 'true' : undefined} style={r.key === amanah ? { fontWeight: 600 } : undefined}>
-                      <td>{r.key === UNASSIGNED ? L('غير محدد الأمانة (لم تُطابق في مكين)', 'Unassigned (not matched in Makeen)') : nameOf(r.key)}</td>
-                      <td dir="ltr">{rv > 0 ? short(rv) : '—'}</td>
-                      <td dir="ltr">{r.collected > 0 || rv > 0 ? short(r.collected) : '—'}</td>
-                      <td dir="ltr">{rv > 0 ? pct(r.collected / rv) : '—'}</td>
-                      <td dir="ltr">{rv > 0 ? short(Math.max(rv - r.collected, 0)) : '—'}</td>
-                      <td dir="ltr">{r.a ? short(r.a.expSpent) : '—'}</td>
-                      <td dir="ltr">{r.a ? pct(r.a.expSpent / r.a.expAdjusted) : '—'}</td>
-                      <td dir="ltr">{r.a && r.a.revAdjusted > 0 ? pct(cover(r.cut, r.a)) : '—'}</td>
-                    </tr>); })}
-                </tbody>
-                <tfoot><tr>
-                  <td><b>{rev.org.amanahKeys ? L('إجمالي ما يظهر', 'Total shown') : L('إجمالي الوزارة', 'Ministry total')}</b></td>
-                  <td dir="ltr"><b>{short(sum('revAdjusted'))}</b></td>
-                  <td dir="ltr"><b>{short(totalCollected)}</b></td>
-                  <td dir="ltr"><b>{sum('revAdjusted') > 0 ? pct(totalCollected / sum('revAdjusted')) : '—'}</b></td>
-                  <td dir="ltr"><b>{short(Math.max(sum('revAdjusted') - totalCollected, 0))}</b></td>
-                  <td dir="ltr"><b>{short(sum('expSpent'))}</b></td>
-                  <td dir="ltr"><b>{sum('expAdjusted') > 0 ? pct(sum('expSpent') / sum('expAdjusted')) : '—'}</b></td>
-                  <td dir="ltr"><b>{sum('expSpent') > 0 ? pct(totalCut / sum('expSpent')) : '—'}</b></td>
-                </tr></tfoot>
-              </table>
-            </div>
-            <div className="muted" style={{ fontSize: 12 }}>{L('المحصّل في الجهة «غير محدد الأمانة» لا يقابله اعتماد، لكنه داخل إجمالي الوزارة. ديوان عام الوزارة بلا إيراد خاص به: نفقات فقط، فلا تُحسب له تغطية، ويدخل منصرفه في إجمالي الوزارة. تغطية كل جهة محسوبة حتى نهاية آخر شهر مغلق لدى وزارة المالية.', 'Payments in «Unassigned» have no appropriation but are inside the Ministry total. The headquarters has no revenue of its own: spending only, so it has no coverage figure, and its spending is inside the Ministry total. Each entity’s coverage is calculated to the end of the last month closed by the Ministry of Finance.')}</div>
-          </div>
+          <EntityMap rows={rows.filter((r) => r.key !== HQ_KEY)} hqRow={rows.find((r) => r.key === HQ_KEY)} L={L} ar={ar} short={short} nameOf={nameOf} selected={amanah} onSelect={setAmanah} asOfText={asOfText} cutDateText={dateText(DATA.data.cutDate)} />
         )}
       </AsyncBlock>
     </div>
