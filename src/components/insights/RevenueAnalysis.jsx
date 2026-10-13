@@ -126,7 +126,8 @@ export default function RevenueAnalysis() {
   /* ---- summary band ---- */
   const dir = A ? direction(A) : null; const con = A ? concentration(A) : null; const follow = A ? needsFollowUp(A) : [];
   const topDev = A ? A.deviations.slice(0, 3) : [];
-  const trendAll = A ? trendOf(A) : [];
+  const trendFocusEntity = entity || (region && region.keys.length === 1 ? region.keys[0] : null);
+  const trendRows = A ? trendOf(A, trendFocusEntity, source) : []; // the ONE trend chart follows the entity and source in focus
 
   /* ---- deviations list (filtered by the focus) ---- */
   const inFocus = (d) => (!focusKeys.length || !d.entity || focusKeys.includes(d.entity)) && (!source || d.source === source); // a source focus keeps only items of that source (the target belongs to the entity as a whole)
@@ -210,7 +211,9 @@ export default function RevenueAnalysis() {
                     <div className="muted" style={{ fontSize: 12 }}>{L(`المحصّل ${spct(dir.changePct)} (${sgn(dir.change)}) ومعدل التحصيل ${dir.pp == null ? '—' : `${spp(dir.pp)} نقطة`} عن ${compLabel(DATA.data.basis)}`, `Collected ${spct(dir.changePct)} (${sgn(dir.change)}) and collection rate ${dir.pp == null ? '—' : `${spp(dir.pp)} pp`} vs ${compLabel(DATA.data.basis)}`)}</div>
                   </>
                 )}
-                <TrendBars rows={trendAll} L={L} short={short} label={L('المحصّل بحسب شهر الإصدار مقابل الفترة المماثلة', 'Collected by issue month against the like-for-like period')} />
+                <div className="muted" style={{ fontSize: 12 }}>{L('الاتجاه بحسب شهر الإصدار', 'Trend by issue month')}: <b>{trendFocusEntity ? name(trendFocusEntity) : L('الوزارة', 'the Ministry')}{source ? ` · ${sname(source)}` : ''}</b></div>
+                <TrendBars rows={trendRows} L={L} short={short} label={L('المحصّل بحسب شهر الإصدار مقابل الفترة المماثلة', 'Collected by issue month against the like-for-like period')} />
+                {region && region.keys.length > 1 && !entity && <div className="muted" style={{ fontSize: 11 }}>{L('اختر أمانة داخل المنطقة لعرض اتجاهها منفردة.', 'Choose an Amanah in the region to see its own trend.')}</div>}
               </div>
             </div>
             <div className="ra-kpis">
@@ -293,7 +296,7 @@ export default function RevenueAnalysis() {
                   <div className="ra-kpi"><span>{L('التغير عن الفترة المماثلة', 'Change vs like-for-like')}</span><b dir="ltr">{t.changePct == null ? '—' : <Chip ratio={1 + t.changePct}>{spct(t.changePct)} · {sgn(t.change)}</Chip>}</b><small className="muted">{dc ? L(`أثر الفوترة ${sgn(dc.volume)} · أثر معدل التحصيل ${sgn(dc.rate)}`, `billing ${sgn(dc.volume)} · collection-rate ${sgn(dc.rate)}`) : ''}</small></div>
                   <div className="ra-kpi"><span>{L('نسبة تحقيق الاعتماد', 'Appropriation attainment')}</span><b>{F.target && !source ? <PctBadge v={F.target.attainment} text={pct(F.target.attainment)} /> : '—'}</b><small className="muted">{source ? L('لا مستهدف لكل مصدر', 'no per-source target') : F.target ? L(`انحراف عن المتناسب ${sgn(F.target.deviation)}`, `deviation from proportional ${sgn(F.target.deviation)}`) : L('غير متاحة لهذه الفترة/الجهة', 'not available for this period/entity')}</small></div>
                 </div>); })()}
-              <div className="ra-two">
+              <div className="ra-two ra-two--one">
                 <div>
                   <b>{L('مصادر الإيراد', 'Revenue sources')}</b>
                   <div className="st-table-wrap" tabIndex={0}>
@@ -311,12 +314,6 @@ export default function RevenueAnalysis() {
                     </table>
                   </div>
                   <div className="muted" style={{ fontSize: 12 }}>{L('لا مستهدف لكل مصدر: الاعتماد مقابل الإيراد للجهة كلها ولا يُوزَّع على المصادر. المقارنة بالفترة المماثلة والمساهمة هما أساس القراءة.', 'There is no per-source target: the appropriation belongs to the entity as a whole and is not split across sources. The like-for-like comparison and the contribution are the basis of reading.')}</div>
-                </div>
-                <div>
-                  <b>{L('الاتجاه بحسب شهر الإصدار', 'Trend by issue month')}</b>
-                  <TrendBars rows={trendOf(A, entity || (region && region.keys.length === 1 ? region.keys[0] : null), source)} L={L} short={short} label={L('الاتجاه', 'Trend')} />
-                  <div className="muted" style={{ fontSize: 11 }}>{L('الأزرق: هذه الفترة · الرمادي: الفترة المماثلة. المحصّل على فواتير كل شهر في تاريخ المرجع.', 'Blue: this period · grey: the like-for-like period. Collected on each month’s invoices at the reference date.')}</div>
-                  {(region && region.keys.length > 1 && !entity) && <div className="muted" style={{ fontSize: 11 }}>{L('اختر أمانة لعرض اتجاهها منفردة.', 'Choose an Amanah to see its own trend.')}</div>}
                 </div>
               </div>
               {entity && muniRows.length > 0 && (
