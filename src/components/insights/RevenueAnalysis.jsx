@@ -23,20 +23,53 @@ const spp = (v) => (Number.isFinite(v) ? isolate(`${v >= 0 ? '+' : '−'}${Math.
 const colorOf = (ratio) => (Number.isFinite(ratio) ? PCT_COLORS[PCT_CUTS.filter((c) => ratio >= c).length] : NONE);
 const Chip = ({ ratio, children }) => { const c = Number.isFinite(ratio) ? colorOf(ratio) : null; return <span className="ra-chip" dir="ltr">{c && <i aria-hidden="true" style={{ background: c }} />}{children}</span>; };
 
-// grouped bars: this period's collected by issue month against the like-for-like previous period (neutral colours: it is a trend, not a rating)
+// grouped bars: this period's collected by issue month against the like-for-like previous period (neutral colours: it is a trend, not a rating).
+// Every month is a button: press it to read its figures; the full numbers are also in a table.
 function TrendBars({ rows, L, short, label }) {
+  const { lang } = useAr();
+  const [sel, setSel] = useState(null);
   if (!rows.length) return <div className="muted" style={{ fontSize: 12 }}>{L('لا توجد أشهر لعرض الاتجاه.', 'No months to show a trend.')}</div>;
   const max = Math.max(...rows.flatMap((r) => [r.collected, r.prevCollected || 0]), 1); const W = 560; const H = 150; const bw = W / rows.length;
+  const mText = (m) => fmtDateText(`${m}-01`, lang).replace(/^\d+\s*/, '');
+  const chosen = rows.find((r) => r.month === sel) || null;
+  const ch = chosen && chosen.prevCollected != null ? chosen.collected - chosen.prevCollected : null; const chPct = chosen && chosen.prevCollected > 0 ? chosen.collected / chosen.prevCollected - 1 : null;
+  const sg = (v) => { if (v == null) return '—'; const sign = v > 0 ? '+' : v < 0 ? '−' : ''; const m = short(Math.abs(v)).match(/^([\d.,]+)\s*(.*)$/); return m ? `${isolate(`${sign}${m[1]}`)} ${m[2]}`.trim() : `${sign}${short(Math.abs(v))}`; };
   return (
-    <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={label} style={{ width: '100%', height: 'auto', display: 'block' }}>
-      <line x1="0" y1={H} x2={W} y2={H} stroke="var(--line-strong, #9ca3af)" />
-      {rows.map((r, i) => { const x = i * bw; const h1 = (r.collected / max) * (H - 6); const h2 = ((r.prevCollected || 0) / max) * (H - 6); return (
-        <g key={r.month}>
-          {r.prevCollected != null && <rect x={x + bw * 0.12} y={H - h2} width={bw * 0.36} height={h2} fill="var(--line-strong, #9ca3af)" opacity="0.7"><title>{`${r.prevMonth}: ${short(r.prevCollected)}`}</title></rect>}
-          <rect x={x + bw * 0.52} y={H - h1} width={bw * 0.36} height={h1} fill="#4a9be8"><title>{`${r.month}: ${short(r.collected)}`}</title></rect>
-          <text x={x + bw / 2} y={H + 15} textAnchor="middle" style={{ fontSize: 11, fill: 'var(--txt-mute, #6b7280)' }}>{r.month.slice(5)}</text>
-        </g>); })}
-    </svg>
+    <div className="ra-trend">
+      <svg viewBox={`0 0 ${W} ${H + 22}`} role="group" aria-label={label} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        <line x1="0" y1={H} x2={W} y2={H} stroke="var(--line-strong, #9ca3af)" />
+        {rows.map((r, i) => { const x = i * bw; const h1 = (r.collected / max) * (H - 6); const h2 = ((r.prevCollected || 0) / max) * (H - 6); const on = sel === r.month; return (
+          <g key={r.month} role="button" tabIndex={0} aria-pressed={on} aria-label={`${mText(r.month)}: ${short(r.collected)}`} style={{ cursor: 'pointer', outline: 'none' }}
+            onClick={() => setSel(on ? null : r.month)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(on ? null : r.month); } }}>
+            <rect x={x} y="0" width={bw} height={H + 22} fill={on ? 'rgba(74,155,232,.16)' : 'transparent'} />
+            {r.prevCollected != null && <rect x={x + bw * 0.12} y={H - h2} width={bw * 0.36} height={h2} fill="var(--line-strong, #9ca3af)" opacity="0.7"><title>{`${mText(r.prevMonth)}: ${short(r.prevCollected)}`}</title></rect>}
+            <rect x={x + bw * 0.52} y={H - h1} width={bw * 0.36} height={h1} fill="#4a9be8"><title>{`${mText(r.month)}: ${short(r.collected)}`}</title></rect>
+            <text x={x + bw / 2} y={H + 15} textAnchor="middle" style={{ fontSize: 11, fontWeight: on ? 700 : 400, fill: 'var(--txt-mute, #6b7280)' }}>{r.month.slice(5)}</text>
+          </g>); })}
+      </svg>
+      {chosen ? (
+        <div className="ra-trend__detail" role="status">
+          <b>{mText(chosen.month)}</b>
+          <dl className="cg-geo__dl">
+            <dt>{L('المحصّل (هذه الفترة)', 'Collected (this period)')}</dt><dd dir="ltr">{short(chosen.collected)}</dd>
+            <dt>{L(`المحصّل في ${chosen.prevMonth ? mText(chosen.prevMonth) : 'الفترة المماثلة'}`, `Collected in ${chosen.prevMonth ? mText(chosen.prevMonth) : 'the like-for-like period'}`)}</dt><dd dir="ltr">{chosen.prevCollected == null ? '—' : short(chosen.prevCollected)}</dd>
+            <dt>{L('التغير', 'Change')}</dt><dd>{ch == null ? '—' : `${sg(ch)}${chPct == null ? '' : ` · ${spct(chPct)}`}`}</dd>
+            <dt>{L('صافي المفوتر', 'Net billed')}</dt><dd dir="ltr">{short(chosen.net)}</dd>
+            <dt>{L('معدل التحصيل (الآن / سابقاً)', 'Collection rate (now / before)')}</dt><dd dir="ltr">{pct(chosen.rate)} / {pct(chosen.prevRate)}</dd>
+          </dl>
+        </div>
+      ) : <div className="muted" style={{ fontSize: 12 }}>{L('اضغط على أي شهر لقراءة أرقامه.', 'Press any month to read its figures.')}</div>}
+      <details className="ra-trend__table">
+        <summary>{L('عرض كل الأرقام', 'Show all the figures')}</summary>
+        <div className="st-table-wrap" tabIndex={0}>
+          <table className="table" aria-label={label}>
+            <thead><tr><th>{L('شهر الإصدار', 'Issue month')}</th><th>{L('المحصّل', 'Collected')}</th><th>{L('الفترة المماثلة', 'Like-for-like')}</th><th>{L('التغير', 'Change')}</th><th>{L('معدل التحصيل', 'Collection rate')}</th></tr></thead>
+            <tbody>{rows.map((r) => { const c = r.prevCollected == null ? null : r.collected - r.prevCollected; return (
+              <tr key={r.month} className={sel === r.month ? 'is-on' : ''}><td><button type="button" className="rv-link" onClick={() => setSel(r.month)}>{mText(r.month)}</button></td><td dir="ltr">{short(r.collected)}</td><td dir="ltr">{r.prevCollected == null ? '—' : short(r.prevCollected)}</td><td dir="ltr">{c == null ? '—' : sg(c)}</td><td dir="ltr">{pct(r.rate)}</td></tr>); })}</tbody>
+          </table>
+        </div>
+      </details>
+    </div>
   );
 }
 
