@@ -44,7 +44,7 @@ export default function InvoicePage() {
   const { L, B, ar, sar, short } = useL();
   const { canReview } = rev;
   const [reload, setReload] = useState(0);
-  const ret = useReturnTarget({ path: '/invoices', label: L('Invoices', 'سجل الفواتير') });
+  const ret = useReturnTarget({ path: '/invoices', label: L('Collected invoices list', 'قائمة الفواتير المحصّلة') });
   const { data: det, loading, error } = useAsync(() => rev.data.invoice(id), [rev.data, id, reload]);
   const rec = det?.rec && det.rec.id === id ? det.rec : null; const der = rec ? det.derived : null;
   const contractNo = rec?.co || null;
@@ -55,7 +55,7 @@ export default function InvoicePage() {
   const [msg, setMsg] = useState(null); const [text, setText] = useState(''); const [ev, setEv] = useState(0);
   const notes = rev.notes?.[id] || [];
 
-  const crumbs = [{ label: L('Dashboards and reports', 'لوحة المعلومات والتقارير'), to: '/insights' }, { label: L('Invoices', 'سجل الفواتير'), to: '/invoices' }, { label: id, ltr: true }];
+  const crumbs = [{ label: L('Dashboards and reports', 'لوحة المعلومات والتقارير'), to: '/insights' }, { label: L('Collected invoices list', 'قائمة الفواتير المحصّلة'), to: '/invoices' }, { label: id, ltr: true }];
   if (!rec) {
     const notFound = !loading && !rec && (error?.status === 404 || (!error && det === null));
     return <div className="rp"><RecordHeader crumbs={crumbs} title={id} ret={ret} /><RecordState loading={loading && !error} error={error && error.status !== 404 ? error : null} notFound={notFound || error?.status === 404} onRetry={() => setReload((x) => x + 1)} kind={L('Invoice', 'الفاتورة')} backTo={{ path: '/invoices', label: L('Back to the invoices', 'العودة إلى الفواتير') }} /></div>;

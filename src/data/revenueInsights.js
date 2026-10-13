@@ -363,7 +363,7 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
   }
   if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (الإيرادات المحصلة ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
 
-  out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'سجل الفواتير') }];
+  out.links = [{ to: '/noncollection', label: bi('Noncollection & exclusions', 'عدم التحصيل والاستبعادات') }, { to: '/invoices', label: bi('Invoice library', 'قائمة الفواتير المحصّلة') }];
   if (invoiceId) out.links.unshift({ to: `/invoices/${encodeURIComponent(invoiceId)}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });
   return out;
 }

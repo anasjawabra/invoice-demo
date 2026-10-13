@@ -15,7 +15,7 @@ Synthetic-data demonstration; not production-ready. Preserves every calculation,
 
 **Main bar:** لوحة المعلومات والتقارير · التخطيط المالي والاستراتيجي · إدارة التنفيذ · **وحدات تشغيلية ▾** · **إعدادات النظام** (set apart at the far end, with a gear icon).
 
-* **وحدات تشغيلية** (daily work): سجل الفواتير · عدم التحصيل والاستبعادات · قائمة التحصيل · العقود والتنفيذ · **المخاطر والانحرافات**.
+* **وحدات تشغيلية** (daily work): قائمة الفواتير المحصّلة · عدم التحصيل والاستبعادات · قائمة التحصيل · العقود والتنفيذ · **المخاطر والانحرافات**.
 * **إعدادات النظام** (rare, configuration and administration; one sub-navigation + breadcrumb «إعدادات النظام › …» on each page):
   * **مصادر البيانات** — `/settings/data-sources` (source status, versions, imports, upload, open decisions; unchanged content);
   * **جودة البيانات** — `/settings/data-quality` (new home of the record-completeness worklist);
