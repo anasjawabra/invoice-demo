@@ -180,10 +180,31 @@ export default function RevenueAnalysis() {
                 <h2 className="rv-sec-title" style={{ margin: 0 }}>{L('تحليل مصادر الإيرادات والجهات', 'Revenue sources and entities')}</h2>
                 <div className="muted" style={{ fontSize: 12 }}>{L(`الفترة ${dateText(DATA.data.cur.scope.from)} – ${dateText(DATA.data.cur.scope.to)}`, `Period ${dateText(DATA.data.cur.scope.from)} – ${dateText(DATA.data.cur.scope.to)}`)}{A.comparable ? L(` · المقارنة بـ ${compLabel(DATA.data.basis)} (${dateText(DATA.data.prev.scope.from)} – ${dateText(DATA.data.prev.scope.to)})`, ` · compared with ${compLabel(DATA.data.basis)} (${dateText(DATA.data.prev.scope.from)} – ${dateText(DATA.data.prev.scope.to)})`) : L(' · لا توجد فترة مماثلة ضمن البيانات: لا تُعرض مقارنات.', ' · no like-for-like period in the data: no comparisons shown.')}</div>
               </div>
-              {focused && <button type="button" className="btn btn-sm" onClick={back}>{L('العودة إلى العرض العام', 'Back to the overall view')}</button>}
             </div>
 
             {/* the four answers */}
+            {/* the analysis's own filters: always visible, so the entity and source in focus are never hidden */}
+            <div className="card st-card ra-filters" role="group" aria-label={L('مرشحات التحليل', 'Analysis filters')}>
+              <label className="cg-field" htmlFor="ra-entity">{L('الجهة', 'Entity')}
+                <select id="ra-entity" className="input" value={entity ? `e:${entity}` : iso ? `r:${iso}` : ''} onChange={(e) => { const v = e.target.value; if (!v) { setIso(null); setEntity(null); } else if (v.startsWith('r:')) { setIso(v.slice(2)); setEntity(null); } else { const k = v.slice(2); const p = regions.find((r) => r.keys.includes(k)); setIso(p ? p.iso : null); setEntity(k); } }}>
+                  <option value="">{L('الوزارة — كل الجهات', 'The Ministry — all entities')}</option>
+                  <optgroup label={L('المناطق', 'Regions')}>{regions.map((p) => <option key={p.iso} value={`r:${p.iso}`}>{rname(p)}</option>)}</optgroup>
+                  <optgroup label={L('الأمانات والجهات', 'Amanahs and entities')}>{A.entityKeys.map((k) => <option key={k} value={`e:${k}`}>{name(k)}</option>)}</optgroup>
+                </select>
+              </label>
+              <label className="cg-field" htmlFor="ra-source">{L('مصدر الإيراد', 'Revenue source')}
+                <select id="ra-source" className="input" value={source || ''} onChange={(e) => setSource(e.target.value || null)}>
+                  <option value="">{L('كل المصادر', 'All sources')}</option>
+                  {A.sourceKeys.map((k) => <option key={k} value={k}>{sname(k)}</option>)}
+                </select>
+              </label>
+              <div className="ra-filters__state" role="status">
+                {focused ? <>{L('الاختيار الحالي:', 'Current choice:')} <b>{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</b></> : <span className="muted">{L('العرض العام: كل الجهات وكل المصادر.', 'Overall view: all entities and all sources.')}</span>}
+                <span className="muted" style={{ fontSize: 12 }}> {L('(الفترة من مرشحات الصفحة أعلاه)', '(the period comes from the page filters above)')}</span>
+              </div>
+              {focused && <button type="button" className="btn btn-sm" onClick={back}>{L('✕ العودة إلى العرض العام', '✕ Back to the overall view')}</button>}
+            </div>
+
             <div className="ra-answers">
               <div className="card st-card ra-ans">
                 <b>{L('أين يتركز التحصيل؟', 'Where does collection concentrate?')}</b>
