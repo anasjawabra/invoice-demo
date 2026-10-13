@@ -11,23 +11,7 @@ import { registryRows, RULE_APPROVAL_LABEL } from '../data/ruleRegistry';
 import { orderCompleteness } from '../data/orderMatching';
 import { CompletenessMarks } from '../components/revenue/EnforcementUI';
 import { REVENUE_SOURCES } from '../data/revenueLedger';
-
-const TAG_LABEL = {
-  partial: { en: 'partial payment', ar: 'دفعة جزئية' },
-  overdue: { en: 'past due', ar: 'متأخرة' },
-  source_cancelled: { en: 'source status: cancelled', ar: 'حالة المصدر: ملغاة' },
-  amount_conflict: { en: 'amount conflict', ar: 'تعارض مبلغ' },
-  contract_unlinked: { en: 'contract not linked', ar: 'عقد غير مرتبط' },
-  contract_unverified: { en: 'contract link unverified', ar: 'ربط العقد غير مُتحقق' },
-  missing_fields: { en: 'missing mandatory field', ar: 'حقل إلزامي ناقص' },
-  enforcement_candidate: { en: 'enforcement link pending', ar: 'رابط إنفاذ معلق' },
-  overpaid: { en: 'overpaid', ar: 'مدفوع زيادة' },
-  contract_unmatched: { en: 'contract not matched (not "no contract")', ar: 'لم تتم مطابقة العقد (وليس «بدون عقد»)' },
-  cancelled_but_enforced: { en: 'cancelled in source but enforcement-linked: counted uncollected', ar: 'ملغاة في المصدر ومرتبطة بتنفيذ: تُحتسب غير محصلة' },
-  status_differs_efaa_tahseel: { en: 'Tahseel ≠ Efaa status', ar: 'حالة تحصيل ≠ حالة إيفاء' },
-  also_excluded_reason: { en: 'also has an exclusion reason (deducted once, as cancelled)', ar: 'لها سبب استبعاد أيضاً (تُخصم مرة كملغاة)' },
-  multi_reason: { en: 'several exclusion reasons (one primary)', ar: 'عدة أسباب استبعاد (سبب رئيسي واحد)' }
-};
+import { fmtDateText } from '../data/clock';
 
 const REVIEW_LABEL = {
   approved: { en: 'Approved', ar: 'معتمد' },
@@ -111,7 +95,7 @@ export default function Noncollection() {
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th>{L('Signals', 'الإشارات')}</th></tr></thead>
+            <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th></tr></thead>
             <tbody>
               {rows.length ? rows.map((r) => (
                 <tr key={r.id}>
@@ -120,7 +104,7 @@ export default function Noncollection() {
                   <td><span className={`rv-cat rv-cat--${r.cls}`}>{B(CATEGORY_LABELS[r.cls])}</span></td>
                   <td className="num" dir="ltr">{sar(r.cls === 'excluded' ? r.exclusionAmount : r.cls === 'cancelled' ? r.cancelledAmount : r.outstanding)}</td>
                   <td className="num">{r.cls === 'excluded' ? '—' : r.daysOverdue}</td>
-                  <td>{r.tags.filter((t) => TAG_LABEL[t] && t !== r.cls).map((t) => <span key={t} className={`rv-tag${['amount_conflict', 'missing_fields'].includes(t) ? ' rv-tag--bad' : ''}`}>{B(TAG_LABEL[t])}</span>)}</td>
+                  <td>{r.dueDate ? fmtDateText(r.dueDate, ar ? 'ar' : 'en') : '—'}</td>
                 </tr>
               )) : <tr><td colSpan={6}><div className="rv-empty">{L('No invoices in this state for the selected scope.', 'لا توجد فواتير بهذه الحالة ضمن النطاق المحدد.')}</div></td></tr>}
             </tbody>
