@@ -247,6 +247,7 @@ export function snapshot(st, req) {
   const MX = 6; const mxA = new Float64Array(NE * NS * MX); // Amanah × source: count, gross, exclusions, net, collected, uncollected (the monthly report's per-source Amanah tables)
   const NCOL = NBITS + 1; const exMx = new Float64Array(NE * NCOL * 2); // Amanah × exclusion reason (primary reason, once) + cancelled: amount, count (the report's excluded-invoices appendix)
   const aging = new Float64Array(5 * 2); // amount, count
+  const esm = new Map(); // entity × source × issue month: net, collected, gross (trend of every source inside every entity; same invoices and measure as the matrix above)
   const accMonth = new Map(); // issue-month cohort: 'YYYY-MM' -> Acc(1) measured at the reference date
   const accMuni = new Acc(NE * 5); const accStatus = new Acc(CLASSES.length);
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
@@ -291,6 +292,7 @@ export function snapshot(st, req) {
     const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
     per.ent.addMeta(e, viol, enf); per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross; entSrcNet[e * NS + s] += dd.net;
+    { const k = `${e}|${s}|${isoOf(st.issue[i]).slice(0, 7)}`; let v = esm.get(k); if (!v) { v = [0, 0, 0]; esm.set(k, v); } v[0] += dd.net; v[1] += dd.collected; v[2] += dd.gross; }
     { const o = (e * NS + s) * MX; mxA[o] += 1; mxA[o + 1] += dd.gross; mxA[o + 2] += dd.exclTotal; mxA[o + 3] += dd.net; mxA[o + 4] += dd.collected; mxA[o + 5] += dd.outstanding; }
     if (dd.cancelled) { const o = (e * NCOL + NBITS) * 2; exMx[o] += dd.cancelledAmount; exMx[o + 1] += 1; }
     else if (dd.excluded) { const o = (e * NCOL + Math.round(Math.log2(dd.primaryBit))) * 2; exMx[o] += dd.exclusionAmount; exMx[o + 1] += 1; }
@@ -330,7 +332,8 @@ export function snapshot(st, req) {
   const byStatus = []; for (let k = 0; k < CLASSES.length; k += 1) { if (accStatus.a[k * K + M.count] === 0) continue; byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) }); }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
   const byScope = [0, 1].map((g) => ({ key: g === 0 ? 'central' : 'internal', ...per.scope.toAgg(g) }));
-  const matrix = { amanahSource: [], amanahReasons: [] };
+  const matrix = { amanahSource: [], amanahReasons: [], amanahSourceMonth: [] };
+  for (const [k, v] of esm) { const [e, sIdx, month] = k.split('|'); matrix.amanahSourceMonth.push({ amanah: ENTITIES[Number(e)].en, source: SOURCES[Number(sIdx)].key, month, net: v[0], collected: v[1], gross: v[2] }); }
   for (let e = 0; e < NE; e += 1) {
     for (let s = 0; s < NS; s += 1) { const o = (e * NS + s) * MX; if (mxA[o]) matrix.amanahSource.push({ amanah: ENTITIES[e].en, source: SOURCES[s].key, count: mxA[o], gross: mxA[o + 1], exclusions: mxA[o + 2], net: mxA[o + 3], collected: mxA[o + 4], outstanding: mxA[o + 5] }); }
     for (let b = 0; b < NCOL; b += 1) { const o = (e * NCOL + b) * 2; if (exMx[o + 1]) matrix.amanahReasons.push({ amanah: ENTITIES[e].en, reason: b === NBITS ? 'cancelled' : RULES[b].id, amount: exMx[o], count: exMx[o + 1] }); }

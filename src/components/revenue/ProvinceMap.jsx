@@ -4,7 +4,7 @@ import React from 'react';
 // Decision Room can render the same real province boundaries without a
 // second copy-pasted <svg> loop. Callers own all the data/coloring/selection
 // logic (fillFor/titleFor/selectedIso/onSelect); this component only draws.
-export default function ProvinceMap({ provinces, viewBox, fillFor, selectedIso, onSelect, titleFor, labelFor }) {
+export default function ProvinceMap({ provinces, viewBox, fillFor, selectedIso, onSelect, titleFor, labelFor, onHover }) {
   return (
     <svg viewBox={viewBox} style={{ width: '100%', height: 'auto', display: 'block' }}>
       {provinces.map((p) => (
@@ -17,6 +17,14 @@ export default function ProvinceMap({ provinces, viewBox, fillFor, selectedIso, 
           strokeLinejoin="round"
           style={{ cursor: 'pointer' }}
           onClick={() => onSelect(p.iso === selectedIso ? null : p.iso)}
+          onMouseEnter={onHover ? () => onHover(p.iso) : undefined}
+          onMouseLeave={onHover ? () => onHover(null) : undefined}
+          onFocus={onHover ? () => onHover(p.iso) : undefined}
+          onBlur={onHover ? () => onHover(null) : undefined}
+          tabIndex={0}
+          role="button"
+          aria-label={titleFor(p)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(p.iso === selectedIso ? null : p.iso); } }}
         >
           <title>{titleFor(p)}</title>
         </path>

@@ -3193,6 +3193,7 @@ function snapshot(st, req) {
   const NCOL = NBITS + 1;
   const exMx = new Float64Array(NE * NCOL * 2);
   const aging = new Float64Array(5 * 2);
+  const esm = /* @__PURE__ */ new Map();
   const accMonth = /* @__PURE__ */ new Map();
   const accMuni = new Acc(NE * 5);
   const accStatus = new Acc(CLASSES.length);
@@ -3292,6 +3293,17 @@ function snapshot(st, req) {
     per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross;
     entSrcNet[e * NS + s] += dd.net;
+    {
+      const k = `${e}|${s}|${isoOf(st.issue[i]).slice(0, 7)}`;
+      let v = esm.get(k);
+      if (!v) {
+        v = [0, 0, 0];
+        esm.set(k, v);
+      }
+      v[0] += dd.net;
+      v[1] += dd.collected;
+      v[2] += dd.gross;
+    }
     {
       const o = (e * NS + s) * MX;
       mxA[o] += 1;
@@ -3414,7 +3426,11 @@ function snapshot(st, req) {
   }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
   const byScope = [0, 1].map((g) => ({ key: g === 0 ? "central" : "internal", ...per.scope.toAgg(g) }));
-  const matrix = { amanahSource: [], amanahReasons: [] };
+  const matrix = { amanahSource: [], amanahReasons: [], amanahSourceMonth: [] };
+  for (const [k, v] of esm) {
+    const [e, sIdx, month] = k.split("|");
+    matrix.amanahSourceMonth.push({ amanah: ENTITIES[Number(e)].en, source: SOURCES[Number(sIdx)].key, month, net: v[0], collected: v[1], gross: v[2] });
+  }
   for (let e = 0; e < NE; e += 1) {
     for (let s = 0; s < NS; s += 1) {
       const o = (e * NS + s) * MX;

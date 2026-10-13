@@ -9,6 +9,7 @@ import { MetricTile, PpDelta, ToDateFigure } from '../revenue/RevenueUI';
 import { basisLabel, BASIS } from '../../data/measure';
 import FinancialRelations from '../revenue/FinancialRelations';
 import { AmanahMap } from '../revenue/ExecutiveParts';
+import RevenueAnalysis from './RevenueAnalysis';
 import UnitBar from '../strategic/UnitBar';
 import { sourceAr, sourceEn, buildInsights } from '../../data/insightsEngine';
 import { fillTokens } from '../../data/reportFormat';
@@ -38,6 +39,8 @@ export default function InsightsDashboard() {
   return (
     <div className="st-page" style={{ gap: 14 }}>
       <p className="rv-line" role="status">{L(`${fmtInt(T.count)} فاتورة صدرت في هذه الفترة. `, `${fmtInt(T.count)} invoices issued in this period. `)}<b>{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</b></p>
+
+      <RevenueAnalysis />
 
       <div className="rv-tiles">
         <MetricTile metric="gross" to="/invoices" label={L('إجمالي المفوتر', 'Gross billed')} value={kp(T.gross)} sub={L('قبل الاستبعادات', 'before exclusions')} />

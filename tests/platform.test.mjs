@@ -30,6 +30,7 @@ import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.j
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
 import { appropriationOf, appropriationTotal, appropriationKeys, appropriationAsOfEnd, HQ_KEY } from '../src/data/appropriations.js';
+import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
 import { amanahOptionsOf as amanahsG, amanahFilterOptions } from '../src/data/revenueLedger.js';
@@ -1426,6 +1427,63 @@ await test('adjusted total = net billed everywhere: the DEFAULT configuration ap
   const all = Object.fromEntries(RULES_G.map((r) => [r.id, !r.locked && r.id !== 'OBJ-1']));
   const whatIf = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY, rules: all }) });
   assert.ok(whatIf.totals.net < dflt.totals.net && whatIf.unapprovedRulesApplied.length > 0, 'switching on unapproved rules lowers net billed and is flagged'); assert.ok(Math.abs(dflt.totals.net - whatIf.totals.net - whatIf.totals.exclusionsUnapproved) < 1, 'the whole difference is the unapproved-rule exclusions');
+});
+/* ------------------------------------------------------------------ Revenue-source analysis (first dashboard) */
+const apprCfgA = normalizeCfgG({ cutoff: TODAY });
+const anaScope = (from, to) => ({ from, to, amanah: 'all', source: 'all' });
+const anaCur = snapshot(st, { scope: anaScope('2026-01-01', TODAY), cfg: apprCfgA });
+const anaPrev = snapshot(st, { scope: anaScope('2025-01-01', '2025-10-08'), cfg: apprCfgA });
+await test('analysis: entities, sources and cells add up to the headline figures (nothing counted twice), current and previous period', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  assert.equal(A.checks.ok, true, JSON.stringify(A.checks));
+  assert.ok(Math.abs(A.entities.reduce((t, e) => t + e.collected, 0) - anaCur.totals.collected) < 1 && Math.abs(A.sources.reduce((t, e) => t + e.collected, 0) - anaCur.totals.collected) < 1);
+  assert.ok(Math.abs(A.entities.reduce((t, e) => t + e.share, 0) - 1) < 1e-9 && Math.abs(A.sources.reduce((t, e) => t + e.share, 0) - 1) < 1e-9, 'shares add up to 100 %');
+  for (const e of A.entities) { const sh = Object.values(e.sources); if (e.collected > 0) assert.ok(Math.abs(sh.reduce((t, x) => t + x.share, 0) - 1) < 1e-9, `${e.key}: source shares add up to 100 % of the entity`); assert.ok(Math.abs(sh.reduce((t, x) => t + x.collected, 0) - e.collected) < 1, e.key); }
+  assert.ok(Math.abs(A.total.change - (anaCur.totals.collected - anaPrev.totals.collected)) < 1);
+});
+await test('analysis: change = volume effect + rate effect; deviations ranked by financial value; the three kinds are kept apart', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  for (const e of A.entities) if (e.decomposition) assert.ok(Math.abs(e.decomposition.volume + e.decomposition.rate - e.change) < 1, e.key);
+  assert.ok(A.deviations.length > 0 && A.deviations.every((d, i, a) => i === 0 || a[i - 1].weight >= d.weight), 'sorted by importance (value), not by %');
+  assert.ok(new Set(A.deviations.map((d) => d.type)).size >= 2, 'change and share-shift (and target) items are distinct types');
+  assert.ok(A.deviations.filter((d) => d.type === 'share').every((d) => d.pct === null && Math.abs(d.value) >= 2), 'a share shift is in percentage points, not a % change');
+  const none = buildAnalysis({ cur: anaCur, prev: null, comparable: false, today: TODAY });
+  assert.ok(none.deviations.every((d) => d.type === 'target') && direction(none).state === 'unknown', 'without a like-for-like period there is no change and no trend verdict');
+});
+await test('analysis: the approved-target deviation is only for the fiscal year to date, never split across sources, and proportional to elapsed time', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  assert.equal(A.targetAvailable, true); const mt = A.ministryTarget;
+  assert.ok(mt && mt.appropriation > 0 && Math.abs(mt.deviation - (mt.pay - mt.expected)) < 1e-6 && mt.expected < mt.appropriation, 'expected-to-date is a part of the year, not the whole appropriation');
+  assert.equal(mapValue(A, ['Riyadh Amanah'], 'attainment', 'fines').reason, 'no_source_target');
+  assert.equal(mapValue(A, ['Riyadh Amanah'], 'deviation', 'fines').available, false);
+  const mid = buildAnalysis({ cur: snapshot(st, { scope: anaScope('2026-03-01', TODAY), cfg: apprCfgA }), prev: null, comparable: false, today: TODAY });
+  assert.equal(mid.targetAvailable, false); assert.equal(mapValue(mid, ['Riyadh Amanah'], 'attainment').reason, 'target_period'); assert.equal(mid.deviations.length, 0);
+  assert.equal(mapValue(A, ['Unassigned'], 'attainment').reason, 'no_appropriation');
+});
+await test('analysis: an entity with no invoices is «no data», an entity with invoices and no payments is a real zero', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  const none = A.entityKeys.find((k) => A.entities.find((e) => e.key === k).net === 0);
+  const zero = A.entities.find((e) => e.net > 0 && e.collected === 0);
+  if (none) assert.deepEqual([mapValue(A, [none], 'collected').available, mapValue(A, [none], 'collected').reason], [false, 'no_invoices']);
+  if (zero) { const v = mapValue(A, [zero.key], 'collected'); assert.equal(v.available, true); assert.equal(v.zero, true); assert.equal(v.ratio, 0); }
+  assert.equal(mapValue(A, ['Riyadh Amanah'], 'collected', 'housing_sales').available, mapValue(A, ['Riyadh Amanah'], 'collected', 'housing_sales').available);
+  const c = mapValue(A, ['Riyadh Amanah', 'Jeddah Amanah'], 'collected'); const r = mapValue(A, ['Riyadh Amanah'], 'collected'); const j = mapValue(A, ['Jeddah Amanah'], 'collected');
+  assert.ok(Math.abs(c.value - (r.value + j.value)) < 1, 'a region is the sum of its Amanahs');
+});
+await test('analysis: a focus (region / Amanah / the Ministry) breaks down into sources that add up to it', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  for (const keys of [[], ['Riyadh Amanah'], ['Jeddah Amanah', 'Makkah Amanah', 'Taif Amanah']]) { const f = focusBreakdown(A, keys); assert.ok(Math.abs(f.sources.reduce((t, x) => t + x.collected, 0) - f.total.collected) < 1, keys.join()); if (f.total.collected > 0) assert.ok(Math.abs(f.sources.reduce((t, x) => t + x.share, 0) - 1) < 1e-9); }
+  assert.ok(Math.abs(focusBreakdown(A, []).total.collected - anaCur.totals.collected) < 1);
+  assert.ok(Math.abs(focusBreakdown(A, ['Jeddah Amanah', 'Makkah Amanah']).total.collected - A.entities.filter((e) => ['Jeddah Amanah', 'Makkah Amanah'].includes(e.key)).reduce((t, e) => t + e.collected, 0)) < 1);
+});
+await test('analysis: the trend by issue month adds up to the headline collected; concentration and follow-up are computed from the same rows', () => {
+  const A = buildAnalysis({ cur: anaCur, prev: anaPrev, comparable: true, today: TODAY });
+  const tr = trendOf(A); assert.ok(Math.abs(tr.reduce((t, m) => t + m.collected, 0) - anaCur.totals.collected) < 1);
+  assert.ok(Math.abs(tr.reduce((t, m) => t + (m.prevCollected || 0), 0) - anaPrev.totals.collected) < 1);
+  const e0 = A.entities.find((e) => e.collected > 0); assert.ok(Math.abs(trendOf(A, e0.key).reduce((t, m) => t + m.collected, 0) - e0.collected) < 1);
+  const con = concentration(A); assert.ok(con.entities.share >= 0.5 && con.entities.rows.length <= A.entities.length);
+  for (const f of needsFollowUp(A)) assert.ok(f.rate < A.total.rate && f.uncollected > 0);
+  assert.ok(decompose({ net: 120, collected: 90 }, { net: 100, collected: 60 }).total === 30);
 });
 await test('terminology: «المقبوضات» and its forms are gone from every screen text; the approved terms are defined', () => {
   const hits = []; const walk = (d) => { for (const e of nodeFs.readdirSync(d, { withFileTypes: true })) { const p = nodePath.join(d, e.name); if (e.isDirectory()) walk(p); else if (/\.(jsx?|mjs)$/.test(e.name) && /مقبوض/.test(nodeFs.readFileSync(p, 'utf8'))) hits.push(p); } };

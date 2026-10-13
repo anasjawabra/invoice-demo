@@ -657,3 +657,45 @@
 .cg-geo__legend span { display: inline-flex; align-items: center; gap: 6px; }
 .cg-geo__legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; border: 1px solid var(--line-strong, #9ca3af); }
 @media (max-width: 820px) { .cg-geo__body { grid-template-columns: minmax(0, 1fr); } }
+
+/* First dashboard — revenue-source analysis */
+.ra { display: grid; gap: 14px; min-width: 0; }
+.ra-head { display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; align-items: flex-start; }
+.ra-answers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.ra-ans { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.ra-big { font-size: 28px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.ra-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.ra-list li { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ra-list--dev li { display: grid; grid-template-columns: 1fr auto; }
+.ra-list--dev li .muted { grid-column: 1 / -1; }
+.ra-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.ra-tags .rv-tag { cursor: pointer; border: 0; }
+.ra-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.ra-kpi { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; }
+.ra-kpi > span { font-size: 12px; color: var(--txt-mute, inherit); }
+.ra-kpi > b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.ra-chip { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.ra-chip i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid rgba(0, 0, 0, .15); flex: none; }
+.ra-map { display: grid; gap: 10px; }
+.ra-map__body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(250px, 340px); gap: 16px; align-items: start; }
+.ra-map__svg { min-width: 0; display: grid; gap: 8px; }
+.ra-map__svg svg { max-height: 520px; }
+.ra-map__svg path:focus-visible { outline: 3px solid var(--primary); }
+.ra-map__side { display: grid; gap: 10px; min-width: 0; }
+.ra-side { display: grid; gap: 4px; text-align: start; cursor: pointer; width: 100%; font: inherit; color: inherit; }
+.ra-side.is-on, .ra-focus tr.is-on { outline: 2px solid var(--primary); }
+.ra-focus { display: grid; gap: 12px; }
+.ra-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ra-two { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ra-heat { overflow-x: auto; }
+.ra-heat__grid { display: grid; gap: 3px; min-width: 560px; align-items: stretch; }
+.ra-heat__h { font-size: 12px; font-weight: 600; text-align: center; padding: 2px; }
+.ra-heat__r { font-size: 12px; align-self: center; }
+.ra-heat__c { border: 1px solid rgba(0, 0, 0, .08); border-radius: 6px; padding: 8px 2px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; text-align: center; min-height: 34px; }
+.ra-heat__c.is-on { outline: 3px solid var(--primary); }
+.ra-notes__list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 10px; }
+.ra-notes__list li { display: grid; gap: 4px; line-height: 1.7; }
+.ra-notes__act { display: flex; gap: 6px; flex-wrap: wrap; }
+.ra-notes__ev { max-width: 520px; }
+.ra-limits { line-height: 1.8; }
+@media (max-width: 900px) { .ra-map__body, .ra-two { grid-template-columns: minmax(0, 1fr); } }
