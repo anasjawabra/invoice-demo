@@ -142,6 +142,27 @@ function FileChip({ f, ar, L, open, onToggle, onRemove }) {
     </div>
   );
 }
+/* ---------------- the assistant "at work": typing dots, a step list, text that is written out ---------------- */
+// Presentation only: the steps shown are the real stages of the work (each is paced a little so they can be followed); the dots show the reply is being prepared.
+const sleep = (ms) => new Promise((r) => window.setTimeout(r, ms));
+const reducedMotion = () => { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
+function TypingDots({ label }) { return <span className="sr-dots" role="status" aria-label={label}><i /><i /><i /></span>; }
+function AgentSteps({ order, current, textOf, L, onStop }) {
+  const idx = Math.max(0, order.indexOf(current));
+  return (
+    <div className="sr-steps" role="status" aria-live="polite">
+      <div className="sr-steps__head"><TypingDots label={L('المساعد يعمل', 'The assistant is working')} /><b>{L('المساعد يعمل على طلبك…', 'The assistant is working on your request…')}</b>{onStop && <button type="button" className="btn btn-sm btn-ghost" onClick={onStop}>{L('إيقاف', 'Stop')}</button>}</div>
+      <ol className="sr-steps__list">{order.map((k, i) => <li key={k} className={i < idx ? 'is-done' : i === idx ? 'is-now' : ''}><span className="sr-steps__mark" aria-hidden="true">{i < idx ? '✓' : i === idx ? <span className="sr-spin" /> : '○'}</span>{textOf(k)}</li>)}</ol>
+    </div>
+  );
+}
+function Typewriter({ text, animate, onTick }) {
+  const full = String(text ?? ''); const [n, setN] = useState(animate && !reducedMotion() ? 0 : full.length);
+  useEffect(() => { if (n >= full.length) return undefined; const t = window.setTimeout(() => { setN((x) => Math.min(full.length, x + Math.max(2, Math.ceil(full.length / 80)))); onTick?.(); }, 20); return () => window.clearTimeout(t); }, [n, full]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <>{full.slice(0, n)}{n < full.length && <span className="sr-caret" aria-hidden="true" />}</>;
+}
+const SYS_ORDER = ['scope', 'read', 'compare', 'build', 'check']; const ATT_ORDER = ['files', 'refs', 'match', 'analyze'];
+const PACE = 380;
 const CHAT_STEPS = { files: ['أقرأ الملفات المرفقة', 'Reading the attached files'], refs: ['أستخرج أرقام الفواتير منها', 'Extracting invoice numbers from them'], match: ['أطابقها مع بيانات النظام', 'Matching them with the system data'], analyze: ['أحلل الجداول وأقارنها بالنظام', 'Analysing the tables and comparing with the system'] };
 const summarize = (model) => { const k = model.headline.find((b) => b.type === 'kpis'); const items = (k?.items || []).slice(0, 5).map((i) => `${i.label}: ${i.value}`).join(' · '); return [model.summaryText, items].filter(Boolean).join('\n'); };
 
@@ -164,6 +185,8 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const [fileNote, setFileNote] = useState('');
   const [previewId, setPreviewId] = useState(null);
   const [drag, setDrag] = useState(false);
+  const [typing, setTyping] = useState({}); // msgId -> the reply is being prepared (typing dots)
+  const animated = useRef(new Set()); const thinkTimers = useRef({}); // ids of messages written in this session (they are written out); pending 'thinking' timers
   const attData = useRef({}); // msgId -> what the analysis was built from (kept in this browser tab only; the files themselves are never stored)
   const endRef = useRef(null); const taRef = useRef(null); const fileRef = useRef(null);
 
@@ -199,16 +222,16 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   /* ---------------- generation of a system report ---------------- */
   const generate = useCallback(async (sp, token, setStep) => {
     const sc = sp.scope; const cutoff = rev.cfg.cutoff;
-    const step = (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setStep(k); };
-    step('scope');
+    const step = async (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setStep(k); if (token.pace) await sleep(token.pace); };
+    await step('scope');
     const scope = { ...sc };
     const prevSc = sp.compare === 'prev_month' ? previousMonthScope(sc, today) : sp.compare === 'prev_year' ? (({ from, to }) => ({ from, to }))(previousScope({ from: sc.from, to: sc.to })) : null;
     const atEnd = { cfg: headlineCfg(rev.cfg) }; // the SAME measurement rule as every other view (src/data/measure.js)
-    step('read');
+    await step('read');
     const task = rev.startAnalysis('report', { focus: sp.sections.includes('exclusions') ? 'noncollection' : sp.sections.includes('amanah') ? 'amanah' : 'revenue', nonce: uid() }, { scope, background: true, inline: true, paceMs: 0, followsGlobal: false, origin: 'smart-reports' });
     token.taskId = task.id;
     const final = await task.promise;
-    step('compare');
+    await step('compare');
     if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw Object.assign(new Error('analysis_failed'), { status: final.status, reason: final.error || final.errors || final.message || null }); }
     const out = { ...final.out, snapshot: await measure(rev.data, scope, rev.cfg) };
     const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status, product: sc.product, mainClass: sc.mainClass };
@@ -217,15 +240,15 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       sp.sections.includes('trends') ? rev.data.series({ ...scope }, { asOf: sc.to < cutoff ? sc.to : cutoff }) : Promise.resolve(null),
       sp.sections.includes('quality') ? rev.data.bridge({ ...scopeKeys, from: '2000-01-01', to: cutoff }) : Promise.resolve(null)
     ]);
-    step('build');
+    await step('build');
     const model = buildReportModel({ spec: sp, lang, out, prev, compare: sp.compare, prevScope: prevSc, cash, bridge, targets: rev.targets, cases: rev.cases, meta: rev.meta });
-    step('check');
+    await step('check');
     if (!model.equationOk) model.sections.unshift({ key: 'warn', title: L('تنبيه', 'Warning'), purpose: '', blocks: [{ type: 'callout', tone: 'warn', text: L('تعذّر تحقق إحدى علاقات المطابقة المالية لهذا الاختيار؛ راجع قسم اكتمال البيانات والمطابقة.', 'One financial reconciliation identity did not hold for this selection; see the completeness and reconciliation section.') }] });
     return model;
   }, [rev, lang, today, L]);
 
-  const run = useCallback(async (convId, msgId, sp) => {
-    const token = { cancelled: false, taskId: null };
+  const run = useCallback(async (convId, msgId, sp, { pace = 0 } = {}) => {
+    const token = { cancelled: false, taskId: null, pace };
     setBusy({ msgId, step: 'scope', token });
     try {
       const model = await generate(sp, token, (k) => setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)));
@@ -241,7 +264,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     } finally { setBusy((b) => (b && b.msgId === msgId ? null : b)); }
   }, [generate, patchConv, labelOfAmanah, ar]);
 
-  const stop = () => { if (!busy) return; busy.token.cancelled = true; if (busy.token.taskId) rev.cancelTask(busy.token.taskId); };
+  const stop = () => { if (!busy) return; if (busy.step === 'think') { busy.token.finish?.(); return; } busy.token.cancelled = true; if (busy.token.taskId) rev.cancelTask(busy.token.taskId); };
 
   // reopen a stored conversation: rebuild the last system report from its spec
   useEffect(() => {
@@ -257,13 +280,13 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const runAttach = useCallback(async (convId, msgId, recs, { groupTerm = null, question = '', sp }) => {
     const token = { cancelled: false, taskId: null };
     setBusy({ msgId, step: 'files', token });
-    const step = (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)); };
+    const step = async (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)); await sleep(PACE); };
     try {
-      step('files'); await new Promise((r) => window.setTimeout(r, 0)); // the files were read when they were added; let the state paint
-      step('refs'); const refs = refsOfAttachments(recs);
+      await step('files'); // the files were read when they were added
+      await step('refs'); const refs = refsOfAttachments(recs);
       let resolved = null;
-      if (refs.unique.length) { step('match'); resolved = await rev.enforcement.resolve(refs.unique.map((r) => ({ kind: r.kind, value: r.value }))); }
-      step('analyze');
+      if (refs.unique.length) { await step('match'); resolved = await rev.enforcement.resolve(refs.unique.map((r) => ({ kind: r.kind, value: r.value }))); }
+      await step('analyze');
       const anyTables = recs.some((a) => a.tables?.length);
       const scopeText = scopeTextOf(sp);
       const snapshot = anyTables ? await measure(rev.data, { ...sp.scope }, rev.cfg) : null;
@@ -352,23 +375,30 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', question: res.question || null, status: 'done' };
       else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
       else if (res.confirm?.length && !override) aMsg = { id: asId, role: 'assistant', kind: 'confirm', status: 'pending', confirm: res.confirm, pending: { kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec) } };
-      else { aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working', ...(chat?.type === 'section' && lr ? { view: lr.view } : {}) }; after = () => run(c.id, asId, aMsg.spec); }
+      else { aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working', ...(chat?.type === 'section' && lr ? { view: lr.view } : {}) }; after = () => run(c.id, asId, aMsg.spec, { pace: PACE }); }
     }
     const next = { ...c, title: c.messages.length ? c.title : q.slice(0, 48), updatedAt: Date.now(), spec: aMsg.spec || c.spec, messages: [...c.messages.map((m) => (m.kind === 'confirm' && m.status === 'pending' ? { ...m, status: 'superseded' } : m)), userMsg, aMsg] };
     setConvs((cs) => (cs.some((x) => x.id === c.id) ? cs.map((x) => (x.id === c.id ? next : x)) : [next, ...cs]));
     setActiveId(c.id); setInput(''); writeDraft(c.id, ''); writeDraft(draftFor.current, '');
     if (sendFiles.length) { setFiles([]); setPreviewId(null); setFileNote(''); }
+    animated.current.add(userMsg.id); animated.current.add(asId);
     if (after) after();
+    else { // a quick answer still shows the assistant preparing it
+      const token = { cancelled: false, taskId: null };
+      setTyping((t) => ({ ...t, [asId]: true })); setBusy({ msgId: asId, step: 'think', token });
+      const done = () => { window.clearTimeout(thinkTimers.current[asId]); delete thinkTimers.current[asId]; setTyping((t) => { const { [asId]: _x, ...rest } = t; return rest; }); setBusy((b) => (b && b.msgId === asId ? null : b)); };
+      thinkTimers.current[asId] = window.setTimeout(done, 750 + Math.min(600, q.length * 8)); token.finish = done;
+    }
   }, [busy, conv, today, lang, labelOfAmanah, run, runAttach, runExport, sharedSpec, files, readingAny, latest, buildAttModel, L, ar]);
 
   // the demo asks the user to confirm the interpreted scope in the risky categories BEFORE anything is generated
   const confirmPending = (msg) => {
     const pd = msg.pending; if (busy || !pd) return;
     patchConv(conv.id, (c) => ({ ...c, spec: pd.spec, updatedAt: Date.now(), messages: c.messages.map((m) => (m.id === msg.id ? { id: m.id, role: 'assistant', kind: pd.kind, spec: pd.spec, changes: pd.changes, changeKeys: pd.changeKeys, firstReport: pd.firstReport, confirmedByUser: true, status: 'working' } : m)) }));
-    run(conv.id, msg.id, pd.spec);
+    run(conv.id, msg.id, pd.spec, { pace: PACE });
   };
   const cancelPending = (msg) => patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'cancelled' } : m)) }));
-  const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec); };
+  const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec, { pace: PACE }); };
   const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); setFiles([]); setFileNote(''); setPreviewId(null); taRef.current?.focus(); };
   const [renaming, setRenaming] = useState(null); // { id, text }
   const renameConv = (id, text) => { const t = text.trim().slice(0, 80); if (t) patchConv(id, (c) => ({ ...c, title: t, titleSource: 'user' })); setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${id}`)?.focus(), 0); };
@@ -505,17 +535,19 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         )}
         {conv?.messages.map((m) => {
           if (m.role === 'user') return (
-            <div key={m.id} className="sr-msg sr-msg--user"><div className="sr-bubble">{m.text}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, ar)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
+            <div key={m.id} className={`sr-msg sr-msg--user${animated.current.has(m.id) ? ' sr-msg--new' : ''}`}><div className="sr-bubble">{m.text}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, ar)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
           );
           const model = modelOf(m); const isBusy = busy?.msgId === m.id; const res = resultOf(m, conv.messages); const isLast = !!latest && m.id === latest.msgId;
           const shown = res?.model || null; const isFileResult = m.kind === 'attachments'; const showCard = !!shown && m.kind !== 'export';
+          const fresh = animated.current.has(m.id); const tick = () => endRef.current?.scrollIntoView({ block: 'end' });
+          if (typing[m.id]) return <div key={m.id} className="sr-msg sr-msg--ai sr-msg--new"><div className="sr-avatar" aria-hidden="true">ذ</div><div className="sr-ai"><div className="sr-bubble sr-bubble--ai"><TypingDots label={L('المساعد يكتب', 'The assistant is typing')} /></div></div></div>;
           return (
-            <div key={m.id} className="sr-msg sr-msg--ai">
+            <div key={m.id} className={`sr-msg sr-msg--ai${fresh ? ' sr-msg--new' : ''}`}>
               <div className="sr-avatar" aria-hidden="true">ذ</div>
               <div className="sr-ai">
-                {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')}</b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind === 'text' && <div className="sr-bubble sr-bubble--ai" style={{ whiteSpace: 'pre-line' }}>{m.plain}</div>}
+                {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={m.question[ar ? 'ar' : 'en']} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'text' && <div className="sr-bubble sr-bubble--ai" style={{ whiteSpace: 'pre-line' }}><Typewriter text={m.plain} animate={fresh} onTick={tick} /></div>}
                 {m.kind === 'confirm' && (
                   <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
                     <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
@@ -526,10 +558,10 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.status === 'superseded' && <div className="muted">{L('حلّ محلّه طلب أحدث.', 'Replaced by a newer request.')}</div>}
                   </div>
                 )}
-                {m.kind === 'view' && <div className="sr-bubble sr-bubble--ai">{m.note}</div>}
+                {m.kind === 'view' && <div className="sr-bubble sr-bubble--ai"><Typewriter text={m.note} animate={fresh} onTick={tick} /></div>}
                 {m.kind === 'export' && (
                   <div className="sr-bubble sr-bubble--ai sr-filecard" role="group" aria-label={L('ملف النتيجة', 'The result file')}>
-                    {m.status === 'working' && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {L('أُجهّز الملف…', 'Preparing the file…')}</div>}
+                    {m.status === 'working' && <div className="sr-progress" role="status"><TypingDots label={L('أُجهّز الملف', 'Preparing the file')} /> {L('أُجهّز الملف…', 'Preparing the file…')}</div>}
                     {m.status === 'done' && res && <>
                       <div><b>{m.format === 'pdf' ? L('جاهز للطباعة / الحفظ PDF', 'Ready to print / save as PDF') : L('أنشأتُ الملف ونزّلته', 'The file was created and downloaded')}</b></div>
                       <div className="sr-filecard__row"><span className="sr-file__ico" aria-hidden="true">{m.format.toUpperCase()}</span><bdi>{m.fileName || reportFileName(res.model, m.format)}</bdi>
@@ -543,8 +575,8 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                 {m.kind === 'attachments' && (
                   <div className="sr-bubble sr-bubble--ai">
                     {m.regroup ? <b>{L('أعدتُ تجميع النتيجة:', 'Regrouped the result:')}</b> : <b>{L('حلّلتُ المرفقات مع بيانات النظام:', 'Analysed the attachments together with the system data:')}</b>}
-                    {shown?.summaryText && <div style={{ lineHeight: 1.9 }}>{shown.summaryText}</div>}
-                    {isBusy && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {stepText(busy.step)}… <button type="button" className="btn btn-sm btn-ghost" onClick={stop}>{L('إيقاف', 'Stop')}</button></div>}
+                    {shown?.summaryText && <div style={{ lineHeight: 1.9 }}><Typewriter text={shown.summaryText} animate={fresh} onTick={tick} /></div>}
+                    {isBusy && <AgentSteps order={ATT_ORDER} current={busy.step} textOf={stepText} L={L} onStop={stop} />}
                     {m.status === 'stopped' && <div className="sr-warn">{L('أُوقف التحليل. أرفق الملفات من جديد للمحاولة.', 'The analysis was stopped. Attach the files again to retry.')}</div>}
                     {(m.status === 'error' || (m.status === 'working' && !isBusy && !model)) && <div className="sr-warn" role="alert">{L('تعذّر تحليل المرفقات أو انقطع قبل اكتماله. أرفق الملفات من جديد.', 'The attachments could not be analysed, or the analysis was interrupted. Attach the files again.')}</div>}
                   </div>
@@ -554,13 +586,13 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.kind === 'question' ? L('الإجابة:', 'Answer:') : (m.changes?.length > 0 ? L('فهمتُ الطلب:', 'Understood:') : L('التقرير بالنطاق الحالي.', 'Report for the current scope.'))}
                     {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}</div>}
                     {m.spec && <InterpretationSummary msg={m} chips={specChips(m.spec)} L={L} editable={isLast && !busy} editing={isLast && editOpen} onEdit={() => setEditOpen((v) => !v)} panel={<FilterPanel key={JSON.stringify(m.spec.scope) + m.spec.compare} spec={m.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditOpen(false); applyFilters(p); }} />} />}
-                    {isBusy && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {stepText(busy.step)}… <button type="button" className="btn btn-sm btn-ghost" onClick={stop}>{L('إيقاف', 'Stop')}</button></div>}
+                    {isBusy && <AgentSteps order={SYS_ORDER} current={busy.step} textOf={stepText} L={L} onStop={stop} />}
                     {m.status === 'stopped' && <div className="sr-warn">{L('أُوقف الإعداد.', 'Generation was stopped.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
                     {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إعداد التقرير. تحقق من اتصال خدمة البيانات ثم أعد المحاولة.', 'The report could not be prepared. Check the data service and try again.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
                   </div>
                 )}
                 {showCard && (
-                  <div className="sr-card card">
+                  <div className={`sr-card card${fresh ? ' sr-reveal' : ''}`}>
                     <div className="sr-card__bar">
                       <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${shown.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
                       {isLast && <>
