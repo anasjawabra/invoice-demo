@@ -484,7 +484,6 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         <div className="sr-top__actions">
           <button type="button" className="btn btn-sm" onClick={newConv} disabled={!!busy}>＋ {L('محادثة جديدة', 'New conversation')}</button>
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>{L('السجل', 'History')} ({convs.length})</button>
-          <Link className="btn btn-sm btn-ghost" to="/insights?view=reports">{L('التقارير الثابتة', 'Fixed reports')}</Link>
         </div>
       </div>
       {drag && <div className="sr-dropzone" role="status">{L('أفلت الملفات هنا لإرفاقها', 'Drop the files here to attach them')}</div>}

@@ -91,7 +91,7 @@ export default function InsightsDashboard() {
           <b>{L('الفواتير وحالة الدفع', 'Invoices and payment status')} <small className="muted">({fmtInt(T.count)} {L('فاتورة', 'invoices')})</small></b>
           <div role="img" aria-label={L('توزيع أعداد الفواتير حسب الحالة', 'Invoice counts by status')} style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden' }}>{st.map((g) => <i key={g.key} title={`${B(STATUS_LABEL[g.key])}: ${fmtInt(g.count)}`} style={{ width: `${(g.count / Math.max(1, stTotal)) * 100}%`, background: STATUS_COLOR[g.key] || 'var(--line-strong)' }} />)}</div>
           <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('حالة الدفع', 'Payment status')}><tbody>{st.map((g) => <tr key={g.key}><td><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: STATUS_COLOR[g.key], marginInlineEnd: 6 }} />{B(STATUS_LABEL[g.key]) || g.key}</td><td dir="ltr">{count(g.count)}</td><td dir="ltr">{pct(g.count / Math.max(1, stTotal), '—')}</td></tr>)}</tbody></table></div>
-          <Link to="/insights?view=reports&report=status" className="btn btn-sm btn-ghost">{L('تقرير حالة الدفع', 'Payment-status report')}</Link>
+          <Link to="/smart-reports?q=%D8%A3%D9%86%D8%B4%D8%A6%20%D8%AA%D9%82%D8%B1%D9%8A%D8%B1%20%D8%AD%D8%A7%D9%84%D8%A9%20%D8%A7%D9%84%D8%AF%D9%81%D8%B9%20%D9%84%D9%84%D9%81%D9%88%D8%A7%D8%AA%D9%8A%D8%B1" className="btn btn-sm btn-ghost">{L('تقرير حالة الدفع', 'Payment-status report')}</Link>
         </div>
         <div className="card st-card">
           <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
@@ -113,14 +113,14 @@ export default function InsightsDashboard() {
         <div className="card st-card">
           <b>{L('الأمانات / الجهات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
-          <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
+          <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/smart-reports?q=%D9%82%D8%A7%D8%B1%D9%86%20%D8%A3%D8%AF%D8%A7%D8%A1%20%D8%A7%D9%84%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%20%D8%A8%D9%8A%D9%86%20%D8%A7%D9%84%D8%A3%D9%85%D8%A7%D9%86%D8%A7%D8%AA">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>
         <div className="st-pair">
           <div className="card st-card">
             <b>{L('مصادر الإيراد', 'Revenue sources')}</b>
             <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('مصادر الإيراد', 'Revenue sources')}><thead><tr><th>{L('المصدر', 'Source')}</th><th>{L('معدل التحصيل', 'Rate')}</th>{comparable && <th>{L('السابق', 'Prior')}</th>}<th>{L('الفواتير', 'Invoices')}</th></tr></thead>
               <tbody>{src.map((g) => <tr key={g.key}><td><Link to={`/invoices?src=${g.key}`}>{ar ? sourceAr(g.key) : sourceEn(g.key)}</Link></td><td dir="ltr">{pct(g.net > 0 ? g.collected / g.net : null, '—')}</td>{comparable && <td dir="ltr">{pct(prevSrc.get(g.key) && prevSrc.get(g.key).net > 0 ? prevSrc.get(g.key).collected / prevSrc.get(g.key).net : null, '—')}</td>}<td dir="ltr">{count(g.count)}</td></tr>)}</tbody></table></div>
-            <Link to="/insights?view=reports&report=sources" className="btn btn-sm btn-ghost">{L('تقرير المصادر', 'Sources report')}</Link>
+            <Link to="/smart-reports?q=%D8%AD%D9%84%D9%84%20%D8%A7%D9%84%D8%A5%D9%8A%D8%B1%D8%A7%D8%AF%D8%A7%D8%AA%20%D8%AD%D8%B3%D8%A8%20%D8%A7%D9%84%D9%85%D8%B5%D8%AF%D8%B1" className="btn btn-sm btn-ghost">{L('تقرير المصادر', 'Sources report')}</Link>
           </div>
           {mun.length > 0 && (
             <div className="card st-card">

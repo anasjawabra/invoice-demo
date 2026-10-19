@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
@@ -29,12 +29,6 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// old links keep their query (?q=, ?r=, ?view=) when they land on the new management area
-function LegacyRedirect({ to, fallbackView }) {
-  const loc = useLocation(); const sp = new URLSearchParams(loc.search); if (!sp.get('view') && !sp.get('r')) sp.set('view', fallbackView);
-  return <Navigate to={`${to}?${sp.toString()}`} replace />;
-}
-
 function Redirect({ make }) { const p = useParams(); return <Navigate to={make(p)} replace />; }
 
 export default function App() {
@@ -47,7 +41,7 @@ export default function App() {
         <Route path="planning" element={<PlanningArea />} />
         <Route path="executive" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="dashboard" element={<Navigate to="/insights?view=dashboard" replace />} />
-        <Route path="reports" element={<LegacyRedirect to="/insights" fallbackView="reports" />} />
+        <Route path="reports" element={<Navigate to="/insights" replace />} />
         <Route path="smart-reports" element={<SmartReportsPage />} />
         <Route path="assistant" element={<Navigate to="/smart-reports" replace />} />
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
