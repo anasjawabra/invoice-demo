@@ -753,3 +753,19 @@
 .prod-card__dl dt { color: var(--txt-mute); } .prod-card__dl dd { margin: 0; font-weight: 700; }
 .prod-card__challenge { margin: 0; font-size: 13px; }
 .prod-challenges { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; font-size: 14px; }
+
+/* ---- planning: targets panel and the forecast section ---- */
+.tg-panel { display: grid; gap: 12px; }
+.tg-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: baseline; }
+.tg-overall { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; }
+.tg-inline { display: inline-flex; gap: 6px; align-items: center; }
+.tg-num { width: 84px; text-align: end; } .tg-wide { width: 110px; }
+.tg-derived { display: grid; gap: 4px; font-size: 13px; }
+.tg-table td, .tg-table th { vertical-align: middle; } .tg-table tr.is-on { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.tg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-block: 6px; }
+.tg-cell { display: grid; gap: 3px; font-size: 12px; }
+.pf-panel { display: grid; gap: 12px; }
+.pf-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pf-tiles { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.pf-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.pf-list { margin: 6px 0; padding-inline-start: 20px; display: grid; gap: 6px; font-size: 13px; }

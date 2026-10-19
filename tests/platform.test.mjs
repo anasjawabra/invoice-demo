@@ -29,7 +29,7 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
 import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
 import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
-import { appropriationOf, appropriationTotal, appropriationKeys, appropriationAsOfEnd, HQ_KEY } from '../src/data/appropriations.js';
+import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
 import { paymentFacts } from '../src/data/invoicePayments.js';
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
@@ -1391,20 +1391,18 @@ await test('goal: a saved (draft) plan is never recalculated silently; an explic
 });
 await test('appropriations: structure (chapters 1–3 only), the Ministry is the sum of its entities, an unknown year or entity has none', () => {
   const keys = appropriationKeys(); assert.ok(keys.includes(HQ_KEY) && keys.length === 19, 'headquarters + 18 entities');
-  const T = appropriationTotal(); let rv = 0; let ex = 0; for (const k of keys) { const a = appropriationOf(k); assert.ok(a.revAdjusted >= 0 && a.expSpent <= a.expAdjusted * 1.0001 && a.expSpent > 0, k); rv += a.revAdjusted; ex += a.expSpent; }
-  assert.ok(Math.abs(T.revAdjusted - rv) < 1 && Math.abs(T.expSpent - ex) < 1);
+  const T = appropriationTotal(); let rv = 0; let ex = 0; for (const k of keys) { const a = appropriationOf(k); assert.ok(a.revAdjusted >= 0 && a.expAdjusted <= a.expAdjusted * 1.0001 && a.expAdjusted > 0, k); rv += a.revAdjusted; ex += a.expAdjusted; }
+  assert.ok(Math.abs(T.revAdjusted - rv) < 1 && Math.abs(T.expAdjusted - ex) < 1);
   assert.equal(appropriationOf(HQ_KEY).revAdjusted, 0, 'the headquarters collects no revenue of its own');
   assert.equal(appropriationOf('Riyadh Amanah', 2025), null); assert.equal(appropriationOf('Unassigned'), null); assert.equal(appropriationTotal(['Unassigned']), null);
   const am = amanahsG(); for (const a of am) assert.ok(keys.includes(a.key), `${a.key} has an appropriation row`);
 });
-await test('coverage: collected (payments, not billing) to the end of the last closed month ÷ cumulative spending of the same period; entities add up to the Ministry', () => {
-  assert.equal(appropriationAsOfEnd(), '2026-08-31');
+await test('coverage (D38): collected (payments, not billing) to the reporting date ÷ the communicated budget of chapters 1–3; entities add up to the Ministry; no spending figure exists', () => {
   const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
-  const cut = snapshot(st, { scope: { from: '2026-01-01', to: appropriationAsOfEnd(), amanah: 'all', source: 'all' }, cfg: approved }).receivedInPeriod;
   const now = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg: approved }).receivedInPeriod;
-  assert.ok(cut.total > 0 && cut.total < now.total, 'later payments are not in the like-for-like period');
-  assert.ok(Math.abs(Object.values(cut.byAmanah).reduce((a, b) => a + b, 0) - cut.total) < 1, 'entities add up to the Ministry');
-  const spent = appropriationTotal().expSpent; const ratio = cut.total / spent; assert.ok(ratio > 0 && ratio < 1, 'a ratio, not a percentage of billing');
+  assert.ok(now.total > 0); assert.ok(Math.abs(Object.values(now.byAmanah).reduce((a, b) => a + b, 0) - now.total) < 1, 'entities add up to the Ministry');
+  const budget = appropriationTotal().expAdjusted; const coverage = now.total / budget; assert.ok(coverage > 0 && coverage < 5, 'a ratio of collection to the budget, not a percentage of billing');
+  const T = appropriationTotal(); assert.ok(T.revAdjusted > 0 && T.expAdjusted > T.revAdjusted);
 });
 await test('goal data: payments by month (payment date) equal the snapshot receipts; Amanah receipts add up to the national figure; only approved exclusions apply', () => {
   const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
@@ -1515,7 +1513,7 @@ await test('terminology: «المقبوضات» and its forms are gone from ever
   const entries = metricDictionary({ quality: { records: 1 }, cutoff: TODAY, scope: { amanah: 'all', source: 'all', from: '2026-01-01', to: TODAY } });
   assert.ok(entries.every((e) => e && typeof e.key === 'string' && e.label && e.definition && e.formula), 'every dictionary entry is complete (no empty slot)');
   const dict = entries.map((e) => e.key);
-  for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'expenditureCh13', 'spendingCoverage']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
+  for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'budgetCh13', 'coverageRatio']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
 });
 
 
@@ -1624,6 +1622,35 @@ await test('D27 · licence fees are prepaid: 100 % collected, nothing uncollecte
   const sn = snapshot(st, { scope: { from: '2025-01-01', to: TODAY, amanah: 'all', source: 'licenses' }, cfg });
   assert.ok(sn.totals.count > 0); assert.ok(sn.totals.outstanding < 1, 'uncollected = 0'); assert.ok(Math.abs(sn.totals.collected - sn.totals.net) < 1, 'collected = net billed');
   assert.ok(sn.totals.collectedOverNet.value >= 0.999 && sn.totals.collectedOverNet.value <= 1, 'collection rate 100 % (never above)');
+});
+
+import { targetsOf, setTargets, emptyTargetStore, applyOverallCoverage, totalTargets, normalizeWeights } from '../src/data/planTargets.js';
+import { forecastYear, focusRanking, normalCdf } from '../src/data/planForecast.js';
+await test('IIM-14 · targets: coverage × budget = the revenue target (66 % × 30 bn = 19.8 bn), split by month; defaults reproduce the appropriation; saved values carry «آخر تعديل»', () => {
+  const a = { revAdjusted: 12e9, expAdjusted: 30e9 };
+  const d = targetsOf(emptyTargetStore(), 2026, 'X', a); assert.equal(d.source, 'default'); assert.ok(Math.abs(d.revenueTarget - 12e9) < 1, 'by default the revenue target is the appropriation');
+  const st1 = setTargets(emptyTargetStore(), 2026, 'X', { coverage: 0.66 }, { at: '2026-10-19T10:00:00Z', by: 'Tester' });
+  const t = targetsOf(st1, 2026, 'X', a); assert.equal(t.source, 'saved'); assert.equal(t.savedAt, '2026-10-19T10:00:00Z');
+  assert.ok(Math.abs(t.revenueTarget - 19.8e9) < 1, '66 % × 30 bn = 19.8 bn'); assert.ok(Math.abs(t.cumulative[11] - 19.8e9) < 1 && Math.abs(t.monthly[0] - 19.8e9 / 12) < 1, 'split evenly by default');
+  const w = setTargets(st1, 2026, 'X', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9] }); const tw = targetsOf(w, 2026, 'X', a); assert.ok(Math.abs(tw.monthly[11] - 19.8e9 * 9 / 20) < 1 && Math.abs(tw.cumulative[11] - 19.8e9) < 1, 'unequal months still add up to the year');
+  assert.equal(normalizeWeights([0, 0]).length, 12);
+  const rows = [targetsOf(emptyTargetStore(), 2026, 'A', { revAdjusted: 6e9, expAdjusted: 10e9 }), targetsOf(emptyTargetStore(), 2026, 'B', { revAdjusted: 4e9, expAdjusted: 20e9 }), targetsOf(emptyTargetStore(), 2026, 'HQ', { revAdjusted: 0, expAdjusted: 0 })];
+  const applied = applyOverallCoverage(emptyTargetStore(), 2026, 0.66, rows); const after = ['A', 'B', 'HQ'].map((k, j) => targetsOf(applied, 2026, k, [{ revAdjusted: 6e9, expAdjusted: 10e9 }, { revAdjusted: 4e9, expAdjusted: 20e9 }, { revAdjusted: 0, expAdjusted: 0 }][j]));
+  const tot = totalTargets(after); assert.ok(Math.abs(tot.revenueTarget - 0.66 * 30e9) < 1, 'the overall target is the coverage × the total budget'); assert.ok(Math.abs(tot.coverage - 0.66) < 1e-9);
+});
+await test('IIM-15 · forecast: a low target gives a high probability and «reasons to reach it»; an unrealistic one gives a low probability and «billing is insufficient»; the closed months are the actuals', () => {
+  const months = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100]; const base = { monthlyCollected: months, reportingMonth: 10, yearEnded: false, dayFraction: 1, billedMonthly: months.map(() => 110), standingUncollected: 300 };
+  const cum = (t) => Array.from({ length: 12 }, (_, k) => (t * (k + 1)) / 12);
+  const easy = forecastYear({ ...base, target: 1000, cumTarget: cum(1000) });
+  assert.ok(easy.probability > 0.8, 'reachable'); assert.ok(easy.reasons.some((r) => r.kind === 'reach')); assert.equal(easy.actualCum[9], 1000);
+  const hard = forecastYear({ ...base, target: 5000, cumTarget: cum(5000) });
+  assert.ok(hard.probability < 0.05, 'unrealistic'); assert.ok(hard.reasons.some((r) => r.code === 'billing_insufficient'), 'even collecting everything owed plus the billing still expected cannot reach it');
+  assert.equal(hard.deviation, hard.collected - hard.plannedToDate); assert.ok(hard.deviation < 0 && hard.deviationPct < 0);
+  assert.ok(hard.estCum[11] > hard.estCum[9] && easy.estCum[8] === easy.actualCum[8], 'closed months equal the actuals; later months are the estimate');
+  assert.equal(forecastYear({ ...base, target: 800, cumTarget: cum(800) }).probability, 1, 'already reached → 100 %');
+  assert.ok(Math.abs(normalCdf(0) - 0.5) < 1e-6);
+  const f = focusRanking([{ amanah: 'A', source: 'x', net: 100, collected: 20, outstanding: 80 }, { amanah: 'B', source: 'y', net: 100, collected: 95, outstanding: 5 }, { amanah: 'C', source: 'z', net: 10, collected: 10, outstanding: 0 }], 0.6, 5);
+  assert.deepEqual(f.map((x) => x.amanah), ['A', 'B'], 'ranked by what is owed × the shortfall; nothing-owed cells are left out');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

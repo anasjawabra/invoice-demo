@@ -1032,7 +1032,7 @@ var REVENUE_ITEMS = ITEMS.reduce((m, it) => {
   (m[it.source] = m[it.source] || []).push(it);
   return m;
 }, {});
-var RULE_IDS = ["DUP-1", "CR-1", "DEC-1", "NOC-1", "INC-1", "EXE-1", "EFA-1", "OBJ-1", "ENF-1", "SND-1"];
+var RULE_IDS = ["DUP-1", "CR-1", "DEC-1", "NOC-1", "INC-1", "EXE-1", "EFA-1", "OBJ-1", "ENF-1", "SND-1", "ATT-1", "ENC-1"];
 var RULE_BIT = Object.fromEntries(RULE_IDS.map((id, i) => [id, 1 << i]));
 var CR_STATUS = [null, "Active", "Deleted", "Suspended", "Cancelled"];
 var EFAA_STATUS = [null, "\u0645\u0633\u062F\u062F\u0629", "\u0642\u0627\u0626\u0645\u0629", "\u062A\u062D\u062A \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636", "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629", "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647"];
@@ -1074,7 +1074,7 @@ var isoOf = (day) => {
 // src/data/revenueLedger.js
 var DATA_CUTOFF = DEMO_TODAY;
 var REVENUE_SOURCES = {
-  investment: { gfs: "1421901", en: "Investment (Furas)", ar: "\u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631 (\u0641\u0631\u0635)", zh: "\u6295\u8D44\u6536\u5165", platform: "Foras" },
+  investment: { gfs: "1421901", en: "Investment", ar: "\u0627\u0644\u0627\u0633\u062A\u062B\u0645\u0627\u0631", zh: "\u6295\u8D44\u6536\u5165", platform: "Foras" },
   fines: { gfs: "1438001", en: "Fines & penalties", ar: "\u0627\u0644\u063A\u0631\u0627\u0645\u0627\u062A \u0648\u0627\u0644\u062C\u0632\u0627\u0621\u0627\u062A", zh: "\u7F5A\u6B3E\u4E0E\u5904\u7F5A", platform: "Mumathil" },
   municipal_fees: { gfs: "142113", en: "Municipal fees", ar: "\u0627\u0644\u0631\u0633\u0648\u0645 \u0627\u0644\u0628\u0644\u062F\u064A\u0629", zh: "\u5E02\u653F\u6536\u8D39", platform: "Baladi" },
   licenses: { gfs: "142162", en: "Licence fees", ar: "\u0631\u0633\u0648\u0645 \u0627\u0644\u062A\u0631\u0627\u062E\u064A\u0635", zh: "\u8BB8\u53EF\u8D39", platform: "Amanah Internal Reports" },
@@ -1105,6 +1105,8 @@ var OVERLAY = {
   "177-882606500000": { payments: [{ date: "2026-07-27", amount: 15e4, channel: "voluntary" }] },
   // Approved credit note reduces the billed amount.
   "177-882605200000": { adjustments: [{ date: "2026-02-10", amount: -5e4, kind: "credit_note", reason: { en: "Approved credit note (area re-measurement)", ar: "\u0625\u0634\u0639\u0627\u0631 \u062F\u0627\u0626\u0646 \u0645\u0639\u062A\u0645\u062F (\u0625\u0639\u0627\u062F\u0629 \u0642\u064A\u0627\u0633 \u0627\u0644\u0645\u0633\u0627\u062D\u0629)" } }] },
+  // S9 / D22: cancelled in Sadad BECAUSE it was referred to execution (the confirmed order EN-2455512): it is not a cancellation — it stays billed and is excluded as «منفذ ضده – قضايا (سند)».
+  "177-882608060000": { cancelled: { date: "2026-07-06", source: "\u062A\u062D\u0635\u064A\u0644" } },
   // Missing mandatory debtor identifier: invoice cannot be referred as-is.
   "177-882608020000": { missing: ["debtor_id_number"] },
   // Exclusion records (explicit, with evidence and review state).
@@ -1262,7 +1264,7 @@ function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEED, uplo
       contract: contractLinkOf(inv2),
       exclusion: ex,
       exclusions: ex ? [ex] : [],
-      cancelled: null,
+      cancelled: ov.cancelled || null,
       subscriptionNo: textId("", inv2.id + "7", 10),
       crNo: null,
       crStatusRaw: null,
@@ -1431,6 +1433,7 @@ var assumptionsFor = (source) => ASSUMPTIONS.filter((a) => a.sources.includes("a
 var CENTRAL_BILLER_IDS = ["177"];
 var CENTRAL_BILLER = { id: "177", ar: "\u0627\u0644\u0641\u0648\u062A\u0631\u0629 \u0627\u0644\u0645\u0631\u0643\u0632\u064A\u0629 \u2014 \u0648\u0632\u0627\u0631\u0629 \u0627\u0644\u0628\u0644\u062F\u064A\u0627\u062A \u0648\u0627\u0644\u0625\u0633\u0643\u0627\u0646", en: "Central billing \u2014 Ministry of Municipalities and Housing" };
 var HOUSING_BILLER = { id: "171", ar: "\u0642\u0637\u0627\u0639 \u0627\u0644\u0625\u0633\u0643\u0627\u0646", en: "Housing sector" };
+var REFERRED_CANCELLED_STAYS_BILLED = true;
 var EXCLUSIONS_AUTO_APPLY = true;
 var pad = (n, w) => String(n).padStart(w, "0");
 function billerOf(ent, scope) {
@@ -1439,6 +1442,8 @@ function billerOf(ent, scope) {
   const e = ENTITIES[ent];
   return { id: `3${pad(ent + 1, 2)}`, ar: e.ar, en: e.en };
 }
+var entityTypeOf = (ent) => ent === ENT_HOUSING || ent === ENT_UNASSIGNED ? "entity" : "amanah";
+var ENTITY_TYPE_AR = { amanah: "\u0623\u0645\u0627\u0646\u0629", entity: "\u062C\u0647\u0629" };
 var isCentralBiller = (billerId) => CENTRAL_BILLER_IDS.includes(String(billerId));
 var originOf = (billerId) => isCentralBiller(billerId) ? "central" : "internal";
 var ORIGIN_AR = { central: "\u0645\u0631\u0643\u0632\u064A", internal: "\u062F\u0627\u062E\u0644\u064A" };
@@ -1449,14 +1454,23 @@ function parseInvoiceKey(s) {
 }
 var PRODUCTS = {
   foras: { ar: "\u0641\u0631\u0635", en: "Furas" },
+  screen: { ar: "\u0634\u0627\u0634\u0629 \u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A\u0629", en: "Electronic screen" },
   baladi: { ar: "\u0628\u0644\u062F\u064A", en: "Baladi" },
   mumtathil: { ar: "\u0645\u0645\u062A\u062B\u0644", en: "Mumtathil" },
   tobacco: { ar: "\u062A\u0628\u063A", en: "Tobacco platform" },
   accommodation: { ar: "\u0625\u064A\u0648\u0627\u0621", en: "Accommodation platform" },
-  internal: { ar: "\u0623\u0646\u0638\u0645\u0629 \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629", en: "Amanah internal systems" }
+  whiteLands: { ar: "\u0631\u0633\u0648\u0645 \u0627\u0644\u0623\u0631\u0627\u0636\u064A \u0627\u0644\u0628\u064A\u0636\u0627\u0621", en: "White-land fees" },
+  internal: { ar: "\u0627\u0644\u0623\u0646\u0638\u0645\u0629 \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629", en: "Internal systems" }
 };
-var PRODUCT_OF_SOURCE = { investment: "foras", fines: "mumtathil", municipal_fees: "baladi", licenses: "internal", accommodation: "accommodation", tobacco: "tobacco", white_lands: "baladi", housing_sales: "baladi" };
-var productOf = (sourceKey) => PRODUCT_OF_SOURCE[sourceKey] || "baladi";
+var PRODUCT_KEYS = Object.keys(PRODUCTS);
+var PRODUCT_OF_SOURCE = { investment: "foras", fines: "mumtathil", municipal_fees: "baladi", licenses: "internal", accommodation: "accommodation", tobacco: "tobacco", white_lands: "whiteLands", housing_sales: "baladi" };
+var productOf = (sourceKey, itemKey) => sourceKey === "investment" && itemKey === "ad_sites" ? "screen" : PRODUCT_OF_SOURCE[sourceKey] || "baladi";
+var PROD_POS = Object.fromEntries(PRODUCT_KEYS.map((k, i) => [k, i]));
+var PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length);
+SOURCES.forEach((sr, si) => ITEMS.forEach((it, ii) => {
+  PROD_TABLE[si * ITEMS.length + ii] = PROD_POS[productOf(sr.key, it.key)];
+}));
+var productIdxOf = (srcIdx, itemIdx) => PROD_TABLE[srcIdx * ITEMS.length + itemIdx];
 var DISCLOSURE_PRODUCTS = ["tobacco", "accommodation"];
 var MAIN = { municipal: "\u0631\u0633\u0648\u0645 \u0628\u0644\u062F\u064A\u0629", investment: "\u0627\u0633\u062A\u062B\u0645\u0627\u0631", penalties: "\u062C\u0632\u0627\u0621\u0627\u062A \u0648\u063A\u0631\u0627\u0645\u0627\u062A", misc: "\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0645\u062E\u062A\u0644\u0641\u0629", accommodation: "\u0625\u064A\u0648\u0627\u0621", tobacco: "\u062A\u0628\u063A", other: "\u0623\u062E\u0631\u0649" };
 var UNCLASSIFIED = "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641";
@@ -1613,11 +1627,13 @@ var EXCLUSION_REASONS = [
   { ruleId: "EFA-1", ar: "\u062E\u0627\u0631\u062C \u0625\u064A\u0641\u0627\u0621", en: "Outside Efaa" },
   { ruleId: "EXE-1", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0625\u064A\u0641\u0627\u0621", en: "Executed against \u2013 Efaa" },
   { ruleId: "SND-1", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0642\u0636\u0627\u064A\u0627 (\u0633\u0646\u062F)", en: "Executed against \u2013 cases (Sanad)" },
+  { ruleId: "ATT-1", ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A", en: "Amanah statements" },
+  { ruleId: "ENC-1", ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A / \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639", en: "Encroachments / site exploitation" },
   { ruleId: "DUP-1", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0643\u0631\u0631\u0629", en: "Duplicate invoice" }
   // not named in the meeting; kept because it is an approved data-quality rule (open question OQ-1)
 ];
 var EXCLUSION_REASON_OF_RULE = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, r]));
-var EXCLUSION_SOURCE_OF_RULE = { "CR-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A", en: "Commercial registry" }, "DEC-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A", en: "Civil registry" }, "OBJ-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A", en: "Efaa \u2014 objections" }, "NOC-1": { ar: "\u0641\u0631\u0635", en: "Furas" }, "INC-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644", en: "Efaa \u2014 incomplete" }, "EFA-1": { ar: "\u0625\u064A\u0641\u0627\u0621", en: "Efaa" }, "EXE-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0645\u0646\u0641\u0630 \u0636\u062F\u0647", en: "Efaa \u2014 executed against" }, "SND-1": { ar: "\u0633\u0646\u062F \u2013 \u0642\u0636\u0627\u064A\u0627", en: "Sanad \u2013 cases" }, "DUP-1": { ar: "\u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631", en: "Duplicate detection" } };
+var EXCLUSION_SOURCE_OF_RULE = { "CR-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A", en: "Commercial registry" }, "DEC-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A", en: "Civil registry" }, "OBJ-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A", en: "Efaa \u2014 objections" }, "NOC-1": { ar: "\u0641\u0631\u0635", en: "Furas" }, "INC-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644", en: "Efaa \u2014 incomplete" }, "EFA-1": { ar: "\u0625\u064A\u0641\u0627\u0621", en: "Efaa" }, "EXE-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0645\u0646\u0641\u0630 \u0636\u062F\u0647", en: "Efaa \u2014 executed against" }, "SND-1": { ar: "\u0633\u0646\u062F \u2013 \u0642\u0636\u0627\u064A\u0627", en: "Sanad \u2013 cases" }, "DUP-1": { ar: "\u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631", en: "Duplicate detection" }, "ATT-1": { ar: "\u0625\u0641\u0627\u062F\u0629 \u0627\u0644\u0623\u0645\u0627\u0646\u0629", en: "Amanah statement" }, "ENC-1": { ar: "\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A", en: "Encroachment record" } };
 
 // server/names.js
 var M12 = 1000000000000n;
@@ -2774,6 +2790,44 @@ function generateWorld(today, { scale = 1 } = {}) {
     st.exec[w.i] = req.idx;
     reqCount += 1;
   }
+  {
+    const LIC = SOURCE_INDEX.licenses;
+    for (let i = 0; i < st.nGen; i += 1) {
+      if (st.src[i] !== LIC || st.exec[i] >= 0) continue;
+      const p = st.addPayment(i, st.issue[i], st.gross[i], 0);
+      st.payStart[i] = p;
+      st.payCount[i] = 1;
+      st.cancelDay[i] = 0;
+      st.exMask[i] = 0;
+      st.exAppr[i] = 0;
+      st.flags[i] &= ~F.OBJECTION;
+    }
+  }
+  {
+    const MF = SOURCE_INDEX.municipal_fees;
+    const INV = SOURCE_INDEX.investment;
+    const FN = SOURCE_INDEX.fines;
+    const D = RULE_BIT["DEC-1"];
+    const A = RULE_BIT["ATT-1"];
+    const E = RULE_BIT["ENC-1"];
+    for (let i = 0; i < st.nGen; i += 1) {
+      if (st.payCount[i] > 0 || st.cancelDay[i] || st.exMask[i] || st.exec[i] >= 0 || st.issue[i] > todayN) continue;
+      const h = mix(19, st.idKey[i] % 1000003) % 100;
+      if (st.src[i] === MF && h < 6) {
+        st.exMask[i] = A;
+        st.exAppr[i] = A;
+        st.exRev[i] = 15 + h % 30;
+      } else if (st.src[i] === FN && h < 2) {
+        st.exMask[i] = D;
+        st.exAppr[i] = D;
+        st.exRev[i] = 15 + h % 30;
+      } else if (st.src[i] === INV && h < 9) {
+        st.exMask[i] = E;
+        st.exAppr[i] = E;
+        st.exRev[i] = 15 + h % 30;
+      }
+    }
+  }
   st.trim();
   st.meta = { today, scale, generatedFrom: GEN_START, seed: SEED, ms: Date.now() - t0, contracts: contracts.filter(Boolean).length, requests: reqCount };
   worldCache.set(key, st);
@@ -2875,33 +2929,33 @@ function currentStore(override2, size) {
 var APPROPRIATION_YEAR = 2026;
 var M = 1e6;
 var TABLE = {
-  "Riyadh Amanah": { revOriginal: 2065, revAdjusted: 2150, expOriginal: 4290, expAdjusted: 5010, expSpent: 3870 },
-  "Jeddah Amanah": { revOriginal: 2480, revAdjusted: 2480, expOriginal: 5065, expAdjusted: 5240, expSpent: 4365 },
-  "Eastern Province Amanah": { revOriginal: 500, revAdjusted: 540, expOriginal: 1100, expAdjusted: 1280, expSpent: 1010 },
-  "Makkah Amanah": { revOriginal: 1295, revAdjusted: 1310, expOriginal: 3025, expAdjusted: 3760, expSpent: 2340 },
-  "Al Madinah Amanah": { revOriginal: 715, revAdjusted: 760, expOriginal: 1910, expAdjusted: 2125, expSpent: 1425 },
-  "Asir Amanah": { revOriginal: 750, revAdjusted: 835, expOriginal: 1810, expAdjusted: 2190, expSpent: 1795 },
-  "Taif Amanah": { revOriginal: 280, revAdjusted: 295, expOriginal: 710, expAdjusted: 735, expSpent: 545 },
-  "Al-Qassim Amanah": { revOriginal: 240, revAdjusted: 245, expOriginal: 535, expAdjusted: 615, expSpent: 435 },
-  "Al-Ahsa Amanah": { revOriginal: 105, revAdjusted: 105, expOriginal: 210, expAdjusted: 225, expSpent: 175 },
-  "Jazan Amanah": { revOriginal: 370, revAdjusted: 385, expOriginal: 695, expAdjusted: 815, expSpent: 670 },
-  "Tabuk Amanah": { revOriginal: 315, revAdjusted: 330, expOriginal: 650, expAdjusted: 810, expSpent: 660 },
-  "Ha'il Amanah": { revOriginal: 55, revAdjusted: 60, expOriginal: 130, expAdjusted: 150, expSpent: 100 },
-  "Northern Borders Amanah": { revOriginal: 435, revAdjusted: 475, expOriginal: 850, expAdjusted: 1005, expSpent: 805 },
-  "Najran Amanah": { revOriginal: 65, revAdjusted: 70, expOriginal: 165, expAdjusted: 185, expSpent: 150 },
-  "Al Bahah Amanah": { revOriginal: 80, revAdjusted: 85, expOriginal: 160, expAdjusted: 200, expSpent: 145 },
-  "Al Jawf Amanah": { revOriginal: 150, revAdjusted: 160, expOriginal: 435, expAdjusted: 490, expSpent: 375 },
-  "Housing Sector": { revOriginal: 1075, revAdjusted: 1120, expOriginal: 2515, expAdjusted: 2820, expSpent: 1995 },
-  "Hafr Al-Batin Amanah": { revOriginal: 90, revAdjusted: 90, expOriginal: 160, expAdjusted: 190, expSpent: 150 },
-  "__HQ__": { revOriginal: 0, revAdjusted: 0, expOriginal: 4420, expAdjusted: 4860, expSpent: 3010 }
+  "Riyadh Amanah": { revOriginal: 2065, revAdjusted: 2150, expOriginal: 4290, expAdjusted: 5010 },
+  "Jeddah Amanah": { revOriginal: 2480, revAdjusted: 2480, expOriginal: 5065, expAdjusted: 5240 },
+  "Eastern Province Amanah": { revOriginal: 500, revAdjusted: 540, expOriginal: 1100, expAdjusted: 1280 },
+  "Makkah Amanah": { revOriginal: 1295, revAdjusted: 1310, expOriginal: 3025, expAdjusted: 3760 },
+  "Al Madinah Amanah": { revOriginal: 715, revAdjusted: 760, expOriginal: 1910, expAdjusted: 2125 },
+  "Asir Amanah": { revOriginal: 750, revAdjusted: 835, expOriginal: 1810, expAdjusted: 2190 },
+  "Taif Amanah": { revOriginal: 280, revAdjusted: 295, expOriginal: 710, expAdjusted: 735 },
+  "Al-Qassim Amanah": { revOriginal: 240, revAdjusted: 245, expOriginal: 535, expAdjusted: 615 },
+  "Al-Ahsa Amanah": { revOriginal: 105, revAdjusted: 105, expOriginal: 210, expAdjusted: 225 },
+  "Jazan Amanah": { revOriginal: 370, revAdjusted: 385, expOriginal: 695, expAdjusted: 815 },
+  "Tabuk Amanah": { revOriginal: 315, revAdjusted: 330, expOriginal: 650, expAdjusted: 810 },
+  "Ha'il Amanah": { revOriginal: 55, revAdjusted: 60, expOriginal: 130, expAdjusted: 150 },
+  "Northern Borders Amanah": { revOriginal: 435, revAdjusted: 475, expOriginal: 850, expAdjusted: 1005 },
+  "Najran Amanah": { revOriginal: 65, revAdjusted: 70, expOriginal: 165, expAdjusted: 185 },
+  "Al Bahah Amanah": { revOriginal: 80, revAdjusted: 85, expOriginal: 160, expAdjusted: 200 },
+  "Al Jawf Amanah": { revOriginal: 150, revAdjusted: 160, expOriginal: 435, expAdjusted: 490 },
+  "Housing Sector": { revOriginal: 1075, revAdjusted: 1120, expOriginal: 2515, expAdjusted: 2820 },
+  "Hafr Al-Batin Amanah": { revOriginal: 90, revAdjusted: 90, expOriginal: 160, expAdjusted: 190 },
+  "__HQ__": { revOriginal: 0, revAdjusted: 0, expOriginal: 4420, expAdjusted: 4860 }
 };
 var appropriationOf = (key, year = APPROPRIATION_YEAR) => {
   const t = year === APPROPRIATION_YEAR ? TABLE[key] : null;
-  return t ? { revOriginal: t.revOriginal * M, revAdjusted: t.revAdjusted * M, expOriginal: t.expOriginal * M, expAdjusted: t.expAdjusted * M, expSpent: t.expSpent * M } : null;
+  return t ? { revOriginal: t.revOriginal * M, revAdjusted: t.revAdjusted * M, expOriginal: t.expOriginal * M, expAdjusted: t.expAdjusted * M } : null;
 };
 var appropriationKeys = () => Object.keys(TABLE);
 function appropriationTotal(keys = appropriationKeys(), year = APPROPRIATION_YEAR) {
-  const t = { revOriginal: 0, revAdjusted: 0, expOriginal: 0, expAdjusted: 0, expSpent: 0 };
+  const t = { revOriginal: 0, revAdjusted: 0, expOriginal: 0, expAdjusted: 0 };
   let any = false;
   for (const k of keys) {
     const a = appropriationOf(k, year);
@@ -3063,6 +3117,34 @@ var EXCLUSION_RULES = [
     owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
     label: { en: "Executed against \u2013 cases (Sanad)", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0642\u0636\u0627\u064A\u0627 (\u0633\u0646\u062F)" },
     note: { en: "Any UNCOLLECTED invoice found in Sanad (new cases) is excluded, whatever its Sanad status (D12). Applies only to uncollected invoices.", ar: "\u0623\u064A \u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629 \u062A\u0638\u0647\u0631 \u0641\u064A \u0633\u0646\u062F (\u0642\u0636\u0627\u064A\u0627 \u062C\u062F\u064A\u062F\u0629) \u062A\u064F\u0633\u062A\u0628\u0639\u062F \u0645\u0647\u0645\u0627 \u0643\u0627\u0646\u062A \u062D\u0627\u0644\u062A\u0647\u0627 \u0641\u064A \u0633\u0646\u062F (D12). \u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637." }
+  },
+  {
+    id: "ATT-1",
+    category: "amanah_statements",
+    version: 1,
+    priority: 4.5,
+    defaultEnabled: true,
+    locked: false,
+    basis: "stated_in_meeting",
+    approval: "approved",
+    effectiveFrom: "2026-10-19",
+    owner: { en: "Revenue management (meeting 19 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Amanah statements", ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A" },
+    note: { en: "Added in the 19 Oct meeting: invoices an Amanah has stated (by a written statement) are not collectible. Applies only to uncollected invoices. Whether this is a separate reason or a sub-type of \xABinvoices not based on contracts\xBB is still to be confirmed.", ar: "\u0623\u064F\u0636\u064A\u0641 \u0641\u064A \u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631: \u0641\u0648\u0627\u062A\u064A\u0631 \u0623\u0641\u0627\u062F\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0628\u0625\u0641\u0627\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629) \u0628\u0623\u0646\u0647\u0627 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644. \u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637. \u0648\u0645\u0627 \u0632\u0627\u0644 \u0627\u0644\u062A\u0623\u0643\u062F \u0642\u0627\u0626\u0645\u064B\u0627: \u0647\u0644 \u0647\u064A \u0633\u0628\u0628 \u0645\u0633\u062A\u0642\u0644 \u0623\u0645 \u0646\u0648\u0639 \u0641\u0631\u0639\u064A \u0645\u0646 \xAB\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F\xBB." }
+  },
+  {
+    id: "ENC-1",
+    category: "site_encroachment",
+    version: 1,
+    priority: 4.6,
+    defaultEnabled: true,
+    locked: false,
+    basis: "stated_in_meeting",
+    approval: "approved",
+    effectiveFrom: "2026-10-19",
+    owner: { en: "Revenue management (meeting 19 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Encroachments / site exploitation", ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A / \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639" },
+    note: { en: "Added in the 19 Oct meeting: invoices raised for the exploitation of a site without a contract (an encroachment). Applies only to uncollected invoices.", ar: "\u0623\u064F\u0636\u064A\u0641 \u0641\u064A \u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631: \u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0645\u0648\u0642\u0639 \u062F\u0648\u0646 \u0639\u0642\u062F (\u062A\u0639\u062F\u064D\u0651). \u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637." }
   }
 ];
 var EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
@@ -3373,8 +3455,10 @@ function derive(ctx, i, asOfN) {
   for (let p = ps; p < ps + pc; p += 1) if (st.pDay[p] <= asOfN) received += st.pAmt[p];
   const cd = st.cancelDay[i];
   const sourceCancelled = cd !== 0 && cd <= asOfN;
-  const conflict = sourceCancelled && (link >= 2 || link === 5);
-  const cancelled = sourceCancelled;
+  const referred = st.exec[i] >= 0 || link >= 2 && link <= 4;
+  const stays = REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && referred;
+  const conflict = !REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && (link >= 2 || link === 5);
+  const cancelled = sourceCancelled && !stays;
   const fullyCollected = !cancelled && billed > 0 && received >= billed;
   const ignoredExclusion = m !== 0 && fullyCollected;
   if (ignoredExclusion) {
@@ -3397,6 +3481,7 @@ function derive(ctx, i, asOfN) {
   D.received = received;
   D.cancelled = cancelled;
   D.sourceCancelled = sourceCancelled;
+  D.referredStays = stays;
   D.enfConflict = conflict;
   D.overlaps = overlaps;
   D.cancelledAmount = cancelledAmount;
@@ -3452,7 +3537,8 @@ function resolveScope(ctx, scope = {}) {
   }
   const srcF = scope.source ?? "all";
   const prodSet = Array.isArray(scope.product) && scope.product.length ? new Set(scope.product) : null;
-  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = (srcF === "all" || SOURCES[s].key === srcF) && (!prodSet || prodSet.has(productOf(SOURCES[s].key))) ? 1 : 0;
+  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = srcF === "all" || SOURCES[s].key === srcF ? 1 : 0;
+  out.prodOk = prodSet ? Uint8Array.from(PRODUCT_KEYS.map((k) => prodSet.has(k) ? 1 : 0)) : null;
   out.mainClass = scope.mainClass && scope.mainClass !== "all" ? MAIN_LIST.indexOf(scope.mainClass) : -1;
   out.includeOther = !!scope.includeOther;
   out.muniIdx = out.muni !== "all" ? Number(String(out.muni).split("|").pop() === "Sales" ? 0 : ["North", "Central", "South"].indexOf(String(out.muni).split("|").pop())) : -1;
@@ -3473,7 +3559,7 @@ function resolveScope(ctx, scope = {}) {
   out.key = `${out.from}|${out.to}|${am === "all" ? "all" : [].concat(am).join(",")}|${srcF}|${orgKeys ? orgKeys.join(",") : "all"}|${out.scopeType}|${out.muni}|${out.item}|${out.status}|${prodSet ? [...prodSet].sort().join(",") : "all"}|${out.mainClass}|${out.includeOther ? 1 : 0}`;
   return out;
 }
-var inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1 && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx) && (sc.muniEnt < 0 || st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx) && inClass(st, sc, i);
+var inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1 && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx) && (sc.muniEnt < 0 || st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx) && (!sc.prodOk || sc.prodOk[productIdxOf(st.src[i], st.item[i])] === 1) && inClass(st, sc, i);
 function inClass(st, sc, i) {
   const mc = mainClassIdx(st.gfs[i], originIdxOf(st.ent[i], st.scope[i]));
   if (sc.mainClass >= 0) return mc === sc.mainClass;
@@ -3496,7 +3582,7 @@ function snapshot(st, req) {
   const sc = resolveScope(ctx, req.scope);
   const NE = ENTITIES.length;
   const NS = SOURCES.length;
-  const per = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS), scope: new Acc(2) };
+  const per = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS), scope: new Acc(2), prod: new Acc(PRODUCT_KEYS.length) };
   const stk = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS) };
   const ncCount = new Float64Array(CLASSES.length);
   const ncAmt = new Float64Array(CLASSES.length);
@@ -3520,6 +3606,7 @@ function snapshot(st, req) {
   const accMonth = /* @__PURE__ */ new Map();
   const accMuni = new Acc(NE * 5);
   const accStatus = new Acc(CLASSES.length);
+  const accDue = new Acc(5);
   const agingC = new Float64Array(5 * 2);
   let ageSum = 0;
   let ageN = 0;
@@ -3596,6 +3683,7 @@ function snapshot(st, req) {
     per.ent.add(e, dd);
     per.src.add(s, dd);
     per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd);
+    per.prod.add(productIdxOf(st.src[i], st.item[i]), dd);
     {
       const ym = isoOf(st.issue[i]).slice(0, 7);
       let am = accMonth.get(ym);
@@ -3607,6 +3695,7 @@ function snapshot(st, req) {
     }
     accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd);
     accStatus.add(dd.cls, dd);
+    accDue.add(dd.cancelled ? 4 : dd.excluded ? 3 : dd.outstanding <= 0 ? 0 : dd.daysOverdue > 0 ? 1 : 2, dd);
     const viol = s === 1;
     const enf = dd.link >= 2 || pc > 0 && (() => {
       for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true;
@@ -3742,12 +3831,14 @@ function snapshot(st, req) {
     byMunicipality.push({ key: `${ENTITIES[e].en}|${mu ? mu.key.split("|")[1] : "-"}`, amanah: ENTITIES[e].en, amanahLabel: labelOfEnt(e), municipality: mu ? { key: mu.key, ar: mu.ar, en: mu.en } : null, ...accMuni.toAgg(g) });
   }
   byMunicipality.sort((a, b) => b.outstanding - a.outstanding);
+  const byDue = ["collected", "overdue", "not_due", "excluded", "cancelled"].map((key, k) => ({ key, ...accDue.toAgg(k) }));
   const byStatus = [];
   for (let k = 0; k < CLASSES.length; k += 1) {
     if (accStatus.a[k * K + M2.count] === 0) continue;
     byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) });
   }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
+  const byProduct = groupOut(per.prod, PRODUCT_KEYS.length, () => null, (g) => PRODUCT_KEYS[g]);
   const byScope = [0, 1].map((g) => ({ key: g === 0 ? "central" : "internal", ...per.scope.toAgg(g) }));
   const matrix = { amanahSource: [], amanahReasons: [], amanahSourceMonth: [] };
   for (const [k, v] of esm) {
@@ -3863,6 +3954,8 @@ function snapshot(st, req) {
     noncollection,
     byAmanah,
     bySource,
+    byProduct,
+    byDue,
     byScope,
     byMonth,
     byMunicipality,
@@ -3911,7 +4004,6 @@ function series(st, req) {
     const pc = st.payCount[i];
     if (!pc) continue;
     const ps = st.payStart[i];
-    let hasReason = -1;
     let room = Infinity;
     const order = [];
     if (req.capped) {
@@ -3924,11 +4016,6 @@ function series(st, req) {
       const p = req.capped ? order[q2] : ps + q2;
       const d = st.pDay[p];
       if (d < sc.fromN || d > asOf) continue;
-      if (hasReason < 0) {
-        derive(ctx, i, ctx.cutoffN);
-        hasReason = ctx.D.mask !== 0 ? 1 : 0;
-      }
-      if (hasReason) continue;
       const k = idx.get(isoOf(d).slice(0, 7));
       if (k === void 0) continue;
       let amt = st.pAmt[p];
@@ -4092,7 +4179,7 @@ function iimFields(st, i) {
   const origin = originOf(b.id);
   const oIdx = originIdxOf(ent, sc);
   const sourceKey = SOURCES[st.src[i]].key;
-  const pk = productOf(sourceKey);
+  const pk = productOf(sourceKey, ITEMS[st.item[i]].key);
   const cls = classOfRow(st.gfs[i], origin === "central" ? 0 : 1);
   const disclosure = DISCLOSURE_PRODUCTS.includes(pk);
   const kind = disclosure && !fx ? hashOf(st.idKey[i]) % 100 < DIFFERENCES_SHARE ? "differences" : "occupancy" : null;
@@ -4111,7 +4198,9 @@ function iimFields(st, i) {
     gfsSub: cls.sub,
     mainClass: cls.main,
     gfsIdx: st.gfs[i],
-    invoiceKind: kind
+    invoiceKind: kind,
+    entityType: entityTypeOf(ent),
+    entityTypeAr: ENTITY_TYPE_AR[entityTypeOf(ent)]
   };
 }
 var INVOICE_KIND_SHORT_AR = { occupancy: "\u0625\u0634\u063A\u0627\u0644\u0627\u062A", differences: "\u0641\u0631\u0648\u0642\u0627\u062A" };
@@ -4711,6 +4800,8 @@ var TEMPLATES = {
   "EXE-1": { evidence: { en: "Appears in the executed-against report.", ar: "\u0648\u0627\u0631\u062F \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", value: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647" }] },
   "EFA-1": { evidence: { en: "Violation is not present in the Efaa system of record.", ar: "\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u0646\u0638\u0627\u0645 \u0625\u064A\u0641\u0627\u0621 \u0627\u0644\u0645\u0631\u062C\u0639\u064A." }, sources: [{ system: "\u062A\u062D\u0635\u064A\u0644 \u2014 \u0625\u064A\u0641\u0627\u0621 v2", field: "\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", value: "\u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642 \u0641\u064A \u0625\u064A\u0641\u0627\u0621" }] },
   "OBJ-1": { evidence: { en: "Open objection in the violations system.", ar: "\u0627\u0639\u062A\u0631\u0627\u0636 \u0645\u0641\u062A\u0648\u062D \u0641\u064A \u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u0627\u0644\u0639\u0627\u0645", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636", value: "\u0645\u0641\u062A\u0648\u062D" }] },
+  "ATT-1": { evidence: { en: "A written statement of the Amanah that this invoice is not collectible.", ar: "\u0625\u0641\u0627\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629 \u0645\u0646 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \u0628\u0623\u0646 \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644." }, sources: [{ system: "\u0627\u0644\u0623\u0645\u0627\u0646\u0629", field: "\u0627\u0644\u0625\u0641\u0627\u062F\u0629", value: "\u0645\u0631\u0641\u0642\u0629" }] },
+  "ENC-1": { evidence: { en: "Raised for exploiting a site without a contract (encroachment).", ar: "\u0635\u062F\u0631\u062A \u0639\u0646 \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0645\u0648\u0642\u0639 \u062F\u0648\u0646 \u0639\u0642\u062F (\u062A\u0639\u062F\u064D\u0651)." }, sources: [{ system: "\u0641\u0631\u0635 \u2014 \u0627\u0644\u0639\u0642\u0648\u062F", field: "\u0627\u0644\u0639\u0642\u062F", value: "\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F" }] },
   "ENF-1": { evidence: { en: "Referred to enforcement.", ar: "\u0645\u062D\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u0646\u0641\u064A\u0630." }, sources: [] }
 };
 function materialize(st, i, ctx = null) {
@@ -5097,7 +5188,7 @@ function candidates(st, req) {
     if (f.exec && f.exec !== "all") {
       const lk = ctx.mark ? ctx.ov.get(i)?.link || 0 : 0;
       const srcCancelled = st.cancelDay[i] !== 0 && st.cancelDay[i] <= ctx.cutoffN;
-      const ok = f.exec === "conflict" ? srcCancelled && (lk >= 2 || lk === 5) : f.exec === "inexec" ? lk === 2 : f.exec === "suspended" ? lk === 3 : f.exec === "closed" ? lk === 4 : f.exec === "ever" ? lk >= 2 : f.exec === "none" ? lk < 2 : f.exec === "yes" ? st.exec[i] >= 0 || lk >= 2 : f.exec === "no" ? st.exec[i] < 0 && lk < 2 : true;
+      const ok = f.exec === "conflict" ? !REFERRED_CANCELLED_STAYS_BILLED && srcCancelled && (lk >= 2 || lk === 5) : f.exec === "inexec" ? lk === 2 : f.exec === "suspended" ? lk === 3 : f.exec === "closed" ? lk === 4 : f.exec === "ever" ? lk >= 2 : f.exec === "none" ? lk < 2 : f.exec === "yes" ? st.exec[i] >= 0 || lk >= 2 : f.exec === "no" ? st.exec[i] < 0 && lk < 2 : true;
       if (!ok) return;
     }
     if (f.rule === "none" && st.exMask[i]) return;
@@ -5111,6 +5202,7 @@ function candidates(st, req) {
     if (f.state === "paid" && D.cls !== CLASS_INDEX.collected && D.cls !== CLASS_INDEX.partial) return;
     if (ageB >= 0 && !(D.outstanding > 0 && agingBucket(D.daysOverdue) === ageB)) return;
     if (f.ageMin != null && !(D.outstanding > 0 && !D.excluded && D.daysOverdue >= f.ageMin && D.daysOverdue <= f.ageMax)) return;
+    if (f.eligible && !(D.outstanding > 0 && D.daysOverdue > 0 && !D.excluded && !D.cancelled && D.link < 2 && st.exec[i] < 0 && !(st.flags[i] & (F.MISSING_ID | F.OBJECTION)) && D.cls !== CLASS_INDEX.linkage_unresolved)) return;
     if (f.kind && f.kind !== "all" && iimFields(st, i).invoiceKind !== f.kind) return;
     if (f.tag) {
       const tg = tagsOf(st, i, D);
@@ -5253,7 +5345,7 @@ function worklist(st, req) {
       if (req.kind && req.kind !== "all" && iimFields(st, i).invoiceKind !== req.kind) continue;
       if (req.reason && req.reason !== "all") {
         const xr = exclusionOf(D);
-        if (req.reason === "none" ? D.excluded : !xr || xr.ruleId !== req.reason) continue;
+        if (req.reason === "none" ? D.excluded : req.reason === "any" ? !D.excluded : !xr || xr.ruleId !== req.reason) continue;
       }
       if (pass === 0) {
         total += 1;
