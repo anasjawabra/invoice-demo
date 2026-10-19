@@ -148,7 +148,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
         <label className="rv-inline">{L('Sort', 'الترتيب')}
           <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={L('Sort Amanahs', 'ترتيب الأمانات')}>
             <option value="rate">{L('Lowest collection rate first', 'الأدنى نسبة تحصيل أولاً')}</option>
-            <option value="attention">{L('Needs attention (uncollected ÷ own net)', 'الأحوج للانتباه (غير المحصّل ÷ صافيها)')}</option>
+            <option value="attention">{L('Highest uncollected share of net', 'الأعلى نسبة غير محصّلة من الصافي')}</option>
             <option value="amount">{L('Outstanding amount', 'مبلغ غير المحصّل')}</option>
             <option value="trend">{L('Largest decline', 'أكبر تراجع')}</option>
           </select>
