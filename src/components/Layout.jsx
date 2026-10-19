@@ -145,6 +145,7 @@ function LayoutInner() {
   const tabs = useMemo(
     () => [
       { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
+      { to: '/smart-reports', icon: 'smart-reports', label: lang === 'ar' ? 'التقارير الذكية' : 'Smart reports' },
       { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
       { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
       { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
@@ -160,7 +161,7 @@ function LayoutInner() {
   const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
   const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
 
-  const primaryTabs = tabs.slice(0, 5); const opsTabs = tabs.slice(5); // the management areas: dashboards & reports · planning · enforcement · exclusions · products
+  const primaryTabs = tabs.slice(0, 6); const opsTabs = tabs.slice(6); // the management areas: dashboards & reports · planning · enforcement · exclusions · products
   const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
   const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
   useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
@@ -186,6 +187,7 @@ function LayoutInner() {
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
     if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';
+    if (p.startsWith('/smart-reports')) return lang === 'ar' ? 'التقارير الذكية' : 'Smart reports';
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
     if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';

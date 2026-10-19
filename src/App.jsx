@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Layout from './components/Layout';
 import DataSources from './pages/DataSources';
 import InsightsHub from './pages/InsightsHub';
+import SmartReportsPage from './pages/SmartReportsPage';
 import PlanningArea from './pages/PlanningArea';
 import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
@@ -47,8 +48,8 @@ export default function App() {
         <Route path="executive" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="dashboard" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="reports" element={<LegacyRedirect to="/insights" fallbackView="reports" />} />
-        <Route path="smart-reports" element={<LegacyRedirect to="/insights" fallbackView="smart" />} />
-        <Route path="assistant" element={<LegacyRedirect to="/insights" fallbackView="smart" />} />
+        <Route path="smart-reports" element={<SmartReportsPage />} />
+        <Route path="assistant" element={<Navigate to="/smart-reports" replace />} />
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
         <Route path="what-if" element={<Navigate to="/planning" replace />} />
