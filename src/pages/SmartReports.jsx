@@ -175,7 +175,6 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const [activeId, setActiveId] = useState(() => loadConvs()[0]?.id || null);
   const [input, setInput] = useState(() => readDrafts()[loadConvs()[0]?.id || 'new'] || '');
   const [busy, setBusy] = useState(null); // { msgId, step, token }
-  const [showFilters, setShowFilters] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [editOpen, setEditOpen] = useState(false); const [editPendingId, setEditPendingId] = useState(null);
   const [exporting, setExporting] = useState('');
@@ -399,13 +398,12 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   };
   const cancelPending = (msg) => patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'cancelled' } : m)) }));
   const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec, { pace: PACE }); };
-  const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); setFiles([]); setFileNote(''); setPreviewId(null); taRef.current?.focus(); };
+  const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowHistory(false); setFiles([]); setFileNote(''); setPreviewId(null); taRef.current?.focus(); };
   const [renaming, setRenaming] = useState(null); // { id, text }
   const renameConv = (id, text) => { const t = text.trim().slice(0, 80); if (t) patchConv(id, (c) => ({ ...c, title: t, titleSource: 'user' })); setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${id}`)?.focus(), 0); };
   const removeConv = (id) => { setConvs((cs) => cs.filter((c) => c.id !== id)); if (id === activeId) setActiveId(null); };
 
   const applyFilters = (patch, baseSpec = null) => {
-    setShowFilters(false);
     const base = baseSpec ? JSON.parse(JSON.stringify(baseSpec)) : spec ? JSON.parse(JSON.stringify(spec)) : JSON.parse(JSON.stringify(sharedSpec));
     const next = { ...base, ...patch, scope: { ...base.scope, ...(patch.scope || {}) } };
     next.preset = detectPreset(next.scope.from, next.scope.to, today); // the label of the period follows the dates that were actually chosen
@@ -508,10 +506,8 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
 
       <div className="sr-context" role="region" aria-label={L('سياق التقرير', 'Report context')}>
         <div className="sr-chips">{chips.map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
-        <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>{showFilters ? L('إخفاء التصفية', 'Hide filters') : L('التصفية', 'Filters')}</button>
       </div>
       {spec && scopeDiffers && <div className="sr-note" role="note">{L('لهذه المحادثة نطاقها الخاص، وهو يختلف عن مرشحات لوحة المعلومات الحالية؛ لن يتغير نطاقها تلقائياً.', 'This conversation keeps its own scope, which differs from the current dashboard filters; it never changes automatically.')} <button type="button" className="sr-link" onClick={() => applyFilters({ scope: sharedSpec.scope })}>{L('مزامنة نطاق المحادثة مع لوحة المعلومات', 'Sync the conversation scope with the dashboard')}</button></div>}
-      {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
 
       <div className="sr-note" role="note">
         <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة. الملفات المرفقة تُقرأ داخل متصفحك ولا تُرفع إلى أي خادم؛ وحدها أرقام الفواتير المستخرجة منها تُطابَق مع بيانات النظام.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result. Attached files are read inside your browser and are never uploaded; only the invoice numbers found in them are matched with the system data.')}</b>
