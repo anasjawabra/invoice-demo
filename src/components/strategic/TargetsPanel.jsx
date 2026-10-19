@@ -66,7 +66,7 @@ export default function TargetsPanel({ year, entityRows, store, setStore, select
 
       <div className="st-table-wrap" tabIndex={0}>
         <table className="table tg-table" aria-label={L('المستهدفات والمحصّل لكل أمانة / جهة (مليون ريال)', 'Targets and collected by Amanah / entity (million SAR)')}>
-          <caption className="muted" style={{ textAlign: 'start', fontSize: 12 }}>{L('المبالغ بمليون ريال. المحصّل حتى تاريخ التقرير بتاريخ الدفع. نسبة التحقق = المحصّل ÷ المستهدف السنوي.', 'Amounts in million SAR. Collected to the reporting date, by payment date. Achievement = collected ÷ annual target.')}</caption>
+          <caption className="muted" style={{ textAlign: 'start', fontSize: 12 }}>{L('المبالغ بمليون ريال. المحصّل حتى تاريخ التقرير بتاريخ الدفع. نسبة التحقق = المحصّل ÷ المستهدف السنوي. قد يختلف المجموع بمقدار 1 من تقريب الأرقام.', 'Amounts in million SAR. Collected to the reporting date, by payment date. Achievement = collected ÷ annual target. A total may differ by 1 from rounding.')}</caption>
           <thead><tr>
             <th>{L('الأمانة / الجهة', 'Amanah / entity')}</th><th>{L('الميزانية المبلغة', 'Budget')}</th><th>{L('مستهدف التغطية %', 'Coverage target %')}</th><th>{L('مستهدف الإيراد', 'Revenue target')}</th>
             <th>{L('مستهدف التحصيل %', 'Collection-rate target %')}</th><th>{L('مستهدف الفوترة', 'Billing target')}</th><th>{L('المحصّل حتى اليوم', 'Collected to date')}</th><th>{L('نسبة التحقق', 'Achievement')}</th>

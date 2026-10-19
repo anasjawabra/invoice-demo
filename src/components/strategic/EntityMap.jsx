@@ -44,11 +44,13 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
   // the figures of the selection: one region, or all regions together (never the headquarters, which has no region)
   const sel = region ? region.rows : shown.flatMap((p) => p.rows);
   const tg = sumOf(sel, (r) => r.target || 0); const col = sumOf(sel, (r) => r.collected);
+  // with no region chosen the card is the MINISTRY (the same figures as the targets table and the tiles above); the regions alone are stated beneath it
+  const card = region ? { tg, col } : { tg: totals?.target ?? tg, col: totals?.collected ?? col };
   const detail = [
-    [L('المستهدف السنوي للإيراد', 'Annual revenue target'), tg > 0 ? short(tg) : '—'],
-    [L('المحصّل', 'Collected'), short(col)],
-    [L('نسبة تحقق المستهدف', 'Target achievement'), tg > 0 ? <PctBadge kind="share" v={col / tg} text={pct(col / tg)} /> : '—'],
-    [L('المتبقي للتحصيل', 'Remaining to collect'), tg > 0 ? short(Math.max(tg - col, 0)) : '—']
+    [L('المستهدف السنوي للإيراد', 'Annual revenue target'), card.tg > 0 ? short(card.tg) : '—'],
+    [L('المحصّل', 'Collected'), short(card.col)],
+    [L('نسبة تحقق المستهدف', 'Target achievement'), card.tg > 0 ? <PctBadge kind="share" v={card.col / card.tg} text={pct(card.col / card.tg)} /> : '—'],
+    [L('المتبقي للتحصيل', 'Remaining to collect'), card.tg > 0 ? short(Math.max(card.tg - card.col, 0)) : '—']
   ];
   const side = [byKey.get('Housing Sector'), byKey.get('Unassigned')].filter(Boolean);
 
@@ -84,9 +86,10 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
             </select>
           </label>
           <div className="cg-geo__card" role="status">
-            <div className="muted" style={{ fontSize: 12 }}>{region ? L('منطقة', 'Region') : L('دون الديوان وقطاع الإسكان وغير المحدد', 'Without headquarters, housing sector and unassigned')}</div>
-            <b style={{ fontSize: 18 }}>{region ? regionName(region) : L('إجمالي المناطق', 'All regions')}</b>
+            <div className="muted" style={{ fontSize: 12 }}>{region ? L('منطقة', 'Region') : L('نفس أرقام جدول المستهدفات أعلاه', 'The same figures as the targets table above')}</div>
+            <b style={{ fontSize: 18 }}>{region ? regionName(region) : L('إجمالي الوزارة', 'The Ministry')}</b>
             <dl className="cg-geo__dl">{detail.map(([k, v]) => <React.Fragment key={k}><dt>{k}</dt><dd dir="ltr">{v}</dd></React.Fragment>)}</dl>
+            {!region && <div className="muted" style={{ fontSize: 12 }}>{L(`الخريطة تلوّن المناطق فقط: مستهدفها ${short(tg)} ومحصّلها ${short(col)}${tg > 0 ? ` (${pct(col / tg)})`.replace('(', '(') : ''}؛ والباقي (قطاع الإسكان وغير المحدد والديوان) في الجدول أدناه.`, `The map colours the regions only: their target ${short(tg)}, collected ${short(col)}${tg > 0 ? ` (${pct(col / tg)})` : ''}; the rest (housing sector, unassigned, headquarters) is in the table below.`)}</div>}
             {region && region.rows.length > 1 && (
               <div className="cg-geo__amanahs">{region.rows.map((r) => <button key={r.key} type="button" className={`rv-link${r.key === selected ? ' is-on' : ''}`} onClick={() => onSelect?.(r.key)}>{nameOf(r.key)}: {textOf([r])}</button>)}</div>
             )}
@@ -120,7 +123,7 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
       {totals && (
         <div className="st-table-wrap" tabIndex={0}>
           <table className="table cg-recon" aria-label={L('مطابقة المناطق مع إجمالي الوزارة', 'Regions reconciled with the Ministry total')}>
-            <caption className="muted" style={{ textAlign: 'start', fontSize: 12 }}>{L('المناطق + ما هو خارجها = إجمالي الوزارة (مليون ريال)', 'Regions + what is outside them = the Ministry total (million SAR)')}</caption>
+            <caption className="muted" style={{ textAlign: 'start', fontSize: 12 }}>{L('المناطق + ما هو خارجها = إجمالي الوزارة (مليون ريال؛ قد يختلف المجموع بمقدار 1 من التقريب)', 'Regions + what is outside them = the Ministry total (million SAR; a total may differ by 1 from rounding)')}</caption>
             <thead><tr><th>{L('البند', 'Item')}</th><th>{L('المستهدف', 'Target')}</th><th>{L('المحصّل', 'Collected')}</th></tr></thead>
             <tbody>
               {recon.map(([k, tgv, colv]) => <tr key={k}><td>{k}</td><td dir="ltr" className="num">{tgv > 0 ? mil(tgv) : '—'}</td><td dir="ltr" className="num">{mil(colv)}</td></tr>)}
