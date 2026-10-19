@@ -128,6 +128,8 @@ export function candidates(st, req) {
     if (f.state === 'paid' && D.cls !== CLASS_INDEX.collected && D.cls !== CLASS_INDEX.partial) return; // the invoice register: invoices with money collected (in full or in part)
     if (ageB >= 0 && !(D.outstanding > 0 && agingBucket(D.daysOverdue) === ageB)) return;
     if (f.ageMin != null && !(D.outstanding > 0 && !D.excluded && D.daysOverdue >= f.ageMin && D.daysOverdue <= f.ageMax)) return;
+    // الفواتير القابلة للإحالة (D21): overdue, uncollected, not excluded or cancelled, with complete data and no order yet
+    if (f.eligible && !(D.outstanding > 0 && D.daysOverdue > 0 && !D.excluded && !D.cancelled && D.link < 2 && st.exec[i] < 0 && !(st.flags[i] & (F.MISSING_ID | F.OBJECTION)) && D.cls !== CLASS_INDEX.linkage_unresolved)) return;
     if (f.kind && f.kind !== 'all' && iimFields(st, i).invoiceKind !== f.kind) return; // نوع الفاتورة: occupancy / differences (tobacco and accommodation only)
     if (f.tag) { const tg = tagsOf(st, i, D); if (f.tag === 'problem' ? !tg.some((x) => PROBLEM_TAGS.has(x)) : !tg.includes(f.tag)) return; }
     out.push(i); sums.gross += D.gross; sums.exclusions += D.exclTotal; sums.net += D.net; sums.collected += D.collected; sums.outstanding += D.outstanding;

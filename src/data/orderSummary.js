@@ -30,6 +30,19 @@ export function matchCriteria(order, row, orderTotal) {
   const amount = order.amount > 0 ? Math.abs((orderTotal ?? cand.grossAmount) - order.amount) <= AMOUNT_TOLERANCE_SAR : null;
   return { invoiceNo, amanah, amount, full: invoiceNo && amanah && amount === true };
 }
+// D20 — درجة التيقن: how sure the match is, as a percentage and a level. Number found by reference 50 (a bare Sadad number 45, an incomplete number 20) · Amanah agrees 25 · amount agrees 25;
+// minus 5 when the number was read by OCR, minus 20 for each unresolved hard conflict. ≥ 85 high · 60–84 medium · below 60 low.
+export function confidenceOf(order, row, criteria) {
+  const cr = criteria || matchCriteria(order, row, null); if (!cr) return null;
+  const kind = row.kind; let score = !cr.invoiceNo ? 20 : kind === 'sadad_no' ? 45 : 50;
+  if (cr.amanah) score += 25; if (cr.amount === true) score += 25;
+  if ((row.origins || []).some((o) => /ocr/i.test(String(o.type)))) score -= 5;
+  const cand = row.candidates?.[0]; const hard = cand ? (row.unresolved?.[cand.invoiceId] || []).filter(isHardConflict).length : 0; score -= 20 * hard;
+  score = Math.max(0, Math.min(100, score));
+  const level = score >= 85 ? 'high' : score >= 60 ? 'medium' : 'low';
+  return { score, level };
+}
+export const CONFIDENCE_LABEL = { high: { ar: 'عالٍ', en: 'High' }, medium: { ar: 'متوسط', en: 'Medium' }, low: { ar: 'منخفض', en: 'Low' } };
 export const PARTIAL_MATCH = { ar: 'مطابقة جزئية – تحتاج تأكيد المستخدم', en: 'Partial match — needs the user’s confirmation' };
 
 // the invoices to link: one entry per distinct invoice (several references to the same invoice are one link)

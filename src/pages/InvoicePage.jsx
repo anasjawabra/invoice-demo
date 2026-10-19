@@ -178,7 +178,7 @@ export default function InvoicePage() {
 
       {msg && <div className={`rv-callout ${msg.ok ? '' : 'rv-callout--bad'}`} role="status" aria-live="polite">{msg.t}</div>}
 
-      {(der.sourceCancelled || rec.cancelled) && (
+      {der.cancelled && (
         <Section id="separate" title={L('Cancellation, exclusion, balance and enforcement — kept separate', 'الإلغاء والاستبعاد والرصيد والإنفاذ — منفصلة')}>
           <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Cancellation, exclusion, balance and enforcement', 'الإلغاء والاستبعاد والرصيد والإنفاذ')}><tbody>{[
             { k: L('Source cancellation', 'الإلغاء في المصدر'), v: der.sourceCancelled ? L(`Cancelled in the source${rec.cancelled?.date ? ` (${rec.cancelled.date})` : ''}`, `ملغاة في المصدر${rec.cancelled?.date ? ` (${rec.cancelled.date})` : ''}`) : L('Not cancelled at the reference date', 'غير ملغاة في التاريخ المرجعي') },

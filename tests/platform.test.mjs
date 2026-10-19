@@ -1592,7 +1592,7 @@ await test('IIM-03 · an invoice whose revenue account is not in the classificat
   const all = snapshot(st, { scope: { from: '2025-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg }); assert.ok(all.totals.count >= un.totals.count, 'unclassified invoices stay inside the headline');
 });
 
-import { matchCriteria, PARTIAL_MATCH, REVIEW_LABEL as REVIEW_LABEL_I } from '../src/data/orderSummary.js';
+import { matchCriteria, PARTIAL_MATCH, REVIEW_LABEL as REVIEW_LABEL_I, confidenceOf } from '../src/data/orderSummary.js';
 await test('IIM-17 · an invoice matches an order only when number + Amanah + amount agree; anything less is a partial match that is not preselected; an order with no linked invoice reads «تحتاج مراجعة»', () => {
   const row = (extra = {}) => ({ status: 'resolved_by_reference', candidates: [{ invoiceId: '177-882607310000', amanahEn: 'Riyadh Amanah', grossAmount: 1000 }], unresolved: {}, weak: false, link: null, rejected: false, ...extra });
   const order = { amanahEn: 'Riyadh Amanah', amount: 1000 };
@@ -1603,6 +1603,10 @@ await test('IIM-17 · an invoice matches an order only when number + Amanah + am
   assert.equal(rowState(row({ partialMatch: true })).preselect, false); assert.equal(rowState(row()).preselect, true);
   assert.ok(PARTIAL_MATCH.ar.includes('مطابقة جزئية') && PARTIAL_MATCH.ar.includes('تحتاج تأكيد المستخدم'));
   assert.ok(REVIEW_LABEL_I.not_identified.ar.startsWith('تحتاج مراجعة'));
+  assert.deepEqual(confidenceOf(order, row({ kind: 'invoice_no', origins: [] }), matchCriteria(order, row(), 1000)), { score: 100, level: 'high' });
+  assert.equal(confidenceOf(order, row({ kind: 'invoice_no', origins: [{ type: 'document_ocr_simulated' }] }), matchCriteria(order, row(), 1000)).level, 'high');
+  const part = confidenceOf({ ...order, amount: 1500 }, row({ kind: 'invoice_no', origins: [] }), matchCriteria({ ...order, amount: 1500 }, row(), 1000)); assert.deepEqual(part, { score: 75, level: 'medium' });
+  assert.equal(confidenceOf({ ...order, amount: 1500, amanahEn: 'Jeddah Amanah' }, row({ kind: 'invoice_no', origins: [] }), matchCriteria({ ...order, amount: 1500, amanahEn: 'Jeddah Amanah' }, row(), 1000)).level, 'low');
 });
 
 await test('IIM-09 · the cumulative monthly performance ends exactly at the cards of the period; a later payment adds to its own month and never moves a closed one', () => {
