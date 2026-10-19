@@ -264,7 +264,7 @@ function indicator(label, value, kind = 'calculated', note = null) {
 }
 
 export function describeScope(scope, lang = 'en') {
-  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات' : 'All Amanahs') : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
+  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات والجهات' : 'All Amanahs') : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
   const s = scope.source === 'all' ? (lang === 'ar' ? 'جميع مصادر الإيراد' : 'All revenue sources') : (REVENUE_SOURCES[scope.source]?.[lang === 'ar' ? 'ar' : 'en'] || scope.source);
   const ar = lang === 'ar';
   const extra = [];

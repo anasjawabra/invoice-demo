@@ -43,7 +43,7 @@ const FOLLOW_UPS = [
   { ar: 'أضف تحليل الاستبعادات', en: 'Add the exclusions analysis' },
   { ar: 'حوّله إلى ملخص تنفيذي', en: 'Turn it into an executive summary' }
 ];
-const STEPS = { scope: ['أحدد النطاق والمرشحات', 'Setting the scope and filters'], read: ['أقرأ بيانات الفواتير والتحصيل', 'Reading invoice and collection data'], compare: ['أحسب المقارنة بالفترة المكافئة', 'Computing the equivalent-period comparison'], build: ['أُعدّ الجداول والرسوم والنتائج', 'Preparing tables, charts and findings'], check: ['أراجع المطابقة المالية', 'Checking the financial reconciliation'] };
+const STEPS = { scope: ['أحدد النطاق والتصفية', 'Setting the scope and filters'], read: ['أقرأ بيانات الفواتير والتحصيل', 'Reading invoice and collection data'], compare: ['أحسب المقارنة بالفترة المكافئة', 'Computing the equivalent-period comparison'], build: ['أُعدّ الجداول والرسوم والنتائج', 'Preparing tables, charts and findings'], check: ['أراجع المطابقة المالية', 'Checking the financial reconciliation'] };
 
 function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   const sp = spec || defaultSpec(today); const sc = sp.scope;
@@ -53,15 +53,15 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
   const preset = (from, to) => { setBadRange(false); setRk((n) => n + 1); setD((x) => ({ ...x, from, to })); };
   const ams = amanahFilterOptions();
   return (
-    <div className="sr-filters card" role="region" aria-label={L('المرشحات', 'Filters')}>
+    <div className="sr-filters card" role="region" aria-label={L('التصفية', 'Filters')}>
       <div className="sr-filters__row">
         <span className="rv-scope__lbl">{L('الفترة', 'Period')}</span>
         {PRESETS.map((p) => <button key={p.key} type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = p.range(today); preset(r.from, r.to); }}>{ar ? p.ar : p.en}</button>)}
         <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={ar ? 'ar' : 'en'} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
       </div>
       <div className="sr-filters__row">
-        <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة', 'Amanah')}</label>
-        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : x.en) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
+        <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة / الجهة', 'Amanah')}</label>
+        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات والجهات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : x.en) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
         {munis.length > 0 && <><label className="rv-scope__lbl" htmlFor="sr-mu">{L('البلدية', 'Municipality')}</label><select id="sr-mu" className="select" value={d.muni} onChange={(e) => setD({ ...d, muni: e.target.value })}><option value="all">{L('كل البلديات', 'All municipalities')}</option>{munis.map((m) => <option key={m.key} value={m.key}>{ar ? m.ar : m.en}</option>)}</select></>}
         <label className="rv-scope__lbl" htmlFor="sr-src">{L('المصدر', 'Source')}</label>
         <select id="sr-src" className="select" value={d.source} onChange={(e) => setD({ ...d, source: e.target.value })}><option value="all">{L('كل المصادر', 'All sources')}</option>{REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{sourceName(k)}</option>)}</select>
@@ -72,7 +72,7 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
         <label className="rv-scope__lbl" htmlFor="sr-cm">{L('المقارنة', 'Comparison')}</label>
         <select id="sr-cm" className="select" value={d.compare} onChange={(e) => setD({ ...d, compare: e.target.value })}><option value="none">{L('بدون', 'None')}</option><option value="prev_year">{L('نفس الفترة من العام السابق', 'Same period last year')}</option><option value="prev_month">{L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)')}</option></select>
       </div>
-      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah === '__multi' ? sc.amanah : d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه المرشحات حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
+      <div className="sr-filters__row"><button type="button" className="btn btn-primary btn-sm" disabled={badRange} onClick={() => { onApply({ compare: d.compare, scope: { from: d.from, to: d.to, amanah: d.amanah === '__multi' ? sc.amanah : d.amanah, muni: d.muni, source: d.source, status: d.status, scopeType: d.scopeType } }); }}>{L('تطبيق وتحديث التقرير', 'Apply and update the report')}</button><span className="muted" style={{ fontSize: 12 }}>{L('التقارير الجديدة تستخدم هذه التصفية حتى تغيّرها.', 'New reports keep using these filters until you change them.')}</span></div>
     </div>
   );
 }
@@ -236,7 +236,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     for (const k of ['amanah', 'muni', 'source', 'status', 'scopeType']) if (patch.scope && JSON.stringify(patch.scope[k]) !== undefined && JSON.stringify(patch.scope[k]) !== JSON.stringify(base.scope[k])) changes.push({ key: k, value: patch.scope[k] });
     if (patch.compare && patch.compare !== base.compare) changes.push({ key: 'compare', value: patch.compare });
     if (!changes.length) return;
-    send(L('طبّق المرشحات: ', 'Apply filters: ') + changes.map((c) => describeChange(c, lang, { amanahLabel: labelOfAmanah })).join('، '), { spec: next, changes });
+    send(L('طبّق التصفية: ', 'Apply filters: ') + changes.map((c) => describeChange(c, lang, { amanahLabel: labelOfAmanah })).join('، '), { spec: next, changes });
   };
 
   async function doExport(kind, model) {
@@ -260,12 +260,12 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const sourceName = (k) => (k === 'all' ? L('كل المصادر', 'All sources') : ar ? sourceAr(k) : sourceEn(k));
   const specChips = useCallback((sp) => {
     const sc = sp.scope;
-    const amLabel = sc.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، ');
+    const amLabel = sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، ');
     const mu = sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(sc.muni).split('|')[0]).find((m) => m && m.key === sc.muni)?.[ar ? 'ar' : 'en'] || sc.muni);
     const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'];
     const cmp = { none: null, prev_month: L('مقارنة بالشهر الماضي', 'vs last month'), prev_year: L('مقارنة بالعام الماضي', 'vs last year') }[sp.compare];
     return [
-      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en') }, { k: 'amanah', label: L('الأمانة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
+      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en') }, { k: 'amanah', label: L('الأمانة / الجهة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
       { k: 'source', label: L('المصدر', 'Source'), value: sourceName(sc.source) }, { k: 'status', label: L('الحالة', 'Status'), value: st },
       ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'st', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
       { k: 'basis', label: L('الأساس', 'Basis'), value: L(`فواتير الفترة · التحصيل حتى ${fmtDateText(sc.to < today ? sc.to : today, 'ar')}`, `Period invoices · collections to ${fmtDateText(sc.to < today ? sc.to : today, 'en')}`) }, ...(cmp ? [{ k: 'cmp', label: L('المقارنة', 'Comparison'), value: cmp }] : [])
@@ -306,7 +306,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
 
       <div className="sr-context" role="region" aria-label={L('سياق التقرير', 'Report context')}>
         <div className="sr-chips">{chips.map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
-        <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>{showFilters ? L('إخفاء المرشحات', 'Hide filters') : L('المرشحات', 'Filters')}</button>
+        <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showFilters} onClick={() => setShowFilters((v) => !v)}>{showFilters ? L('إخفاء التصفية', 'Hide filters') : L('التصفية', 'Filters')}</button>
       </div>
       {spec && scopeDiffers && <div className="sr-note" role="note">{L('لهذه المحادثة نطاقها الخاص، وهو يختلف عن مرشحات لوحة المعلومات الحالية؛ لن يتغير نطاقها تلقائياً.', 'This conversation keeps its own scope, which differs from the current dashboard filters; it never changes automatically.')} <button type="button" className="sr-link" onClick={() => applyFilters({ scope: sharedSpec.scope })}>{L('مزامنة نطاق المحادثة مع لوحة المعلومات', 'Sync the conversation scope with the dashboard')}</button></div>}
       {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
@@ -365,7 +365,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                         <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>
                       </div>}
                     </div>
-                    {!(collapsed[m.id] ?? !isLast) && (model.empty ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو المرشحات.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={model} />)}
+                    {!(collapsed[m.id] ?? !isLast) && (model.empty ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو التصفية.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={model} />)}
                   </div>
                 )}
                 {m.status === 'done' && m.spec && !model && !isBusy && <button type="button" className="btn btn-sm" onClick={() => run(conv.id, m.id, m.spec)} disabled={!!busy}>{L('عرض هذا التقرير', 'Show this report')}</button>}

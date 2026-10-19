@@ -1,7 +1,7 @@
 // IIM fields of one invoice (generated or hand-anchored): biller / origin, product, revenue classification, invoice kind, exclusion reason.
 // A pure read of the columnar store — nothing is stored per invoice beyond the `gfs` index.
-import { SOURCES, ENTITIES, RULE_IDS } from '../src/data/catalog.js';
-import { billerOf, originOf, originIdxOf, productOf, PRODUCTS, DISCLOSURE_PRODUCTS, classOfRow, gfsCodeAt, EXCLUSION_REASON_OF_RULE, EXCLUSION_SOURCE_OF_RULE, ORIGIN_AR } from '../src/data/iim.js';
+import { SOURCES, ITEMS, ENTITIES, RULE_IDS } from '../src/data/catalog.js';
+import { billerOf, originOf, originIdxOf, productOf, entityTypeOf, ENTITY_TYPE_AR, PRODUCTS, DISCLOSURE_PRODUCTS, classOfRow, gfsCodeAt, EXCLUSION_REASON_OF_RULE, EXCLUSION_SOURCE_OF_RULE, ORIGIN_AR } from '../src/data/iim.js';
 import { sadadOf, subscriptionOf, REQUEST, facilityKeyOf, personName, nationalIdOf, mobileOf, payerName, beneficiaryIdOf } from './names.js';
 import { MAIN } from '../src/data/iim.js';
 import { isoOf } from '../src/data/catalog.js';
@@ -14,7 +14,7 @@ export function iimFields(st, i) {
   const ent = st.ent[i]; const sc = st.scope[i];
   const b = fx?.billerId ? { id: fx.billerId, ar: billerOf(ent, sc).ar, en: billerOf(ent, sc).en } : billerOf(ent, sc);
   const origin = originOf(b.id); const oIdx = originIdxOf(ent, sc);
-  const sourceKey = SOURCES[st.src[i]].key; const pk = productOf(sourceKey);
+  const sourceKey = SOURCES[st.src[i]].key; const pk = productOf(sourceKey, ITEMS[st.item[i]].key);
   const cls = classOfRow(st.gfs[i], origin === 'central' ? 0 : 1);
   const disclosure = DISCLOSURE_PRODUCTS.includes(pk);
   const kind = disclosure && !fx ? (hashOf(st.idKey[i]) % 100 < DIFFERENCES_SHARE ? 'differences' : 'occupancy') : null;
@@ -23,7 +23,7 @@ export function iimFields(st, i) {
     billerId: b.id, billerAr: b.ar, billerEn: b.en, origin, originAr: ORIGIN_AR[origin], originIdx: oIdx,
     productKey: pk, productAr: PRODUCTS[pk].ar, productEn: PRODUCTS[pk].en,
     gfsCode: cls.code, gfsSub: cls.sub, mainClass: cls.main, gfsIdx: st.gfs[i],
-    invoiceKind: kind
+    invoiceKind: kind, entityType: entityTypeOf(ent), entityTypeAr: ENTITY_TYPE_AR[entityTypeOf(ent)]
   };
 }
 export const INVOICE_KIND_AR = { occupancy: 'إشغالات (إفصاح من المكلف)', differences: 'فروقات (ناتجة عن التدقيق)' };

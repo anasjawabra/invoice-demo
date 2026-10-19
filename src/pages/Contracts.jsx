@@ -72,7 +72,7 @@ export default function Contracts() {
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Collected of what is due', 'المحصّل من المستحق')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th>{L('Payments', 'الدفعات')}</th></tr></thead>
+            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Collected of what is due', 'المحصّل من المستحق')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th>{L('Payments', 'الدفعات')}</th></tr></thead>
             <tbody>
               {list.slice(page * PS, (page + 1) * PS).map((c) => (
                 <tr key={c.contractNo}>

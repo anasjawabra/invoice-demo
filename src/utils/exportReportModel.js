@@ -37,7 +37,7 @@ export function modelToLines(model) {
     else if (b.type === 'list') b.items.forEach((x) => items.push({ k: 'li', text: x }));
   };
   const ctx = exportContext(model, lang);
-  items.push({ k: 'table', title: L('سياق التقرير والمرشحات', 'Report context and filters'), headers: [L('البند', 'Item'), L('القيمة', 'Value')], rows: ctx });
+  items.push({ k: 'table', title: L('سياق التقرير والتصفية', 'Report context and filters'), headers: [L('البند', 'Item'), L('القيمة', 'Value')], rows: ctx });
   model.headline.forEach(pushBlock);
   model.sections.forEach((s) => { items.push({ k: 'h2', text: s.title }); if (s.purpose) items.push({ k: 'p', text: s.purpose }); s.blocks.forEach(pushBlock); });
   return items;
@@ -74,7 +74,7 @@ export function buildWorkbook(model) {
   const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
   const wb = XLSX.utils.book_new();
   if (ar) wb.Workbook = { Views: [{ RTL: true }] };
-  const summary = [[model.title], [model.subtitle], [L('بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة', 'Synthetic demo data — not the Ministry’s actual data')], [], [L('سياق التقرير والمرشحات', 'Report context and filters')], ...exportContext(model, lang), []];
+  const summary = [[model.title], [model.subtitle], [L('بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة', 'Synthetic demo data — not the Ministry’s actual data')], [], [L('سياق التقرير والتصفية', 'Report context and filters')], ...exportContext(model, lang), []];
   for (const b of model.headline) if (b.type === 'kpis') { summary.push([L('المؤشر', 'Measure'), L('القيمة', 'Value'), L('الريال بالدقة', 'Exact SAR'), L('ملاحظة', 'Note')]); b.items.forEach((m) => summary.push([m.label, m.value, typeof m.raw === 'number' && !String(m.value).includes('%') && !String(m.value).includes('فاتورة') && !String(m.value).includes('invoices') ? m.raw : '', m.sub])); }
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), L('الملخص', 'Summary'));
   const exact = [[L('الجدول', 'Table'), L('الصف', 'Row'), L('العمود', 'Column'), 'amount_sar']];

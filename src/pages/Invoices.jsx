@@ -11,7 +11,7 @@ import { useAsync } from '../utils/useAsync';
 import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
 import { fmtDateText } from '../data/clock';
-import { PRODUCTS, ORIGIN_AR, ORIGIN_EN, productOf, DISCLOSURE_PRODUCTS } from '../data/iim';
+import { PRODUCTS, ORIGIN_AR, ORIGIN_EN, DISCLOSURE_PRODUCTS } from '../data/iim';
 
 const PAGE_SIZE = 50;
 const SORTABLE = { id: 'id', issue: 'issue', gross: 'gross', outstanding: 'outstanding', age: 'daysOverdue' };
@@ -68,7 +68,7 @@ export default function Invoices() {
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const ST = rev.snapshot.totals; // the shared snapshot of the scope bar: every invoice of the period
   // collected by product and by origin: each splits the SAME total (the parts add up to إجمالي المحصّل)
-  const byProduct = useMemo(() => { const m = new Map(); for (const g of rev.snapshot.bySource) m.set(productOf(g.key), (m.get(productOf(g.key)) || 0) + g.collected); return [...m].map(([key, collected]) => ({ key, collected })).filter((x) => x.collected > 0).sort((a, b) => b.collected - a.collected); }, [rev.snapshot]);
+  const byProduct = useMemo(() => (rev.snapshot.byProduct || []).filter((g) => g.collected > 0).map((g) => ({ key: g.key, collected: g.collected })).sort((a, b) => b.collected - a.collected), [rev.snapshot]);
   const byOrigin = useMemo(() => (rev.snapshot.byScope || []).map((g, k) => ({ key: k === 0 ? 'central' : 'internal', collected: g.collected })).filter((x) => x.collected > 0), [rev.snapshot]);
 
   const openRecord = useOpenRecord(); // a row opens the invoice's own full page; «back» returns here with everything as it was
@@ -210,7 +210,7 @@ export default function Invoices() {
                   </td>
                 </tr>
               ))}
-              {!rows.length && !loading && <tr><td colSpan={13}><div className="rv-empty">{bi.L('No invoices match these filters.', 'لا توجد فواتير مطابقة لهذه المرشحات.')}</div></td></tr>}
+              {!rows.length && !loading && <tr><td colSpan={13}><div className="rv-empty">{bi.L('No invoices match these filters.', 'لا توجد فواتير مطابقة لهذه التصفية.')}</div></td></tr>}
             </tbody>
           </table>
         </div>

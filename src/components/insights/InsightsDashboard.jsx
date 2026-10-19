@@ -28,7 +28,7 @@ export default function InsightsDashboard() {
   const attention = useMemo(() => buildInsights({ snapshot, prev: comparable ? prevSnapshot : null, comparison, forecast: null, targets }).insights.filter((i) => i.severity === 'action').slice(0, 3), [snapshot, prevSnapshot, comparison, targets, comparable]); // eslint-disable-line react-hooks/exhaustive-deps
   const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
   const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
-  if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه المرشحات؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
+  if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
 
   const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: u });
   const months = snapshot.byMonth; const st = snapshot.byStatus.slice().sort((a, b) => b.count - a.count);
@@ -85,7 +85,7 @@ export default function InsightsDashboard() {
 
       <div className="st-grid st-grid--wide-first">
         <div className="card st-card">
-          <b>{L('الأمانات', 'Amanahs')}</b>
+          <b>{L('الأمانات / الجهات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
           <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/insights?view=reports&report=amanah">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>

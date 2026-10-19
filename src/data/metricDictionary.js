@@ -88,7 +88,7 @@ const SOURCE_LABEL = {
 
 export function scopeText(scope, lang = 'ar') {
   if (!scope) return '—';
-  const am = scope.amanah === 'all' ? (lang === 'ar' ? 'كل الأمانات' : 'all Amanahs') : [].concat(scope.amanah).join(', ');
+  const am = scope.amanah === 'all' ? (lang === 'ar' ? 'كل الأمانات والجهات' : 'all Amanahs') : [].concat(scope.amanah).join(', ');
   const src = scope.source === 'all' ? (lang === 'ar' ? 'كل مصادر الإيراد' : 'all revenue sources') : scope.source;
   return `${am} · ${src} · ${scope.from} → ${scope.to}`;
 }

@@ -57,7 +57,7 @@ export default function AnalysisResultView({ result, task, stale, compact = fals
           {task && task.status === 'completed_with_limitations' && <span className="rtag rtag--warn">{L('Completed with data limitations', 'اكتمل مع قيود في البيانات')}</span>}
         </div>
       </div>
-      {stale && <div className="ap__stale">{L('Filters or data changed after this analysis ran — re-run it before relying on it.', 'تغيّرت المرشحات أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
+      {stale && <div className="ap__stale">{L('Filters or data changed after this analysis ran — re-run it before relying on it.', 'تغيّرت التصفية أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
 
       <Section title={L('Executive summary', 'الملخص التنفيذي')}>
         <p className="res__summary" dir="auto">{B(result.executiveSummary)}</p>

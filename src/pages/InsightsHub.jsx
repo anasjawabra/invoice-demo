@@ -30,7 +30,7 @@ export default function InsightsHub() {
   const go = (v, extra = {}) => { const n = new URLSearchParams(); n.set('view', v); Object.entries(extra).forEach(([k, x]) => x && n.set(k, x)); setSp(n); };
   const initialQuery = sp.get('q');
   const sEff = rev.scopeEff; const amName = (k) => { const x = amanahFilterOptions().find((o) => o.key === k); return x ? (ar ? x.ar : x.en) : k; };
-  const scopeSummary = [sEff.amanah === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(sEff.amanah).map(amName).join(ar ? '، ' : ', '), sEff.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(sEff.source) : sourceEn(sEff.source))].join(' · ');
+  const scopeSummary = [sEff.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sEff.amanah).map(amName).join(ar ? '، ' : ', '), sEff.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(sEff.source) : sourceEn(sEff.source))].join(' · ');
 
   return (
     <div className="st-page">

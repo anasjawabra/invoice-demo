@@ -101,7 +101,7 @@ export function ChangeExplanation() {
           {ex.byAmanah && (
             <div className="rv-table-wrap" tabIndex={0}>
               <table className="rv-table" style={{ minWidth: 0 }}>
-                <thead><tr><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
+                <thead><tr><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
                 <tbody>{ex.byAmanah.rows.slice(0, 5).map((r) => <tr key={r.key}><td>{r.label ? pickBi(r.label, ar ? 'ar' : 'en') : r.key}</td><td className="num" dir="ltr">{r.mixPp.toFixed(2)}</td><td className="num" dir="ltr">{r.ratePp.toFixed(2)}</td><td className="num" dir="ltr"><b>{r.totalPp.toFixed(2)}</b></td></tr>)}</tbody>
               </table>
             </div>
@@ -157,7 +157,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
       <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table">
           <thead><tr>
-            <th>{L('Amanah', 'الأمانة')}</th>
+            <th>{L('Amanah', 'الأمانة / الجهة')}</th>
             <th>{L('Size (net billed)', 'الحجم (صافي المفوتر)')}</th>
             <th className="num">{L('Collected ÷ net', 'المحصّل ÷ الصافي')}</th>
             <th className="num">{L('Change vs last year (pp)', 'التغير عن العام الماضي (نقطة)')}</th>

@@ -857,7 +857,7 @@ await test('Engine: the collection category and the payment status follow the FI
   assert.ok(snapshot(st, { scope: sc, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
   // an invoice cancelled in the source but referred to enforcement stays an uncollected invoice — also after the order closes
   let ci = -1; for (let k = 0; k < st.nGen; k += 1) if (st.cancelDay[k] && st.cancelDay[k] <= dayNum(TODAY)) { ci = k; break; }
-  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); for (const s of ['open', 'suspended', 'closed', 'candidate']) assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived.payStatus, 'cancelled', `${s}: enforcement alone never overrides the source cancellation`); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'open' }, enf1: { [cid]: true } })).derived.payStatus, 'cancelled', 'ENF-1 is not applied by anything — not by a link, not by a stored decision');  }
+  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'candidate' } })).derived.payStatus, 'cancelled', 'a proposal changes nothing'); for (const s of ['open', 'suspended', 'closed']) { const d = detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived; assert.equal(d.cancelled, false, `${s}: S9 — a cancellation caused by a referral is not a cancellation`); assert.equal(d.payStatus, 'excluded'); assert.equal(d.gross, x0.derived.gross, 'the invoice stays billed'); } }
   assert.equal(list(st, { scope: sc, cfg, filters: { exec: 'inexec' }, links: { [id]: 'open' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), true);
   for (const [f, s2, expect] of [['suspended', 'suspended', true], ['inexec', 'suspended', false], ['closed', 'closed', true], ['ever', 'closed', true], ['none', 'closed', false], ['ever', 'candidate', false]]) assert.equal(list(st, { scope: sc, cfg, filters: { exec: f }, links: { [id]: s2 }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), expect, `filter ${f} with ${s2}`);
 });
@@ -1106,22 +1106,17 @@ await test('Matching 4 · a genuine conflicting reference (an invoice of ANOTHER
   const bad2 = rows2.find((r) => r.candidates[0].invoiceId === eInv(other)); assert.ok(bad2.resolved[eInv(other)].some((x) => x.by === 'document_names_payer'), 'a document that names the payer’s identity IS evidence'); assert.equal(rowState(bad2).selectable, true);
 });
 
-await test('Cancelled 1 · enforcement never overrides a source cancellation or changes a total: flagged for review, amounts identical for every order status, no action (and no stored ENF-1 decision) applies ENF-1', () => {
+await test('Cancelled 1 · S9 (19 Oct): an invoice cancelled in Sadad because it was referred (an order of the Sanad feed) stays billed and is excluded as «منفذ ضده – قضايا (سند)»; the identities hold; «ملغاة ومحالة» is gone', () => {
   for (const q of [eo('cancelled_open'), eo('cancelled_closed')]) {
-    const i = q.covers[0]; const id = eInv(i); const det = (links, enf1) => detail(est, i, makeCtx(est, { cfg: ecfg, links, enf1 })).derived;
-    const none = det({}); assert.equal(none.sourceCancelled, true); assert.equal(none.cancelled, true); assert.equal(none.payStatus, 'cancelled'); assert.equal(none.outstanding, 0); assert.equal(none.enfConflict, false);
-    const states = ['candidate', 'open', 'suspended', 'closed', 'withdrawn'].map((x) => det({ [id]: x }));
-    for (const [k, d] of states.entries()) { assert.equal(d.cancelled, true, 'the source cancellation stands'); assert.equal(d.outstanding, 0); assert.equal(d.net, none.net); assert.equal(d.gross, none.gross); assert.equal(d.enfConflict, k > 0, k === 0 ? 'a proposal raises no flag' : 'a confirmed or withdrawn link raises the review flag'); assert.equal(d.enf1Applied, undefined, 'no ENF-1 effect exists'); }
-    const legacy = det({ [id]: 'closed' }, { [id]: true }); assert.equal(legacy.cancelled, true, 'a decision stored by an earlier build is history only'); assert.equal(legacy.outstanding, 0); assert.equal(legacy.net, none.net);
-    assert.equal(legacy.payStatus === 'collected', false, 'an order never implies payment');
+    const i = q.covers[0]; const id = eInv(i); const det = (links) => detail(est, i, makeCtx(est, { cfg: ecfg, links })).derived;
+    for (const links of [{}, { [id]: 'candidate' }, { [id]: 'open' }, { [id]: 'closed' }, { [id]: 'withdrawn' }]) {
+      const d = det(links); assert.equal(d.sourceCancelled, true, 'the source fact is kept'); assert.equal(d.cancelled, false, 'a cancellation caused by a referral is not a cancellation');
+      assert.equal(d.excluded, true); assert.equal(d.payStatus, 'excluded'); assert.equal(d.enfConflict, false); assert.equal(d.net, d.collected, 'excluded from net billed'); assert.ok(d.gross > 0, 'stays in إجمالي المفوتر');
+    }
   }
   const q = eo('cancelled_open'); const ids = q.covers.map(eInv); const base = snapshot(est, { scope: ESC, cfg: ecfg, links: {} }); const links = Object.fromEntries(ids.map((x) => [x, 'open'])); const withL = snapshot(est, { scope: ESC, cfg: ecfg, links });
-  assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold with and without the referral'); assert.equal(withL.stock.enforcement.sourceConflict.count, base.stock.enforcement.sourceConflict.count + ids.length);
-  assert.equal(withL.stock.netUncollected, base.stock.netUncollected, 'net uncollected unchanged by the referral'); assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.totals.net, base.totals.net);
-  assert.equal(withL.stock.enforcement.sourceConflict.outstanding, 0, 'the flagged invoices carry no collectible balance');
-  const withLegacy = snapshot(est, { scope: ESC, cfg: ecfg, links, enf1: Object.fromEntries(ids.map((x) => [x, true])) }); assert.equal(withLegacy.stock.netUncollected, base.stock.netUncollected, 'a stored ENF-1 decision changes no amount');
-  const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.ok(ids.every((x) => rows.some((r) => r.id === x && r.enfConflict && r.sourceCancelled)), 'the conflict is listed and countable');
-  assert.equal(list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links: {}, page: 0, pageSize: 100 }).rows.some((r) => ids.includes(r.id)), false);
+  assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold'); assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.stock.enforcement.sourceConflict.count, 0, '«ملغاة ومحالة» no longer exists');
+  const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.equal(rows.length, 0);
   const closedQ = eo('cancelled_closed'); assert.equal(closedQ.status, 'مغلق'); const wd = removeLink(confirmLink(emptyStore(), 'EN-X', ids[0], { ...NOW, input: { invoiceId: ids[0], origin: 'sanad_structured', gross: 1, conflicts: [], resolvedConflicts: [], evidence: [] } }).store, 'EN-X', ids[0], { ...NOW, note: 'withdrawn by the issuer' }).store;
   assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'withdrawing keeps the review flag (code “withdrawn”) and moves no amount');
   assert.ok(validStoreShape({ v: 1, orders: {}, enf1: { [ids[0]]: { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: ids[0], decision: 'apply' }] }), 'a store holding an earlier decision is still valid (kept as history)');

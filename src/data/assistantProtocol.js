@@ -139,7 +139,7 @@ export function buildProtocolAnswer(intent, out, ctx) {
 
   const steps = [
     { n: 1, title: BI('تحديد السؤال', 'Identify the question'), detail: BI(`النية: ${intent}`, `Intent: ${intent}`) },
-    { n: 2, title: BI('تحديد الفترة والنطاق والمرشحات', 'Resolve period, scope and filters'), detail: BI(scopeTxt, scopeTxt) },
+    { n: 2, title: BI('تحديد الفترة والنطاق والتصفية', 'Resolve period, scope and filters'), detail: BI(scopeTxt, scopeTxt) },
     { n: 3, title: BI('التحقق من المصادر وحداثتها', 'Check sources and freshness'), detail: BI(`آخر تاريخ مرجعي للبيانات ${snap.cutoff}؛ بيانات تجريبية`, `Reference data date ${snap.cutoff}; demo data`) },
     { n: 4, title: BI('اختيار تعريف المؤشر', 'Select the metric definition'), detail: def[intent] || def.overview },
     { n: 5, title: BI('الحساب عبر طبقة المقاييس', 'Calculate through the metric layer'), detail: BI(`${cnt(snap.population.issuedInPeriod)} فاتورة صادرة في الفترة؛ ${cnt(S.invoiceCount)} فاتورة ضمن الرصيد القائم`, `${cnt(snap.population.issuedInPeriod)} invoice(s) issued in the period; ${cnt(S.invoiceCount)} in the standing balance`) },

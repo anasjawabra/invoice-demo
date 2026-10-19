@@ -71,9 +71,9 @@ export default function OrdersView() {
 
   return (
     <section className="rp-section" aria-label={L('Enforcement requests', 'طلبات التنفيذ')}>
-      <div className="rv-form" role="search" aria-label={L('Filters', 'المرشحات')} style={{ marginBottom: 8 }}>
+      <div className="rv-form" role="search" aria-label={L('Filters', 'التصفية')} style={{ marginBottom: 8 }}>
         <label style={{ flex: '1 1 240px' }}>{L('Search by request number or invoice number', 'بحث برقم طلب التنفيذ أو رقم الفاتورة')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="4606056" dir="auto" /></label>
-        <label>{L('Amanah', 'الأمانة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
+        <label>{L('Amanah', 'الأمانة / الجهة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
         {sel('ord_rev', L('Matching review', 'مراجعة المطابقة'), fRev, setFRev, [['all', 'All', 'الكل'], ['open', 'Needs attention', 'تحتاج إجراء'], ['needs_review', 'Needs review', 'تحتاج مراجعة'], ['not_identified', 'Numbers not identified', 'أرقام غير محددة'], ['complete', 'Complete', 'مكتملة']])}
       </div>
       <details open={extras.length > 0} className="oj-more">
@@ -89,7 +89,7 @@ export default function OrdersView() {
       <div className="oj-bar">
         <span role="status" aria-live="polite"><b>{shown.length}</b> {L('requests', 'طلب')}</span>
         {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة المرشح')}: ${x.t}`}>{x.t} ×</button>)}
-        {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل المرشحات')}</button>}
+        {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل التصفية')}</button>}
         <label className="oj-sort">{L('Sort', 'الترتيب')}<select id="ord_sort" className="input" value={sort} onChange={(e) => { setSort(e.target.value); setPage(0); }}>{SORTS.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>
       </div>
       <div className="rp-tablewrap" tabIndex={0}>

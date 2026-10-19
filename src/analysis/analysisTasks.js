@@ -48,7 +48,7 @@ const S = {
       const issuedN = snap ? snap.population.issuedInPeriod : 1;
       if (snap) h.detail(bi(`${countFmt(accessible)} record(s) accessible; ${countFmt(issuedN)} invoice(s) issued in the selected period`, `${countFmt(accessible)} سجلاً متاحاً؛ ${countFmt(issuedN)} فاتورة صادرة في الفترة المحددة`));
       if (!issuedN && !ctx.params?.invoiceId && !ctx.params?.enforceNum) {
-        h.warn(bi('No invoices are issued in this scope (check the period, filters and access permissions).', 'لا توجد فواتير صادرة في هذا النطاق (تحقق من الفترة والمرشحات والصلاحيات).'), { limitation: true });
+        h.warn(bi('No invoices are issued in this scope (check the period, filters and access permissions).', 'لا توجد فواتير صادرة في هذا النطاق (تحقق من الفترة والتصفية والصلاحيات).'), { limitation: true });
         ctx.empty = true;
       }
       if (extra) await extra(ctx, h);

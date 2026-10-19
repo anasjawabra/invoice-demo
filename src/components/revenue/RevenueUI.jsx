@@ -207,9 +207,9 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
           ))}
           <DateRangeFields from={scope.from} to={scope.to} today={cfg.cutoff} lang={lang} idPrefix="rv" onChange={(r) => { if (r) setCustomRange(r.from, r.to); }} /></div>
         <div className="rv-scope__group">
-          <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة')}</label>
+          <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة / الجهة')}</label>
           <select id="rv-amanah" className="select" value={Array.isArray(scope.amanah) ? 'all' : scope.amanah} onChange={(e) => setAmanah(e.target.value)}>
-            <option value="all">{L('All Amanahs', 'جميع الأمانات')}{org.amanahKeys ? ` (${L('your access', 'ضمن صلاحيتك')})` : ''}</option>
+            <option value="all">{L('All Amanahs', 'جميع الأمانات والجهات')}{org.amanahKeys ? ` (${L('your access', 'ضمن صلاحيتك')})` : ''}</option>
             {amanahs.map((a) => <option key={a.key} value={a.key}>{label(a)}</option>)}
           </select>
           <label className="rv-scope__lbl" htmlFor="rv-source">{L('Revenue source', 'مصدر الإيراد')}</label>

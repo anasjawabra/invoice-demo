@@ -55,7 +55,7 @@ export const UNAVAILABLE_REVENUE_SOURCES = [];
 
 /* ---------- Revenue-source taxonomy ---------- */
 export const REVENUE_SOURCES = {
-  investment: { gfs: '1421901', en: 'Investment (Furas)', ar: 'الاستثمار (فرص)', zh: '投资收入', platform: 'Foras' },
+  investment: { gfs: '1421901', en: 'Investment', ar: 'الاستثمار', zh: '投资收入', platform: 'Foras' },
   fines: { gfs: '1438001', en: 'Fines & penalties', ar: 'الغرامات والجزاءات', zh: '罚款与处罚', platform: 'Mumathil' },
   municipal_fees: { gfs: '142113', en: 'Municipal fees', ar: 'الرسوم البلدية', zh: '市政收费', platform: 'Baladi' },
   licenses: { gfs: '142162', en: 'Licence fees', ar: 'رسوم التراخيص', zh: '许可费', platform: 'Amanah Internal Reports' },

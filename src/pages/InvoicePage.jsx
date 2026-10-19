@@ -136,7 +136,7 @@ export default function InvoicePage() {
           rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true }
         ] },
         { title: L('Location and revenue classification', 'الموقع وتصنيف الإيراد'), items: [
-          { k: L('Amanah', 'الأمانة'), v: ar ? rec.amanahAr : rec.amanahEn },
+          { k: L('Amanah', 'الأمانة / الجهة'), v: ar ? rec.amanahAr : rec.amanahEn },
           rec.municipalityEn && { k: L('Municipality', 'البلدية'), v: ar ? rec.municipalityAr : rec.municipalityEn },
           im.gfsCode && { k: L('Revenue account no.', 'رقم حساب الإيراد'), v: im.gfsCode, ltr: true },
           im.gfsSub && { k: L('Revenue sub-class', 'تصنيف الإيراد الفرعي'), v: <span>{im.gfsSub} <small className="muted" dir="ltr">({im.gfsCode})</small></span> },

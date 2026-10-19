@@ -2,6 +2,7 @@
 // columnar store. Nothing here materialises more than one page of invoice objects.
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
+import { REFERRED_CANCELLED_STAYS_BILLED } from '../src/data/iim.js';
 import { materialize } from './materialize.js';
 import { iimFields, exclusionOf, investmentOutcome, INVOICE_KIND_SHORT_AR } from './iimRow.js';
 import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
@@ -112,7 +113,7 @@ export function candidates(st, req) {
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
     if (f.exec && f.exec !== 'all') { // ENFORCEMENT dimension (from confirmed links only): inexec = an order in execution · suspended = none in execution, one suspended · closed = referred before, every order closed · ever = any of the three · none = never referred
       const lk = ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0; const srcCancelled = st.cancelDay[i] !== 0 && st.cancelDay[i] <= ctx.cutoffN;
-      const ok = f.exec === 'conflict' ? srcCancelled && (lk >= 2 || lk === 5) : f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
+      const ok = f.exec === 'conflict' ? !REFERRED_CANCELLED_STAYS_BILLED && srcCancelled && (lk >= 2 || lk === 5) : f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
         : f.exec === 'yes' ? (st.exec[i] >= 0 || lk >= 2) : f.exec === 'no' ? (st.exec[i] < 0 && lk < 2) : true; // «yes» / «no»: the older two-value filter
       if (!ok) return;
     }

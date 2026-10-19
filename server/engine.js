@@ -8,7 +8,7 @@ import { ENTITIES, ENT_UNASSIGNED, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNE
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
 import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
 import { HOUSING_PAYER_BASE } from './world.js';
-import { EXCLUSIONS_AUTO_APPLY, parseInvoiceKey, productOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX } from '../src/data/iim.js';
+import { EXCLUSIONS_AUTO_APPLY, REFERRED_CANCELLED_STAYS_BILLED, parseInvoiceKey, PRODUCT_KEYS, productIdxOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX } from '../src/data/iim.js';
 
 export const CLASSES = ['collected', 'cancelled', 'excluded', 'objection', 'enforcement', 'linkage_unresolved', 'ineligible_referral', 'partial', 'overdue', 'not_due'];
 const C = Object.fromEntries(CLASSES.map((c, i) => [c, i]));
@@ -158,8 +158,12 @@ export function derive(ctx, i, asOfN) {
   const cd = st.cancelDay[i];
   // SOURCE cancellation is a fact kept apart from everything else. A confirmed (or later withdrawn) enforcement link — or any reviewer note — NEVER changes it: the invoice stays cancelled in every total and the
   // disagreement is only FLAGGED («source/enforcement conflict — review required»). The documented rule ENF-1 (counted uncollected) has unconfirmed conditions and authority, so the demo does not apply it (EQ3).
-  const sourceCancelled = cd !== 0 && cd <= asOfN; const conflict = sourceCancelled && (link >= 2 || link === 5);
-  const cancelled = sourceCancelled;
+  const sourceCancelled = cd !== 0 && cd <= asOfN;
+  // S9: a source cancellation caused by a REFERRAL (a confirmed link, or an order of the Sanad feed) is not a cancellation: the invoice stays billed and is excluded as «منفذ ضده – قضايا (سند)»
+  const referred = st.exec[i] >= 0 || (link >= 2 && link <= 4);
+  const stays = REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && referred;
+  const conflict = !REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && (link >= 2 || link === 5); // D22: «ملغاة ومحالة» is gone — a referred invoice counts only as referred
+  const cancelled = sourceCancelled && !stays;
   // D10 — exclusions come ONLY from uncollected invoices: a fully collected invoice is never excluded (the exclusion is ignored and counted as a data warning); a partly collected invoice keeps what was collected and only the uncollected remainder is excluded.
   const fullyCollected = !cancelled && billed > 0 && received >= billed;
   const ignoredExclusion = m !== 0 && fullyCollected;
@@ -173,7 +177,7 @@ export function derive(ctx, i, asOfN) {
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
   const exclAmt = excluded ? Math.max(0, billed - received) : 0;
   const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
-  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.enfConflict = conflict; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
+  D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.referredStays = stays; D.enfConflict = conflict; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
   // every exclusion (cancelled or rule-excluded) leaves gross exactly once, whatever the number of reasons: exclTotal = billed - net
   D.mask = m; D.nReasons = m ? popcount(m) : 0; D.primaryBit = primaryBit; D.primaryApproved = primaryApproved; D.excluded = excluded;
   D.exclusionAmount = exclAmt; D.ignoredExclusion = ignoredExclusion; D.net = billed - cancelledAmount - exclAmt;
@@ -216,8 +220,9 @@ export function resolveScope(ctx, scope = {}) {
     out.entOk[e] = ok ? 1 : 0;
   }
   const srcF = scope.source ?? 'all';
-  const prodSet = Array.isArray(scope.product) && scope.product.length ? new Set(scope.product) : null; // product (اسم المنتج): a multi-select over the originating systems
-  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = (srcF === 'all' || SOURCES[s].key === srcF) && (!prodSet || prodSet.has(productOf(SOURCES[s].key))) ? 1 : 0;
+  const prodSet = Array.isArray(scope.product) && scope.product.length ? new Set(scope.product) : null; // product (اسم المنتج): a multi-select; the product of an invoice follows its source and, for investment, its item
+  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = srcF === 'all' || SOURCES[s].key === srcF ? 1 : 0;
+  out.prodOk = prodSet ? Uint8Array.from(PRODUCT_KEYS.map((k) => (prodSet.has(k) ? 1 : 0))) : null;
   out.mainClass = scope.mainClass && scope.mainClass !== 'all' ? MAIN_LIST.indexOf(scope.mainClass) : -1; // revenue main class (تصنيف الإيراد الرئيسي)
   out.includeOther = !!scope.includeOther; // «أخرى» invoices are outside إجمالي المفوتر unless a view asks for them explicitly
   out.muniIdx = out.muni !== 'all' ? Number(String(out.muni).split('|').pop() === 'Sales' ? 0 : ['North', 'Central', 'South'].indexOf(String(out.muni).split('|').pop())) : -1;
@@ -238,6 +243,7 @@ export function resolveScope(ctx, scope = {}) {
 const inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1
   && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx)
   && (sc.muniEnt < 0 || (st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx))
+  && (!sc.prodOk || sc.prodOk[productIdxOf(st.src[i], st.item[i])] === 1)
   && inClass(st, sc, i);
 // D7 — إجمالي المفوتر excludes every invoice whose main class is «أخرى» (VAT, sale of documents, refunds …): such an invoice changes no KPI. A view may ask for them (includeOther) or for one main class.
 function inClass(st, sc, i) {
@@ -269,7 +275,7 @@ export function snapshot(st, req) {
   const ctx = makeCtx(st, req);
   const sc = resolveScope(ctx, req.scope);
   const NE = ENTITIES.length; const NS = SOURCES.length;
-  const per = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS), scope: new Acc(2) };
+  const per = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS), scope: new Acc(2), prod: new Acc(PRODUCT_KEYS.length) };
   const stk = { tot: new Acc(1), ent: new Acc(NE), src: new Acc(NS) };
   const ncCount = new Float64Array(CLASSES.length); const ncAmt = new Float64Array(CLASSES.length); const ncTop = CLASSES.map(() => new TopK(60)); const ncMaxDays = new Float64Array(CLASSES.length); const ncEnt = new Float64Array(CLASSES.length * NE);
   const exCat = new Map(); const reasonCounts = new Array(NBITS).fill(0); const unappr = new Set();
@@ -317,7 +323,7 @@ export function snapshot(st, req) {
     const dd = periodAsOf === ctx.cutoffN ? D : derive(ctx, i, periodAsOf);
     if (sc.statusSet && !sc.statusSet[dd.cls]) continue;
     issued += 1;
-    per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd);
+    per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd); per.prod.add(productIdxOf(st.src[i], st.item[i]), dd);
     { const ym = isoOf(st.issue[i]).slice(0, 7); let am = accMonth.get(ym); if (!am) { am = new Acc(1); accMonth.set(ym, am); } am.add(0, dd); }
     accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
     const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
@@ -362,6 +368,7 @@ export function snapshot(st, req) {
   byMunicipality.sort((a, b) => b.outstanding - a.outstanding);
   const byStatus = []; for (let k = 0; k < CLASSES.length; k += 1) { if (accStatus.a[k * K + M.count] === 0) continue; byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) }); }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
+  const byProduct = groupOut(per.prod, PRODUCT_KEYS.length, () => null, (g) => PRODUCT_KEYS[g]); // اسم المنتج (the product management unit and the collected-by-product split read this)
   const byScope = [0, 1].map((g) => ({ key: g === 0 ? 'central' : 'internal', ...per.scope.toAgg(g) }));
   const matrix = { amanahSource: [], amanahReasons: [], amanahSourceMonth: [] };
   for (const [k, v] of esm) { const [e, sIdx, month] = k.split('|'); matrix.amanahSourceMonth.push({ amanah: ENTITIES[Number(e)].en, source: SOURCES[Number(sIdx)].key, month, net: v[0], collected: v[1], gross: v[2] }); }
@@ -417,7 +424,7 @@ export function snapshot(st, req) {
     ruleStats: Object.fromEntries(RULES.map((r, b) => [r.id, { primaryCount: primCnt[b], primaryAmount: primAmt[b], pendingCandidates: pendCnt[b] }])),
     exclusionsApproval: { allApproved: unappr.size === 0, unapprovedAmount: totals.exclusionsUnapproved, approvedAmount: totals.exclusionsApproved },
     stock, noncollection,
-    byAmanah, bySource, byScope, byMonth, byMunicipality, byStatus, equation,
+    byAmanah, bySource, byProduct, byScope, byMonth, byMunicipality, byStatus, equation,
     basis: { invoices: 'issue_date', invoicesFrom: sc.from, invoicesTo: sc.to, collectionsAsOf: isoOf(periodAsOf), collectionsMode: periodAsOf === ctx.cutoffN ? 'reference_date' : 'period_end', referenceDate: ctx.cfg.cutoff, receiptsByPaymentDate: 'separate_indicator', timezone: 'Asia/Riyadh' },
     byAmanahSource, matrix,
     receivedInPeriod: { byAmanah: receivedByAmanah, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },

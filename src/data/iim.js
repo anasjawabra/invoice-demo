@@ -8,12 +8,14 @@
 //   S6  exclusions are applied automatically (EXCLUSIONS_AUTO_APPLY).
 // The classification table mirrors the structure of the ministry's «تصنيف الإيرادات» file (codes and names only — no figures).
 // ============================================================================
-import { ENTITIES, ENT_HOUSING, ENT_UNASSIGNED, N_AMANAH } from './catalog.js';
+import { ENTITIES, ENT_HOUSING, ENT_UNASSIGNED, N_AMANAH, SOURCES, ITEMS } from './catalog.js';
 
 /* ---------- billers / origin ---------- */
 export const CENTRAL_BILLER_IDS = ['177'];
 export const CENTRAL_BILLER = { id: '177', ar: 'الفوترة المركزية — وزارة البلديات والإسكان', en: 'Central billing — Ministry of Municipalities and Housing' };
 export const HOUSING_BILLER = { id: '171', ar: 'قطاع الإسكان', en: 'Housing sector' };
+// S9 (meeting 19 Oct): an invoice cancelled in Sadad BECAUSE it was referred to execution is not «cancelled» — it stays in إجمالي المفوتر and is excluded from net billed as «منفذ ضده – قضايا (سند)».
+export const REFERRED_CANCELLED_STAYS_BILLED = true;
 export const EXCLUSIONS_AUTO_APPLY = true; // ASSUMPTION S6 — switch to false to return to "proposed, needs confirmation"
 
 const pad = (n, w) => String(n).padStart(w, '0');
@@ -24,6 +26,9 @@ export function billerOf(ent, scope) {
   const e = ENTITIES[ent];
   return { id: `3${pad(ent + 1, 2)}`, ar: e.ar, en: e.en };
 }
+/** الأمانة / الجهة: the Housing sector is an entity (جهة), not an Amanah (D31). */
+export const entityTypeOf = (ent) => (ent === ENT_HOUSING || ent === ENT_UNASSIGNED ? 'entity' : 'amanah');
+export const ENTITY_TYPE_AR = { amanah: 'أمانة', entity: 'جهة' };
 export const isCentralBiller = (billerId) => CENTRAL_BILLER_IDS.includes(String(billerId));
 export const originOf = (billerId) => (isCentralBiller(billerId) ? 'central' : 'internal');
 export const ORIGIN_AR = { central: 'مركزي', internal: 'داخلي' };
@@ -39,14 +44,25 @@ export function parseInvoiceKey(s) { const m = /^(\d{3,4})-(\d{6,14})$/.exec(Str
 /* ---------- product (اسم المنتج): the system the invoice originates from ---------- */
 export const PRODUCTS = {
   foras: { ar: 'فرص', en: 'Furas' },
+  screen: { ar: 'شاشة إلكترونية', en: 'Electronic screen' },
   baladi: { ar: 'بلدي', en: 'Baladi' },
   mumtathil: { ar: 'ممتثل', en: 'Mumtathil' },
   tobacco: { ar: 'تبغ', en: 'Tobacco platform' },
   accommodation: { ar: 'إيواء', en: 'Accommodation platform' },
-  internal: { ar: 'أنظمة الأمانات الداخلية', en: 'Amanah internal systems' }
+  whiteLands: { ar: 'رسوم الأراضي البيضاء', en: 'White-land fees' },
+  internal: { ar: 'الأنظمة الداخلية', en: 'Internal systems' }
 };
-export const PRODUCT_OF_SOURCE = { investment: 'foras', fines: 'mumtathil', municipal_fees: 'baladi', licenses: 'internal', accommodation: 'accommodation', tobacco: 'tobacco', white_lands: 'baladi', housing_sales: 'baladi' };
-export const productOf = (sourceKey) => PRODUCT_OF_SOURCE[sourceKey] || 'baladi';
+export const PRODUCT_KEYS = Object.keys(PRODUCTS);
+// the product-management unit groups tobacco and accommodation in ONE card (they stay separate in the filters)
+export const PRODUCT_GROUPS = [['foras'], ['screen'], ['baladi'], ['mumtathil'], ['tobacco', 'accommodation'], ['whiteLands'], ['internal']];
+export const PRODUCT_OF_SOURCE = { investment: 'foras', fines: 'mumtathil', municipal_fees: 'baladi', licenses: 'internal', accommodation: 'accommodation', tobacco: 'tobacco', white_lands: 'whiteLands', housing_sales: 'baladi' };
+// the electronic-screen product is the investment ITEM «advertising sites»; every other product follows the revenue source
+export const productOf = (sourceKey, itemKey) => (sourceKey === 'investment' && (itemKey === 'ad_sites') ? 'screen' : PRODUCT_OF_SOURCE[sourceKey] || 'baladi');
+const PROD_POS = Object.fromEntries(PRODUCT_KEYS.map((k, i) => [k, i]));
+const PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length);
+SOURCES.forEach((sr, si) => ITEMS.forEach((it, ii) => { PROD_TABLE[si * ITEMS.length + ii] = PROD_POS[productOf(sr.key, it.key)]; }));
+/** compact per-invoice lookup used by scans: product index of (source index, item index) */
+export const productIdxOf = (srcIdx, itemIdx) => PROD_TABLE[srcIdx * ITEMS.length + itemIdx];
 export const DISCLOSURE_PRODUCTS = ['tobacco', 'accommodation'];
 
 /* ---------- revenue classification ---------- */
