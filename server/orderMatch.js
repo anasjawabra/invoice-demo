@@ -4,12 +4,11 @@
 // candidate: a reference either resolves exactly, resolves to several invoices (ambiguous), or does not resolve.
 import { SOURCES, isoOf } from '../src/data/catalog.js';
 import { ENTITIES } from '../src/data/catalog.js';
-import { makeCtx, derive, lookupId, idOf } from './engine.js';
-import { idKeyFromSadad, idKeyFromViolation, invoiceIdOf, parseInvoiceId, payerName, beneficiaryIdOf } from './names.js';
+import { makeCtx, derive, lookupId, lookupKey, lookupSadad, idOf } from './engine.js';
+import { idKeyFromViolation, payerName, beneficiaryIdOf } from './names.js';
+import { parseInvoiceKey } from '../src/data/iim.js';
 
-const FULL_ID = /^INV-(\d{4})-(\d{1,7})$/i;
-
-function serialIndex(st) {
+function serialIndex(st) { // a year-less serial (the old «INV-YYYY-NNNNNNN» tail) matches the invoices of every year: always ambiguous, never a match on its own
   if (st._serialIdx) return st._serialIdx;
   const m = new Map();
   for (let i = 0; i < st.nGen; i += 1) { const k = st.idKey[i] % 1e8; if (!m.has(k)) m.set(k, []); m.get(k).push(i); }
@@ -40,18 +39,15 @@ export function resolveReferences(st, req) {
     let idx = []; let weak = false; let normalized = null;
     if (kind === 'invoice_corrupted') { out.push({ ref, status: 'corrupted', weak: false, normalized: null, candidates: [] }); continue; } // a number a spreadsheet turned into scientific notation: the digits are lost, nothing is guessed
     if (kind === 'invoice_id_exact') { const i = lookupId(st, value); if (i >= 0) idx = [i]; } // a link's own invoice id: looked up exactly, never padded
-    else if (kind === 'invoice_no') {
-      let id = value.toUpperCase();
-      const m = FULL_ID.exec(id);
-      if (m && m[2].length < 7 && !st.fixtureById.has(id)) { id = `INV-${m[1]}-${m[2].padStart(7, '0')}`; normalized = id; weak = true; } // a short serial is padded, and says so
-      const i = lookupId(st, id); if (i >= 0) idx = [i];
+    else if (kind === 'invoice_no') { // `${billerId}-${sadadNumber}`: looked up exactly; the pair identifies one invoice
+      const p = parseInvoiceKey(value.replace(/[\s_\u2013\u2014/]+/g, '-')); const i = p ? lookupId(st, `${p.billerId}-${p.sadad}`) : -1; if (i >= 0) idx = [i];
     } else if (kind === 'invoice_serial') {
       const digits = value.replace(/\D/g, ''); weak = true;
       if (digits) idx = serialIndex(st).get(Number(digits)) || [];
-    } else if (kind === 'sadad_no') {
-      const key = idKeyFromSadad(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupId(st, invoiceIdOf(key)); if (i >= 0) idx = [i];
+    } else if (kind === 'sadad_no') { // a bare Sadad number is NOT unique across billers: every invoice carrying it is a candidate (several → ambiguous)
+      idx = lookupSadad(st, value.replace(/\D/g, ''));
     } else if (kind === 'violation_no') {
-      const key = idKeyFromViolation(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupId(st, invoiceIdOf(key)); if (i >= 0) idx = [i];
+      const key = idKeyFromViolation(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupKey(st, key); if (i >= 0) idx = [i];
     } else if (kind === 'contract_no') { // a contract number MENTIONED by an order: only says whether such a contract exists (never a referral by itself)
       const ct = (st.contracts || []).find((c) => c && c.contractNo === value.toUpperCase());
       out.push({ ref, status: ct ? 'contract_found' : 'contract_not_found', weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null }); continue;
@@ -77,4 +73,3 @@ export function sameDebtorInvoices(st, req) {
   return { invoices: out };
 }
 
-void parseInvoiceId;

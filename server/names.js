@@ -11,13 +11,15 @@ const I12 = inv(A12, M12); const I10 = inv(A10, M10); const I14 = inv(A14, M14);
 
 export const keyOf = (idKey) => { const y = Math.floor(idKey / 1e8); return (y - 2020) * 1e7 + (idKey % 1e8); };
 export const idKeyOf = (x) => (2020 + Math.floor(x / 1e7)) * 1e8 + (x % 1e7);
-export const invoiceIdOf = (idKey) => `INV-${Math.floor(idKey / 1e8)}-${String(idKey % 1e8).padStart(7, '0')}`;
-export function parseInvoiceId(s) { const m = /^INV-(\d{4})-(\d{7})$/.exec(String(s || '').trim()); return m ? Number(m[1]) * 1e8 + Number(m[2]) : null; }
+import { billerOf } from '../src/data/iim.js';
+// The invoice id shown everywhere is `${billerId}-${sadadNumber}` (see data/iim.js and engine.idOf); a Sadad number alone is NOT unique across billers.
 
 export const sadadOf = (idKey) => String((BigInt(keyOf(idKey)) * A12 + B12) % M12).padStart(12, '0');
 export const subscriptionOf = (idKey) => String((BigInt(keyOf(idKey)) * A10 + B10) % M10).padStart(10, '0');
 export const violationOf = (idKey) => String((BigInt(keyOf(idKey)) * A14 + B14) % M14).padStart(14, '0');
 function decode(num, I, B, M) { if (!/^\d+$/.test(num)) return null; const x = Number((((BigInt(num) - B) % M + M) % M * I) % M); return x < 3e8 ? idKeyOf(x) : null; }
+/** The invoice id: `${billerId}-${sadadNumber}`. */
+export const invoiceIdFor = (ent, scope, idKey) => `${billerOf(ent, scope).id}-${sadadOf(idKey)}`;
 export const idKeyFromSadad = (s) => decode(s, I12, B12, M12);
 export const idKeyFromSubscription = (s) => decode(s, I10, B10, M10);
 export const idKeyFromViolation = (s) => decode(s, I14, B14, M14);

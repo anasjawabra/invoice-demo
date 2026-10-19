@@ -8,7 +8,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { loadStore } from '../server/store.js';
-import { invoiceIdOf, payerName, beneficiaryIdOf } from '../server/names.js';
+import { invoiceIdFor, payerName, beneficiaryIdOf } from '../server/names.js';
 import { ENTITIES, SOURCES, isoOf } from '../src/data/catalog.js';
 import { adaptSourceCase } from '../src/data/sanadSource.js';
 
@@ -58,7 +58,7 @@ function scan(name, pages, ar) {
 }
 
 /* ---- the order header and invoice rows, English or Arabic ---- */
-const inv = (i) => invoiceIdOf(st.idKey[i]);
+const inv = (i) => invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i]);
 const rowOf = (i, ar) => R(inv(i), ar ? (SRC_AR[SOURCES[st.src[i]].key] || SOURCES[st.src[i]].key) : (SOURCES[st.src[i]].en || SOURCES[st.src[i]].key), isoOf(st.issue[i]), num(st.gross[i]));
 const THEAD = (ar) => ({ ...(ar ? R('رقم الفاتورة', 'النوع', 'تاريخ الإصدار', 'المبلغ (ريال)') : R('Invoice No', 'Type', 'Issue date', 'Amount (SAR)')), head: true });
 const headEn = (q) => [P('SYNTHETIC DEMO DOCUMENT - not an official record', { size: 9 }), P('ENFORCEMENT ORDER - schedule of invoices', { size: 17 }), P(`Enforcement order no: ${q.enforceNum}`), P(`Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${ST_EN[adaptSourceCase(q).status] || 'In execution'}`), P(`Municipality: ${ENTITIES[q.ent].en}`), P(`Debtor: ${payerName(q.debtor).en} (Beneficiary ID ${beneficiaryIdOf(q.debtor)})`), P(`Total amount: ${num(q.amount)} SAR`)];

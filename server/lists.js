@@ -3,8 +3,8 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { materialize } from './materialize.js';
-import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
-import { parseInvoiceId, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, invoiceIdOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
+import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
+import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
 import { grpOf, GRP } from '../src/data/catalog.js';
 
@@ -17,23 +17,15 @@ export function resolveSearch(st, q) {
   if (!s) return null;
   // exact invoice id
   const exact = lookupId(st, s); if (exact >= 0) return { list: Int32Array.of(exact) };
-  const key = parseInvoiceId(s);
   const upper = s.toUpperCase();
-  let m = /^INV-(\d{4})(?:-(\d{1,7}))?$/.exec(upper);
-  if (m) { // id prefix -> contiguous range of the id-sorted region
-    const y = Number(m[1]); const frag = m[2] || '';
-    const lo = y * 1e8 + (frag ? Number(frag.padEnd(7, '0')) : 0); const hi = y * 1e8 + (frag ? Number(frag.padEnd(7, '9')) : 99999999);
-    return { range: [lowerBound(st, lo), lowerBound(st, hi + 1)] };
-  }
-  if (key != null) return { list: new Int32Array(0) };
   if (/^CT-\d{4}-\d{4}$/.test(upper)) { const ct = st.contracts.find((c) => c && c.contractNo === upper); return { list: Int32Array.from(ct ? ct.invs : []) }; }
   if (/^\d{10}$/.test(s)) { const ct = st.contracts.find((c) => c && c.crNo === s); if (ct) return { list: Int32Array.from(ct.invs) }; }
-  if (/^\d{12}$/.test(s)) { const k = idKeyFromSadad(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
-  if (/^\d{10}$/.test(s)) { const k = idKeyFromSubscription(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
-  if (/^\d{14}$/.test(s)) { const k = idKeyFromViolation(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
+  if (/^\d{12}$/.test(s)) { const l = lookupSadad(st, s); if (l.length) return { list: Int32Array.from(l) }; } // a Sadad number can repeat across billers: every invoice that carries it is returned
+  if (/^\d{10}$/.test(s)) { const k = idKeyFromSubscription(s); if (k != null) { const i = lookupKey(st, k); if (i >= 0) return { list: Int32Array.of(i) }; } }
+  if (/^\d{14}$/.test(s)) { const k = idKeyFromViolation(s); if (k != null) { const i = lookupKey(st, k); if (i >= 0) return { list: Int32Array.of(i) }; } }
   // source-record identifiers: disclosure / schedule / visit / licence / request keys point at ONE invoice; a deed at its owners' invoices; a facility at all its invoices
-  for (const codec of [DISCLOSURE, SCHEDULE, VISIT, LICENCE, REQUEST]) { const k = codec.decode(upper); if (k != null) { const i = lookupId(st, invoiceIdOf(k)); return { list: i >= 0 ? Int32Array.of(i) : new Int32Array(0) }; } }
-  { const k = DEED.decode(upper); if (k != null) { const i = lookupId(st, invoiceIdOf(k)); if (i < 0) return { list: new Int32Array(0) }; const g = grpOf(st.flags[i]); const n = g === GRP.WL_HEAD2 ? 2 : g === GRP.WL_HEAD3 ? 3 : 1; return { list: Int32Array.from({ length: n }, (_, j) => i + j) }; } }
+  for (const codec of [DISCLOSURE, SCHEDULE, VISIT, LICENCE, REQUEST]) { const k = codec.decode(upper); if (k != null) { const i = lookupKey(st, k); return { list: i >= 0 ? Int32Array.of(i) : new Int32Array(0) }; } }
+  { const k = DEED.decode(upper); if (k != null) { const i = lookupKey(st, k); if (i < 0) return { list: new Int32Array(0) }; const g = grpOf(st.flags[i]); const n = g === GRP.WL_HEAD2 ? 2 : g === GRP.WL_HEAD3 ? 3 : 1; return { list: Int32Array.from({ length: n }, (_, j) => i + j) }; } }
   { const fk = parseFacilityKey(upper); if (fk != null) { const bm = new Uint8Array(65536); bm[fk] = 1; return { payer: bm, fixtures: [] }; } }
   { const q = st.requests.find((x) => x.enforceNum === upper); if (q) return { list: Int32Array.from(q.identified.length ? q.identified : (st.contracts[q.contractIdx]?.invs || [])) }; }
   { const m2 = /^(?:مالك أرض|LAND OWNER)\s*(\d{5})$/.exec(upper.replace(/\s+/g, ' ')); if (m2) { const bm = new Uint8Array(65536); const idx = WL_PAYER_BASE + Number(m2[1]) - 1000; if (idx >= WL_PAYER_BASE && idx < 65536) bm[idx] = 1; return { payer: bm, fixtures: [] }; } }

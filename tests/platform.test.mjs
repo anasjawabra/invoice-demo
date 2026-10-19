@@ -5,7 +5,7 @@ import { fmtBn, fmtSar, fmtInt, fmtInvoices, scaled, unitOfValues, chartUnit, UN
 import { parsePeriod, routeQuestion, classify } from '../src/data/assistantRouter.js';
 import { startOfYear, startOfMonth, prevMonthEnd } from '../src/data/clock.js';
 import { loadStore } from '../server/store.js';
-import { snapshot, series, bridge, makeCtx, lookupId, checkEquation, derive } from '../server/engine.js';
+import { snapshot, series, bridge, makeCtx, lookupId, checkEquation, derive, idOf } from '../server/engine.js';
 import { formatRatio, ratio } from '../src/data/revenueMetrics.js';
 import { answerFor } from '../src/data/assistantAnswers.js';
 import { buildProtocolAnswer } from '../src/data/assistantProtocol.js';
@@ -111,8 +111,8 @@ await test('assistant periods follow the real date: this month = month start →
   assert.equal(startOfMonth('2026-10-08'), '2026-10-01');
 });
 await test('assistant routes a new-format invoice id and the collection question', () => {
-  assert.equal(classify('أخبرني عن INV-2026-0000731'), 'invoice');
-  assert.equal(routeQuestion('Tell me about INV-2026-0000731', { cutoff: TODAY }).invoiceId, 'INV-2026-0000731');
+  assert.equal(classify('أخبرني عن 177-421780116877'), 'invoice');
+  assert.equal(routeQuestion('Tell me about 177-421780116877', { cutoff: TODAY }).invoiceId, '177-421780116877');
   assert.equal(routeQuestion('كم المحصل هذا الشهر؟', { cutoff: TODAY }).intent, 'overview');
 });
 
@@ -203,14 +203,15 @@ await test('filters recompute everything from the matching records: source, cent
   assert.ok(Math.abs(a.gross + b.gross - ytd.totals.gross) < 1, 'central + internal = all');
   const mAm = ytd.byAmanah.find((g) => g.key !== 'Unassigned');
 });
-await test('an invoice with several exclusion reasons (or cancelled + a reason) leaves gross exactly once; payments on excluded invoices never enter «collected»', () => {
+await test('an invoice with several exclusion reasons (or cancelled + a reason) leaves gross exactly once; a collected invoice is never excluded and a part-collected one only loses its uncollected remainder (D10)', () => {
   const whatIfCfg = { cutoff: TODAY, rules: Object.fromEntries(['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1'].map((id) => [id, true])) }; // the mechanism is tested with every rule on (unapproved rules are off by default)
   const ctx = makeCtx(st, { cfg: whatIfCfg }); let multi = 0; let overlap = 0; let badOnce = 0; let paidExcluded = 0;
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
     if (D.nReasons > 1) multi += 1; if (D.overlaps) overlap += 1;
     if (Math.abs(D.billed - D.net - D.exclTotal) > 1e-6 || D.exclTotal < 0 || D.net < 0 || D.collected > D.net + 1e-6) badOnce += 1;
-    if (D.excluded && D.received > 0 && D.collected !== 0) paidExcluded += 1;
+    if (D.excluded && D.received >= D.billed) paidExcluded += 1; // D10: a fully collected invoice is never excluded (its exclusion is ignored)
+    if (D.excluded && (D.exclusionAmount - (D.billed - D.received)) > 1e-6) paidExcluded += 1; // only the uncollected remainder is excluded
   }
   assert.ok(multi > 0, 'the world contains multi-reason invoices'); assert.equal(badOnce, 0); assert.equal(paidExcluded, 0);
 });
@@ -285,7 +286,7 @@ await test('search by invoice id, SADAD, payer and source-specific keys; the sum
   const first = list(st, { scope: YTD, cfg, filters: {}, page: 0, pageSize: 1 }).rows[0];
   const bySadad = list(st, { scope: YTD, cfg, filters: { search: detail(st, first.index, makeCtx(st, { cfg })).rec.sadadNo }, page: 0, pageSize: 5 }); assert.equal(bySadad.total, 1);
   const byId = list(st, { scope: YTD, cfg, filters: { search: first.id }, page: 0, pageSize: 5 }); assert.equal(byId.rows[0].id, first.id);
-  const inv = list(st, { scope: YTD, cfg: cfg, filters: { search: 'INV-2026-0000' }, page: 0, pageSize: 5 }); assert.ok(inv.total > 0);
+  const inv = list(st, { scope: YTD, cfg: cfg, filters: { search: '177-88' }, page: 0, pageSize: 5 }); assert.ok(inv.total > 0);
   const t = snapshot(st, { scope: { ...YTD, source: 'tobacco' }, cfg }).totals; const l = list(st, { scope: { ...YTD, source: 'tobacco' }, cfg, filters: {}, page: 0, pageSize: 1 });
   assert.equal(l.total, t.count); assert.ok(Math.abs(l.sums.gross - t.gross) < 1);
 });
@@ -310,8 +311,8 @@ await test('findings are split by function: every issue code and risk category b
 await test('risk flags: the Risks page and the invoice page use one rule — a flag settled by an approved exclusion is not an open risk, an open flag shows on both', () => {
   const r = risk(st, { scope: YTD, cfg, limit: 200 });
   const ctx = makeCtx(st, { scope: YTD, cfg });
-  // INV-2026-0728 / INV-2026-0808: marked duplicate in the source, but the duplicate exclusion (DUP-1) is already approved and applied
-  for (const id of ['INV-2026-0728', 'INV-2026-0808']) {
+  // 177-882607280000 / 177-882608080000: marked duplicate in the source, but the duplicate exclusion (DUP-1) is already approved and applied
+  for (const id of ['177-882607280000', '177-882608080000']) {
     const d = detail(st, lookupId(st, id), ctx);
     assert.equal(d.riskFlags.duplicate, 'settled', `${id}: the duplicate is settled by the approved exclusion`); assert.equal(d.cls, 'excluded');
     assert.ok(!r.categories.duplicate.rows.some((x) => x.id === id), `${id}: a settled duplicate is not listed as a risk`);
@@ -320,7 +321,7 @@ await test('risk flags: the Risks page and the invoice page use one rule — a f
   for (const cat of ['duplicate', 'struck_off_registry', 'deceased_person']) for (const row of r.categories[cat].rows) assert.equal(detail(st, lookupId(st, row.id), ctx).riskFlags[cat], 'open', `${row.id} ${cat}`);
   // with the duplicate rule switched off nothing is settled: the same two invoices become OPEN duplicates, listed on the Risks page AND carried by the invoice page
   const off = { cutoff: TODAY, rules: { 'DUP-1': false } }; const r2 = risk(st, { scope: YTD, cfg: off, limit: 200 }); const ctx2 = makeCtx(st, { scope: YTD, cfg: off });
-  for (const id of ['INV-2026-0728', 'INV-2026-0808']) { assert.ok(r2.categories.duplicate.rows.some((x) => x.id === id), `${id}: listed when open`); assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open'); }
+  for (const id of ['177-882607280000', '177-882608080000']) { assert.ok(r2.categories.duplicate.rows.some((x) => x.id === id), `${id}: listed when open`); assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open'); }
   assert.equal(r2.categories.duplicate.count, r.categories.duplicate.count + 2);
 });
 await test('export streams in chunks, keeps exact SAR and a separately named abbreviated column', () => {
@@ -751,7 +752,7 @@ await test('Invoice-status filter: the net-uncollected bridge lands on the stand
 /* ------------------------------------------------------------ enforcement orders ↔ invoices (all invoice types; Sanad; references only, never amount alone) */
 const feedCases = sanadCases(st); const orderOf = (arch, nth = 0) => st.requests.filter((r) => r.archetype === arch)[nth];
 const caseOf = (q) => feedCases.find((c) => c.enforceNum === q.enforceNum);
-const idOfInv = (i) => st.idKey[i] ? `INV-${Math.floor(st.idKey[i] / 1e8)}-${String(st.idKey[i] % 1e8).padStart(7, '0')}` : null;
+const idOfInv = (i) => st.idKey[i] ? idOf(st, i) : null;
 const resolveFor = (refs) => resolveReferences(st, { refs, cfg });
 
 await test('Orders cover ALL invoice types: the demo world holds one-invoice, several-invoice (different revenue sources), partial-reference, no-reference, wrong-reference, ambiguous, discrepancy and duplicate orders', () => {
@@ -764,15 +765,15 @@ await test('Orders cover ALL invoice types: the demo world holds one-invoice, se
 });
 
 await test('Reference classification: invoice numbers are told apart from order, contract, account, IBAN, identity and amount figures; every page and table row is read', () => {
-  const text = ['Enforcement order no: EN-5013', 'Debtor ID 1008640729', 'Contract reference: CT-2026-0087', 'Account no: 4410229981', 'IBAN SA0380000000608010167519', 'Total amount: 85,438,130.00 SAR', 'Invoice No | Type | Amount', 'INV-2025-0000179 | fines | 44,061,510.00 SAR', '0000095 | municipal', 'SADAD 101234567890', 'Violation no 12345678901234'];
+  const text = ['Enforcement order no: EN-5013', 'Debtor ID 1008640729', 'Contract reference: CT-2026-0087', 'Account no: 4410229981', 'IBAN SA0380000000608010167519', 'Total amount: 85,438,130.00 SAR', 'Invoice No | Type | Amount', '177-410830121845 | fines | 44,061,510.00 SAR', '0000095 | municipal', 'SADAD 101234567890', 'Violation no 12345678901234'];
   const r = extractFromText(text.join('\n'), 3); const by = (k) => r.filter((x) => x.kind === k).map((x) => x.value);
-  assert.deepEqual(by('invoice_no'), ['INV-2025-0000179']); assert.deepEqual(by('order_no'), ['EN-5013']); assert.deepEqual(by('contract_no'), ['CT-2026-0087']); assert.deepEqual(by('bank_account'), ['SA0380000000608010167519']);
+  assert.deepEqual(by('invoice_no'), ['177-410830121845']); assert.deepEqual(by('order_no'), ['EN-5013']); assert.deepEqual(by('contract_no'), ['CT-2026-0087']); assert.deepEqual(by('bank_account'), ['SA0380000000608010167519']);
   assert.deepEqual(by('invoice_serial'), ['0000095'], 'a zero-padded serial under an Invoice heading'); assert.deepEqual(by('sadad_no'), ['101234567890']); assert.deepEqual(by('violation_no'), ['12345678901234']);
   assert.ok(by('other_number').includes('1008640729') && by('other_number').includes('4410229981'), 'identity and account numbers are never invoice references');
   assert.ok(!r.some((x) => x.value.includes('85') && isFinite(x.value) && x.kind !== 'other_number'), 'amounts are not references'); assert.ok(r.every((x) => x.page === 3));
-  const ex = buildExtraction([{ page: 1, text: 'INV-2025-0000179' }, { page: 2, text: 'rows\nINV-2024-0000023\nINV-2025-0000179' }, { page: 3, text: '' }], 'text_layer', { orderNo: 'EN-5013' });
-  assert.deepEqual(ex.refs.map((x) => `${x.value}@${x.occurrences.map((o) => o.page)}`), ['INV-2025-0000179@1,2', 'INV-2024-0000023@2']); assert.equal(ex.pages[2].needsOcr, true, 'a page with no text is reported as unread'); assert.equal(ex.pages[0].needsOcr, false);
-  assert.equal(buildExtraction([{ page: 1, text: 'order EN-9999\nINV-2025-0000001' }], 'text_layer', { orderNo: 'EN-5013' }).orderNumberMismatch, true, 'a document that names another order is flagged');
+  const ex = buildExtraction([{ page: 1, text: '177-410830121845' }, { page: 2, text: 'rows\n177-407800123249\n177-410830121845' }, { page: 3, text: '' }], 'text_layer', { orderNo: 'EN-5013' });
+  assert.deepEqual(ex.refs.map((x) => `${x.value}@${x.occurrences.map((o) => o.page)}`), ['177-410830121845@1,2', '177-407800123249@2']); assert.equal(ex.pages[2].needsOcr, true, 'a page with no text is reported as unread'); assert.equal(ex.pages[0].needsOcr, false);
+  assert.equal(buildExtraction([{ page: 1, text: 'order EN-9999\n177-407270123447' }], 'text_layer', { orderNo: 'EN-5013' }).orderNumberMismatch, true, 'a document that names another order is flagged');
   assert.equal(splitOcrText('a\fb').length, 2); assert.equal(splitOcrText('--- page 1 ---\nx\n--- page 2 ---\ny').length, 2);
 });
 
@@ -791,8 +792,8 @@ await test('Reference resolution: exact invoice numbers match; a bare serial is 
   assert.ok(r.results.every((x, k) => x.status === 'matched' && x.candidates[0].invoiceId === idOfInv(multi.covers[k]))); assert.ok(new Set(r.results.map((x) => x.candidates[0].source)).size >= 2, 'different invoice types');
   const amb = orderOf('serial_ambiguous'); const sa = resolveFor(amb.refs).results[0]; assert.equal(sa.status, 'ambiguous'); assert.ok(sa.candidates.length >= 2 && sa.weak); assert.ok(sa.candidates.some((k) => k.invoiceId === idOfInv(amb.covers[0])));
   const typo = orderOf('multi_typo_ref'); const rt = resolveFor(typo.refs); assert.deepEqual(rt.results.map((x) => x.status), ['matched', 'unmatched']); assert.equal(rt.results[1].candidates.length, 0, 'no “similar” invoice is substituted');
-  const some = idOfInv(multi.covers[0]); const i0 = lookupId(st, some); const sad = resolveFor([{ kind: 'sadad_no', value: sadadOf(st.idKey[i0]) }, { kind: 'violation_no', value: '00000000000001' }, { kind: 'contract_no', value: 'CT-2026-0087' }, { kind: 'invoice_id_exact', value: 'INV-2026-0722' }]);
-  assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'contract_not_found'); assert.equal(sad.results[2].candidates.length, 0, 'a contract number never resolves to invoices'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, 'INV-2026-0722', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
+  const some = idOfInv(multi.covers[0]); const i0 = lookupId(st, some); const sad = resolveFor([{ kind: 'sadad_no', value: sadadOf(st.idKey[i0]) }, { kind: 'violation_no', value: '00000000000001' }, { kind: 'contract_no', value: 'CT-2026-0087' }, { kind: 'invoice_id_exact', value: '177-882607220000' }]);
+  assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'contract_not_found'); assert.equal(sad.results[2].candidates.length, 0, 'a contract number never resolves to invoices'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, '177-882607220000', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
   const sum = r.results[0].candidates[0]; assert.ok(['overdue', 'partial', 'collected', 'not_due', 'cancelled', 'excluded'].includes(sum.paymentStatus) && sum.grossAmount > 0 && sum.payerName);
 });
 
@@ -812,7 +813,7 @@ await test('Order match state: matched only when every reference is accounted fo
   const none = orderOf('multi_no_refs'); const neff = buildEffectiveCases([caseOf(none)], emptyStore())[0]; assert.equal(orderMatchState(neff).state, 'unmatched'); assert.equal(caseSummary(neff).state, 'unresolved');
   const typo = caseOf(orderOf('multi_typo_ref')); const teff = buildEffectiveCases([typo], emptyStore())[0]; assert.equal(orderMatchState(teff).state, 'partial'); assert.equal(unresolvedReferences(teff).length, 1, 'the wrong reference stays unresolved');
   let store = emptyStore(); const en = part.enforceNum; const o = { by: 'rev', at: '2026-10-08T10:00:00Z', orderStatus: 'open' };
-  const doc = { id: 'h1', name: 'x.pdf', size: 1, addedAt: o.at, extraction: buildExtraction([{ page: 1, text: 'INV-2025-0000001' }, { page: 2, text: '' }], 'text_layer') };
+  const doc = { id: 'h1', name: 'x.pdf', size: 1, addedAt: o.at, extraction: buildExtraction([{ page: 1, text: '177-407270123447' }, { page: 2, text: '' }], 'text_layer') };
   store = recordDocument(store, en, doc, o).store; const withDoc = buildEffectiveCases([pc], store)[0]; const m1 = orderMatchState(withDoc);
   assert.ok(m1.reasons.includes('document_pages_unread') && m1.reasons.includes('unresolved_references'), 'an unread page and a new reference keep it partial'); assert.equal(m1.gaps[0].page, 2);
   store = recordSupplementalExtraction(store, en, 'h1', buildExtraction([{ page: 2, text: 'no invoice here' }], 'manual_entry'), o).store; assert.equal(orderMatchState(buildEffectiveCases([pc], store)[0]).gaps.length, 0, 'supplied text closes the page gap');
@@ -862,7 +863,7 @@ await test('Engine: the collection category and the payment status follow the FI
 
 await test('Backup: enforcement work (links, document records, extracted references, history) is included and validated; an older backup never removes it; the PDF bytes are not part of the file', () => {
   const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
-  const a = mem(); const store = proposeLink(emptyStore(), 'EN-5000', { invoiceId: 'INV-2025-0000001', origin: 'document_text_layer', gross: 5 }, { by: 'x', at: '2026-10-08T10:00:00Z', orderStatus: 'open' }).store; a.setItem('ib_enforcement_v1', JSON.stringify(store));
+  const a = mem(); const store = proposeLink(emptyStore(), 'EN-5000', { invoiceId: '177-407270123447', origin: 'document_text_layer', gross: 5 }, { by: 'x', at: '2026-10-08T10:00:00Z', orderStatus: 'open' }).store; a.setItem('ib_enforcement_v1', JSON.stringify(store));
   const b = buildBackup(a); assert.deepEqual(b.data.ib_enforcement_v1, store); const v = validateBackup(b); assert.equal(v.ok, true); assert.equal(v.summary.enforcementOrders, 1);
   const t = mem(); applyBackup(JSON.parse(JSON.stringify(b)), t); assert.deepEqual(JSON.parse(t.getItem('ib_enforcement_v1')), store, 'round-trips');
   const old = buildBackup(mem()); assert.ok(!('ib_enforcement_v1' in old.data)); applyBackup(old, t); assert.ok(t.getItem('ib_enforcement_v1'), 'a backup made before this feature does not delete the enforcement records');
@@ -871,7 +872,7 @@ await test('Backup: enforcement work (links, document records, extracted referen
 
 /* ------------------------------------------------------------ full-page records: one relationship model, enforcement status, completeness, evidence */
 await test('Record addresses: one builder per record type (invoice, order, contract) — no query-string drawer addresses', () => {
-  assert.equal(invoicePath('INV-2025-0000111'), '/invoices/INV-2025-0000111'); assert.equal(orderPath('EN-5013'), '/enforcement-orders/EN-5013'); assert.equal(contractPath('CT-2023-0013'), '/contracts/CT-2023-0013');
+  assert.equal(invoicePath('177-409470122457'), '/invoices/177-409470122457'); assert.equal(orderPath('EN-5013'), '/enforcement-orders/EN-5013'); assert.equal(contractPath('CT-2023-0013'), '/contracts/CT-2023-0013');
   assert.equal(invoicePath('A B/C'), '/invoices/A%20B%2FC');
 });
 
@@ -913,7 +914,7 @@ await test('Closure reasons come only from the feed (never a payment reason) and
 await test('Three completeness states are separate: references complete while the amount differs; extraction incomplete while references are complete; no document is not "complete"', () => {
   const q = orderOf('amount_discrepancy'); const eff = buildEffectiveCases([caseOf(q)], emptyStore())[0]; const m = orderCompleteness(eff);
   assert.equal(m.references.state, 'complete', 'every reference found is confirmed — the amount is not required'); assert.equal(m.finance.state, 'short'); assert.equal(m.extraction.state, 'no_document');
-  const doc = { id: 'd1', name: 'x.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 1, text: 'INV-2025-0000001' }, { page: 2, text: '' }], 'text_layer') };
+  const doc = { id: 'd1', name: 'x.pdf', size: 1, addedAt: 'a', extraction: buildExtraction([{ page: 1, text: '177-407270123447' }, { page: 2, text: '' }], 'text_layer') };
   const o = { by: 'r', at: '2026-10-08T10:00:00Z', orderStatus: 'open' }; let store = recordDocument(emptyStore(), q.enforceNum, { ...doc, extraction: buildExtraction([{ page: 1, text: `${caseOf(q).refs[0].value} and more text here` }, { page: 2, text: '' }], 'text_layer') }, o).store;
   const e2 = orderCompleteness(buildEffectiveCases([caseOf(q)], store)[0]); assert.equal(e2.extraction.state, 'incomplete'); assert.equal(e2.references.state, 'complete'); assert.equal(e2.finance.state, 'short');
   const full = orderOf('multi_exact'); const f = orderCompleteness(buildEffectiveCases([caseOf(full)], emptyStore())[0]); assert.deepEqual([f.references.state, f.finance.state, f.extraction.state], ['complete', 'reconciled', 'no_document'], 'reconciled and referenced, but no document was read: not the same as complete extraction');
@@ -949,7 +950,7 @@ await test('Arabic PDFs: a digital Arabic PDF is read (numbers robust across pag
   const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec); const dir = 'public/samples/enforcement-orders/';
   const read = async (f) => { const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync(dir + f)), lib); return { pages, ex: buildExtraction(pages, 'text_layer', { orderNo: 'EN-5013' }) }; };
   const dig = await read('ar-EN-5013-digital.pdf'); assert.equal(dig.pages.length, 2); assert.ok(/[؀-ۿ]/.test(dig.pages[0].text), 'a real Arabic text layer');
-  assert.deepEqual(dig.ex.refs.map((r) => r.value), ['INV-2025-0000179', 'INV-2024-0000023', 'INV-2025-0000095']); assert.ok(dig.ex.refs[2].occurrences[0].page === 2, 'the table row on page 2 is read');
+  assert.deepEqual(dig.ex.refs.map((r) => r.value), ['177-410830121845', '177-407800123249', '177-409150122601']); assert.ok(dig.ex.refs[2].occurrences[0].page === 2, 'the table row on page 2 is read');
   assert.ok(dig.ex.others.some((o) => o.kind === 'contract_no') && dig.ex.others.some((o) => o.value === '1008640729' && o.label === 'person'), 'contract and identity numbers are set apart'); assert.equal(dig.ex.orderNumberMismatch, false);
   const sc = await read('ar-EN-5143-scanned.pdf'); assert.deepEqual(sc.ex.pages.map((p) => p.needsOcr), [true, true]); assert.equal(sc.ex.refs.length, 0);
   assert.deepEqual(extractFromText('رقم الفاتورة ١٢٣٤٥٦٧\nفاتورة ٠٠٠٠٠٩٥').map((r) => r.value), ['1234567', '0000095'], 'Arabic-Indic digits are read as Latin digits'); assert.deepEqual(extractFromText('الرصيد ٦٦٩٩٢٦٧').filter((r) => r.kind === 'invoice_serial'), [], 'a bare 7-digit figure with no invoice label is not a serial');
@@ -957,14 +958,14 @@ await test('Arabic PDFs: a digital Arabic PDF is read (numbers robust across pag
 
 await test('Backup restore with missing PDFs: the extracted references, page evidence and confirmed links survive; the order reports the file as unavailable; the original is associated again only after an identity check', () => {
   const q = orderOf('multi_partial_refs'); const c = caseOf(q); const o = { by: 'r', at: '2026-10-08T10:00:00Z', orderStatus: 'open' };
-  const ex = buildExtraction([{ page: 1, text: `${c.refs[0].value}\nINV-2025-0000999` }, { page: 2, text: 'INV-2025-0000888 on page two' }], 'text_layer', { orderNo: q.enforceNum });
+  const ex = buildExtraction([{ page: 1, text: `${c.refs[0].value}\n177-427230114465` }, { page: 2, text: '177-425010115464 on page two' }], 'text_layer', { orderNo: q.enforceNum });
   let store = recordDocument(emptyStore(), q.enforceNum, { id: 'f'.repeat(64), name: 'order.pdf', size: 10, kind: 'uploaded', addedAt: o.at, fileStored: true, extraction: ex }, o).store;
-  store = proposeLink(store, q.enforceNum, { invoiceId: 'INV-2025-0000999', origin: 'document_text_layer', gross: 5, evidence: [{ refKind: 'invoice_no', refValue: 'INV-2025-0000999', docId: 'f'.repeat(64), docName: 'order.pdf', pages: [1] }] }, o).store;
+  store = proposeLink(store, q.enforceNum, { invoiceId: '177-427230114465', origin: 'document_text_layer', gross: 5, evidence: [{ refKind: 'invoice_no', refValue: '177-427230114465', docId: 'f'.repeat(64), docName: 'order.pdf', pages: [1] }] }, o).store;
   const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
   const a = mem(); a.setItem('ib_enforcement_v1', JSON.stringify(store)); const b = buildBackup(a); const t = mem(); assert.equal(applyBackup(JSON.parse(JSON.stringify(b)), t).ok, true);
   const restored = JSON.parse(t.getItem('ib_enforcement_v1')); const eff = buildEffectiveCases([c], restored)[0];
-  assert.equal(eff.docs.length, 1); assert.equal(eff.docs[0].extraction.refs.length, 3); assert.deepEqual(eff.docs[0].extraction.refs.find((r) => r.value === 'INV-2025-0000888').occurrences.map((x) => x.page), [2], 'page references survive');
-  assert.ok(evidenceForInvoice('INV-2025-0000999', [eff]).some((e) => e.page === 1 && e.docName === 'order.pdf'), 'the evidence (document, page, line) survives without the PDF bytes');
+  assert.equal(eff.docs.length, 1); assert.equal(eff.docs[0].extraction.refs.length, 3); assert.deepEqual(eff.docs[0].extraction.refs.find((r) => r.value === '177-425010115464').occurrences.map((x) => x.page), [2], 'page references survive');
+  assert.ok(evidenceForInvoice('177-427230114465', [eff]).some((e) => e.page === 1 && e.docName === 'order.pdf'), 'the evidence (document, page, line) survives without the PDF bytes');
   assert.ok(!('bytes' in eff.docs[0]) && JSON.stringify(b).indexOf('%PDF') < 0, 'the backup holds no PDF content');
   const r = recordFileRestored(restored, q.enforceNum, 'f'.repeat(64), { ...o, name: 'order.pdf' }); assert.equal(r.error, null); assert.ok(r.store.orders[q.enforceNum].history.some((h) => h.action === 'document_file_restored'));
   assert.equal(recordFileRestored(restored, q.enforceNum, 'e'.repeat(64), o).error, 'document_not_found', 'a different identity is not associated');
@@ -982,7 +983,7 @@ await test('Enforcement management: matching-review exceptions are typed and cou
 await test('Arabic presentation-form text (as a PDF text layer returns it) is normalised before labels are looked for; the three sample invoice PDFs of the first demo are digital PDFs and are read', async () => {
   assert.deepEqual(extractFromText('ﺭﻗﻢ ﺍﻟﻔﺎﺗﻮﺭﺓ ١٢٣٤٥٦٧').map((r) => [r.kind, r.value]), [['invoice_serial', '1234567']], 'presentation forms of «رقم الفاتورة» are recognised as an invoice label');
   const spec = 'pdfjs-dist/legacy/build/pdf.mjs'; const lib = await import(spec);
-  const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync('public/samples/invoice_normal_alrajhi.pdf')), lib); const ex = buildExtraction(pages, 'text_layer'); assert.deepEqual(ex.refs.map((r) => r.value), ['INV-2026-0731']); assert.equal(ex.pages[0].needsOcr, false);
+  const { pages } = await readPdfPages(new Uint8Array(fs.readFileSync('public/samples/invoice_normal_alrajhi.pdf')), lib); const ex = buildExtraction(pages, 'text_layer'); assert.equal(ex.pages[0].needsOcr, false); assert.ok(pages[0].text.includes('INV-2026-0731'), 'the first-demo sample PDFs keep their own (legacy-format) number as text: the id format of the system is now biller-sadad, so it is not read as an invoice reference'); assert.deepEqual(ex.refs.map((r) => r.value), []);
 });
 
 /* ------------------------------------------------------------ Brief 4: every source is read (structured · description · notes · attachments), cancelled invoices vs enforcement, contract mentions */
@@ -992,7 +993,7 @@ const E_DATE = '2026-10-09'; const ecfg = { cutoff: E_DATE };
 const est = loadStore(E_DATE, { size: 'compact' }); const estCases = sanadCases(est);
 const eo = (arch, nth = 0) => est.requests.filter((r) => r.archetype === arch)[nth];
 const ecase = (q) => estCases.find((c) => c.enforceNum === q.enforceNum);
-const eInv = (i) => `INV-${Math.floor(est.idKey[i] / 1e8)}-${String(est.idKey[i] % 1e8).padStart(7, '0')}`;
+const eInv = (i) => idOf(est, i);
 const eResolve = (refs) => resolveReferences(est, { refs, cfg: ecfg }).results;
 const SPEC = 'pdfjs-dist/legacy/build/pdf.mjs'; const pdfLib = await import(SPEC);
 const sampleBytes = (f) => new Uint8Array(fs.readFileSync(`public/samples/enforcement-orders/${f}`));
@@ -1038,8 +1039,8 @@ await test('Brief 4 · a Word document: paragraphs AND table rows are read, page
   const c = ecase(q); const eff = buildEffectiveCases([c], recordDocument(emptyStore(), q.enforceNum, { id: 'h-docx', name: 'a.docx', size: 1, format: 'docx', extraction: ex }, NOW).store)[0];
   const cm = contractMentions(eff, eff.docs); assert.equal(cm.length, 1); assert.equal(cm[0].status, 'mentioned'); assert.equal(cm[0].direct, false); assert.equal(cm[0].origins[0].type, 'document_docx_text'); assert.ok(cm[0].origins[0].locs.length >= 1 && cm[0].origins[0].pages.length === 0, 'evidence names a paragraph/table location, never an approximate page');
   const wl = collectReferences(eff, eff.docs).filter((r) => r.kind === 'invoice_no'); assert.ok(wl.every((r) => r.origins[0].locs.every((l) => /^t\d+r\d+$|^p\d+$/.test(l)) && r.origins[0].pages.length === 0), 'table rows are named t<table>r<row>');
-  const w = parseWordXml('<w:body><w:p><w:r><w:t>Intro</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>INV-2025-0000001</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>Next &amp; last</w:t></w:r></w:p></w:body>');
-  assert.equal(w.pages.length, 2); assert.equal(w.tables, 1); assert.deepEqual(w.pages[0], ['Intro', '[table 1, row 1] INV-2025-0000001 | 10']); assert.deepEqual(w.pages[1], ['Next & last']);
+  const w = parseWordXml('<w:body><w:p><w:r><w:t>Intro</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>177-407270123447</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:br w:type="page"/></w:r></w:p><w:p><w:r><w:t>Next &amp; last</w:t></w:r></w:p></w:body>');
+  assert.equal(w.pages.length, 2); assert.equal(w.tables, 1); assert.deepEqual(w.pages[0], ['Intro', '[table 1, row 1] 177-407270123447 | 10']); assert.deepEqual(w.pages[1], ['Next & last']);
 });
 
 await test('Brief 4 · a scanned PDF, a legacy .doc and an unknown file are kept but flagged UNREAD with a reason; nothing is treated as read; empty fields ≠ «no related invoices»', async () => {
@@ -1076,7 +1077,7 @@ await test('Matching 2 · the same serial in two different years is NOT a confli
   assert.ok(rows.every((r) => !(r.conflicts[r.candidates[0].invoiceId] || []).some((x) => /source|ambig/.test(x)) && r.unresolved[r.candidates[0].invoiceId].length === 0), 'no hard conflict is raised between them');
   assert.ok(rows.every((r) => { const st1 = rowState(r); return st1.kind === 'ready' && st1.preselect; }), 'both are exact matches, preselected for review');
   assert.equal(orderCompleteness(eff).references.sourceConflicts, undefined); assert.ok(!orderExceptions(eff).includes('source_conflict'));
-  assert.ok(String(ids[0]).includes('-00') || true); assert.ok(refs.every((r) => /^INV-\d{4}-\d{7}$/.test(r.value)), 'values keep their zeros');
+  assert.ok(String(ids[0]).includes('-00') || true); assert.ok(refs.every((r) => /^\d{3,4}-\d{6,14}$/.test(r.value)), 'values keep their zeros');
 });
 
 await test('Matching 3 · an incomplete serial matching several invoices is ambiguous; the order’s debtor is supporting evidence only; a full number elsewhere in the order settles it', () => {
@@ -1210,11 +1211,11 @@ await test('Summaries: concise Arabic one-liners and the exact «not identified�
   const none = summaryLines(orderCompleteness(buildEffectiveCases([{ enforceNum: 'EN-N', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], emptyStore())[0]), []); assert.equal(none.refs.ar, NOT_IDENTIFIED.ar);
   const q = prep('ambiguous_serial'); const o = est.requests.find((r) => r.enforceNum === q.orderNo); const eff = buildEffectiveCases([ecase(o)], emptyStore())[0]; const rows = reviewRows(ecase(o)).rows;
   assert.ok(/^تم العثور على .* — مرجع واحد يحتاج مراجعة$/.test(summaryLines(orderCompleteness(eff), rows).refs.ar) || summaryLines(orderCompleteness(eff), rows).refs.ar.includes('يحتاج'));
-  const kinds = new Set([extractionFromSample(q, { orderNo: q.orderNo }).method, buildExtraction([{ page: 1, text: 'Invoice INV-2025-0000001' }], 'text_layer').method, buildExtraction([{ page: 1, text: 'Invoice INV-2025-0000001' }], 'ocr_import').method, manualExtraction('INV-2025-0000001').method]); assert.deepEqual([...kinds].sort(), ['manual_entry', 'ocr_import', 'ocr_simulated', 'text_layer']);
-  const me = manualExtraction('INV-2025-0000123\n0000054\nnot a number'); assert.deepEqual(me.refs.map((r) => `${r.kind}:${r.value}`), ['invoice_no:INV-2025-0000123', 'invoice_serial:0000054']); assert.equal(me.method, 'manual_entry');
+  const kinds = new Set([extractionFromSample(q, { orderNo: q.orderNo }).method, buildExtraction([{ page: 1, text: 'Invoice 177-407270123447' }], 'text_layer').method, buildExtraction([{ page: 1, text: 'Invoice 177-407270123447' }], 'ocr_import').method, manualExtraction('177-407270123447').method]); assert.deepEqual([...kinds].sort(), ['manual_entry', 'ocr_import', 'ocr_simulated', 'text_layer']);
+  const me = manualExtraction('301-409710122349\n0000054\nnot a number'); assert.deepEqual(me.refs.map((r) => `${r.kind}:${r.value}`), ['invoice_no:301-409710122349', 'invoice_serial:0000054']); assert.equal(me.method, 'manual_entry');
   const store = recordManualReferences(emptyStore(), 'EN-M', me, NOW).store; assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].extraction.method, 'manual_entry'); assert.equal(store.orders['EN-M'].docs[MANUAL_DOC_ID].kind, 'manual'); assert.equal(store.orders['EN-M'].history[0].action, 'manual_references_added');
   const eff2 = buildEffectiveCases([{ enforceNum: 'EN-M', amount: 5, requestStatus: 'قيد التنفيذ', links: [], refs: [] }], store)[0]; assert.ok(collectReferences(eff2, eff2.docs).every((r) => r.origins.every((og) => og.type === 'document_manual_entry')), 'typed references keep their own origin');
-  const withDec = { ...store, enf1: { 'INV-2025-0000001': { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: 'INV-2025-0000001', decision: 'apply', by: 'T', at: 'x' }] }; const b = buildBackup({ getItem: (k) => (k === 'ib_enforcement_v1' ? JSON.stringify(withDec) : null) }); assert.ok(validateBackup(b).ok); assert.ok(JSON.stringify(b.data.ib_enforcement_v1).includes('enf1'), 'an earlier reviewer decision (history only) and the typed references are part of the backup'); assert.ok(validStoreShape(withDec));
+  const withDec = { ...store, enf1: { '177-407270123447': { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: '177-407270123447', decision: 'apply', by: 'T', at: 'x' }] }; const b = buildBackup({ getItem: (k) => (k === 'ib_enforcement_v1' ? JSON.stringify(withDec) : null) }); assert.ok(validateBackup(b).ok); assert.ok(JSON.stringify(b.data.ib_enforcement_v1).includes('enf1'), 'an earlier reviewer decision (history only) and the typed references are part of the backup'); assert.ok(validStoreShape(withDec));
 });
 
 /* ------------------------------------------------------------ Round 13: the Sanad CSV structure, source-style demo cases, corrupted identifiers, ENF-1 inert */
@@ -1240,7 +1241,7 @@ await test('Source-style demo cases: every case carries the extract’s fields, 
   assert.ok(eff.some((c) => c.source.municipality === null) && eff.some((c) => c.source.municipality), 'municipality is optional');
   assert.equal(amountInWords(2212), 'ألفان ومائتان واثنا عشر ريال'); assert.equal(amountInWords(1.5), 'ريال'.length ? 'واحد ريال و' + 'خمسون هللة' : ''); assert.equal(amountInWords(0), '');
   const kept = adaptSourceCase({ enforceNum: 'EN-1', amount: 5, openedDate: '2025-01-01', requestStatus: 'قيد التنفيذ', refs: [], source: { requestNo: '4600001' } }); assert.equal(kept.source.requestNo, '4600001', 'a case that already carries source fields is not overwritten');
-  assert.ok(isCorruptedNumber('2.414E+11') && isCorruptedNumber('9.9E+11') && !isCorruptedNumber('241400000000') && !isCorruptedNumber('INV-2025-0000001'));
+  assert.ok(isCorruptedNumber('2.414E+11') && isCorruptedNumber('9.9E+11') && !isCorruptedNumber('241400000000') && !isCorruptedNumber('177-407270123447'));
 });
 
 await test('Real-extract patterns: numeric 12-digit invoice numbers only in the description are matched on their own; a structured number corrupted to scientific notation is listed, never matched, and the description may recover it', () => {
@@ -1260,23 +1261,23 @@ await test('Real-extract patterns: numeric 12-digit invoice numbers only in the 
 
 /* ------------------------------------------------------------ Round 14: status groups, scientific-notation identifiers, stable ids */
 const STABLE_IDS = {
-  'attach_pdf:0': 'EN-6000|INV-2025-0000072,INV-2024-0000022,INV-2024-0000087',
-  'attach_docx:0': 'EN-6007|INV-2025-0000149,INV-2025-0000171,INV-2025-0000220',
-  'one_attached:0': 'EN-6014|INV-2026-0000071',
-  'contract_mention:0': 'EN-6021|INV-2024-0000091,INV-2024-0000055',
-  'same_serial_two_years:0': 'EN-6028|INV-2025-0000087,INV-2026-0000087',
-  'genuine_conflict:0': 'EN-6035|INV-2026-0000004',
-  'mixed_sources:0': 'EN-6042|INV-2025-0000137,INV-2025-0000139,INV-2025-0000172',
-  'desc_sadad:0': 'EN-6049|INV-2025-0000344,INV-2025-0000144',
-  'corrupted_structured:0': 'EN-6056|INV-2026-0000061,INV-2025-0000030',
-  'attach_unreadable:0': 'EN-6063|INV-2025-0000266,INV-2025-0000031,INV-2025-0000166',
-  'desc_multi:0': 'EN-6070|INV-2025-0000373,INV-2025-0000176,INV-2025-0000212',
-  'desc_only:0': 'EN-6077|INV-2025-0000364,INV-2025-0000331,INV-2026-0000054',
-  'cancelled_open:0': 'EN-6084|INV-2026-0000065',
-  'cancelled_closed:0': 'EN-6091|INV-2025-0000217',
-  'attach_docx:1': 'EN-6098|INV-2025-0000239,INV-2024-0000028,INV-2024-0000081',
-  'contract_mention:1': 'EN-6105|INV-2025-0000267,INV-2025-0000303',
-  'desc_only:1': 'EN-6112|INV-2024-0000058,INV-2025-0000208'
+  'attach_pdf:0': 'EN-6000|171-408690122808,171-407780123258,171-409080122673',
+  'attach_docx:0': 'EN-6007|177-410230122115,177-410670121917,177-411650121476',
+  'one_attached:0': 'EN-6014|177-408580122817',
+  'contract_mention:0': 'EN-6021|177-409160122637,177-408440122961',
+  'same_serial_two_years:0': 'EN-6028|177-408990122673,177-408900122673',
+  'genuine_conflict:0': 'EN-6035|177-407240123420',
+  'mixed_sources:0': 'EN-6042|177-409990122223,177-410030122205,177-410690121908',
+  'desc_sadad:0': 'EN-6049|177-414130120360,177-410130122160',
+  'corrupted_structured:0': 'EN-6056|171-408380122907,171-407850123186',
+  'attach_unreadable:0': 'EN-6063|171-412570121062,171-407870123177,171-410570121962',
+  'desc_multi:0': 'EN-6070|177-414710120099,177-410770121872,177-411490121548',
+  'desc_only:0': 'EN-6077|171-414530120180,171-413870120477,171-408240122970',
+  'cancelled_open:0': 'EN-6084|171-408460122871',
+  'cancelled_closed:0': 'EN-6091|302-411590121503',
+  'attach_docx:1': 'EN-6098|177-412030121305,177-407900123204,177-408960122727',
+  'contract_mention:1': 'EN-6105|177-412590121053,177-413310120729',
+  'desc_only:1': 'EN-6112|177-408500122934,177-411410121584'
 };
 
 await test('Stable demo ids: every (archetype:rep) keeps its id AND the invoices it covers; appended archetypes never shift them; an appended one gets an id from its fixed list position', () => {
@@ -1286,7 +1287,7 @@ await test('Stable demo ids: every (archetype:rep) keeps its id AND the invoices
 });
 
 await test('Legacy ids: a store written by an earlier build is NOT applied to generated orders (ambiguous), nothing is deleted, and a record is restored only by an explicit choice', () => {
-  const rec = (n) => ({ links: { 'INV-2025-0000001': { invoiceId: 'INV-2025-0000001', status: 'confirmed', evidence: [] } }, docs: { d1: { id: 'd1', name: 'x.pdf', extraction: null } }, history: [{ at: 'x', by: 'T', action: 'confirmed' }], dismissedRefs: [], contractReviews: {} });
+  const rec = (n) => ({ links: { '177-407270123447': { invoiceId: '177-407270123447', status: 'confirmed', evidence: [] } }, docs: { d1: { id: 'd1', name: 'x.pdf', extraction: null } }, history: [{ at: 'x', by: 'T', action: 'confirmed' }], dismissedRefs: [], contractReviews: {} });
   const old = { v: 1, orders: { 'EN-6014': rec(), 'EN-5013': rec(), 'EN-2301188': rec(), 'EN-6200': rec() }, enf1: {} };
   const m = migrateIdScheme(old); assert.equal(m.idScheme, ID_SCHEME); assert.deepEqual(Object.keys(m.orders).sort(), ['EN-2301188', 'EN-5013', 'EN-6200'], 'ids that never changed (and ids from the stable range) are kept'); assert.deepEqual(Object.keys(m.legacy), ['EN-6014'], 'ambiguous generated-range ids are set aside');
   assert.equal(m.legacy['EN-6014'], old.orders['EN-6014'], 'the record is kept untouched'); assert.ok(isGeneratedRangeId('EN-6133') && !isGeneratedRangeId('EN-6298') && !isGeneratedRangeId('EN-5013'));
@@ -1306,7 +1307,7 @@ await test('Scientific notation: the exact raw string decides — all digits wri
   const long = '1.23456789012345678E+17'; const lo = analyzeNotation(long); assert.equal(lo.exact, true); assert.equal(lo.digits, '123456789012345678', 'an 18-digit identifier survives because no Number is involved'); assert.notEqual(String(Number(long)), '123456789012345678', 'a double would have lost it');
   assert.equal(recoverableIdentifier(long), null, 'exact, but not a length this system knows (12 / 14): never used as an invoice number');
   assert.equal(analyzeNotation('1.23456789012346E+17').exact, false, 'Excel keeps 15 digits: the rest is gone'); assert.equal(analyzeNotation('1.5E+0').reason, 'fractional'); assert.equal(analyzeNotation('12E+3').reason, 'not_normalised');
-  assert.equal(analyzeNotation('408380122907').notation, false); assert.equal(analyzeNotation('INV-2025-0000001').notation, false); assert.equal(analyzeNotation('').notation, false); assert.equal(analyzeNotation(null).notation, false);
+  assert.equal(analyzeNotation('408380122907').notation, false); assert.equal(analyzeNotation('177-407270123447').notation, false); assert.equal(analyzeNotation('').notation, false); assert.equal(analyzeNotation(null).notation, false);
   assert.equal(exactNotation('408380122907'), '4.08380122907E+11'); assert.equal(analyzeNotation(exactNotation('408380122907')).digits, '408380122907'); assert.equal(analyzeNotation(toSciNotation('408380122907')).exact, false, 'the demo’s rounded form is unreliable');
   assert.ok(isCorruptedNumber('2.414E+11') && isCorruptedNumber('4.08380122907E+11') && isUnreliableNotation('2.414E+11') && !isUnreliableNotation('4.08380122907E+11'));
 });
@@ -1418,16 +1419,16 @@ await test('goal data: payments by month (payment date) equal the snapshot recei
   for (const a of amanahFilterOptions()) { const one = snapshot(st, { scope: { ...scope, amanah: a.key }, cfg: approved }).receivedInPeriod.total; assert.ok(Math.abs(one - (R.byAmanah[a.key] || 0)) < 0.5, a.key); }
   assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice');
 });
-await test('adjusted total = net billed everywhere: the DEFAULT configuration applies approved exclusion rules only; an unapproved rule is an explicit, flagged what-if', () => {
+await test('adjusted total = net billed everywhere: the DEFAULT configuration applies the exclusion reasons confirmed in the 18 Oct meeting (S6, automatic); switching them off is an explicit what-if that raises net billed', () => {
+  const REASONS = ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1'];
+  assert.ok(REASONS.every((id) => RULES_G.find((r) => r.id === id && r.approval === 'approved' && r.defaultEnabled)), 'every reason named in the meeting is on by default');
   assert.ok(RULES_G.filter((r) => r.approval !== 'approved').every((r) => !r.defaultEnabled), 'no unapproved rule is on by default');
   const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
-  const approved = normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, r.approval === 'approved'])) });
-  const dflt = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY }) }); const appr = snapshot(st, { scope, cfg: approved });
-  assert.equal(dflt.totals.net, appr.totals.net, 'default net billed = the dashboard adjusted total'); assert.equal(dflt.totals.exclusionsUnapproved, 0); assert.deepEqual(dflt.unapprovedRulesApplied, []);
-  assert.ok(Math.abs(appr.totals.gross - appr.totals.cancelled - appr.totals.exclusionsRules - appr.totals.net) < 1, 'adjusted total = billed − cancelled − approved-rule exclusions');
-  const all = Object.fromEntries(RULES_G.map((r) => [r.id, !r.locked && r.id !== 'OBJ-1']));
-  const whatIf = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY, rules: all }) });
-  assert.ok(whatIf.totals.net < dflt.totals.net && whatIf.unapprovedRulesApplied.length > 0, 'switching on unapproved rules lowers net billed and is flagged'); assert.ok(Math.abs(dflt.totals.net - whatIf.totals.net - whatIf.totals.exclusionsUnapproved) < 1, 'the whole difference is the unapproved-rule exclusions');
+  const dflt = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY }) });
+  assert.equal(dflt.totals.exclusionsUnapproved, 0); assert.deepEqual(dflt.unapprovedRulesApplied, []);
+  assert.ok(Math.abs(dflt.totals.gross - dflt.totals.cancelled - dflt.totals.exclusionsRules - dflt.totals.net) < 1, 'adjusted total = billed − cancelled − rule exclusions');
+  const off = snapshot(st, { scope, cfg: normalizeCfgG({ cutoff: TODAY, rules: Object.fromEntries(RULES_G.map((r) => [r.id, false])) }) });
+  assert.ok(off.totals.net > dflt.totals.net, 'switching the exclusion reasons off raises net billed'); assert.ok(Math.abs(off.totals.net - dflt.totals.net - dflt.totals.exclusionsRules) < 1, 'the difference is exactly the rule exclusions');
 });
 /* ------------------------------------------------------------------ Revenue-source analysis (first dashboard) */
 const apprCfgA = normalizeCfgG({ cutoff: TODAY });

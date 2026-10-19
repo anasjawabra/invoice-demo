@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { loadStore } from '../server/store.js';
-import { invoiceIdOf, payerName, beneficiaryIdOf } from '../server/names.js';
+import { invoiceIdFor, payerName, beneficiaryIdOf } from '../server/names.js';
 import { ENTITIES, SOURCES, isoOf } from '../src/data/catalog.js';
 
 const OUT = path.resolve('public/samples/enforcement-orders'); const TMP = fs.mkdtempSync(path.join(process.env.TMPDIR || '/tmp', 'ar-pdf-'));
@@ -17,7 +17,7 @@ const num = (n) => Number(n).toLocaleString('en-US', { minimumFractionDigits: 2 
 const st = loadStore(process.argv[2] || '2026-10-09');
 
 function html(q, covers) {
-  const rows = covers.map((i) => `<tr><td dir="ltr">${invoiceIdOf(st.idKey[i])}</td><td>${SRC_AR[SOURCES[st.src[i]].key] || SOURCES[st.src[i]].key}</td><td dir="ltr">${isoOf(st.issue[i])}</td><td dir="ltr">${num(st.gross[i])}</td></tr>`);
+  const rows = covers.map((i) => `<tr><td dir="ltr">${invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i])}</td><td>${SRC_AR[SOURCES[st.src[i]].key] || SOURCES[st.src[i]].key}</td><td dir="ltr">${isoOf(st.issue[i])}</td><td dir="ltr">${num(st.gross[i])}</td></tr>`);
   const head = `<tr><th>رقم الفاتورة</th><th>النوع</th><th>تاريخ الإصدار</th><th>المبلغ (ريال)</th></tr>`;
   return `<html dir="rtl" lang="ar"><head><meta charset="utf-8"><style>body{font-family:"Geeza Pro","Arial";font-size:14pt;direction:rtl} table{border-collapse:collapse;width:100%} td,th{border:1px solid #444;padding:5px}</style></head><body>
 <p style="font-size:9pt">مستند تجريبي اصطناعي — ليس سجلاً رسمياً</p>

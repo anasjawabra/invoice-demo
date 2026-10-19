@@ -87,24 +87,25 @@ export const monthOf = (dateStr) => dateStr.slice(0, 7);
 /* ---------- Illustrative overlay (explicit, reviewable) ----------
    Only things the original fixtures cannot express. Everything else is
    derived by rule in buildLedger(). */
+const FIXTURE_GFS = { investment: '142163', fines: '1438', municipal_fees: '1421909', licenses: '11452104', tobacco: '11422', accommodation: '11442' };
 const REVIEWER = { en: 'Revenue data steward (demo reviewer)', ar: 'أمين بيانات الإيرادات (مراجع تجريبي)' };
 
 const OVERLAY = {
   // Partial payment, short payment terms -> due before the data cutoff.
-  'INV-2026-0724': { dueDate: '2026-07-30', payments: [{ date: '2026-07-29', amount: 400000, channel: 'voluntary' }] },
+  '177-882607240000': { dueDate: '2026-07-30', payments: [{ date: '2026-07-29', amount: 400000, channel: 'voluntary' }] },
   // Small partial receipt on an overdue invoice.
-  'INV-2026-0650': { payments: [{ date: '2026-07-27', amount: 150000, channel: 'voluntary' }] },
+  '177-882606500000': { payments: [{ date: '2026-07-27', amount: 150000, channel: 'voluntary' }] },
   // Approved credit note reduces the billed amount.
-  'INV-2026-0520': { adjustments: [{ date: '2026-02-10', amount: -50000, kind: 'credit_note', reason: { en: 'Approved credit note (area re-measurement)', ar: 'إشعار دائن معتمد (إعادة قياس المساحة)' } }] },
+  '177-882605200000': { adjustments: [{ date: '2026-02-10', amount: -50000, kind: 'credit_note', reason: { en: 'Approved credit note (area re-measurement)', ar: 'إشعار دائن معتمد (إعادة قياس المساحة)' } }] },
   // Missing mandatory debtor identifier: invoice cannot be referred as-is.
-  'INV-2026-0802': { missing: ['debtor_id_number'] },
+  '177-882608020000': { missing: ['debtor_id_number'] },
   // Exclusion records (explicit, with evidence and review state).
-  'INV-2026-0728': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Line items identical to INV-2026-0731 (duplicate detection); same contract reference CO-88231.', ar: 'بنود الفاتورة مطابقة للفاتورة INV-2026-0731 (كشف التكرار)؛ نفس مرجع العقد CO-88231.' }, reviewStatus: 'approved', reviewDate: '2026-07-28' } },
-  'INV-2025-0940': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Re-submission of an invoice already registered under the same contract reference.', ar: 'إعادة تقديم فاتورة مسجلة مسبقاً بنفس مرجع العقد.' }, reviewStatus: 'approved', reviewDate: '2025-12-04' } },
-  'INV-2026-0808': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Same payer, amount and period as an earlier Jazan invoice.', ar: 'نفس الدافع والمبلغ والفترة لفاتورة سابقة في جازان.' }, reviewStatus: 'approved', reviewDate: '2026-04-20' } },
-  'INV-2026-0545': { exclusion: { category: 'struck_off_registry', ruleId: 'CR-1', evidence: { en: 'Commercial registration reported struck-off by the commerce registry check.', ar: 'السجل التجاري مشطوب وفق فحص سجل التجارة.' }, reviewStatus: 'approved', reviewDate: '2026-03-10' } },
+  '177-882607280000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Line items identical to 177-882607310000 (duplicate detection); same contract reference CO-88231.', ar: 'بنود الفاتورة مطابقة للفاتورة 177-882607310000 (كشف التكرار)؛ نفس مرجع العقد CO-88231.' }, reviewStatus: 'approved', reviewDate: '2026-07-28' } },
+  '177-882509400000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Re-submission of an invoice already registered under the same contract reference.', ar: 'إعادة تقديم فاتورة مسجلة مسبقاً بنفس مرجع العقد.' }, reviewStatus: 'approved', reviewDate: '2025-12-04' } },
+  '177-882608080000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Same payer, amount and period as an earlier Jazan invoice.', ar: 'نفس الدافع والمبلغ والفترة لفاتورة سابقة في جازان.' }, reviewStatus: 'approved', reviewDate: '2026-04-20' } },
+  '177-882605450000': { exclusion: { category: 'struck_off_registry', ruleId: 'CR-1', evidence: { en: 'Commercial registration reported struck-off by the commerce registry check.', ar: 'السجل التجاري مشطوب وفق فحص سجل التجارة.' }, reviewStatus: 'approved', reviewDate: '2026-03-10' } },
   // Candidate exclusion that is NOT yet approved -> stays in net billed.
-  'INV-2026-0804': { exclusion: { category: 'deceased_debtor', ruleId: 'DEC-1', evidence: { en: 'Civil-registry flag suggests the debtor is deceased; heir/estate position not established.', ar: 'إشارة السجل المدني تفيد بوفاة المدين؛ وضع الورثة/التركة غير مثبت.' }, reviewStatus: 'pending', reviewDate: null } }
+  '177-882608040000': { exclusion: { category: 'deceased_debtor', ruleId: 'DEC-1', evidence: { en: 'Civil-registry flag suggests the debtor is deceased; heir/estate position not established.', ar: 'إشارة السجل المدني تفيد بوفاة المدين؛ وضع الورثة/التركة غير مثبت.' }, reviewStatus: 'pending', reviewDate: null } }
 };
 
 /* ---------- Enforcement cases (Sanad / Efaa) ----------
@@ -112,9 +113,9 @@ const OVERLAY = {
    from SANAD_ENFORCEMENT.sample (mock.js); three previously-reviewed cases are
    added here. A link counts only once its status is `confirmed`. */
 const CONFIRMED_SEED = [
-  { enforceNum: 'EN-2301188', system: 'sanad', amanahEn: 'Jeddah Amanah', amount: 687500, openedDate: '2026-05-28', links: [{ invoiceId: 'INV-2026-0722', allocated: 687500, status: 'confirmed', evidence: ['reference_match'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-06-30' }] },
-  { enforceNum: 'EN-2188420', system: 'sanad', amanahEn: 'Riyadh Amanah', amount: 1363500, openedDate: '2026-04-30', links: [{ invoiceId: 'INV-2026-0635', allocated: 1363500, status: 'confirmed', evidence: ['reference_match'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-06-12' }] },
-  { enforceNum: 'EN-2455512', system: 'sanad', amanahEn: 'Al-Qassim Amanah', amount: 356500, openedDate: '2026-07-02', links: [{ invoiceId: 'INV-2026-0806', allocated: 356500, status: 'confirmed', evidence: ['reference_match', 'amount_exact'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-07-09' }] }
+  { enforceNum: 'EN-2301188', system: 'sanad', amanahEn: 'Jeddah Amanah', amount: 687500, openedDate: '2026-05-28', links: [{ invoiceId: '177-882607220000', allocated: 687500, status: 'confirmed', evidence: ['reference_match'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-06-30' }] },
+  { enforceNum: 'EN-2188420', system: 'sanad', amanahEn: 'Riyadh Amanah', amount: 1363500, openedDate: '2026-04-30', links: [{ invoiceId: '177-882606350000', allocated: 1363500, status: 'confirmed', evidence: ['reference_match'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-06-12' }] },
+  { enforceNum: 'EN-2455512', system: 'sanad', amanahEn: 'Al-Qassim Amanah', amount: 356500, openedDate: '2026-07-02', links: [{ invoiceId: '177-882608060000', allocated: 356500, status: 'confirmed', evidence: ['reference_match', 'amount_exact'], reviewedBy: 'Revenue data steward (demo reviewer)', reviewedAt: '2026-07-09' }] }
 ];
 
 // Backlog: orders issued by the enforcement platform that still have no reviewed invoice link.
@@ -241,6 +242,8 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
 
     return {
       id: inv.id,
+      billerId: inv.billerId, sadadNo: inv.sadadNo, // invoice id = `${billerId}-${sadadNo}`; the Sadad number alone is not unique
+      gfsCode: FIXTURE_GFS[revenueSource] || '1453', // رقم حساب الإيراد of the hand-anchored invoices
       entity: inv.entity, entityEn: inv.entityEn, entityAr: inv.entityAr,
       amanah: inv.amanah, amanahEn: inv.amanahEn, amanahAr: inv.amanahAr,
       municipalityEn: inv.municipalityEn, municipalityAr: inv.municipalityAr,

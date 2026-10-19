@@ -11,7 +11,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, F, grpOf, extOf, GRP, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { PARAMS, IMPORT_VERSIONS, SOURCE_PROFILE, GFS_BY_SOURCE, assumptionsFor } from '../src/data/sourceAssumptions.js';
 import { Rng, mix } from './world.js';
-import { invoiceIdOf, sadadOf, violationOf, payerName, crNoOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, facilityKeyOf, personName, nationalIdOf, mobileOf, hash } from './names.js';
+import { invoiceIdFor, sadadOf, violationOf, payerName, crNoOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, facilityKeyOf, personName, nationalIdOf, mobileOf, hash } from './names.js';
 
 const BI = (ar, en) => ({ ar, en });
 const fld = (n, ar, en, v) => ({ n, l: BI(ar, en), v: v === undefined ? null : v });
@@ -124,8 +124,8 @@ export function sourceRecord(st, i, rec, D, cutoff) {
         : [fld('REGISTRATION_NUMBER', 'رقم السجل', 'Registration number', crNo), fld('ARABIC_TYPE_NAME', 'نوع المنشأة', 'Facility type', ['فندق', 'شقق مخدومة', 'نزل', 'مجمع سكني'][hash(st.payer[i], 15) % 4]), fld('ROOMS_COUNT', 'عدد الغرف', 'Rooms', rooms), fld('COMMERCIAL_RECORD', 'السجل التجاري', 'Commercial record', crNo), fld('RESPONSIBLE_NAME', 'اسم المسؤول', 'Responsible', personName(st.payer[i] + 3).ar), fld('RESPONSIBLE_MOBILE', 'جوال المسؤول', 'Responsible mobile', mobileOf(st.payer[i]))]),
       fld('DISTRICT', 'الحي', 'District', DISTRICTS[hash(st.payer[i], 16) % DISTRICTS.length]), fld(tob ? 'CR_NO' : 'COMMERCIAL_RECORD', 'السجل التجاري', 'CR number', crNo)
     ]));
-    if (replacedBy) out.related.push({ kind: 'replaced_by', label: BI('استُبدلت بفاتورة إفصاح معدّل', 'Replaced by an amended-disclosure invoice'), invoiceId: invoiceIdOf(replacedBy), note: BI('هذه الفاتورة ملغاة؛ تُخصم مرة واحدة وتُحتسب الفاتورة المعدّلة فقط.', 'This invoice is cancelled and deducted once; only the amended invoice is counted.') });
-    if (replaces) out.related.push({ kind: 'replaces', label: BI('تحل محل فاتورة الإفصاح الأصلي', 'Replaces the original-disclosure invoice'), invoiceId: invoiceIdOf(replaces) });
+    if (replacedBy) out.related.push({ kind: 'replaced_by', label: BI('استُبدلت بفاتورة إفصاح معدّل', 'Replaced by an amended-disclosure invoice'), invoiceId: invoiceIdFor(st.ent[i], st.scope[i], replacedBy), note: BI('هذه الفاتورة ملغاة؛ تُخصم مرة واحدة وتُحتسب الفاتورة المعدّلة فقط.', 'This invoice is cancelled and deducted once; only the amended invoice is counted.') });
+    if (replaces) out.related.push({ kind: 'replaces', label: BI('تحل محل فاتورة الإفصاح الأصلي', 'Replaces the original-disclosure invoice'), invoiceId: invoiceIdFor(st.ent[i], st.scope[i], replaces) });
     out.checks = { disclosureBase: base, feePercent: pct, fee, vat: tax, amountEqualsFeePlusVat: Math.abs(fee + tax - gross) < 0.5, walletPaid: pf.wallet, sadadPaid: pf.other };
     out.facility = { key: facilityKey, name: facName };
   } else if (src.key === 'white_lands') {
@@ -206,7 +206,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
       out.related.push({ kind: 'violation_info', label: BI('مخالفة مرتبطة: غرامتها معلومة ولا تُضاف إلى مبلغ الفاتورة', 'Linked violation: its fine is information and is not added to the invoice amount') });
     }
     out.related.push({ kind: 'deed', label: BI(owners > 1 ? `صك مشترك بين ${owners} ملاك — فاتورة لكل مالك` : 'صك بمالك واحد', owners > 1 ? `Deed shared by ${owners} owners - one invoice per owner` : 'Single-owner deed'), deedNo,
-      invoices: group.map((g) => ({ id: invoiceIdOf(st.idKey[g]), amount: st.gross[g], share: Math.round((st.gross[g] / groupGross) * 10000) / 100, current: g === i })) });
+      invoices: group.map((g) => ({ id: invoiceIdFor(st.ent[g], st.scope[g], st.idKey[g]), amount: st.gross[g], share: Math.round((st.gross[g] / groupGross) * 10000) / 100, current: g === i })) });
     if (st.exec[i] >= 0 && st.requests[st.exec[i]]?.system === 'white_lands') {
       const q = st.requests[st.exec[i]];
       out.links.push({ system: 'ملف التنفيذ الشامل للأراضي البيضاء', dataset: 'white_lands_enforcement', importVersion: IMPORT_VERSIONS.white_lands_enforcement, keyField: 'رقم أمر التنفيذ', key: q.enforceNum, role: 'enforcement', note: BI('التنفيذ لا يُحتسب تحصيلاً، ومبلغ الأمر لا يُضاف إلى المديونية.', 'Execution is not collection and the order amount is not added to the debt.') });

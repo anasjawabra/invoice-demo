@@ -6,8 +6,9 @@
 // ============================================================================
 import { ENTITIES, ENT_UNASSIGNED, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
-import { invoiceIdOf, parseInvoiceId, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
+import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
 import { HOUSING_PAYER_BASE } from './world.js';
+import { EXCLUSIONS_AUTO_APPLY, parseInvoiceKey, productOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX } from '../src/data/iim.js';
 
 export const CLASSES = ['collected', 'cancelled', 'excluded', 'objection', 'enforcement', 'linkage_unresolved', 'ineligible_referral', 'partial', 'overdue', 'not_due'];
 const C = Object.fromEntries(CLASSES.map((c, i) => [c, i]));
@@ -15,13 +16,13 @@ export const CLASS_INDEX = C;
 
 const RULES = EXCLUSION_RULES.map((r, i) => ({ id: r.id, bit: 1 << i, priority: r.priority, approved: r.approval === 'approved', category: r.category, locked: r.locked }));
 if (RULES.some((r, i) => r.id !== RULE_IDS[i])) throw new Error('rule order mismatch between catalog and revenueMetrics');
-const OBJ_BIT = RULE_BIT['OBJ-1']; const CR_BIT = RULE_BIT['CR-1']; const DUP_BIT = RULE_BIT['DUP-1']; const DEC_BIT = RULE_BIT['DEC-1'];
+const OBJ_BIT = RULE_BIT['OBJ-1']; const SND_BIT = RULE_BIT['SND-1']; const CR_BIT = RULE_BIT['CR-1']; const DUP_BIT = RULE_BIT['DUP-1']; const DEC_BIT = RULE_BIT['DEC-1'];
 const BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 const NBITS = RULES.length;
 
 // aggregate layout (one Float64Array row per group)
-const K = 22;
-const M = { exclusionsRules: 21, count: 0, gross: 1, adjustments: 2, exclusions: 3, net: 4, collected: 5, outstanding: 6, overpayment: 7, receiptsOnExcluded: 8, excludedCount: 9, cancelled: 10, cancelledCount: 11, overlapCount: 12, overlapAmount: 13, multiReasonCount: 14, exclusionsApproved: 15, exclusionsUnapproved: 16, overdueOutstanding: 17, notDueOutstanding: 18, violationCount: 19, enforcementCount: 20 };
+const K = 23;
+const M = { exclusionsRules: 21, count: 0, gross: 1, adjustments: 2, exclusions: 3, net: 4, collected: 5, outstanding: 6, overpayment: 7, receiptsOnExcluded: 8, excludedCount: 9, cancelled: 10, cancelledCount: 11, overlapCount: 12, overlapAmount: 13, multiReasonCount: 14, exclusionsApproved: 15, exclusionsUnapproved: 16, overdueOutstanding: 17, notDueOutstanding: 18, violationCount: 19, enforcementCount: 20, ignoredExclusions: 22 };
 
 class Acc {
   constructor(groups) { this.a = new Float64Array(groups * K); this.groups = groups; }
@@ -30,6 +31,7 @@ class Acc {
     a[o + M.count] += 1; a[o + M.gross] += D.gross; a[o + M.adjustments] += D.adj; a[o + M.exclusions] += D.exclTotal; a[o + M.exclusionsRules] += D.exclusionAmount; a[o + M.net] += D.net; a[o + M.collected] += D.collected;
     a[o + M.outstanding] += D.outstanding; a[o + M.overpayment] += D.overpayment;
     if (D.excluded) { a[o + M.excludedCount] += 1; if (D.nReasons > 1) a[o + M.multiReasonCount] += 1; if (D.primaryApproved) a[o + M.exclusionsApproved] += D.exclusionAmount; else a[o + M.exclusionsUnapproved] += D.exclusionAmount; }
+    if (D.ignoredExclusion) a[o + M.ignoredExclusions] += 1;
     if (D.cancelled) { a[o + M.cancelled] += D.cancelledAmount; a[o + M.cancelledCount] += 1; }
     if (D.overlaps) { a[o + M.overlapCount] += 1; a[o + M.overlapAmount] += D.cancelledAmount; if (D.nReasons > 1) a[o + M.multiReasonCount] += 1; }
     if (D.outstanding > 0) { if (D.daysOverdue > 0) a[o + M.overdueOutstanding] += D.outstanding; else a[o + M.notDueOutstanding] += D.outstanding; }
@@ -60,17 +62,29 @@ class TopK {
 }
 
 /* ------------------------------------------------------------------ id lookup */
-export function lookupId(st, id) {
-  const s = String(id || '').trim();
-  if (st.fixtureById.has(s)) return st.fixtureById.get(s);
-  const key = parseInvoiceId(s);
-  if (key == null) return -1;
+export function lookupKey(st, key) {
   let lo = 0; let hi = st.nGen - 1;
   while (lo <= hi) { const mid = (lo + hi) >> 1; const v = st.idKey[mid]; if (v === key) return mid; if (v < key) lo = mid + 1; else hi = mid - 1; }
   return -1;
 }
+// An invoice id is `${billerId}-${sadadNumber}`: the Sadad number alone is not unique (the same number can exist under two billers), the pair is.
+export function lookupId(st, id) {
+  const s = String(id || '').trim();
+  if (st.fixtureById.has(s)) return st.fixtureById.get(s);
+  const p = parseInvoiceKey(s); if (!p) return -1;
+  const key = idKeyFromSadad(p.sadad); if (key == null) return -1;
+  const i = lookupKey(st, key);
+  return i >= 0 && idOf(st, i) === `${p.billerId}-${p.sadad}` ? i : -1;
+}
+// every invoice carrying this Sadad number, whatever its biller (generated invoices have a unique number; hand-anchored invoices may repeat one under another biller)
+export function lookupSadad(st, sadad) {
+  const out = []; const key = idKeyFromSadad(sadad);
+  if (key != null) { const i = lookupKey(st, key); if (i >= 0) out.push(i); }
+  for (const [i, r] of st.fixtures) if (r.sadadNo === sadad) out.push(i);
+  return out;
+}
 function lowerBound(st, key) { let lo = 0; let hi = st.nGen; while (lo < hi) { const mid = (lo + hi) >> 1; if (st.idKey[mid] < key) lo = mid + 1; else hi = mid; } return lo; }
-export function idOf(st, i) { if (i >= st.nGen) return st.fixtures.get(i)?.id ?? `X-${i}`; return invoiceIdOf(st.idKey[i]); }
+export function idOf(st, i) { if (i >= st.nGen) return st.fixtures.get(i)?.id ?? `X-${i}`; return invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i]); }
 
 /* ------------------------------------------------------------------ context */
 export function makeCtx(st, req = {}) {
@@ -78,7 +92,7 @@ export function makeCtx(st, req = {}) {
   const cutoffN = dayNum(cfg.cutoff);
   const ctx = { st, cfg, cutoffN, owner: Number(req.owner) || 0, graceDays: cfg.graceDays || 0, periodEndMode: cfg.collectionsAsOf === 'periodEnd' };
   let enabled = 0; RULES.forEach((r) => { if (cfg.rules[r.id] && !r.locked) enabled |= r.bit; });
-  ctx.enabled = enabled; ctx.objOn = !!cfg.rules['OBJ-1'];
+  ctx.enabled = enabled; ctx.objOn = !!cfg.rules['OBJ-1']; ctx.sndOn = !!cfg.rules['SND-1']; ctx.autoApply = EXCLUSIONS_AUTO_APPLY;
   ctx.crOk = [true, true, false, false, false]; // 0 none (legacy: always qualifies), 1 Active (never), then by cfg
   const names = ['', 'Active', 'Deleted', 'Suspended', 'Cancelled'];
   ctx.crOk = names.map((n, k) => (k === 0 ? true : (cfg.crStatuses || []).includes(n)));
@@ -106,7 +120,7 @@ export function makeCtx(st, req = {}) {
       o.link = status === 'confirmed' || status === 'open' ? 2 : status === 'suspended' ? 3 : status === 'closed' ? 4 : status === 'candidate' ? 1 : status === 'withdrawn' ? 5 : 0; ctx.ov.set(i, o); ctx.mark[i] = 1; // 5 = a confirmed link was withdrawn: no referral, but a retained cancelled-invoice treatment is not silently reversed
     }
   }
-  ctx.D = { sourceCancelled: false, enfConflict: false, payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0 };
+  ctx.D = { sourceCancelled: false, enfConflict: false, payStatus: 'not_due', gross: 0, adj: 0, billed: 0, received: 0, cancelled: false, overlaps: false, cancelledAmount: 0, mask: 0, nReasons: 0, primaryBit: 0, primaryApproved: false, excluded: false, exclusionAmount: 0, net: 0, collected: 0, overpayment: 0, outstanding: 0, daysOverdue: 0, cls: 0, pendingMask: 0, link: 0, exclTotal: 0, ignoredExclusion: false };
   return ctx;
 }
 function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit) return r.bit; return 0; }
@@ -132,9 +146,11 @@ export function derive(ctx, i, asOfN) {
   const billed = st.gross[i] + adj; // gross billed = invoice value before exclusions (approved adjustments included)
   let appr = st.exAppr[i]; let link = 0; let pending;
   if (ctx.mark && ctx.mark[i]) { const o = ctx.ov.get(i); appr = (appr & ~o.clr) | o.set; link = o.link; pending = st.exMask[i] & ~appr & ~o.rej; } else pending = st.exMask[i] & ~appr;
+  if (ctx.autoApply) { appr = st.exMask[i] & ~(ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0); pending = 0; } // S6: every candidate reason applies automatically unless a reviewer rejected it
   let m = st.exMask[i] & appr & ctx.enabled;
   if (m & CR_BIT) { const cs = st.crSt[i]; if (!ctx.crOk[cs]) m &= ~CR_BIT; }
   if (ctx.objOn && (flags & F.OBJECTION) && !(m & OBJ_BIT)) m |= OBJ_BIT;
+  if (ctx.sndOn && (st.exec[i] >= 0 || (link >= 2 && link <= 4))) m |= SND_BIT; // D12: an uncollected invoice found in Sanad is excluded whatever its Sanad status
   let primaryBit = 0; let primaryApproved = false;
   if (m) for (const r of BY_PRIORITY) if (m & r.bit) { primaryBit = r.bit; primaryApproved = r.approved; break; }
   let received = 0; const ps = st.payStart[i]; const pc = st.payCount[i];
@@ -144,18 +160,23 @@ export function derive(ctx, i, asOfN) {
   // disagreement is only FLAGGED («source/enforcement conflict — review required»). The documented rule ENF-1 (counted uncollected) has unconfirmed conditions and authority, so the demo does not apply it (EQ3).
   const sourceCancelled = cd !== 0 && cd <= asOfN; const conflict = sourceCancelled && (link >= 2 || link === 5);
   const cancelled = sourceCancelled;
+  // D10 — exclusions come ONLY from uncollected invoices: a fully collected invoice is never excluded (the exclusion is ignored and counted as a data warning); a partly collected invoice keeps what was collected and only the uncollected remainder is excluded.
+  const fullyCollected = !cancelled && billed > 0 && received >= billed;
+  const ignoredExclusion = m !== 0 && fullyCollected;
+  if (ignoredExclusion) { m = 0; primaryBit = 0; primaryApproved = false; }
   const excluded = !cancelled && m !== 0;
   const overlaps = cancelled && m !== 0;
   const cancelledAmount = cancelled ? Math.max(0, billed - received) : 0;
   const base = Math.max(billed - cancelledAmount, 0);
-  const collected = excluded ? 0 : Math.min(received, base);
-  const overpayment = excluded ? 0 : Math.max(0, received - base);
+  const collected = Math.min(received, base);
+  const overpayment = Math.max(0, received - base);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
+  const exclAmt = excluded ? Math.max(0, billed - received) : 0;
   const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
   D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.enfConflict = conflict; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
   // every exclusion (cancelled or rule-excluded) leaves gross exactly once, whatever the number of reasons: exclTotal = billed - net
   D.mask = m; D.nReasons = m ? popcount(m) : 0; D.primaryBit = primaryBit; D.primaryApproved = primaryApproved; D.excluded = excluded;
-  D.exclusionAmount = excluded ? billed : 0; D.net = excluded ? 0 : billed - cancelledAmount;
+  D.exclusionAmount = exclAmt; D.ignoredExclusion = ignoredExclusion; D.net = billed - cancelledAmount - exclAmt;
   D.exclTotal = billed - D.net; D.collected = collected; D.overpayment = overpayment;
   D.outstanding = outstanding; D.daysOverdue = daysOverdue; D.pendingMask = pending; D.link = link;
   // classification (mirror of classifyRecord)
@@ -195,11 +216,14 @@ export function resolveScope(ctx, scope = {}) {
     out.entOk[e] = ok ? 1 : 0;
   }
   const srcF = scope.source ?? 'all';
-  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = srcF === 'all' || SOURCES[s].key === srcF ? 1 : 0;
+  const prodSet = Array.isArray(scope.product) && scope.product.length ? new Set(scope.product) : null; // product (اسم المنتج): a multi-select over the originating systems
+  for (let s = 0; s < SOURCES.length; s += 1) out.srcOk[s] = (srcF === 'all' || SOURCES[s].key === srcF) && (!prodSet || prodSet.has(productOf(SOURCES[s].key))) ? 1 : 0;
+  out.mainClass = scope.mainClass && scope.mainClass !== 'all' ? MAIN_LIST.indexOf(scope.mainClass) : -1; // revenue main class (تصنيف الإيراد الرئيسي)
+  out.includeOther = !!scope.includeOther; // «أخرى» invoices are outside إجمالي المفوتر unless a view asks for them explicitly
   out.muniIdx = out.muni !== 'all' ? Number(String(out.muni).split('|').pop() === 'Sales' ? 0 : ['North', 'Central', 'South'].indexOf(String(out.muni).split('|').pop())) : -1;
   out.muniEnt = out.muni !== 'all' ? ENTITY_INDEX[String(out.muni).split('|')[0]] : -1;
   out.itemIdx = out.item !== 'all' ? ITEMS.findIndex((x) => x.key === out.item) : -1;
-  out.scopeIdx = out.scopeType === 'central' ? 0 : out.scopeType === 'internal' ? 1 : -1;
+  out.scopeIdx = out.scopeType === 'central' ? 0 : out.scopeType === 'internal' ? 1 : -1; // مصدر الفاتورة: derived from the biller (177 = central)
   // invoice-status filter: a class name (collected, partial, overdue, not_due, cancelled, excluded, objection, ...) or 'open' (any invoice still owing: not collected / cancelled / excluded)
   out.status = scope.status ?? 'all'; out.statusSet = null;
   if (out.status !== 'all') {
@@ -208,12 +232,19 @@ export function resolveScope(ctx, scope = {}) {
     else if (C[out.status] != null) set[C[out.status]] = 1; else set.fill(1);
     out.statusSet = set;
   }
-  out.key = `${out.from}|${out.to}|${am === 'all' ? 'all' : [].concat(am).join(',')}|${srcF}|${orgKeys ? orgKeys.join(',') : 'all'}|${out.scopeType}|${out.muni}|${out.item}|${out.status}`;
+  out.key = `${out.from}|${out.to}|${am === 'all' ? 'all' : [].concat(am).join(',')}|${srcF}|${orgKeys ? orgKeys.join(',') : 'all'}|${out.scopeType}|${out.muni}|${out.item}|${out.status}|${prodSet ? [...prodSet].sort().join(',') : 'all'}|${out.mainClass}|${out.includeOther ? 1 : 0}`;
   return out;
 }
 const inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1
-  && (sc.scopeIdx < 0 || st.scope[i] === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx)
-  && (sc.muniEnt < 0 || (st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx));
+  && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx)
+  && (sc.muniEnt < 0 || (st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx))
+  && inClass(st, sc, i);
+// D7 — إجمالي المفوتر excludes every invoice whose main class is «أخرى» (VAT, sale of documents, refunds …): such an invoice changes no KPI. A view may ask for them (includeOther) or for one main class.
+function inClass(st, sc, i) {
+  const mc = mainClassIdx(st.gfs[i], originIdxOf(st.ent[i], st.scope[i]));
+  if (sc.mainClass >= 0) return mc === sc.mainClass;
+  return sc.includeOther || mc !== OTHER_MAIN_IDX;
+}
 
 /* ------------------------------------------------------------------ approved identities
    gross billed = exclusions + net billed;  net billed = collected + uncollected;  gross >= net >= collected >= 0.
@@ -267,7 +298,7 @@ export function snapshot(st, req) {
     // ---- standing balance (everything issued up to the cutoff)
     if (okCut) { stk.tot.add(0, D); stk.ent.add(e, D); stk.src.add(s, D); }
     if (okCut && D.enfConflict) { enfStock.sourceConflict.count += 1; enfStock.sourceConflict.outstanding += D.outstanding; }
-    if (okCut && D.link >= 2) { const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly; b.count += 1; b.outstanding += D.outstanding; }
+    if (okCut && D.link >= 2) { const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly; b.count += 1; b.outstanding += D.outstanding + D.exclusionAmount; } // D12: an invoice found in Sanad is excluded, so its uncollected amount is the excluded amount
     if (okCut && D.outstanding > 0) { const b = agingBucket(D.daysOverdue); aging[b * 2] += D.outstanding; aging[b * 2 + 1] += 1; const dd = D.daysOverdue; const cb = dd <= 0 ? 0 : dd <= 30 ? 1 : dd <= 60 ? 2 : dd <= 90 ? 3 : 4; agingC[cb * 2] += D.outstanding; agingC[cb * 2 + 1] += 1; if (dd > 0) { ageSum += dd; ageN += 1; } if (D.cls === C.objection) objAmt += D.outstanding; }
     const hasReason = D.mask !== 0;
     // ---- receipts in the period (population A)

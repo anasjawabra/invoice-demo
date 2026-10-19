@@ -3,7 +3,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, ALINK, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
-import { invoiceIdOf, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
+import { invoiceIdFor, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
 import { idOf, derive, makeCtx, recordRiskFlags, CLASSES } from './engine.js';
 import { sourceRecord } from './sourceRecords.js';
 
@@ -25,7 +25,7 @@ const TEMPLATES = {
 export function materialize(st, i, ctx = null) {
   if (i >= st.nGen) { const f = st.fixtures.get(i); return f ? structuredCloneSafe(f) : null; }
   const c = ctx || makeCtx(st, {});
-  const idKey = st.idKey[i]; const id = invoiceIdOf(idKey);
+  const idKey = st.idKey[i]; const id = invoiceIdFor(st.ent[i], st.scope[i], idKey);
   const e = st.ent[i]; const ent = ENTITIES[e]; const src = SOURCES[st.src[i]]; const item = ITEMS[st.item[i]];
   const issueDate = isoOf(st.issue[i]); const dueDate = isoOf(st.due[i]);
   const muni = municipalityOf(e, st.muni[i]);

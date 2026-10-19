@@ -2,6 +2,7 @@
 import { SOURCES, SOURCE_INDEX as IS, ITEMS, F, GRP, grpOf, extOf, dayNum, isoOf } from '../src/data/catalog.js';
 import { SOURCE_PROFILE, ASSUMPTIONS, PARAMS } from '../src/data/sourceAssumptions.js';
 import { makeCtx, derive, snapshot } from './engine.js';
+import { mainClassIdx, originIdxOf, OTHER_MAIN_IDX } from '../src/data/iim.js';
 
 const shiftYear = (iso, d) => `${Number(iso.slice(0, 4)) + d}${iso.slice(4)}`;
 
@@ -13,13 +14,14 @@ export function sourcesReport(st, req = {}) {
   const mk = () => ({ invoices: 0, lines: 0, payments: 0, gross: 0, grossCancelled: 0, wallet: 0, replacedPairs: 0, ownersMulti: 0, ext: [0, 0, 0, 0], objections: 0, billStatus: [0, 0, 0, 0], valuesDiffer: 0, paidOverGross: 0, amtConflict: 0, enforcement: 0, internal: 0, central: 0, items: {} });
   const acc = { ytd: Array.from({ length: NS }, mk), prior: Array.from({ length: NS }, mk), all: Array.from({ length: NS }, mk) };
   const checks = { idsStrictlyIncreasing: true, duplicateIds: 0, tobaccoPairsBroken: 0, whiteLandGroupsBroken: 0, groupShareNot100: 0, cancelledAndExcludedOverlap: 0 };
-  let prevKey = -1;
+  let prevKey = -1; let otherYtd = 0; // «أخرى» invoices are outside إجمالي المفوتر: counted here, not in the headline population
   for (let i = 0; i < st.nGen; i += 1) {
     const k = st.idKey[i]; if (k <= prevKey) { checks.idsStrictlyIncreasing = false; if (k === prevKey) checks.duplicateIds += 1; } prevKey = k;
     const s = st.src[i]; const a = [acc.all[s]]; const iss = st.issue[i];
     if (iss >= range.ytd[0] && iss <= range.ytd[1]) a.push(acc.ytd[s]);
     if (iss >= range.prior[0] && iss <= range.prior[1]) a.push(acc.prior[s]);
     derive(ctx, i, ctx.cutoffN);
+    if (iss >= range.ytd[0] && iss <= range.ytd[1] && mainClassIdx(st.gfs[i], originIdxOf(st.ent[i], st.scope[i])) === OTHER_MAIN_IDX) otherYtd += 1;
     const g = grpOf(st.flags[i]); const e = extOf(st.flags[i]);
     for (const x of a) {
       x.invoices += 1; x.lines += st.lines[i]; x.payments += st.payCount[i]; x.gross += st.gross[i];
@@ -62,7 +64,7 @@ export function sourcesReport(st, req = {}) {
   const reconcile = {
     ytdCountMatches: sumBy(finY, 'count') === sn.totals.count, ytdGrossMatches: Math.abs(sumBy(finY, 'gross') - sn.totals.gross) < 1, ytdCollectedMatches: Math.abs(sumBy(finY, 'collected') - sn.totals.collected) < 1, ytdOutstandingMatches: Math.abs(sumBy(finY, 'outstanding') - sn.totals.outstanding) < 1,
     priorCountMatches: sumBy(finP, 'count') === sp.totals.count, priorGrossMatches: Math.abs(sumBy(finP, 'gross') - sp.totals.gross) < 1,
-    countByLoopMatchesSnapshot: acc.ytd.reduce((t, x) => t + x.invoices, 0) + fixturesYtd === sn.population.issuedInPeriod
+    countByLoopMatchesSnapshot: acc.ytd.reduce((t, x) => t + x.invoices, 0) + fixturesYtd - otherYtd === sn.population.issuedInPeriod
   };
   const sources = SOURCES.map((s, k) => ({
     key: s.key, platform: s.platform, profile: SOURCE_PROFILE[s.key] || null,

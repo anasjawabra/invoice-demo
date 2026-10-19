@@ -86,8 +86,8 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{L('Type invoice numbers by hand', 'إدخال أرقام الفواتير يدوياً')}</summary>
           <div className="oj-row" style={{ marginBlockStart: 6 }}>
-            <label style={{ flex: '1 1 260px', display: 'grid', gap: 3, fontSize: 13 }}>{L('One number per line (a full number such as INV-2025-0000123, or a serial of 4–7 digits)', 'رقم في كل سطر (رقم كامل مثل INV-2025-0000123 أو تسلسل من 4–7 أرقام)')}
-              <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="INV-2025-0000123" disabled={!canReview} /></label>
+            <label style={{ flex: '1 1 260px', display: 'grid', gap: 3, fontSize: 13 }}>{L('One number per line (a full number such as 177-2200000123 (biller id – Sadad number))', 'رقم في كل سطر (رقم كامل مثل 177-2200000123 (رقم المفوتر – رقم السداد))')}
+              <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="177-2200000123" disabled={!canReview} /></label>
             <button type="button" className="btn btn-sm" disabled={!canReview || !manual.trim()} onClick={() => { if (work.addManual(manual)) { setManual(''); setTick((x) => x + 1); } }}>{L('Add the numbers', 'إضافة الأرقام')}</button>
           </div>
           <div className="rp-limit">{L('Recorded as «typed by a person» — kept apart from any extraction.', 'تُسجَّل «أدخلها شخص» — منفصلة عن أي استخراج.')}</div>
@@ -180,7 +180,7 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
                     <td className="num" dir="ltr">{cand ? sar(cand.grossAmount) : '—'}</td>
                     <td>{resultChip(st, row)}
                       {st.kind === 'ambiguous' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{B(RESOLVE_HINT.ambiguous_reference)}
-                        {canReview && <div className="oj-row" style={{ marginBlockStart: 4 }}><input className="input" dir="ltr" style={{ width: 200 }} aria-label={L('Full invoice number', 'رقم الفاتورة الكامل')} placeholder="INV-2025-0000054" value={fix[row.key] || ''} onChange={(e) => setFix((m) => ({ ...m, [row.key]: e.target.value }))} />
+                        {canReview && <div className="oj-row" style={{ marginBlockStart: 4 }}><input className="input" dir="ltr" style={{ width: 200 }} aria-label={L('Full invoice number', 'رقم الفاتورة الكامل')} placeholder="177-2200000054" value={fix[row.key] || ''} onChange={(e) => setFix((m) => ({ ...m, [row.key]: e.target.value }))} />
                           <button type="button" className="btn btn-sm" disabled={!(fix[row.key] || '').trim()} onClick={() => { if (work.addManual(fix[row.key])) { setFix((m) => ({ ...m, [row.key]: '' })); setTick((x) => x + 1); } }}>{L('Add as evidence', 'إضافة كدليل')}</button></div>}
                       </div>}
                       {st.kind === 'needs_evidence' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{hard.map((x) => <div key={x}>{B(RESOLVE_HINT[x] || { en: '', ar: '' })}</div>)}</div>}

@@ -1,6 +1,7 @@
 // Appends full record objects (the hand-anchored fixtures and uploaded rows) to the columnar store, so they are
 // scanned, scoped and aggregated by exactly the same engine as the generated invoices.
-import { ENTITY_INDEX, ENT_UNASSIGNED, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
+import { gfsCodeOf, gfsIndexOf } from '../src/data/iim.js';
+import { ITEMS, ENTITY_INDEX, ENT_UNASSIGNED, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
 
 export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   const i = st.addInvoice();
@@ -12,6 +13,7 @@ export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   st.src[i] = SOURCE_INDEX[rec.revenueSource] ?? SOURCE_INDEX.municipal_fees;
   st.item[i] = rec.revenueItem?.key && ITEM_INDEX[rec.revenueItem.key] !== undefined ? ITEM_INDEX[rec.revenueItem.key] : 0;
   st.lines[i] = Math.max(1, (rec.lineItems || []).length);
+  { let h = 5381; for (const ch of String(rec.id)) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0; st.gfs[i] = gfsIndexOf(rec.gfsCode || gfsCodeOf(ITEMS[st.item[i]].key, h)); } // رقم حساب الإيراد
   st.payStart[i] = st.pn;
   const pays = [...(rec.payments || [])].sort((a, b) => a.date.localeCompare(b.date));
   for (const p of pays) st.addPayment(i, dayNum(p.date), p.amount, Math.max(0, CHANNELS.indexOf(p.channel)));
