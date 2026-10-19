@@ -147,9 +147,9 @@ function LayoutInner() {
       { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
       { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
       { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
+      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
-      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
       { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : 'Product management' },
       { to: '/risk', icon: 'risk', label: t('nav_risk_deviations') }
@@ -160,7 +160,7 @@ function LayoutInner() {
   const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
   const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
 
-  const primaryTabs = tabs.slice(0, 3); const opsTabs = tabs.slice(3); // the three management areas: dashboards & reports · planning · enforcement management
+  const primaryTabs = tabs.slice(0, 4); const opsTabs = tabs.slice(4); // the three management areas: dashboards & reports · planning · enforcement management
   const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
   const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
   useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
