@@ -222,7 +222,7 @@ export function worklist(st, req) {
       if (!(bal > 0)) continue;
       if (req.category && req.category !== 'all' && CLASSES[D.cls] !== req.category) continue;
       if (req.kind && req.kind !== 'all' && iimFields(st, i).invoiceKind !== req.kind) continue;
-      if (req.reason && req.reason !== 'all') { const xr = exclusionOf(D); if (req.reason === 'none' ? D.excluded : !xr || xr.ruleId !== req.reason) continue; }
+      if (req.reason && req.reason !== 'all') { const xr = exclusionOf(D); if (req.reason === 'none' ? D.excluded : req.reason === 'any' ? !D.excluded : !xr || xr.ruleId !== req.reason) continue; }
       if (pass === 0) { total += 1; totalOut += bal; if (bal > maxAmt) maxAmt = bal; if (D.daysOverdue > maxAge) maxAge = D.daysOverdue; continue; }
       const ev = evidenceQuality(st, i, D); const act = ACT[CLASSES[D.cls]] ?? 0.3;
       top.push(i, W_.amount * (bal / maxAmt) + W_.aging * (D.daysOverdue / maxAge) + W_.actionability * act + W_.evidence * ev);

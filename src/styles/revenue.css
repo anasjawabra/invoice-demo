@@ -743,3 +743,13 @@
   .card { break-inside: avoid; box-shadow: none !important; }
   body { background: #fff !important; }
 }
+
+/* ---- product management ---- */
+.prod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.prod-card { display: grid; gap: 10px; text-decoration: none; color: inherit; }
+.prod-card:hover { border-color: var(--primary); }
+.prod-card__name { font-size: 16px; margin: 0; }
+.prod-card__dl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; margin: 0; font-size: 13px; }
+.prod-card__dl dt { color: var(--txt-mute); } .prod-card__dl dd { margin: 0; font-weight: 700; }
+.prod-card__challenge { margin: 0; font-size: 13px; }
+.prod-challenges { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; font-size: 14px; }

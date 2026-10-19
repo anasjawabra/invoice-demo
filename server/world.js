@@ -658,6 +658,18 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const req = { idx: reqCount, enforceNum: `WLX-${String(st.idKey[w.i] % 1e8).padStart(7, '0')}`, system: 'white_lands', ent: ENT_HOUSING, amount: st.gross[w.i], openedDay: w.opened, contractIdx: -1, contractNo: null, status: roll < 0.55 ? 'قيد التنفيذ' : roll < 0.8 ? 'موقوف' : 'مغلق', identified: [w.i], crNo: null, method: 0, confidence: 1, debtor: st.payer[w.i] };
     st.requests.push(req); st.exec[w.i] = req.idx; reqCount += 1;
   }
+  // D27 (meeting 19 Oct): licence fees are PREPAID — every licence invoice is paid in full on its issue day, so collection is 100 % and nothing is uncollected. Done AFTER the enforcement orders are generated so that
+  // no stable demo id / order coverage moves; an invoice an order covers keeps its own history.
+  { const LIC = SOURCE_INDEX.licenses; for (let i = 0; i < st.nGen; i += 1) { if (st.src[i] !== LIC || st.exec[i] >= 0) continue; const p = st.addPayment(i, st.issue[i], st.gross[i], 0); st.payStart[i] = p; st.payCount[i] = 1; st.cancelDay[i] = 0; st.exMask[i] = 0; st.exAppr[i] = 0; st.flags[i] &= ~F.OBJECTION; } }
+  // 19 Oct meeting: two more exclusion types on UNCOLLECTED invoices — «إفادات الأمانات» (municipal fees) and «التعديات / استغلال المواقع» (investment). Assigned after everything else so no stable id moves.
+  { const MF = SOURCE_INDEX.municipal_fees; const INV = SOURCE_INDEX.investment; const FN = SOURCE_INDEX.fines; const D = RULE_BIT['DEC-1']; const A = RULE_BIT['ATT-1']; const E = RULE_BIT['ENC-1'];
+    for (let i = 0; i < st.nGen; i += 1) {
+      if (st.payCount[i] > 0 || st.cancelDay[i] || st.exMask[i] || st.exec[i] >= 0 || st.issue[i] > todayN) continue;
+      const h = mix(19, st.idKey[i] % 1000003) % 100;
+      if (st.src[i] === MF && h < 6) { st.exMask[i] = A; st.exAppr[i] = A; st.exRev[i] = 15 + (h % 30); }
+      else if (st.src[i] === FN && h < 2) { st.exMask[i] = D; st.exAppr[i] = D; st.exRev[i] = 15 + (h % 30); }
+      else if (st.src[i] === INV && h < 9) { st.exMask[i] = E; st.exAppr[i] = E; st.exRev[i] = 15 + (h % 30); }
+    } }
   st.trim();
   st.meta = { today, scale, generatedFrom: GEN_START, seed: SEED, ms: Date.now() - t0, contracts: contracts.filter(Boolean).length, requests: reqCount };
   worldCache.set(key, st);

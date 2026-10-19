@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
+import { useNavigate } from 'react-router-dom';
 import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
@@ -19,15 +20,15 @@ const STATE_CHIPS = NONCOLLECTION_CATEGORIES.filter((c) => !['excluded', 'cancel
 
 export default function Collection() {
   const rev = useRevenue();
+  const nav = useNavigate();
   const { snapshot } = rev;
   const { L, B, ar, short, count, sar } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('collection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [cat, setCat] = useState(mem.cat ?? 'all');
   const [reason, setReason] = useState(mem.reason ?? 'all'); // all · none (not excluded) · a rule id
   const [kind, setKind] = useState(mem.kind ?? 'all'); // نوع الفاتورة (tobacco / accommodation)
-  const [showBreak, setShowBreak] = useState(mem.showBreak ?? false);
   const [detail, setDetail] = useState(mem.detail ?? null);
-  React.useEffect(() => { writeListMemory('collection', { cat, reason, kind, showBreak, detail }); }, [cat, reason, kind, showBreak, detail]);
+  React.useEffect(() => { writeListMemory('collection', { cat, reason, kind, detail }); }, [cat, reason, kind, detail]);
   const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status, product: rev.scopeEff.product, mainClass: rev.scopeEff.mainClass }), [rev.scopeEff]);
   // the service ranks the whole population and returns the top of the list (never the entire set)
   const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100, { includeExcluded: true, reason, kind, ...(cat === 'all' ? {} : { category: cat }) }), [rev.data, scopeReq, cat, reason, kind]);
@@ -35,11 +36,8 @@ export default function Collection() {
   const rows = useMemo(() => worklistRows(wl), [wl]);
   const uncollectedCount = ['excluded', 'objection', 'linkage_unresolved', 'ineligible_referral', 'partial', 'overdue', 'not_due'].reduce((t, c) => t + (nc[c]?.count || 0), 0);
   const stats = snapshot.ruleStats || {};
-  const breakdown = useMemo(() => EXCLUSION_REASONS.map((r) => ({ ...r, count: stats[r.ruleId]?.primaryCount || 0, amount: stats[r.ruleId]?.primaryAmount || 0 })).filter((r) => r.count > 0).sort((a, b) => b.amount - a.amount), [stats]);
-  const breakSum = breakdown.reduce((t, r) => t + r.amount, 0);
   const totalN = wl?.total ?? 0;
   useRestoreScroll(rows.length > 0);
-  const openReason = (id) => { setReason(id); setCat('all'); const el = document.getElementById('uncollected-list'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   const reasonLabel = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : r.en) : id; };
 
   return (
@@ -59,35 +57,9 @@ export default function Collection() {
 
       <div className="rv-tiles">
         <MetricTile metric="outstanding" label={L('Total uncollected (excluded included)', 'إجمالي غير المحصل (يشمل المستبعد)')} value={short(K.uncollectedTotal)} sub={L(`${count(uncollectedCount)} invoices`, `${count(uncollectedCount)} فاتورة`)} />
-        <MetricTile id="excluded-card" label={L('Total excluded', 'إجمالي المستبعد')} value={short(K.excluded)} sub={L(`${count(K.excludedCount)} invoices — by reason`, `${count(K.excludedCount)} فاتورة — حسب السبب`)} onAction={() => setShowBreak((v) => !v)} actionLabel={showBreak ? L('Hide the breakdown', 'إخفاء التفصيل') : L('Breakdown by reason', 'التفصيل حسب السبب')} />
+        <MetricTile id="excluded-card" label={L('Total excluded', 'إجمالي المستبعد')} value={short(K.excluded)} sub={L(`${count(K.excludedCount)} invoices — by reason`, `${count(K.excludedCount)} فاتورة — حسب السبب`)} onAction={() => nav('/exclusions')} actionLabel={L('Open exclusions management', 'فتح إدارة الاستبعادات')} />
         <MetricTile label={L('Collectible uncollected', 'غير المحصل القابل للتحصيل')} value={short(K.collectible)} sub={L('Total uncollected − total excluded', 'إجمالي غير المحصل − إجمالي المستبعد')} />
       </div>
-
-      {showBreak && (
-        <div className="card card-pad" role="region" aria-label={L('Exclusions by reason', 'الاستبعادات حسب السبب')}>
-          <h2 className="h3" style={{ marginTop: 0 }}>{L('Excluded invoices by reason', 'الفواتير المستبعدة حسب السبب')}</h2>
-          <div className="rv-table-wrap" tabIndex={0}>
-            <table className="rv-table">
-              <thead><tr><th>{L('Reason', 'السبب')}</th><th className="num">{L('Invoices', 'عدد الفواتير')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Share', 'النسبة')}</th><th /></tr></thead>
-              <tbody>
-                {breakdown.map((r) => (
-                  <tr key={r.ruleId}>
-                    <td>{ar ? r.ar : r.en}</td>
-                    <td className="num">{count(r.count)}</td>
-                    <td className="num" dir="ltr">{sar(r.amount)}</td>
-                    <td className="num">{K.excluded > 0 ? `${(Math.round((r.amount / K.excluded) * 1000) / 10).toFixed(1)}%` : '—'}</td>
-                    <td><button type="button" className="btn btn-sm btn-ghost" onClick={() => openReason(r.ruleId)}>{L('Show the invoices', 'عرض الفواتير')}</button></td>
-                  </tr>
-                ))}
-                <tr style={{ fontWeight: 700 }}>
-                  <td>{L('Total', 'الإجمالي')}</td><td className="num">{count(breakdown.reduce((t, r) => t + r.count, 0))}</td><td className="num" dir="ltr">{sar(breakSum)}</td><td className="num">{K.excluded > 0 ? '100.0%' : '—'}</td><td />
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          {Math.abs(breakSum - K.excluded) > 1 && <p className="muted" style={{ fontSize: 12 }}>{L('The reasons do not add up to the card: check the reconciliation.', 'مجموع الأسباب لا يطابق البطاقة: راجع المطابقة.')}</p>}
-        </div>
-      )}
 
       <div className="card card-pad" id="uncollected-list">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }} role="group" aria-label={L('Filter by state', 'تصفية حسب الحالة')}>

@@ -95,6 +95,13 @@ export const EXCLUSION_RULES = [
   { id: 'SND-1', category: 'executed_against_sanad', version: 1, priority: 6.5, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Executed against – cases (Sanad)', ar: 'منفذ ضده – قضايا (سند)' },
     note: { en: 'Any UNCOLLECTED invoice found in Sanad (new cases) is excluded, whatever its Sanad status (D12). Applies only to uncollected invoices.', ar: 'أي فاتورة غير محصّلة تظهر في سند (قضايا جديدة) تُستبعد مهما كانت حالتها في سند (D12). تنطبق على الفواتير غير المحصّلة فقط.' } }
+,
+  { id: 'ATT-1', category: 'amanah_statements', version: 1, priority: 4.5, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-19', owner: { en: 'Revenue management (meeting 19 Oct)', ar: 'إدارة الإيرادات (اجتماع 19 أكتوبر)' },
+    label: { en: 'Amanah statements', ar: 'إفادات الأمانات' },
+    note: { en: 'Added in the 19 Oct meeting: invoices an Amanah has stated (by a written statement) are not collectible. Applies only to uncollected invoices. Whether this is a separate reason or a sub-type of «invoices not based on contracts» is still to be confirmed.', ar: 'أُضيف في اجتماع 19 أكتوبر: فواتير أفادت الأمانة (بإفادة مكتوبة) بأنها غير قابلة للتحصيل. تنطبق على الفواتير غير المحصّلة فقط. وما زال التأكد قائمًا: هل هي سبب مستقل أم نوع فرعي من «فواتير لا تستند على عقود».' } },
+  { id: 'ENC-1', category: 'site_encroachment', version: 1, priority: 4.6, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-19', owner: { en: 'Revenue management (meeting 19 Oct)', ar: 'إدارة الإيرادات (اجتماع 19 أكتوبر)' },
+    label: { en: 'Encroachments / site exploitation', ar: 'التعديات / استغلال المواقع' },
+    note: { en: 'Added in the 19 Oct meeting: invoices raised for the exploitation of a site without a contract (an encroachment). Applies only to uncollected invoices.', ar: 'أُضيف في اجتماع 19 أكتوبر: فواتير استغلال موقع دون عقد (تعدٍّ). تنطبق على الفواتير غير المحصّلة فقط.' } }
 ];
 export const EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
 export const ruleById = (id) => EXCLUSION_RULES.find((r) => r.id === id);

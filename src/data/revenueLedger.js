@@ -98,6 +98,8 @@ const OVERLAY = {
   '177-882606500000': { payments: [{ date: '2026-07-27', amount: 150000, channel: 'voluntary' }] },
   // Approved credit note reduces the billed amount.
   '177-882605200000': { adjustments: [{ date: '2026-02-10', amount: -50000, kind: 'credit_note', reason: { en: 'Approved credit note (area re-measurement)', ar: 'إشعار دائن معتمد (إعادة قياس المساحة)' } }] },
+  // S9 / D22: cancelled in Sadad BECAUSE it was referred to execution (the confirmed order EN-2455512): it is not a cancellation — it stays billed and is excluded as «منفذ ضده – قضايا (سند)».
+  '177-882608060000': { cancelled: { date: '2026-07-06', source: 'تحصيل' } },
   // Missing mandatory debtor identifier: invoice cannot be referred as-is.
   '177-882608020000': { missing: ['debtor_id_number'] },
   // Exclusion records (explicit, with evidence and review state).
@@ -275,7 +277,7 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
       contract: contractLinkOf(inv),
       exclusion: ex,
       exclusions: ex ? [ex] : [],
-      cancelled: null,
+      cancelled: ov.cancelled || null,
       subscriptionNo: textId('', inv.id + '7', 10),
       crNo: null, crStatusRaw: null, crEvidence: null, executionNo: null,
       violationNumber: inv.violationNumber || null,

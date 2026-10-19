@@ -20,6 +20,8 @@ const TEMPLATES = {
   'EXE-1': { evidence: { en: 'Appears in the executed-against report.', ar: 'وارد في تقرير المنفذ ضده.' }, sources: [{ system: 'إيفاء — تقرير المنفذ ضده', field: 'حالة التنفيذ', value: 'منفذ ضده' }] },
   'EFA-1': { evidence: { en: 'Violation is not present in the Efaa system of record.', ar: 'المخالفة غير موجودة في نظام إيفاء المرجعي.' }, sources: [{ system: 'تحصيل — إيفاء v2', field: 'رقم المخالفة', value: 'غير مطابق في إيفاء' }] },
   'OBJ-1': { evidence: { en: 'Open objection in the violations system.', ar: 'اعتراض مفتوح في نظام المخالفات.' }, sources: [{ system: 'إيفاء — تقرير المخالفات العام', field: 'حالة الاعتراض', value: 'مفتوح' }] },
+  'ATT-1': { evidence: { en: 'A written statement of the Amanah that this invoice is not collectible.', ar: 'إفادة مكتوبة من الأمانة بأن هذه الفاتورة غير قابلة للتحصيل.' }, sources: [{ system: 'الأمانة', field: 'الإفادة', value: 'مرفقة' }] },
+  'ENC-1': { evidence: { en: 'Raised for exploiting a site without a contract (encroachment).', ar: 'صدرت عن استغلال موقع دون عقد (تعدٍّ).' }, sources: [{ system: 'فرص — العقود', field: 'العقد', value: 'غير موجود' }] },
   'ENF-1': { evidence: { en: 'Referred to enforcement.', ar: 'محال إلى التنفيذ.' }, sources: [] }
 };
 

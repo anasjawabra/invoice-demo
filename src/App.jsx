@@ -12,6 +12,9 @@ import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import DataQuality from './pages/DataQuality';
 import Collection from './pages/Collection';
+import Exclusions from './pages/Exclusions';
+import Products from './pages/Products';
+import ProductPage from './pages/ProductPage';
 import EnforcementHome from './pages/EnforcementHome';
 import EnforcementOrderPage from './pages/EnforcementOrderPage';
 import InvoicePage from './pages/InvoicePage';
@@ -60,6 +63,9 @@ export default function App() {
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />
+        <Route path="exclusions" element={<Exclusions />} />
+        <Route path="products" element={<Products />} />
+        <Route path="products/:key" element={<ProductPage />} />
         <Route path="invoices/:id" element={<InvoicePage />} />
         <Route path="contracts/:no" element={<ContractPage />} />
         <Route path="enforcement" element={<EnforcementHome />} />

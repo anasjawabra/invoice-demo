@@ -149,7 +149,9 @@ function LayoutInner() {
       { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
+      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
+      { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : 'Product management' },
       { to: '/risk', icon: 'risk', label: t('nav_risk_deviations') }
     ],
     [t, lang]
@@ -182,6 +184,8 @@ function LayoutInner() {
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/risk')) return t('nav_risk_deviations');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
+    if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
+    if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
     if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';

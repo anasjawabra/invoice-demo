@@ -1581,9 +1581,9 @@ await test('IIM-01/02 · the invoice id is biller-sadad; only biller 177 is cent
   assert.ok(s.rows.length >= 2 && new Set(s.rows.map((r) => r.billerId)).size >= 2, 'a search by Sadad number returns every biller that carries it');
 });
 await test('IIM-04 · every exclusion reason of the meeting is named, and is used on at least one uncollected invoice', () => {
-  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ruleId).filter((x) => x !== 'DUP-1'), ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1']);
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ruleId).filter((x) => x !== 'DUP-1'), ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1', 'ATT-1', 'ENC-1']);
   const sn = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
-  for (const id of ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1']) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
+  for (const id of ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1', 'ATT-1', 'ENC-1']) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
 });
 
 await test('IIM-03 · an invoice whose revenue account is not in the classification file is «غير مصنف» and is counted (never dropped)', () => {
@@ -1614,6 +1614,12 @@ await test('IIM-09 · the cumulative monthly performance ends exactly at the car
   const netCum = sn.byMonth.reduce((t, m) => t + m.net, 0); assert.ok(Math.abs(netCum - sn.totals.net) < 1, 'net billed: the last cumulative point = the card');
   const early = series(st, { scope: { ...sc, to: '2026-06-30', issuedFrom: sc.from, issuedTo: sc.to }, cfg, capped: true });
   assert.equal(early.values.length, 6); for (let k = 0; k < 6; k += 1) assert.ok(Math.abs(early.values[k] - ser.values[k]) < 1 || ser.values[k] >= early.values[k], 'a closed month does not lose money; later payments on its invoices land in later months');
+});
+
+await test('D27 · licence fees are prepaid: 100 % collected, nothing uncollected, no exclusion', () => {
+  const sn = snapshot(st, { scope: { from: '2025-01-01', to: TODAY, amanah: 'all', source: 'licenses' }, cfg });
+  assert.ok(sn.totals.count > 0); assert.ok(sn.totals.outstanding < 1, 'uncollected = 0'); assert.ok(Math.abs(sn.totals.collected - sn.totals.net) < 1, 'collected = net billed');
+  assert.ok(sn.totals.collectedOverNet.value >= 0.999 && sn.totals.collectedOverNet.value <= 1, 'collection rate 100 % (never above)');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

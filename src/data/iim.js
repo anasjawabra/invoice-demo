@@ -211,7 +211,9 @@ export const EXCLUSION_REASONS = [
   { ruleId: 'EFA-1', ar: 'خارج إيفاء', en: 'Outside Efaa' },
   { ruleId: 'EXE-1', ar: 'منفذ ضده – إيفاء', en: 'Executed against – Efaa' },
   { ruleId: 'SND-1', ar: 'منفذ ضده – قضايا (سند)', en: 'Executed against – cases (Sanad)' },
+  { ruleId: 'ATT-1', ar: 'إفادات الأمانات', en: 'Amanah statements' },
+  { ruleId: 'ENC-1', ar: 'التعديات / استغلال المواقع', en: 'Encroachments / site exploitation' },
   { ruleId: 'DUP-1', ar: 'فاتورة مكررة', en: 'Duplicate invoice' } // not named in the meeting; kept because it is an approved data-quality rule (open question OQ-1)
 ];
 export const EXCLUSION_REASON_OF_RULE = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, r]));
-export const EXCLUSION_SOURCE_OF_RULE = { 'CR-1': { ar: 'السجل التجاري', en: 'Commercial registry' }, 'DEC-1': { ar: 'السجل المدني', en: 'Civil registry' }, 'OBJ-1': { ar: 'إيفاء — الاعتراضات', en: 'Efaa — objections' }, 'NOC-1': { ar: 'فرص', en: 'Furas' }, 'INC-1': { ar: 'إيفاء — غير مكتمل', en: 'Efaa — incomplete' }, 'EFA-1': { ar: 'إيفاء', en: 'Efaa' }, 'EXE-1': { ar: 'إيفاء — منفذ ضده', en: 'Efaa — executed against' }, 'SND-1': { ar: 'سند – قضايا', en: 'Sanad – cases' }, 'DUP-1': { ar: 'كشف التكرار', en: 'Duplicate detection' } };
+export const EXCLUSION_SOURCE_OF_RULE = { 'CR-1': { ar: 'السجل التجاري', en: 'Commercial registry' }, 'DEC-1': { ar: 'السجل المدني', en: 'Civil registry' }, 'OBJ-1': { ar: 'إيفاء — الاعتراضات', en: 'Efaa — objections' }, 'NOC-1': { ar: 'فرص', en: 'Furas' }, 'INC-1': { ar: 'إيفاء — غير مكتمل', en: 'Efaa — incomplete' }, 'EFA-1': { ar: 'إيفاء', en: 'Efaa' }, 'EXE-1': { ar: 'إيفاء — منفذ ضده', en: 'Efaa — executed against' }, 'SND-1': { ar: 'سند – قضايا', en: 'Sanad – cases' }, 'DUP-1': { ar: 'كشف التكرار', en: 'Duplicate detection' }, 'ATT-1': { ar: 'إفادة الأمانة', en: 'Amanah statement' }, 'ENC-1': { ar: 'محضر التعدي', en: 'Encroachment record' } };
