@@ -17,6 +17,7 @@ export const CODE_LABEL = {
   contract_unmatched: { en: 'Contract not matched', ar: 'عقد غير مطابق' },
   enforcement_candidate: { en: 'Enforcement link pending', ar: 'رابط إنفاذ معلّق' },
   receipts_on_excluded: { en: 'Payment on excluded invoice', ar: 'دفعة على فاتورة مستبعدة' },
+  investment_no_contract: { en: 'Investment invoice not linked to a contract', ar: 'فاتورة استثمار غير مرتبطة بعقد' },
   source_cancelled: { en: 'Source says cancelled', ar: 'المصدر يفيد بالإلغاء' },
   risk_duplicate: { en: 'Possible duplicate', ar: 'تكرار محتمل' },
   risk_struck_off_registry: { en: 'Struck-off registry flag', ar: 'تنبيه سجل مشطوب' },

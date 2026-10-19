@@ -64,6 +64,7 @@ const ANOMALY_TEXT = {
   contract_unlinked: { severity: 2, text: bi('Investment invoice has no linked contract. Not excluded automatically — a human decision is required.', 'فاتورة استثمارية بلا عقد مرتبط. لا تُستبعد تلقائياً — يلزم قرار بشري.') },
   contract_unmatched: { severity: 2, text: bi('Contract not matched (this is not "no contract"). Kept in the base and flagged.', 'لم تتم مطابقة العقد (وليس «بدون عقد»). تبقى في الأساس وتُعلَّم.') },
   enforcement_candidate: { severity: 2, text: bi('Enforcement link proposed but not confirmed.', 'رابط إنفاذ مقترح وغير مؤكد.') },
+  investment_no_contract: { severity: 2, text: bi('Investment invoice not linked to a contract. Possible causes: an electronic-screen invoice issued manually · use of the site after the contract ended · a possible classification error · a contract that expired without renewal.', 'فاتورة استثمار غير مرتبطة بعقد. الأسباب المحتملة: فاتورة شاشة إلكترونية صادرة يدويًا · استغلال الموقع بعد انتهاء العقد · احتمال خطأ في التصنيف · عقد منتهٍ دون تجديد.') },
   receipts_on_excluded: { severity: 3, text: bi('Payments recorded on an excluded invoice.', 'مدفوعات مسجلة على فاتورة مستبعدة.') }
 };
 export const anomalyReasonText = (code) => ANOMALY_TEXT[code]?.text || bi(code, code);

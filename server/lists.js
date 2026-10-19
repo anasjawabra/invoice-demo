@@ -3,7 +3,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { materialize } from './materialize.js';
-import { iimFields, exclusionOf, INVOICE_KIND_SHORT_AR } from './iimRow.js';
+import { iimFields, exclusionOf, investmentOutcome, INVOICE_KIND_SHORT_AR } from './iimRow.js';
 import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
 import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
@@ -250,6 +250,7 @@ export function anomalies(st, req) {
     if (st.src[i] === 0 && st.cstat[i] === 2) found.push(['contract_unmatched', 2]);
     if (D.link === 1) found.push(['enforcement_candidate', 2]);
     if (D.excluded && D.received > 0) found.push(['receipts_on_excluded', 3]);
+    if (st.src[i] === 0) { const oc = investmentOutcome(st, i, iimFields(st, i)); if (oc === 'not_linked') found.push(['investment_no_contract', 2]); } // IIM-16: a central investment invoice that Furas does not know
     const inGroup = group ? found.filter(([c]) => group.has(c)) : found;
     let sev = 0; const codes = []; for (const [c, v] of inGroup) { codes.push(c); sev = Math.max(sev, v); }
     for (const c of codes) bump(c);

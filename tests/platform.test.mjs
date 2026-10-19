@@ -1591,4 +1591,10 @@ await test('IIM-04 · every exclusion reason of the meeting is named, and is use
   for (const id of ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1']) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
 });
 
+await test('IIM-03 · an invoice whose revenue account is not in the classification file is «غير مصنف» and is counted (never dropped)', () => {
+  const un = snapshot(st, { scope: { from: '2025-01-01', to: TODAY, amanah: 'all', source: 'all', mainClass: 'غير مصنف' }, cfg });
+  assert.ok(un.totals.count >= 1, 'the unclassified population is visible');
+  const all = snapshot(st, { scope: { from: '2025-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg }); assert.ok(all.totals.count >= un.totals.count, 'unclassified invoices stay inside the headline');
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -3,6 +3,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, ALINK, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
+import { iimDetail } from './iimRow.js';
 import { invoiceIdFor, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
 import { idOf, derive, makeCtx, recordRiskFlags, CLASSES } from './engine.js';
 import { sourceRecord } from './sourceRecords.js';
@@ -106,6 +107,9 @@ export function detail(st, i, ctx) {
   const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
   const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry | deceased_person: 'open' | 'settled' } — the same rule as the Risks & Deviations page
+  rec.iim = iimDetail(st, i, rec, D);
+  // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from
+  if (D.excluded && rec.iim.exclusion?.ruleId === 'SND-1' && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) { const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const ev = { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' }; const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources: [{ system: 'سند — قضايا', field: 'رقم الأمر', value: q ? q.enforceNum : 'رابط مؤكد' }], rawValue: null, reviewStatus: 'approved', reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started' }; rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e; }
   return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
 void RULE_BIT;

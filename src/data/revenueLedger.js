@@ -88,6 +88,7 @@ export const monthOf = (dateStr) => dateStr.slice(0, 7);
    Only things the original fixtures cannot express. Everything else is
    derived by rule in buildLedger(). */
 const FIXTURE_GFS = { investment: '142163', fines: '1438', municipal_fees: '1421909', licenses: '11452104', tobacco: '11422', accommodation: '11442' };
+const FIXTURE_GFS_BY_ID = { '177-882608010000': '1459' }; // an account number that is NOT in the classification file: shown as «غير مصنف» and counted visibly (IIM-03)
 const REVIEWER = { en: 'Revenue data steward (demo reviewer)', ar: 'أمين بيانات الإيرادات (مراجع تجريبي)' };
 
 const OVERLAY = {
@@ -245,7 +246,7 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
     return {
       id: inv.id,
       billerId: inv.billerId, sadadNo: inv.sadadNo, // invoice id = `${billerId}-${sadadNo}`; the Sadad number alone is not unique
-      gfsCode: FIXTURE_GFS[revenueSource] || '1453', // رقم حساب الإيراد of the hand-anchored invoices
+      gfsCode: FIXTURE_GFS_BY_ID[inv.id] || FIXTURE_GFS[revenueSource] || '1453', // رقم حساب الإيراد of the hand-anchored invoices
       entity: inv.entity, entityEn: inv.entityEn, entityAr: inv.entityAr,
       amanah: inv.amanah, amanahEn: inv.amanahEn, amanahAr: inv.amanahAr,
       municipalityEn: inv.municipalityEn, municipalityAr: inv.municipalityAr,
