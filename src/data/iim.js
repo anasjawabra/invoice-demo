@@ -148,7 +148,7 @@ export function classify(code, origin) {
 }
 // revenue item → GFS code. `misc_revenue` is the demo's «other» stream: a share of it carries the six «أخرى» codes (see otherCodeFor).
 export const GFS_OF_ITEM = {
-  land_lease: '14155', ad_sites: '142113', commercial_units: '142163',
+  land_lease: '14155', ad_sites: '142113', commercial_units: '142163', ad_boards_amanah: '11100-11105',
   building_violations: '1438', signage_violations: '1438001', health_violations: '1438002',
   inspection_fees: '11114', waste_collection: '1421909', excavation_permits: '11452105', ad_boards: '11100-11105',
   commercial_license: '11452104', signboard_license: '11107', building_permit: '11452103', health_certificate: '1422108',

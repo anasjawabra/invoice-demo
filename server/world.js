@@ -262,7 +262,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
   const SRC_KEYS = ['fines', 'fees', 'accommodation', 'tobacco', 'other'];
   const SRC_ID = { fines: 1, fees: 2, accommodation: 3, tobacco: 4, other: 5 };
   const feesItems = ['inspection_fees', 'waste_collection', 'excavation_permits', 'ad_boards'].map((k) => ITEM_INDEX[k]);
-  const licItems = ['commercial_license', 'commercial_license', 'signboard_license', 'building_permit', 'health_certificate'].map((k) => ITEM_INDEX[k]);
+  const licItems = ['commercial_license', 'commercial_license', 'signboard_license', 'building_permit', 'health_certificate', 'ad_boards_amanah'].map((k) => ITEM_INDEX[k]);
   const finesItems = ['building_violations', 'signage_violations', 'health_violations'].map((k) => ITEM_INDEX[k]);
   const linesFor = (r) => { const x = r.next(); return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3); };
 

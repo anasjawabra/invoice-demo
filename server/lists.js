@@ -3,6 +3,7 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { materialize } from './materialize.js';
+import { iimFields, exclusionOf, INVOICE_KIND_SHORT_AR } from './iimRow.js';
 import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
 import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
@@ -65,6 +66,7 @@ export function rowOut(st, ctx, i, D) {
   const fx = i >= st.nGen ? st.fixtures.get(i) : null;
   const ct = st.contract[i] >= 0 ? st.contracts[st.contract[i]] : null;
   const rules = []; for (let b = 0; b < RULE_IDS.length; b += 1) if (st.exMask[i] & (1 << b)) rules.push(RULE_IDS[b]);
+  const im = iimFields(st, i);
   return {
     id: idOf(st, i), index: i,
     entityKey: ENTITIES[e].en, amanahAr: ENTITIES[e].ar, amanahEn: ENTITIES[e].en, amanahZh: ENTITIES[e].zh,
@@ -75,7 +77,8 @@ export function rowOut(st, ctx, i, D) {
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
     contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
-    primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED)
+    primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED),
+    ...im, invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null, exclusionReason: exclusionOf(D)
   };
 }
 

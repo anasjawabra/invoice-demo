@@ -1522,4 +1522,72 @@ await test('terminology: «المقبوضات» and its forms are gone from ever
   for (const k of ['revenueAppropriation', 'targetCollection', 'remainingToTarget', 'expenditureCh13', 'spendingCoverage']) assert.ok(dict.includes(k), k); for (const k of ['received', 'targetAchievement', 'coverage', 'forecast']) assert.ok(!dict.includes(k), `${k} was a duplicate/forecast metric of the removed planning flow`);
 });
 
+
+/* ------------------------------------------------------------------ IIM 18 Oct: one KPI module, origin / product / classification filters, «أخرى», exclusions only on uncollected invoices */
+import { kpiOf } from '../src/data/kpis.js';
+import { classify as classifyGfs, MAIN, OTHER_CODES, billerOf, originOf, productOf, parseInvoiceKey, gfsCodeOf, UNKNOWN_CODE, EXCLUSION_REASONS } from '../src/data/iim.js';
+import { idOf as idOfI, lookupSadad } from '../server/engine.js';
+const IIM_SCOPES = [
+  {}, { scopeType: 'central' }, { scopeType: 'internal' }, { source: 'fines' }, { source: 'investment', scopeType: 'central' }, { product: ['baladi'] }, { product: ['mumtathil', 'foras'] },
+  { product: ['tobacco', 'accommodation'] }, { amanah: 'Riyadh Amanah' }, { amanah: ['Jeddah Amanah', 'Makkah Amanah'], scopeType: 'internal' }, { mainClass: 'رسوم بلدية' }, { mainClass: 'استثمار', scopeType: 'internal' },
+  { from: '2026-03-01', to: '2026-06-30' }, { from: '2026-01-01', to: '2026-01-31', source: 'municipal_fees' }
+];
+await test('IIM-05 · one KPI module: gross = collected + uncollected (+ cancelled) and net = collected + collectible hold for every filter combination (period, Amanah, origin, product, classification)', () => {
+  assert.ok(IIM_SCOPES.length >= 10);
+  for (const extra of IIM_SCOPES) {
+    const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', ...extra }, cfg });
+    const K = kpiOf(sn.totals);
+    assert.ok(K.invariants.ok, `invariants for ${JSON.stringify(extra)}: ${JSON.stringify(K.invariants)}`);
+    assert.ok(Math.abs(K.uncollectedTotal - K.collectible - K.excluded) < 1e-6, 'غير المحصل القابل للتحصيل = إجمالي غير المحصل − إجمالي المستبعد');
+    assert.ok(K.net <= K.billedTotal + 0.5 && K.collected <= K.net + 0.5);
+  }
+});
+await test('IIM-05 · an invoice whose main class is «أخرى» changes no KPI; the explicit «include» view shows it', () => {
+  const base = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const a = snapshot(st, { scope: base, cfg }); const b = snapshot(st, { scope: { ...base, includeOther: true }, cfg });
+  assert.ok(b.totals.count > a.totals.count && b.totals.gross > a.totals.gross, 'the world carries «أخرى» invoices');
+  const only = snapshot(st, { scope: { ...base, mainClass: 'أخرى' }, cfg });
+  assert.equal(a.totals.count + only.totals.count, b.totals.count); assert.ok(Math.abs(a.totals.gross + only.totals.gross - b.totals.gross) < 1);
+  assert.ok(OTHER_CODES.length === 6 && OTHER_CODES.includes('11411') && OTHER_CODES.includes('180201'));
+});
+await test('D10 · exclusions come only from uncollected invoices: an exclusion on a collected invoice is ignored and counted; a part-collected invoice loses only its remainder', () => {
+  const ctx = makeCtx(st, { cfg }); let ignored = 0; let part = 0;
+  for (let i = 0; i < st.n; i += 1) {
+    if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
+    if (D.ignoredExclusion) { ignored += 1; assert.equal(D.excluded, false); assert.equal(D.exclusionAmount, 0); assert.ok(D.received >= D.billed); }
+    if (D.excluded && D.received > 0) { part += 1; assert.ok(Math.abs(D.exclusionAmount - (D.billed - D.received)) < 1e-6); assert.ok(Math.abs(D.collected - D.received) < 1e-6); }
+  }
+  assert.ok(ignored >= 1, 'the demo data holds an exclusion recorded on a collected invoice');
+  const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg }); assert.ok(sn.totals.ignoredExclusions >= 1, 'counted as a data warning');
+});
+await test('IIM-03 · classification: the same advertising-board account is a municipal fee when billed centrally and an investment when billed by an Amanah; an unknown code is «غير مصنف»; «أخرى» holds the six codes', () => {
+  assert.equal(classifyGfs('11100-11105', 'central').main, MAIN.municipal); assert.equal(classifyGfs('11100-11105', 'internal').main, MAIN.investment);
+  assert.equal(classifyGfs(UNKNOWN_CODE, 'central').main, 'غير مصنف'); assert.equal(classifyGfs('1431', 'central').main, 'أخرى');
+  assert.deepEqual(OTHER_CODES.slice().sort(), ['11411', '1421901', '1431', '144121', '180201', '3318212'].sort());
+  assert.ok(gfsCodeOf('misc_revenue', 0) !== null);
+  const adOf = (scopeType) => list(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', item: 'ad_boards' + (scopeType === 'internal' ? '_amanah' : ''), scopeType }, cfg, filters: {}, page: 0, pageSize: 50 }).rows;
+  const adC = adOf('central'); const adI = adOf('internal');
+  assert.ok(adC.length > 0 && adI.length > 0, 'advertising boards are billed both centrally and by Amanahs');
+  assert.ok(adC.every((r) => r.mainClass === MAIN.municipal && r.gfsCode === '11100-11105') && adI.every((r) => r.mainClass === MAIN.investment && r.gfsCode === '11100-11105'), 'the same account classifies differently by biller');
+});
+await test('IIM-01/02 · the invoice id is biller-sadad; only biller 177 is central; a Sadad number alone can name two invoices of different billers', () => {
+  const rows = list(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, filters: {}, page: 0, pageSize: 500 }).rows;
+  assert.ok(rows.every((r) => r.id === `${r.billerId}-${r.sadadNo}` && !r.id.startsWith('INV')));
+  assert.ok(rows.every((r) => (r.billerId === '177') === (r.origin === 'central')));
+  const internal = list(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'internal' }, cfg, filters: {}, page: 0, pageSize: 50 }).rows;
+  assert.ok(internal.length > 0 && internal.every((r) => r.billerId !== '177' && r.origin === 'internal'), 'internal billers exist');
+  assert.deepEqual(parseInvoiceKey('177-882607310000'), { billerId: '177', sadad: '882607310000' });
+  assert.equal(billerOf(0, 0).id, '177'); assert.equal(originOf('301'), 'internal');
+  const two = [...st.fixtures.entries()].map(([i, r]) => r.sadadNo).filter(Boolean); const seen = new Map(); two.forEach((s) => seen.set(s, (seen.get(s) || 0) + 1));
+  assert.ok([...seen.values()].filter((n) => n > 1).length >= 2, 'at least two Sadad numbers repeat across billers in the demo data');
+  const some = [...seen.entries()].find(([, n]) => n > 1)[0]; const found = lookupSadad(st, some); assert.ok(found.length >= 2); assert.notEqual(idOfI(st, found[0]), idOfI(st, found[1]));
+  const s = list(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg, filters: { search: some, allPeriods: true }, page: 0, pageSize: 20 });
+  assert.ok(s.rows.length >= 2 && new Set(s.rows.map((r) => r.billerId)).size >= 2, 'a search by Sadad number returns every biller that carries it');
+});
+await test('IIM-04 · every exclusion reason of the meeting is named, and is used on at least one uncollected invoice', () => {
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ruleId).filter((x) => x !== 'DUP-1'), ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1']);
+  const sn = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
+  for (const id of ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1']) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

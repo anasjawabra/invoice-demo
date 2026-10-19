@@ -84,7 +84,8 @@ export const ITEMS = [
   { key: 'white_land_fee', source: 'white_lands', ar: 'رسوم الأراضي البيضاء', en: 'White-land fees' },
   { key: 'misc_revenue', source: 'municipal_fees', ar: 'إيرادات مختلفة', en: 'Miscellaneous revenue' },
   { key: 'housing_sales', source: 'housing_sales', ar: 'المبيعات السكنية', en: 'Residential sales' },
-  { key: 'housing_fees', source: 'housing_sales', ar: 'رسوم المبيعات', en: 'Sales fees' }
+  { key: 'housing_fees', source: 'housing_sales', ar: 'رسوم المبيعات', en: 'Sales fees' },
+  { key: 'ad_boards_amanah', source: 'licenses', ar: 'اللوحات الإعلانية (الأمانات)', en: 'Advertising boards (Amanah)' } // same revenue account as «اللوحات الإعلانية» of the central billing: its main class depends on the biller (IIM D6)
 ];
 export const ITEM_INDEX = Object.fromEntries(ITEMS.map((x, i) => [x.key, i]));
 export const REVENUE_ITEMS = ITEMS.reduce((m, it) => { (m[it.source] = m[it.source] || []).push(it); return m; }, {});

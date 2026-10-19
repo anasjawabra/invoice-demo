@@ -103,6 +103,8 @@ const OVERLAY = {
   '177-882607280000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Line items identical to 177-882607310000 (duplicate detection); same contract reference CO-88231.', ar: 'بنود الفاتورة مطابقة للفاتورة 177-882607310000 (كشف التكرار)؛ نفس مرجع العقد CO-88231.' }, reviewStatus: 'approved', reviewDate: '2026-07-28' } },
   '177-882509400000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Re-submission of an invoice already registered under the same contract reference.', ar: 'إعادة تقديم فاتورة مسجلة مسبقاً بنفس مرجع العقد.' }, reviewStatus: 'approved', reviewDate: '2025-12-04' } },
   '177-882608080000': { exclusion: { category: 'duplicate', ruleId: 'DUP-1', evidence: { en: 'Same payer, amount and period as an earlier Jazan invoice.', ar: 'نفس الدافع والمبلغ والفترة لفاتورة سابقة في جازان.' }, reviewStatus: 'approved', reviewDate: '2026-04-20' } },
+  // An exclusion recorded on an invoice that was LATER fully collected: exclusions come only from uncollected invoices (D10), so the metric layer ignores it and counts it as a data warning.
+  '177-882606200000': { exclusion: { category: 'incomplete_data', ruleId: 'INC-1', evidence: { en: 'Listed in the Efaa incomplete-violations report, then paid in full.', ar: 'ورد في تقرير إيفاء للمخالفات غير المكتملة ثم سُدّدت بالكامل.' }, reviewStatus: 'approved', reviewDate: '2026-03-12' } },
   '177-882605450000': { exclusion: { category: 'struck_off_registry', ruleId: 'CR-1', evidence: { en: 'Commercial registration reported struck-off by the commerce registry check.', ar: 'السجل التجاري مشطوب وفق فحص سجل التجارة.' }, reviewStatus: 'approved', reviewDate: '2026-03-10' } },
   // Candidate exclusion that is NOT yet approved -> stays in net billed.
   '177-882608040000': { exclusion: { category: 'deceased_debtor', ruleId: 'DEC-1', evidence: { en: 'Civil-registry flag suggests the debtor is deceased; heir/estate position not established.', ar: 'إشارة السجل المدني تفيد بوفاة المدين؛ وضع الورثة/التركة غير مثبت.' }, reviewStatus: 'pending', reviewDate: null } }
@@ -274,7 +276,6 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
       exclusions: ex ? [ex] : [],
       cancelled: null,
       subscriptionNo: textId('', inv.id + '7', 10),
-      sadadNo: textId('1', inv.id + '33', 13),
       crNo: null, crStatusRaw: null, crEvidence: null, executionNo: null,
       violationNumber: inv.violationNumber || null,
       missingFields: ov.missing || [],
