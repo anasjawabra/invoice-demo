@@ -19,13 +19,12 @@ export default function FinancialRelations({ totals: T }) {
       {w / T.gross >= 0.07 && title ? <><span>{title}</span><small dir="ltr">{short(amount)}{extra ? ` · ${extra}` : ''}</small></> : null}
     </button>
   );
-  const canc = T.cancelled; const rules = Math.max(0, T.exclusions - T.cancelled);
+  // D24: the «الملغي» indicator is gone — cancellations of the current period do not matter here; everything deducted from gross is ONE item, الاستبعادات
   const share = (it) => (it.base === 'net' ? { v: it.amount / T.net, of: L('of net billed', 'من صافي المفوتر') } : { v: it.amount / T.gross, of: L('of gross billed', 'من إجمالي المفوتر') });
   const pc = (v) => `${(v * 100).toFixed(v > 0 && v < 0.001 ? 2 : 1)}%`;
   const items = [
     ...(T.exclusions > 0 ? [
-      { id: 'cancel', cls: 'cancel', name: L('Cancelled', 'ملغى'), amount: canc, about: L('Invoices cancelled in the source. Deducted as a separate item because a cancelled invoice is not claimed; whether it counts as an «approved exclusion» is not confirmed by the requirements.', 'فواتير أُلغيت في المصدر. تُخصم كبند منفصل لأن الفاتورة الملغاة لا تُطالَب، ولم تؤكد المتطلبات بعد أنها «استبعاد معتمد».') },
-      { id: 'excl', cls: 'excl', name: L('Rule-based exclusions', 'استبعاد وفق قواعد'), amount: rules, about: L('Invoices excluded under the exclusion rules that are switched on (by default only the business-approved ones: duplicate invoice, struck-off commercial registration).', 'فواتير استُبعدت وفق قواعد الاستبعاد المفعّلة (افتراضياً المعتمدة فقط: فاتورة مكررة، سجل تجاري مشطوب).') }
+      { id: 'excl', cls: 'excl', name: L('Exclusions', 'الاستبعادات'), amount: T.exclusions, about: L('The uncollected part of invoices excluded under the confirmed reasons (struck-off records, deceased, open objections, no contract, incomplete, outside Efaa, executed against), plus invoices cancelled in the source. Exclusions come only from uncollected invoices.', 'الجزء غير المحصّل من الفواتير المستبعدة وفق الأسباب المعتمدة (سجلات مشطوبة، متوفى، اعتراضات قائمة، لا تستند إلى عقود، غير مكتمل، خارج إيفاء، منفذ ضده)، إضافة إلى الفواتير الملغاة في المصدر. الاستبعاد يكون من الفواتير غير المحصّلة فقط.') }
     ] : []),
     { id: 'net', cls: 'net', name: L('Net billed', 'صافي المفوتر'), amount: T.net, about: L('Gross billed − exclusions: the amount that is claimed from payers.', 'إجمالي المفوتر − الاستبعادات: المبلغ المطلوب تحصيله من الدافعين.') },
     { id: 'coll', cls: 'coll', name: L('Collected', 'المحصّل'), amount: T.collected, base: 'net', about: L('Payments received on the invoices issued in the period, up to the reference date (capped at each invoice).', 'المدفوعات المستلمة على فواتير الفترة حتى تاريخ المرجع (بحد أقصى قيمة كل فاتورة).') },
@@ -36,8 +35,7 @@ export default function FinancialRelations({ totals: T }) {
     <div className="rv-rel" role="group" aria-label={L('Financial relationships', 'العلاقات المالية')}>
       <div className="rv-rel__cap"><span>{L('Gross billed', 'إجمالي المفوتر')} <b dir="ltr">{short(T.gross)}</b> = {L('exclusions', 'الاستبعادات')} <b dir="ltr">{short(T.exclusions)}</b> + {L('net billed', 'صافي المفوتر')} <b dir="ltr">{short(T.net)}</b></span></div>
       <div className="rv-rel__row">
-        {T.exclusions > 0 && <Seg id="cancel" cls="cancel" w={canc} title={L('Cancelled', 'ملغى')} amount={canc} />}
-        {T.exclusions > 0 && <Seg id="excl" cls="excl" w={rules} title={L('Rule-based exclusions', 'استبعاد وفق قواعد')} amount={rules} />}
+        {T.exclusions > 0 && <Seg id="excl" cls="excl" w={T.exclusions} title={L('Exclusions', 'الاستبعادات')} amount={T.exclusions} />}
         <Seg id="net" cls="net" w={T.net} title={L('Net billed', 'صافي المفوتر')} amount={T.net} />
       </div>
       <div className="rv-rel__row" aria-label={L('Net billed splits into collected and uncollected', 'صافي المفوتر = المحصّل + غير المحصّل')}>

@@ -235,7 +235,7 @@ export default function RevenueAnalysis() {
                 {!follow.length && <div className="muted" style={{ fontSize: 12 }}>{L('لا شيء بفارق مادي.', 'Nothing with a material gap.')}</div>}
               </div>
               <div className="card st-card ra-ans">
-                <b>{L('أكبر الانحرافات المؤثرة', 'Largest material deviations')}</b>
+                <b>{L('أكبر التغيرات المؤثرة', 'Largest material changes')}</b>
                 {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
                 {topDev.length ? <ul className="ra-list ra-list--dev">{topDev.map((d) => <li key={d.id}><button type="button" className="rv-link" onClick={() => pickDev(d)}>{pathOf(d)}</button><span className="muted" style={{ fontSize: 11 }}>{typeLabel[d.type]}</span><b>{d.type === 'share' ? `${spp(d.value)} ${L('نقطة', 'pp')}` : `${sgn(d.value)}${d.pct != null ? ` · ${spct(d.pct)}` : ''}`}</b></li>)}</ul> : <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا انحرافات مادية في هذا الاختيار، أو لا مقارنة متاحة.', 'No material deviation in this choice, or no comparison available.')}</div>}
               </div>
@@ -274,9 +274,10 @@ export default function RevenueAnalysis() {
                     fillFor={(p) => { const v = valOf(p.keys); return v.available ? colorOf(v.ratio) : NONE; }}
                     onSelect={(x) => { setIso(x); setEntity(null); setPanel('details'); }} onHover={setHover}
                     labelFor={(p) => ({ name: rname(p), value: textOf(valOf(p.keys)) })}
-                    titleFor={(p) => { const v = valOf(p.keys); return `${rname(p)} — ${measureLabel[measure]}: ${v.available ? textOf(v) : whyNo[v.reason] || '—'}`; }} />
+                    titleFor={(p) => { const v = valOf(p.keys); return `${rname(p)} — ${measureLabel[measure]}: ${v.available ? textOf(v) : whyNo[v.reason] || '—'}${v.available && v.target != null ? ` — ${L('المستهدف', 'Target')}: ${short(v.target)}` : ''}`; }} />
+                  <div className="muted" style={{ fontSize: 12, fontWeight: 700 }}>{measure === 'collected' ? L('نسبة التحصيل (لا تتجاوز 100%)', 'Collection rate (never above 100%)') : measure === 'change' ? L('المحصّل الحالي ÷ المماثل (100% = لا تغيّر)', 'Collected now ÷ like-for-like (100% = no change)') : L('نسبة تحقيق المستهدف', 'Target achievement')}</div>
                   <div className="cg-geo__legend" aria-label={L('مفتاح الألوان', 'Colour key')}>
-                    {PCT_COLORS.map((c, i) => <span key={c}><i style={{ background: c }} /><bdi>{i === 0 ? L(`أقل من ${PCT_CUTS[0] * 100}%`, `Below ${PCT_CUTS[0] * 100}%`) : i === 4 ? L(`${PCT_CUTS[3] * 100}% فأكثر`, `${PCT_CUTS[3] * 100}% and above`) : L(`من ${PCT_CUTS[i - 1] * 100}% إلى أقل من ${PCT_CUTS[i] * 100}%`, `${PCT_CUTS[i - 1] * 100}% to under ${PCT_CUTS[i] * 100}%`)}</bdi></span>)}
+                    {PCT_COLORS.filter((_, i) => !(measure === 'collected' && i === 4)).map((c, i) => <span key={c}><i style={{ background: c }} /><bdi>{i === 0 ? L(`أقل من ${PCT_CUTS[0] * 100}%`, `Below ${PCT_CUTS[0] * 100}%`) : i === 4 ? L(`${PCT_CUTS[3] * 100}% فأكثر`, `${PCT_CUTS[3] * 100}% and above`) : L(`من ${PCT_CUTS[i - 1] * 100}% إلى أقل من ${PCT_CUTS[i] * 100}%`, `${PCT_CUTS[i - 1] * 100}% to under ${PCT_CUTS[i] * 100}%`)}</bdi></span>)}
                     <span><i style={{ background: NONE }} /><bdi>{L('لا بيانات / غير متاح (ليس صفراً)', 'no data / n/a (not zero)')}</bdi></span>
                   </div>
                   <div className="muted" style={{ fontSize: 11 }}>{L('الأخضر من 80% فأكثر، و100% = المرجع (معدل التحصيل الكامل، أو الاعتماد، أو الفترة المماثلة). المنطقة = مجموع أماناتها. جهات بلا منطقة: قطاع الإسكان و«غير محدد الأمانة».', 'Green from 80%; 100% = the reference (full collection, the appropriation, or the like-for-like period). A region is the sum of its Amanahs. Entities with no region: housing sector and Unassigned.')}</div>
@@ -308,7 +309,7 @@ export default function RevenueAnalysis() {
             </div>
 
             <div className="sr-tabs" role="tablist" aria-label={L('تفاصيل التحليل', 'Analysis details')}>
-              {[['details', L('تفاصيل الجهة والمصادر', 'Entity and source details')], ['deviations', L(`الانحرافات (${A.deviations.length})`, `Deviations (${A.deviations.length})`)], ['matrix', L('المصفوفة الحرارية', 'Heat matrix')], ['notes', L('الملخص التحليلي', 'Analytic summary')]].map(([k, l]) => <button key={k} id={`ra-tab-${k}`} type="button" role="tab" aria-selected={panel === k} aria-controls={`ra-panel-${k}`} className={`sr-tab ${panel === k ? 'is-active' : ''}`} onClick={() => setPanel(k)}>{l}</button>)}
+              {[['details', L('تفاصيل الجهة والمصادر', 'Entity and source details')], ['deviations', L(`التغيرات (${A.deviations.length})`, `Changes (${A.deviations.length})`)], ['matrix', L('المصفوفة الحرارية', 'Heat matrix')], ['notes', L('الملخص التحليلي', 'Analytic summary')]].map(([k, l]) => <button key={k} id={`ra-tab-${k}`} type="button" role="tab" aria-selected={panel === k} aria-controls={`ra-panel-${k}`} className={`sr-tab ${panel === k ? 'is-active' : ''}`} onClick={() => setPanel(k)}>{l}</button>)}
             </div>
 
             {/* the focus: details, sources, municipalities, trend */}
@@ -370,16 +371,16 @@ export default function RevenueAnalysis() {
             {panel === 'deviations' && <div className="card st-card" role="tabpanel" id="ra-panel-deviations" aria-labelledby="ra-tab-deviations">
               <div className="cg-geo__head">
                 <div>
-                  <b>{L('الانحرافات مرتبة بأثرها المالي', 'Deviations ranked by financial impact')}</b>
+                  <b>{L('التغيرات مرتبة بأثرها المالي', 'Changes ranked by financial impact')}</b>
                   <div className="muted" style={{ fontSize: 12 }}>{L('الترتيب بالقيمة؛ النسبة بجانبها كي لا تطغى نسب كبيرة لمصادر صغيرة. ثلاثة أنواع منفصلة: التغير عن الفترة المماثلة، والتغير في المساهمة، والانحراف عن المستهدف المتناسب مع الوقت.', 'Ranked by value; the % sits beside it so large percentages of small sources do not dominate. Three separate kinds: change vs the like-for-like period, change in contribution, and deviation from the time-proportional target.')}</div>
                 </div>
-                <div className="cg-geo__tabs" role="group" aria-label={L('نوع الانحراف', 'Kind of deviation')}>
+                <div className="cg-geo__tabs" role="group" aria-label={L('نوع التغير', 'Kind of change')}>
                   {['all', 'change', 'share', 'target'].map((k) => <button key={k} type="button" className={`btn btn-sm ${devType === k ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={devType === k} onClick={() => setDevType(k)}>{k === 'all' ? L('الكل', 'All') : typeLabel[k]}</button>)}
                 </div>
               </div>
               {devAll.length ? (
                 <div className="st-table-wrap" tabIndex={0}>
-                  <table className="table" aria-label={L('الانحرافات', 'Deviations')}>
+                  <table className="table" aria-label={L('التغيرات', 'Changes')}>
                     <thead><tr><th>#</th><th>{L('النوع', 'Kind')}</th><th>{L('المستوى', 'Level')}</th><th>{L('الجهة / المصدر', 'Entity / source')}</th><th>{L('القيمة', 'Value')}</th><th>{L('النسبة', '%')}</th><th>{L('الحجم', 'Size')}</th></tr></thead>
                     <tbody>{devAll.slice(0, 12).map((d, i) => { const w = devAll[0].weight || 1; const ratio = d.type === 'target' ? 1 + d.pct : d.type === 'change' && d.pct != null ? 1 + d.pct : null; return (
                       <tr key={d.id}>
@@ -391,7 +392,7 @@ export default function RevenueAnalysis() {
                       </tr>); })}</tbody>
                   </table>
                 </div>
-              ) : <div className="rv-empty" style={{ padding: 12 }}>{A.comparable || A.targetAvailable ? L('لا انحرافات مادية في هذا الاختيار.', 'No material deviation in this selection.') : L('لا مقارنة ولا مستهدف لهذه الفترة: لا تُعرض انحرافات.', 'No comparison and no target for this period: no deviations are shown.')}</div>}
+              ) : <div className="rv-empty" style={{ padding: 12 }}>{A.comparable || A.targetAvailable ? L('لا تغيرات مادية في هذا الاختيار.', 'No material change in this selection.') : L('لا مقارنة ولا مستهدف لهذه الفترة: لا تُعرض انحرافات.', 'No comparison and no target for this period: no deviations are shown.')}</div>}
             </div>}
 
             {/* the heat matrix */}

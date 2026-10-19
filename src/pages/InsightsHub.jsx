@@ -39,6 +39,7 @@ export default function InsightsHub() {
           <h1 className="page-title" style={{ margin: 0 }}>{L('لوحة المعلومات والتقارير', 'Dashboards and reports')}</h1>
           <div className="muted" style={{ fontSize: 13 }}>{view === 'smart' ? L('اكتب ما تريد من تقرير: الفترة أو الأمانة أو المصدر أو المقارنة.', 'Write what you need: period, Amanah, source or comparison.') : rev.ready ? L(`فواتير صدرت ${fmtRangeText(rev.scopeEff.from, rev.scopeEff.to, 'ar')} · ${scopeSummary}`, `Invoices issued ${fmtRangeText(rev.scopeEff.from, rev.scopeEff.to, 'en')} · ${scopeSummary}`) : ''}</div>
         </div>
+        {view === 'dashboard' && <button type="button" className="btn btn-sm no-print" onClick={() => window.print()} title={L('يطبع اللوحة بالتصفية الحالية، ويمكن حفظها PDF من نافذة الطباعة', 'Prints the dashboard with the current filters; save it as PDF from the print dialog')}>{L('طباعة / تصدير PDF', 'Print / export PDF')}</button>}
       </header>
       <div className="sr-tabs" role="tablist" aria-label={L('واجهات لوحة المعلومات والتقارير', 'Dashboard and report views')}>
         {VIEWS.map(([k, a, e]) => <button key={k} id={`tab-${k}`} type="button" role="tab" aria-selected={view === k} aria-controls={`panel-${k}`} className={`sr-tab ${view === k ? 'is-active' : ''}`} onClick={() => go(k)}><b>{L(a, e)}</b></button>)}

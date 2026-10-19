@@ -286,7 +286,7 @@ export function snapshot(st, req) {
   const aging = new Float64Array(5 * 2); // amount, count
   const esm = new Map(); // entity × source × issue month: net, collected, gross (trend of every source inside every entity; same invoices and measure as the matrix above)
   const accMonth = new Map(); // issue-month cohort: 'YYYY-MM' -> Acc(1) measured at the reference date
-  const accMuni = new Acc(NE * 5); const accStatus = new Acc(CLASSES.length);
+  const accMuni = new Acc(NE * 5); const accStatus = new Acc(CLASSES.length); const accDue = new Acc(5); // payment-status view of the dashboard: collected · overdue · not yet due (+ excluded · cancelled kept apart)
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
   const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length), byEnt: new Float64Array(NE) };
   const q = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
@@ -325,7 +325,7 @@ export function snapshot(st, req) {
     issued += 1;
     per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd); per.prod.add(productIdxOf(st.src[i], st.item[i]), dd);
     { const ym = isoOf(st.issue[i]).slice(0, 7); let am = accMonth.get(ym); if (!am) { am = new Acc(1); accMonth.set(ym, am); } am.add(0, dd); }
-    accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
+    accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); accDue.add(dd.cancelled ? 4 : dd.excluded ? 3 : dd.outstanding <= 0 ? 0 : dd.daysOverdue > 0 ? 1 : 2, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
     const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
     per.ent.addMeta(e, viol, enf); per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross; entSrcNet[e * NS + s] += dd.net;
@@ -366,6 +366,7 @@ export function snapshot(st, req) {
   const byMonth = [...accMonth.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([month, acc]) => ({ month, ...acc.toAgg(0) }));
   const byMunicipality = []; for (let g = 0; g < NE * 5; g += 1) { if (accMuni.a[g * K + M.count] === 0) continue; const e = Math.floor(g / 5); const mu = municipalityOf(e, g % 5); byMunicipality.push({ key: `${ENTITIES[e].en}|${mu ? mu.key.split('|')[1] : '-'}`, amanah: ENTITIES[e].en, amanahLabel: labelOfEnt(e), municipality: mu ? { key: mu.key, ar: mu.ar, en: mu.en } : null, ...accMuni.toAgg(g) }); }
   byMunicipality.sort((a, b) => b.outstanding - a.outstanding);
+  const byDue = ['collected', 'overdue', 'not_due', 'excluded', 'cancelled'].map((key, k) => ({ key, ...accDue.toAgg(k) }));
   const byStatus = []; for (let k = 0; k < CLASSES.length; k += 1) { if (accStatus.a[k * K + M.count] === 0) continue; byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) }); }
   const bySource = groupOut(per.src, NS, () => null, (g) => SOURCES[g].key);
   const byProduct = groupOut(per.prod, PRODUCT_KEYS.length, () => null, (g) => PRODUCT_KEYS[g]); // اسم المنتج (the product management unit and the collected-by-product split read this)
@@ -424,7 +425,7 @@ export function snapshot(st, req) {
     ruleStats: Object.fromEntries(RULES.map((r, b) => [r.id, { primaryCount: primCnt[b], primaryAmount: primAmt[b], pendingCandidates: pendCnt[b] }])),
     exclusionsApproval: { allApproved: unappr.size === 0, unapprovedAmount: totals.exclusionsUnapproved, approvedAmount: totals.exclusionsApproved },
     stock, noncollection,
-    byAmanah, bySource, byProduct, byScope, byMonth, byMunicipality, byStatus, equation,
+    byAmanah, bySource, byProduct, byDue, byScope, byMonth, byMunicipality, byStatus, equation,
     basis: { invoices: 'issue_date', invoicesFrom: sc.from, invoicesTo: sc.to, collectionsAsOf: isoOf(periodAsOf), collectionsMode: periodAsOf === ctx.cutoffN ? 'reference_date' : 'period_end', referenceDate: ctx.cfg.cutoff, receiptsByPaymentDate: 'separate_indicator', timezone: 'Asia/Riyadh' },
     byAmanahSource, matrix,
     receivedInPeriod: { byAmanah: receivedByAmanah, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
@@ -448,15 +449,13 @@ export function series(st, req) {
     if (sc.issuedFromN != null && (iss < sc.issuedFromN || iss > (sc.issuedToN ?? iss))) continue; // optional: only payments on invoices ISSUED in this window (used by the Planning reconciliation of bases)
     const pc = st.payCount[i]; if (!pc) continue;
     const ps = st.payStart[i];
-    let hasReason = -1;
     // capped mode (req.capped): collected revenue exactly as the invoice's «collected» is measured — payments up to the invoice's billed amount, in payment-date order; anything above it is an overpayment, not collected revenue
     let room = Infinity; const order = [];
     if (req.capped) { for (let p = ps; p < ps + pc; p += 1) order.push(p); order.sort((x, y) => st.pDay[x] - st.pDay[y]); derive(ctx, i, asOf); room = Math.max(ctx.D.billed - ctx.D.cancelledAmount, 0); }
     for (let q = 0; q < pc; q += 1) {
       const p = req.capped ? order[q] : ps + q;
       const d = st.pDay[p]; if (d < sc.fromN || d > asOf) continue;
-      if (hasReason < 0) { derive(ctx, i, ctx.cutoffN); hasReason = ctx.D.mask !== 0 ? 1 : 0; }
-      if (hasReason) continue;
+      // D10: exclusions come only from UNCOLLECTED invoices, so money that was paid is collected revenue whatever happens to the remainder: no payment is left out here
       const k = idx.get(isoOf(d).slice(0, 7)); if (k === undefined) continue;
       let amt = st.pAmt[p]; if (req.capped) { amt = Math.min(amt, room); room -= amt; }
       values[k] += amt; amts.push(amt); pinv.push(i); pday.push(d);

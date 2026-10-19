@@ -157,8 +157,8 @@ export function mapValue(A, keys, measure, source = null) {
   const ts = keys.map((k) => A.entities.find((e) => e.key === k)?.target).filter(Boolean);
   if (!ts.length) return { available: false, reason: 'no_appropriation' };
   const approp = sum(ts, (t) => t.appropriation); const pay = sum(ts, (t) => t.pay); const exp = sum(ts, (t) => t.expected);
-  if (measure === 'attainment') return { available: true, ratio: pay / approp, value: pay, pct: pay / approp };
-  return exp > 0 ? { available: true, ratio: pay / exp, value: pay - exp, pct: pay / exp - 1 } : { available: false, reason: 'no_expected' };
+  if (measure === 'attainment') return { available: true, ratio: pay / approp, value: pay, pct: pay / approp, target: approp };
+  return exp > 0 ? { available: true, ratio: pay / exp, value: pay - exp, pct: pay / exp - 1, target: exp } : { available: false, reason: 'no_expected' };
 }
 
 /* ---------------------------------------------------------------- trend by issue month (cohorts), for any entity / source focus */

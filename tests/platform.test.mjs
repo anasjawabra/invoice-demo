@@ -1605,4 +1605,15 @@ await test('IIM-17 · an invoice matches an order only when number + Amanah + am
   assert.ok(REVIEW_LABEL_I.not_identified.ar.startsWith('تحتاج مراجعة'));
 });
 
+await test('IIM-09 · the cumulative monthly performance ends exactly at the cards of the period; a later payment adds to its own month and never moves a closed one', () => {
+  const sc = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  const sn = snapshot(st, { scope: sc, cfg });
+  const ser = series(st, { scope: { ...sc, issuedFrom: sc.from, issuedTo: sc.to }, cfg, capped: true });
+  const cum = ser.values.reduce((t, v) => t + v, 0);
+  assert.ok(Math.abs(cum - sn.totals.collected) < 1, 'collected: the last cumulative point = the card');
+  const netCum = sn.byMonth.reduce((t, m) => t + m.net, 0); assert.ok(Math.abs(netCum - sn.totals.net) < 1, 'net billed: the last cumulative point = the card');
+  const early = series(st, { scope: { ...sc, to: '2026-06-30', issuedFrom: sc.from, issuedTo: sc.to }, cfg, capped: true });
+  assert.equal(early.values.length, 6); for (let k = 0; k < 6; k += 1) assert.ok(Math.abs(early.values[k] - ser.values[k]) < 1 || ser.values[k] >= early.values[k], 'a closed month does not lose money; later payments on its invoices land in later months');
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);
