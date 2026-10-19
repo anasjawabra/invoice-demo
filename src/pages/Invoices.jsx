@@ -187,7 +187,7 @@ export default function Invoices() {
                 >
                   <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button><div className="muted" style={{ fontSize: 11, fontWeight: 400 }} dir="auto">{bi.L('Biller', 'المفوتر')} {r.billerId} · {bi.ar ? r.billerAr : r.billerEn}</div>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
                   <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
-                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
+                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.entityType === 'entity' && <span className="muted"> ({lang === 'ar' ? r.entityTypeAr : 'entity'})</span>}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
                   <td>{bi.ar ? r.productAr : r.productEn}{r.invoiceKindAr && <div className="muted" style={{ fontSize: 11 }}>{r.invoiceKindAr}</div>}</td>
                   <td>{bi.ar ? r.originAr : (ORIGIN_EN[r.origin])}</td>
                   <td>{bi.ar ? r.itemAr : r.itemEn}</td>
