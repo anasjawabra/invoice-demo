@@ -317,7 +317,7 @@ export function snapshot(st, req) {
     const dd = periodAsOf === ctx.cutoffN ? D : derive(ctx, i, periodAsOf);
     if (sc.statusSet && !sc.statusSet[dd.cls]) continue;
     issued += 1;
-    per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(st.scope[i], dd);
+    per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd);
     { const ym = isoOf(st.issue[i]).slice(0, 7); let am = accMonth.get(ym); if (!am) { am = new Acc(1); accMonth.set(ym, am); } am.add(0, dd); }
     accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
     const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());

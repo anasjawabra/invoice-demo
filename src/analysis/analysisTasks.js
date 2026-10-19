@@ -23,7 +23,7 @@ import { loadComparison } from '../data/comparison';
 // The task runner never sees invoices: every figure comes from the data service through `ctx.data`
 // ({ snapshot, bridge, series, worklist, anomalies, invoice, contracts }).
 const countFmt = (n) => Number(n || 0).toLocaleString('en-US');
-const scopeOnly = (sc) => ({ from: sc.from, to: sc.to, amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status });
+const scopeOnly = (sc) => ({ from: sc.from, to: sc.to, amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status, product: sc.product, mainClass: sc.mainClass });
 const getSnapshot = async (ctx) => { if (!ctx.snapshot) ctx.snapshot = await ctx.data.snapshot(scopeOnly(ctx.scope)); return ctx.snapshot; };
 const runForecast = (ctx, o) => forecastReceipts(ctx.data, scopeOnly(ctx.scope), ctx.cfg, o);
 const getBridge = async (ctx) => { if (!ctx.bridge) ctx.bridge = await ctx.data.bridge({ amanah: ctx.scope.amanah, source: ctx.scope.source, scopeType: ctx.scope.scopeType, muni: ctx.scope.muni, status: ctx.scope.status, from: '2000-01-01', to: ctx.cfg.cutoff }); return ctx.bridge; };

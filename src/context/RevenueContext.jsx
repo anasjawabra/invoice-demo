@@ -37,10 +37,10 @@ export function RevenueProvider({ children }) {
   const org = user?.org || ORGS[0];
   const canReview = user ? user.canReview !== false : false;
 
-  const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' });
+  const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all', product: [], mainClass: 'all' });
   // a stored preset always follows TODAY's date (a new day moves "year to date" / "this month" forward)
-  const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p], scopeType: 'all' } : { ...scopeRaw, scopeType: 'all' }; }, [scopeRaw]); // the central / internal filter no longer exists: a value stored earlier is ignored
-  const [cfg, setCfg] = usePersistent('ib_rev_cfg3', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
+  const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : { ...scopeRaw }; }, [scopeRaw]); // scopeType = مصدر الفاتورة (all / central / internal): a real filter since the 18 Oct meeting // the central / internal filter no longer exists: a value stored earlier is ignored
+  const [cfg, setCfg] = usePersistent('ib_rev_cfg4', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
   // The only editable target is the annual collection goal on the Strategic Dashboard (saved plans: src/data/collectionGoal.js). Nothing edited the old per-session copy of these demo defaults, so it is no longer stored.
   const targets = DEFAULT_TARGETS;
   const [decisions, setDecisions] = usePersistent('ib_rev_decisions', {});
@@ -76,7 +76,7 @@ export function RevenueProvider({ children }) {
   const links = useMemo(() => invoiceStatusMap(casesAll), [casesAll]);
 
   const orgKeys = org.amanahKeys || null;
-  const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', org }), [scope, org]);
+  const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all', org }), [scope, org]);
   const currentScopeKey = useMemo(() => scopeKey(scopeEff), [scopeEff]);
   const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, cfg]);
 
@@ -113,20 +113,20 @@ export function RevenueProvider({ children }) {
   useEffect(() => {
     if (!meta) return undefined;
     const ac = new AbortController(); setLoading(true); setLoadError(null);
-    api.snapshot(requestFor({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all' }), { signal: ac.signal })
+    api.snapshot(requestFor({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all' }), { signal: ac.signal })
       .then(async (main) => {
-        const cmp = await loadComparison(data, { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all' }, cfgN, main);
+        const cmp = await loadComparison(data, { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all' }, cfgN, main);
         if (!ac.signal.aborted) { setSnapshot(main); setPrevSnapshot(cmp.prev); setComparison(cmp.comparison); setLoading(false); }
       })
       .catch((e) => { if (!ac.signal.aborted && e.name !== 'AbortError') { setLoadError(e); setLoading(false); } });
     return () => ac.abort();
-  }, [meta, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, requestFor, data, cfgN, reloadKey]);
+  }, [meta, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, scope.product, scope.mainClass, requestFor, data, cfgN, reloadKey]);
 
   /* ---------- scope ---------- */
   const setPreset = useCallback((preset) => {
     if (SCOPE_PRESETS[preset]) setScope((s) => ({ ...s, preset, ...SCOPE_PRESETS[preset] }));
   }, [setScope]);
-  const resetScope = useCallback(() => setScope({ preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }), [setScope]);
+  const resetScope = useCallback(() => setScope({ preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all', product: [], mainClass: 'all' }), [setScope]);
   // a typed range is applied only when valid (D-01/D-02); the result tells the caller what happened so the control can explain it
   const setCustomRange = useCallback((from, to) => {
     const r = checkRange({ from, to }, { today: DATA_CUTOFF });
@@ -138,6 +138,8 @@ export function RevenueProvider({ children }) {
   const setMuni = useCallback((muni) => setScope((s) => ({ ...s, muni })), [setScope]);
   const setStatus = useCallback((status) => setScope((s) => ({ ...s, status })), [setScope]);
   const setSource = useCallback((source) => setScope((s) => ({ ...s, source })), [setScope]);
+  const setProduct = useCallback((product) => setScope((s) => ({ ...s, product: Array.isArray(product) ? product : [] })), [setScope]); // اسم المنتج (multi-select)
+  const setMainClass = useCallback((mainClass) => setScope((s) => ({ ...s, mainClass: mainClass || 'all' })), [setScope]); // تصنيف الإيراد الرئيسي
 
   /* ---------- human review (analytical layer only) ---------- */
   const decideExclusion = useCallback((invoiceId, decision, note = '', ruleId = null) => {
@@ -294,7 +296,7 @@ export function RevenueProvider({ children }) {
 
   const value = {
     user, org, canReview, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
-    scope, scopeEff, currentScopeKey, resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus,
+    scope, scopeEff, currentScopeKey, resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, setProduct, setMainClass,
     cfg: cfgN, setCrStatuses, setRuleEnabled, setGraceDays, setCollectionsAsOf, resetConfig,
     targets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,

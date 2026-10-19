@@ -121,7 +121,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const endRef = useRef(null); const taRef = useRef(null);
 
   // a new conversation starts from the SHARED filters of the management area, so dashboard, fixed reports and smart reports speak about the same scope
-  const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all' } }; }, [rev.scopeEff, rev.scope.preset, today]);
+  const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all', product: e.product, mainClass: e.mainClass } }; }, [rev.scopeEff, rev.scope.preset, today]);
   const conv = convs.find((c) => c.id === activeId) || null;
   const spec = conv?.spec || null;
   const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
@@ -153,7 +153,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     step('compare');
     if (!['completed', 'completed_with_limitations'].includes(final.status) || !final.out?.snapshot) { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); throw Object.assign(new Error('analysis_failed'), { status: final.status, reason: final.error || final.errors || final.message || null }); }
     const out = { ...final.out, snapshot: await measure(rev.data, scope, rev.cfg) };
-    const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status };
+    const scopeKeys = { amanah: sc.amanah, source: sc.source, scopeType: sc.scopeType, muni: sc.muni, status: sc.status, product: sc.product, mainClass: sc.mainClass };
     const [prev, cash, bridge] = await Promise.all([
       prevSc ? rev.data.snapshot({ ...prevSc, ...scopeKeys }, atEnd) : Promise.resolve(null),
       sp.sections.includes('trends') ? rev.data.series({ ...scope }, { asOf: sc.to < cutoff ? sc.to : cutoff }) : Promise.resolve(null),

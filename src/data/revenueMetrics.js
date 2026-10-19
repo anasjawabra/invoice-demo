@@ -309,6 +309,8 @@ export function normalizeScope(scope = {}, cfg = DEFAULT_CONFIG) {
     muni: scope.muni ?? 'all',
     status: scope.status ?? 'all',
     org: scope.org || null,
+    product: Array.isArray(scope.product) ? scope.product : [], // اسم المنتج (multi-select)
+    mainClass: scope.mainClass ?? 'all', // تصنيف الإيراد الرئيسي
     ...(scope.basis ? { basis: scope.basis } : {})
   };
 }
@@ -326,7 +328,7 @@ export function scopeLedger(ledger, scope = {}, cfg = DEFAULT_CONFIG) {
 
 export function scopeKey(scope = {}) {
   const sc = normalizeScope(scope);
-  return `${sc.from}|${sc.to}|${Array.isArray(sc.amanah) ? sc.amanah.join(',') : sc.amanah}|${sc.source}|${sc.scopeType}|${sc.muni}|${sc.status}|${sc.org?.id || 'all'}`;
+  return `${sc.from}|${sc.to}|${Array.isArray(sc.amanah) ? sc.amanah.join(',') : sc.amanah}|${sc.source}|${sc.scopeType}|${sc.muni}|${sc.status}|${sc.org?.id || 'all'}|${sc.product.slice().sort().join(',')}|${sc.mainClass}`;
 }
 
 /* ---------- Aggregation over derived records ---------- */

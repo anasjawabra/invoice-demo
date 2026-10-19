@@ -686,11 +686,12 @@ await test('AC-D2/D3: every preset equals its definition for 24 reference dates 
     const l3 = presetRange('last3', t); const sIdx = y * 12 + (m - 1) - 3; assert.equal(l3.from, `${Math.floor(sIdx / 12)}-${pad((sIdx % 12) + 1)}-01`); assert.equal(l3.to, presetRange('lastMonth', t).to, 'three COMPLETE months: ends with last month');
     const q0 = Math.floor((m - 1) / 3) * 3 + 1; assert.deepEqual(presetRange('qtd', t), { from: `${y}-${pad(q0)}-01`, to: t });
     assert.deepEqual(presetRange('ytd', t), { from: `${y}-01-01`, to: t });
+    { const e = presetRange('lastMonth', t).to; assert.deepEqual(presetRange('ytdLastMonth', t), { from: `${e.slice(0, 4)}-01-01`, to: e }, 'IIM-11: start of the year to the end of the last CLOSED month'); }
     assert.equal(presetRange('all', t).from, '2025-01-01');
     assert.equal(parsePeriod('آخر 3 أشهر', t).from, l3.from); assert.equal(parsePeriod('آخر 3 أشهر', t).to, l3.to); assert.equal(parsePeriod('هذا الشهر', t).from, presetRange('month', t).from);
   }
   assert.deepEqual(parsePeriod('الربع الحالي حتى اليوم', '2026-10-09'), { from: '2026-10-01', to: '2026-10-09', label: 'qtd' }); assert.equal(parsePeriod('this quarter', '2026-05-20').from, '2026-04-01'); assert.equal(parsePeriod('منذ أول يناير', '2026-10-09').from, '2026-01-01');
-  assert.equal(detectPreset('2026-01-01', '2026-10-09', '2026-10-09'), 'ytd'); assert.equal(detectPreset('2026-02-03', '2026-02-04', '2026-10-09'), 'custom'); assert.equal(PRESETS.length, 7);
+  assert.equal(detectPreset('2026-01-01', '2026-10-09', '2026-10-09'), 'ytd'); assert.equal(detectPreset('2026-02-03', '2026-02-04', '2026-10-09'), 'custom'); assert.equal(PRESETS.length, 8); assert.deepEqual(presetRange('ytdLastMonth', '2026-10-19'), { from: '2026-01-01', to: '2026-09-30' }, 'IIM-11 acceptance: on 19 Oct 2026 the preset is 01 Jan – 30 Sep');
 });
 
 

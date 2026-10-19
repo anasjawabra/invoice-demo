@@ -8,8 +8,8 @@ export async function loadComparison(data, scope, cfg, mainSnapshot) {
   const atEnd = { cfg: headlineCfg(cfg) };
   const same = scope.to >= cfg.cutoff;
   const [curr, prev] = await Promise.all([
-    same ? Promise.resolve(mainSnapshot) : data.snapshot({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status }, atEnd),
-    data.snapshot({ from: pv.from, to: pv.to, basis: pv.basis, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status }, atEnd)
+    same ? Promise.resolve(mainSnapshot) : data.snapshot({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status, product: scope.product, mainClass: scope.mainClass }, atEnd),
+    data.snapshot({ from: pv.from, to: pv.to, basis: pv.basis, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status, product: scope.product, mainClass: scope.mainClass }, atEnd)
   ]);
   return { curr, prev, comparison: compareSnapshots(curr, prev) };
 }

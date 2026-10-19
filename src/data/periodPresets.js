@@ -11,6 +11,7 @@ export const PRESETS = [
   { key: 'last3', ar: 'آخر 3 أشهر مكتملة', en: 'Last 3 complete months', range: (t) => lastCompleteMonths(t, 3) },
   { key: 'qtd', ar: 'الربع الحالي حتى اليوم', en: 'Quarter to date', range: (t) => ({ from: startOfQuarter(t), to: t }) },
   { key: 'ytd', ar: 'السنة حتى اليوم', en: 'Year to date', range: (t) => ({ from: startOfYear(t), to: t }) },
+  { key: 'ytdLastMonth', ar: 'من بداية العام حتى نهاية الشهر الماضي', en: 'Start of year to end of last month', range: (t) => { const e = prevMonthEnd(t); return { from: startOfYear(e), to: e }; } }, // IIM-11: the last CLOSED month; in January it is the whole of last year
   { key: 'all', ar: 'كل البيانات', en: 'All data', range: (t) => ({ from: DATA_START, to: t }) }
 ];
 export const presetRange = (key, today) => PRESETS.find((p) => p.key === key)?.range(today) || null;

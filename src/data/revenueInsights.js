@@ -47,7 +47,8 @@ const RECOMMENDED_STEP = {
   ineligible_referral: bi('Complete the missing mandatory fields so the invoice becomes eligible for referral', 'استكمال الحقول الإلزامية الناقصة لتصبح الفاتورة مؤهلة للإحالة'),
   enforcement: bi('Track the confirmed enforcement case; no new collection action from this platform', 'متابعة قضية الإنفاذ المؤكدة؛ دون إجراء تحصيل جديد من هذه المنصة'),
   objection: bi('Request status of the objection from the owning unit before any follow-up', 'الاستفسار عن حالة الاعتراض من الجهة المالكة قبل أي متابعة'),
-  not_due: bi('No action yet — monitor until the due date', 'لا إجراء حالياً — مراقبة حتى تاريخ الاستحقاق')
+  not_due: bi('No action yet — monitor until the due date', 'لا إجراء حالياً — مراقبة حتى تاريخ الاستحقاق'),
+  excluded: bi('Excluded from the collectible base — no collection action; see the exclusion reason', 'مستبعدة من القابل للتحصيل — لا إجراء تحصيل؛ راجع سبب الاستبعاد')
 };
 
 // Server-computed priority list (amount, aging, actionability, evidence quality) -> rows with the recommended next step.

@@ -716,3 +716,15 @@
 .ra-filters__state { font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
 .ra-ctx { font-size: 12px; background: var(--surface-2, #eef2f7); border-radius: 6px; padding: 2px 8px; width: fit-content; max-width: 100%; overflow-wrap: anywhere; }
 .inv-stats { display: grid; gap: 10px; } .inv-stats__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 20px; }
+
+/* ---- multi-select (product filter) ---- */
+.rv-multi { position: relative; display: inline-block; }
+.rv-multi > summary { display: inline-flex; align-items: center; cursor: pointer; list-style: none; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rv-multi > summary::-webkit-details-marker { display: none; }
+.rv-multi__list { position: absolute; z-index: 30; inset-inline-start: 0; margin-block-start: 4px; min-width: 200px; display: grid; gap: 6px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.rv-multi__item { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+
+/* ---- collected list: split of the collected total ---- */
+.inv-stats__split { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-block: 12px 4px; }
+.inv-split { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.inv-split li { display: flex; justify-content: space-between; gap: 12px; border-block-end: 1px dashed var(--line); padding-block: 3px; }

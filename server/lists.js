@@ -127,6 +127,7 @@ export function candidates(st, req) {
     if (f.state === 'paid' && D.cls !== CLASS_INDEX.collected && D.cls !== CLASS_INDEX.partial) return; // the invoice register: invoices with money collected (in full or in part)
     if (ageB >= 0 && !(D.outstanding > 0 && agingBucket(D.daysOverdue) === ageB)) return;
     if (f.ageMin != null && !(D.outstanding > 0 && !D.excluded && D.daysOverdue >= f.ageMin && D.daysOverdue <= f.ageMax)) return;
+    if (f.kind && f.kind !== 'all' && iimFields(st, i).invoiceKind !== f.kind) return; // نوع الفاتورة: occupancy / differences (tobacco and accommodation only)
     if (f.tag) { const tg = tagsOf(st, i, D); if (f.tag === 'problem' ? !tg.some((x) => PROBLEM_TAGS.has(x)) : !tg.includes(f.tag)) return; }
     out.push(i); sums.gross += D.gross; sums.exclusions += D.exclTotal; sums.net += D.net; sums.collected += D.collected; sums.outstanding += D.outstanding;
   };
@@ -198,7 +199,7 @@ export function* exportChunks(st, req, chunk = 4000) {
 }
 
 /* ------------------------------------------------------------------ worklists */
-const ACT = { overdue: 1, partial: 0.85, linkage_unresolved: 0.5, ineligible_referral: 0.35, enforcement: 0.45, objection: 0.2, not_due: 0.1 };
+const ACT = { excluded: 0.05, overdue: 1, partial: 0.85, linkage_unresolved: 0.5, ineligible_referral: 0.35, enforcement: 0.45, objection: 0.2, not_due: 0.1 };
 const W_ = { amount: 0.4, aging: 0.25, actionability: 0.25, evidence: 0.1 };
 function evidenceQuality(st, i, D) {
   let qv = 1; const f = st.flags[i]; const cs = st.cstat[i];
@@ -214,14 +215,19 @@ export function worklist(st, req) {
     for (let i = 0; i < st.n; i += 1) {
       if (st.issue[i] > ctx.cutoffN || st.issue[i] < sc.fromN || st.issue[i] > sc.toN || !inScope(st, sc, i)) continue;
       derive(ctx, i, ctx.cutoffN);
-      if (!(D.outstanding > 0) || D.excluded || D.cls === CLASS_INDEX.collected) continue;
+      // IIM-06: the list shows ALL uncollected invoices — the excluded ones included (they are uncollected too); a reason filter narrows it
+      const exIn = D.excluded && req.includeExcluded; const bal = exIn ? D.exclusionAmount : D.outstanding;
+      if (!exIn && (!(D.outstanding > 0) || D.excluded || D.cls === CLASS_INDEX.collected)) continue;
+      if (!(bal > 0)) continue;
       if (req.category && req.category !== 'all' && CLASSES[D.cls] !== req.category) continue;
-      if (pass === 0) { total += 1; totalOut += D.outstanding; if (D.outstanding > maxAmt) maxAmt = D.outstanding; if (D.daysOverdue > maxAge) maxAge = D.daysOverdue; continue; }
+      if (req.kind && req.kind !== 'all' && iimFields(st, i).invoiceKind !== req.kind) continue;
+      if (req.reason && req.reason !== 'all') { const xr = exclusionOf(D); if (req.reason === 'none' ? D.excluded : !xr || xr.ruleId !== req.reason) continue; }
+      if (pass === 0) { total += 1; totalOut += bal; if (bal > maxAmt) maxAmt = bal; if (D.daysOverdue > maxAge) maxAge = D.daysOverdue; continue; }
       const ev = evidenceQuality(st, i, D); const act = ACT[CLASSES[D.cls]] ?? 0.3;
-      top.push(i, W_.amount * (D.outstanding / maxAmt) + W_.aging * (D.daysOverdue / maxAge) + W_.actionability * act + W_.evidence * ev);
+      top.push(i, W_.amount * (bal / maxAmt) + W_.aging * (D.daysOverdue / maxAge) + W_.actionability * act + W_.evidence * ev);
     }
     if (pass === 1) {
-      const rows = top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); const r = rowOut(st, ctx, i, D); return { ...r, category: r.cls, actionability: ACT[r.cls] ?? 0.3, evidenceQuality: Math.round(evidenceQuality(st, i, D) * 100) / 100, score: Math.round(score * 1000) / 1000 }; });
+      const rows = top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); const r = rowOut(st, ctx, i, D); return { ...r, category: r.cls, uncollected: r.outstanding + r.exclusionAmount, actionability: ACT[r.cls] ?? 0.3, evidenceQuality: Math.round(evidenceQuality(st, i, D) * 100) / 100, score: Math.round(score * 1000) / 1000 }; });
       return { total, totalOutstanding: totalOut, rows };
     }
   }
