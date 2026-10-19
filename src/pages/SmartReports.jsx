@@ -1,5 +1,6 @@
 // «التقارير الذكية» — the ONE reporting experience (it replaces the former report centre and the former smart-reports page).
-// A conversation: the user asks for a report or asks a question; the assistant builds the report from the shared data layer.
+// A conversation: the user asks for a report or asks a question, or attaches files; the assistant answers from the shared data layer and the files.
+// Follow-ups act on the latest result («change the chart», «show the tables only», «turn it into a presentation»); see src/data/chatIntents.js.
 // Interpretation is rule-based (it is NOT a language model) and the page says so. Each report is a MODEL (src/data/reportModel.js)
 // that is both rendered here and exported, so the file always contains what is on screen.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,7 +15,11 @@ import { interpret, defaultSpec, describeChange, previousMonthScope, SUPPORTED_H
 import { buildReportModel, SECTION_META, SECTION_ORDER } from '../data/reportModel';
 import { sourceAr, sourceEn } from '../data/insightsEngine';
 import ReportView from '../components/smart/ReportView';
-import { exportModelToDocx, exportModelToXlsx, exportModelToPptx } from '../utils/exportReportModel';
+import { exportModel, reportFileName, EXPORT_FORMATS } from '../utils/exportReportModel';
+import { interpretChat, CHART_NAME } from '../data/chatIntents';
+import { applyView, mergeView, emptyView, hasCharts, hasTables } from '../data/reportView';
+import { readAttachment, previewOf, kindLabel, noteText, sizeText, ACCEPT, MAX_FILES } from '../data/chatFiles';
+import { buildAttachmentModel, refsOfAttachments } from '../data/chatAnalysis';
 import { fmtRiyadh, fmtRangeText, fmtDateText } from '../data/clock';
 import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
@@ -24,7 +29,9 @@ import { PRESETS, detectPreset } from '../data/periodPresets';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
-const saveConvs = (c) => { try { window.localStorage.setItem(STORE_KEY, JSON.stringify(c.slice(0, 30).map((x) => ({ ...x, messages: x.messages.map(({ model, progress, ...m }) => m) })))); } catch { /* storage unavailable: history stays in memory */ } };
+// a regenerated system report is never stored; the answer built from attached files (`amodel` — the files themselves are never stored) is kept so it survives a reload, unless storage is short
+const slimConv = (x, keep) => ({ ...x, messages: x.messages.map(({ model, progress, amodel, ...m }) => (keep && amodel ? { ...m, amodel } : m)) });
+const saveConvs = (c) => { const list = c.slice(0, 30); try { const full = JSON.stringify(list.map((x) => slimConv(x, true))); window.localStorage.setItem(STORE_KEY, full.length < 2500000 ? full : JSON.stringify(list.map((x) => slimConv(x, false)))); } catch { try { window.localStorage.setItem(STORE_KEY, JSON.stringify(list.map((x) => slimConv(x, false)))); } catch { /* storage unavailable: history stays in memory */ } } };
 // unsent text of the request box, kept per conversation for this browser session (written only when the user types; cleared on send)
 const DRAFT_KEY = 'ib_smart_drafts_v1';
 const readDrafts = () => { try { const v = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
@@ -102,6 +109,42 @@ function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel
   );
 }
 
+/* ---------------- attachments in the composer ---------------- */
+const ICON = { pdf: 'PDF', docx: 'DOC', sheet: 'XLS', csv: 'CSV', pptx: 'PPT', image: 'IMG', doc: 'DOC', ppt: 'PPT', unknown: '?' };
+function FilePreview({ f, ar, L }) {
+  const pv = previewOf(f);
+  return (
+    <div className="sr-filepv" role="region" aria-label={`${L('معاينة', 'Preview')} ${f.name}`}>
+      {pv.type === 'image' && pv.src && <img src={pv.src} alt={f.name} className="sr-filepv__img" />}
+      {pv.type === 'table' && (
+        <div className="table-wrap" tabIndex={0}>
+          <table className="table"><caption className="muted" style={{ textAlign: 'start', fontSize: 12 }}>{pv.sheet}{pv.sheets > 1 ? ` · ${L(`${pv.sheets} أوراق`, `${pv.sheets} sheets`)}` : ''} · {pv.totalRows.toLocaleString('en-US')} {L('صف', 'rows')}</caption>
+            <thead><tr>{pv.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+            <tbody>{pv.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} dir="auto">{String(c)}</td>)}</tr>)}</tbody></table>
+        </div>
+      )}
+      {pv.type === 'text' && <ol className="sr-filepv__lines">{pv.lines.map((l, i) => <li key={i} dir="auto">{l.length > 200 ? `${l.slice(0, 199)}…` : l}</li>)}</ol>}
+      {pv.type === 'none' && <div className="muted">{L('لا معاينة متاحة لهذا الملف.', 'No preview is available for this file.')}</div>}
+      {f.note && <div className="sr-filepv__note" role="note">{noteText(f.note, ar)}</div>}
+    </div>
+  );
+}
+function FileChip({ f, ar, L, open, onToggle, onRemove }) {
+  const state = f.reading ? L('جارٍ القراءة…', 'Reading…') : f.status === 'ready' ? L('جاهز', 'Ready') : f.status === 'partial' ? L('قُرئ جزئياً', 'Partly read') : f.kind === 'image' ? L('معاينة فقط', 'Preview only') : L('لم يُقرأ', 'Not read');
+  return (
+    <div className={`sr-file sr-file--${f.reading ? 'busy' : f.status}`} role="listitem">
+      <span className="sr-file__ico" aria-hidden="true">{f.kind === 'image' && f.preview ? <img src={f.preview} alt="" /> : ICON[f.kind] || '?'}</span>
+      <button type="button" className="sr-file__main" aria-expanded={!!open} disabled={!!f.reading} onClick={onToggle} title={L('معاينة', 'Preview')}>
+        <b dir="auto">{f.name}</b>
+        <small>{kindLabel(f.kind, ar)} · {sizeText(f.size)} · {f.reading ? <><span className="sr-spin" aria-hidden="true" /> {state}</> : state}</small>
+      </button>
+      <button type="button" className="sr-file__x" aria-label={`${L('إزالة', 'Remove')} ${f.name}`} onClick={onRemove}>×</button>
+    </div>
+  );
+}
+const CHAT_STEPS = { files: ['أقرأ الملفات المرفقة', 'Reading the attached files'], refs: ['أستخرج أرقام الفواتير منها', 'Extracting invoice numbers from them'], match: ['أطابقها مع بيانات النظام', 'Matching them with the system data'], analyze: ['أحلل الجداول وأقارنها بالنظام', 'Analysing the tables and comparing with the system'] };
+const summarize = (model) => { const k = model.headline.find((b) => b.type === 'kpis'); const items = (k?.items || []).slice(0, 5).map((i) => `${i.label}: ${i.value}`).join(' · '); return [model.summaryText, items].filter(Boolean).join('\n'); };
+
 export default function SmartReports({ embedded = false, initialQuery = null, onQueryConsumed = null }) {
   const rev = useRevenue();
   const { lang, ar } = useL();
@@ -113,12 +156,16 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const [busy, setBusy] = useState(null); // { msgId, step, token }
   const [showFilters, setShowFilters] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
   const [editOpen, setEditOpen] = useState(false); const [editPendingId, setEditPendingId] = useState(null);
   const [exporting, setExporting] = useState('');
-  const [models, setModels] = useState({}); // msgId -> model (in memory; regenerated from the spec when a stored conversation is reopened)
+  const [models, setModels] = useState({}); // msgId -> model (in memory; a system report is regenerated from its spec when a stored conversation is reopened)
   const [collapsed, setCollapsed] = useState({});
-  const endRef = useRef(null); const taRef = useRef(null);
+  const [files, setFiles] = useState([]); // attachments waiting in the composer: { id, name, size, kind, status, note, reading, … }
+  const [fileNote, setFileNote] = useState('');
+  const [previewId, setPreviewId] = useState(null);
+  const [drag, setDrag] = useState(false);
+  const attData = useRef({}); // msgId -> what the analysis was built from (kept in this browser tab only; the files themselves are never stored)
+  const endRef = useRef(null); const taRef = useRef(null); const fileRef = useRef(null);
 
   // a new conversation starts from the SHARED filters of the management area, so dashboard, fixed reports and smart reports speak about the same scope
   const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all', product: e.product, mainClass: e.mainClass } }; }, [rev.scopeEff, rev.scope.preset, today]);
@@ -137,8 +184,19 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   useEffect(() => { const key = activeId || 'new'; if (draftFor.current === key) return; draftFor.current = key; setInput(readDrafts()[key] || ''); }, [activeId]);
   const onInput = (v) => { setInput(v); writeDraft(draftFor.current, v); };
   const patchConv = useCallback((id, fn) => setConvs((cs) => { let changed = false; const n = cs.map((c) => { if (c.id !== id) return c; const r = fn(c); if (r !== c) changed = true; return r; }); return changed ? n : cs; }), []);
+  const patchMsg = useCallback((convId, msgId, patch) => patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, ...patch } : m)) })), [patchConv]);
 
-  /* ---------------- generation ---------------- */
+  /* ---------------- results: what the conversation has produced, and how it is shown now ---------------- */
+  const modelOf = useCallback((m) => models[m.id] || m.amodel || null, [models]);
+  const resultOf = useCallback((m, list) => { // → { model (with its view applied), view, rootId, rootKind } | null
+    if (m.role !== 'assistant') return null;
+    if (m.kind === 'view' || m.kind === 'export') { const root = list.find((x) => x.id === m.baseId); const base = root && modelOf(root); if (!base) return null; return { model: applyView(base, m.view).model, view: m.view, rootId: m.baseId, rootKind: root.kind === 'attachments' ? 'attachments' : 'report' }; }
+    if (m.kind === 'attachments' || m.spec) { const base = modelOf(m); if (!base) return null; const view = m.view || emptyView(); return { model: applyView(base, view).model, view, rootId: m.id, rootKind: m.kind === 'attachments' ? 'attachments' : 'report' }; } // a result rebuilt from a follow-up keeps the view already agreed (chart type, parts shown)
+    return null;
+  }, [modelOf]);
+  const latest = useMemo(() => { if (!conv) return null; for (let i = conv.messages.length - 1; i >= 0; i -= 1) { const r = resultOf(conv.messages[i], conv.messages); if (r) return { ...r, msgId: conv.messages[i].id }; } return null; }, [conv, resultOf]);
+
+  /* ---------------- generation of a system report ---------------- */
   const generate = useCallback(async (sp, token, setStep) => {
     const sc = sp.scope; const cutoff = rev.cfg.cutoff;
     const step = (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setStep(k); };
@@ -185,33 +243,123 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
 
   const stop = () => { if (!busy) return; busy.token.cancelled = true; if (busy.token.taskId) rev.cancelTask(busy.token.taskId); };
 
-  // reopen a stored conversation: rebuild the last report from its spec
+  // reopen a stored conversation: rebuild the last system report from its spec
   useEffect(() => {
     if (!conv || busy) return;
     const last = [...conv.messages].reverse().find((m) => m.role === 'assistant' && m.spec && m.status === 'done');
     if (last && !models[last.id]) run(conv.id, last.id, last.spec);
   }, [conv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /* ---------------- attached files: read, match with the system data, answer ---------------- */
+  const scopeTextOf = useCallback((sp) => { const sc = sp.scope; const am = sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en'), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : sourceEn(sc.source)) : null].filter(Boolean).join(' · '); }, [L, ar, labelOfAmanah]);
+  const buildAttModel = useCallback((data, { groupTerm = null, question = '' } = {}) => buildAttachmentModel({ atts: data.recs, refs: data.refs, resolved: data.resolved, snapshot: data.snapshot, scopeText: data.scopeText, lang, groupTerm, cutoff: today, question }), [lang, today]);
+
+  const runAttach = useCallback(async (convId, msgId, recs, { groupTerm = null, question = '', sp }) => {
+    const token = { cancelled: false, taskId: null };
+    setBusy({ msgId, step: 'files', token });
+    const step = (k) => { if (token.cancelled) throw Object.assign(new Error('stopped'), { stopped: true }); setBusy((b) => (b && b.msgId === msgId ? { ...b, step: k } : b)); };
+    try {
+      step('files'); await new Promise((r) => window.setTimeout(r, 0)); // the files were read when they were added; let the state paint
+      step('refs'); const refs = refsOfAttachments(recs);
+      let resolved = null;
+      if (refs.unique.length) { step('match'); resolved = await rev.enforcement.resolve(refs.unique.map((r) => ({ kind: r.kind, value: r.value }))); }
+      step('analyze');
+      const anyTables = recs.some((a) => a.tables?.length);
+      const scopeText = scopeTextOf(sp);
+      const snapshot = anyTables ? await measure(rev.data, { ...sp.scope }, rev.cfg) : null;
+      const data = { recs, refs, resolved, snapshot, scopeText };
+      const model = buildAttModel(data, { groupTerm, question });
+      attData.current[msgId] = data;
+      setModels((m) => ({ ...m, [msgId]: model }));
+      patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title, amodel: model } : m)) }));
+    } catch (e) {
+      const stopped = token.cancelled || e.stopped;
+      if (!stopped) console.error('[smart-reports] the attachments could not be analysed:', e);
+      patchMsg(convId, msgId, { status: stopped ? 'stopped' : 'error' });
+    } finally { setBusy((b) => (b && b.msgId === msgId ? null : b)); }
+  }, [rev, scopeTextOf, buildAttModel, patchConv, patchMsg]);
+
+  const readingAny = files.some((f) => f.reading);
+  const addFiles = useCallback((list) => {
+    const incoming = [...(list || [])]; if (!incoming.length) return;
+    setFileNote('');
+    setFiles((cur) => {
+      const room = MAX_FILES - cur.length; const take = []; const notes = [];
+      for (const f of incoming) {
+        if (cur.some((x) => x.name === f.name && x.size === f.size) || take.some((x) => x.name === f.name && x.size === f.size)) { notes.push(L(`«${f.name}» مُرفق بالفعل.`, `“${f.name}” is already attached.`)); continue; }
+        if (take.length >= room) { notes.push(L(`الحد الأقصى ${MAX_FILES} ملفات في الرسالة الواحدة.`, `At most ${MAX_FILES} files per message.`)); break; }
+        take.push(f);
+      }
+      if (notes.length) setFileNote([...new Set(notes)].join(' '));
+      const placeholders = take.map((f) => ({ id: uid(), name: f.name, size: f.size, kind: 'unknown', status: 'unread', reading: true, note: null, _file: f }));
+      placeholders.forEach((p) => { readAttachment(p._file).then((rec) => setFiles((fs) => fs.map((x) => (x.id === p.id ? { ...rec, id: p.id, reading: false } : x)))).catch(() => setFiles((fs) => fs.map((x) => (x.id === p.id ? { ...x, reading: false, note: { ar: 'تعذّرت قراءة الملف.', en: 'The file could not be read.' } } : x)))); });
+      return [...cur, ...placeholders];
+    });
+  }, [L]);
+  const removeFile = (id) => { setFiles((fs) => fs.filter((f) => f.id !== id)); setPreviewId((p) => (p === id ? null : p)); setFileNote(''); };
+  const onDrop = (e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); };
+
+  /* ---------------- exporting the latest result ---------------- */
+  const runExport = useCallback(async (convId, msgId, format, model) => {
+    setExporting(format);
+    try { await exportModel(format, model); patchMsg(convId, msgId, { status: 'done', fileName: reportFileName(model, EXPORT_FORMATS.find((f) => f.key === format)?.ext || format) }); }
+    catch (e) { console.error('[smart-reports] export failed:', e); patchMsg(convId, msgId, { status: 'error' }); }
+    finally { setExporting(''); }
+  }, [patchMsg]);
+
   /* ---------------- sending ---------------- */
   const send = useCallback((text, override = null, { fresh = false } = {}) => {
-    const q = (text || '').trim();
-    if (!q || busy) return;
+    const q0 = (text || '').trim();
+    const sendFiles = fresh || override ? [] : files.filter((f) => !f.reading);
+    if ((!q0 && !sendFiles.length) || busy || (!fresh && !override && readingAny)) return;
+    const q = q0 || L('حلّل الملفات المرفقة مع بيانات النظام', 'Analyse the attached files together with the system data');
     let c = fresh ? null : conv; // a request that arrives through a link starts its own conversation
     if (!c) { c = { id: uid(), title: q.slice(0, 48), createdAt: Date.now(), updatedAt: Date.now(), spec: sharedSpec, messages: [] }; }
-    const userMsg = { id: uid(), role: 'user', text: q };
-    const res = override ? { kind: 'report', spec: override.spec, changes: override.changes || [] } : interpret(q, c.messages.some((m) => m.spec) ? c.spec : null, today, { base: sharedSpec });
+    const lr = fresh ? null : latest;
+    const userMsg = { id: uid(), role: 'user', text: q, ...(sendFiles.length ? { attachments: sendFiles.map(({ id, name, size, kind, status, note }) => ({ id, name, size, kind, status, note })) } : {}) };
     const asId = uid();
-    const lbl = (ch) => describeChange(ch, lang, { amanahLabel: labelOfAmanah, spec: res.spec });
-    let aMsg;
-    if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', question: res.question || null, status: 'done' };
-    else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
-    else if (res.confirm?.length && !override) aMsg = { id: asId, role: 'assistant', kind: 'confirm', status: 'pending', confirm: res.confirm, pending: { kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec) } };
-    else aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working' };
+    const chat = override ? null : interpretChat(q, { hasResult: !!lr, resultKind: lr?.rootKind || null, hasCharts: lr ? hasCharts(lr.model) : false, hasTables: lr ? hasTables(lr.model) : false, pendingFiles: sendFiles.length });
+    let aMsg = null; let after = null; let interpretText = q;
+    const say = (ar_, en_) => ({ id: asId, role: 'assistant', kind: 'text', plain: L(ar_, en_), status: 'done' });
+    if (chat) {
+      if (chat.type === 'attach') { aMsg = { id: asId, role: 'assistant', kind: 'attachments', status: 'working', groupTerm: chat.groupTerm || null }; after = () => runAttach(c.id, asId, sendFiles, { groupTerm: chat.groupTerm || null, question: q0, sp: c.spec || sharedSpec }); }
+      else if (chat.type === 'need') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: chat.question, options: chat.options, status: 'done' };
+      else if (chat.type === 'chart') {
+        const r = applyView(lr.model, { chartKind: chat.kind }); const nm = CHART_NAME[chat.kind][ar ? 'ar' : 'en'];
+        if (r.changed) aMsg = { id: asId, role: 'assistant', kind: 'view', baseId: lr.rootId, view: mergeView(lr.view, { chartKind: chat.kind }), note: L(`غيّرتُ ${r.changed === 1 ? 'الرسم' : `${r.changed} رسوم`} إلى ${nm}${r.skipped ? `؛ و${r.skipped} رسماً فيه أكثر من سلسلة لا يصلح دائرياً فبقي كما هو` : ''}.`, `Changed ${r.changed === 1 ? 'the chart' : `${r.changed} charts`} to ${nm}${r.skipped ? `; ${r.skipped} multi-series chart(s) cannot be a pie and stay as they were` : ''}.`), status: 'done' };
+        else aMsg = r.skipped ? say('الرسم الدائري يعرض سلسلة واحدة، والرسوم الحالية فيها أكثر من سلسلة فلم أغيّرها. جرّب «خطي» أو «أعمدة».', 'A pie chart shows one series and the current charts have several, so I left them. Try “line” or “bars”.') : say(`الرسم ${nm} بالفعل.`, `The chart is already a ${nm} chart.`);
+      } else if (chat.type === 'only') {
+        const want = chat.only; const none = (want === 'tables' && !hasTables(lr.model)) || (want === 'charts' && !hasCharts(lr.model));
+        if (none) aMsg = say(`لا ${want === 'tables' ? 'جداول' : 'رسوم'} في هذه النتيجة لأعرضها.`, `There are no ${want === 'tables' ? 'tables' : 'charts'} in this result to show.`);
+        else aMsg = { id: asId, role: 'assistant', kind: 'view', baseId: lr.rootId, view: mergeView(lr.view, { only: want === 'all' ? null : want }), note: want === 'all' ? L('أعدتُ عرض كل أقسام النتيجة.', 'Showing every part of the result again.') : L(`عرضتُ ${want === 'tables' ? 'الجداول' : want === 'charts' ? 'الرسوم' : 'المؤشرات'} فقط. اكتب «اعرض الكل» للعودة.`, `Showing the ${want === 'tables' ? 'tables' : want === 'charts' ? 'charts' : 'indicators'} only. Say “show everything” to go back.`), status: 'done' };
+      } else if (chat.type === 'export') {
+        if (lr.model.empty) aMsg = say('النتيجة الحالية لا تحتوي بيانات لأضعها في ملف.', 'The current result holds no data to put in a file.');
+        else { aMsg = { id: asId, role: 'assistant', kind: 'export', baseId: lr.rootId, view: lr.view, format: chat.format, status: 'working' }; after = () => runExport(c.id, asId, chat.format, lr.model); }
+      } else if (chat.type === 'summary') aMsg = { id: asId, role: 'assistant', kind: 'text', plain: summarize(lr.model), status: 'done' };
+      else if (chat.type === 'regroup') {
+        const data = attData.current[lr.rootId];
+        if (!data) aMsg = say('لإعادة التجميع أحتاج الملف نفسه، ولم يعد محتواه محفوظاً بعد إعادة فتح المحادثة. أرفقه من جديد.', 'To regroup I need the file itself, and its content is not kept after the conversation is reopened. Attach it again.');
+        else {
+          const model = buildAttModel(data, { groupTerm: chat.term, question: q }); attData.current[asId] = data;
+          setModels((m) => ({ ...m, [asId]: model }));
+          aMsg = { id: asId, role: 'assistant', kind: 'attachments', status: 'done', title: model.title, amodel: model, groupTerm: chat.term, regroup: true, view: lr.view };
+        }
+      } else if (chat.type === 'section') interpretText = chat.text;
+    }
+    if (!aMsg) {
+      const res = override ? { kind: 'report', spec: override.spec, changes: override.changes || [] } : interpret(interpretText, c.messages.some((m) => m.spec) ? c.spec : null, today, { base: sharedSpec });
+      const lbl = (ch) => describeChange(ch, lang, { amanahLabel: labelOfAmanah, spec: res.spec });
+      if (res.kind === 'unsupported' || res.kind === 'empty') aMsg = { id: asId, role: 'assistant', kind: 'unsupported', question: res.question || null, status: 'done' };
+      else if (res.kind === 'clarify') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: res.question, options: res.options, status: 'done' };
+      else if (res.confirm?.length && !override) aMsg = { id: asId, role: 'assistant', kind: 'confirm', status: 'pending', confirm: res.confirm, pending: { kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec) } };
+      else { aMsg = { id: asId, role: 'assistant', kind: res.kind, spec: res.spec, changes: res.changes.map(lbl), changeKeys: res.changes.map((x) => x.key), firstReport: !c.messages.some((m) => m.spec), status: 'working', ...(chat?.type === 'section' && lr ? { view: lr.view } : {}) }; after = () => run(c.id, asId, aMsg.spec); }
+    }
     const next = { ...c, title: c.messages.length ? c.title : q.slice(0, 48), updatedAt: Date.now(), spec: aMsg.spec || c.spec, messages: [...c.messages.map((m) => (m.kind === 'confirm' && m.status === 'pending' ? { ...m, status: 'superseded' } : m)), userMsg, aMsg] };
     setConvs((cs) => (cs.some((x) => x.id === c.id) ? cs.map((x) => (x.id === c.id ? next : x)) : [next, ...cs]));
     setActiveId(c.id); setInput(''); writeDraft(c.id, ''); writeDraft(draftFor.current, '');
-    if (aMsg.spec) run(c.id, asId, aMsg.spec);
-  }, [busy, conv, today, lang, labelOfAmanah, run, sharedSpec]);
+    if (sendFiles.length) { setFiles([]); setPreviewId(null); setFileNote(''); }
+    if (after) after();
+  }, [busy, conv, today, lang, labelOfAmanah, run, runAttach, runExport, sharedSpec, files, readingAny, latest, buildAttModel, L, ar]);
 
   // the demo asks the user to confirm the interpreted scope in the risky categories BEFORE anything is generated
   const confirmPending = (msg) => {
@@ -221,7 +369,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   };
   const cancelPending = (msg) => patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'cancelled' } : m)) }));
   const retry = (msg) => { if (busy) return; patchConv(conv.id, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msg.id ? { ...m, status: 'working' } : m)) })); run(conv.id, msg.id, msg.spec); };
-  const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); taRef.current?.focus(); };
+  const newConv = () => { if (busy) return; setActiveId(null); setInput(''); setShowFilters(false); setShowHistory(false); setFiles([]); setFileNote(''); setPreviewId(null); taRef.current?.focus(); };
   const [renaming, setRenaming] = useState(null); // { id, text }
   const renameConv = (id, text) => { const t = text.trim().slice(0, 80); if (t) patchConv(id, (c) => ({ ...c, title: t, titleSource: 'user' })); setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${id}`)?.focus(), 0); };
   const removeConv = (id) => { setConvs((cs) => cs.filter((c) => c.id !== id)); if (id === activeId) setActiveId(null); };
@@ -239,22 +387,24 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     send(L('طبّق التصفية: ', 'Apply filters: ') + changes.map((c) => describeChange(c, lang, { amanahLabel: labelOfAmanah })).join('، '), { spec: next, changes });
   };
 
+  // download the file of a result: the SAME model and view the conversation shows
   async function doExport(kind, model) {
     if (exporting) return;
     setExporting(kind);
-    try { if (kind === 'docx') await exportModelToDocx(model); if (kind === 'xlsx') exportModelToXlsx(model); if (kind === 'pptx') await exportModelToPptx(model); } finally { setExporting(''); }
+    try { await exportModel(kind, model); } catch (e) { console.error('[smart-reports] export failed:', e); } finally { setExporting(''); }
   }
 
   // deep links: /smart-reports?r=<standard report key> opens that report; ?q=<request> sends a request (old /reports links land here too)
   const deepRef = useRef(false);
   useEffect(() => {
     if (deepRef.current) return; deepRef.current = true;
-    const sp = new URLSearchParams(window.location.search); const r = sp.get('r'); const q = sp.get('q');
+    const sp = new URLSearchParams(window.location.search); const q = sp.get('q');
     const link = q || initialQuery;
     if (link) { send(link, null, { fresh: true }); onQueryConsumed?.(); } // consumed once: reloading the page does not send it again (F-16b)
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(input); } };
+  const canSend = (input.trim() || files.some((f) => !f.reading)) && !readingAny;
+  const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (canSend) send(input); } };
 
   /* ---------------- pieces ---------------- */
   const sourceName = (k) => (k === 'all' ? L('كل المصادر', 'All sources') : ar ? sourceAr(k) : sourceEn(k));
@@ -274,12 +424,33 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const chips = useMemo(() => specChips(spec || sharedSpec), [specChips, spec, sharedSpec]);
 
   const scopeDiffers = !!spec && ['from', 'to', 'amanah', 'source', 'scopeType', 'muni', 'status'].some((k) => JSON.stringify(spec.scope[k] ?? 'all') !== JSON.stringify(sharedSpec.scope[k] ?? 'all'));
-  const lastReportId = conv ? [...conv.messages].reverse().find((m) => m.role === 'assistant' && m.spec)?.id : null;
-  const stepText = (k) => STEPS[k]?.[ar ? 0 : 1] || '';
+  const stepText = (k) => (STEPS[k] || CHAT_STEPS[k])?.[ar ? 0 : 1] || '';
   const empty = !conv || conv.messages.length === 0;
+  const followUps = useMemo(() => {
+    if (!latest) return [];
+    const out = [];
+    const chartChip = latest.view?.chartKind === 'line' ? { ar: 'غيّر الرسم إلى أعمدة', en: 'Change the chart to a bar chart' } : { ar: 'غيّر الرسم إلى خطي', en: 'Change the chart to a line chart' };
+    if (latest.rootKind === 'attachments') {
+      if (hasCharts(latest.model)) out.push(chartChip);
+      out.push({ ar: 'لخّص النتيجة', en: 'Summarise the result' });
+      if (hasTables(latest.model)) out.push({ ar: 'اعرض الجداول فقط', en: 'Show the tables only' });
+      out.push({ ar: 'حوّله إلى عرض تقديمي', en: 'Turn it into a presentation' }, { ar: 'حوّله إلى Excel', en: 'Export it to Excel' });
+    } else {
+      out.push(...FOLLOW_UPS.slice(0, 3), { ar: 'قارن حسب البلدية', en: 'Compare by municipality' });
+      if (hasCharts(latest.model)) out.push(chartChip);
+      out.push({ ar: 'حوّله إلى عرض تقديمي', en: 'Turn it into a presentation' });
+    }
+    return out;
+  }, [latest]);
+
+  const exportButtons = (model) => (
+    <div className="sr-card__actions" role="group" aria-label={L('تنزيل النتيجة', 'Download the result')}>
+      {EXPORT_FORMATS.map(({ key, name }) => <button key={key} type="button" className="btn btn-sm" disabled={model.empty || !!exporting} title={key === 'pdf' ? L('يفتح مربع الطباعة: اختر «حفظ بصيغة PDF»', 'Opens the print dialog: choose “Save as PDF”') : undefined} onClick={() => doExport(key, model)}>{exporting === key ? L('جارٍ التصدير…', 'Exporting…') : `${name}`}</button>)}
+    </div>
+  );
 
   return (
-    <div className="sr-page" dir={ar ? 'rtl' : 'ltr'}>
+    <div className={`sr-page${drag ? ' is-drag' : ''}`} dir={ar ? 'rtl' : 'ltr'} onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDrag(false); }} onDrop={onDrop}>
       <div className="sr-top">
         {!embedded && <div><h1 className="page-title" style={{ margin: 0 }}>{L('التقارير الذكية', 'Smart reports')}</h1></div>}
         <div className="sr-top__actions">
@@ -288,6 +459,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
           <Link className="btn btn-sm btn-ghost" to="/insights?view=reports">{L('التقارير الثابتة', 'Fixed reports')}</Link>
         </div>
       </div>
+      {drag && <div className="sr-dropzone" role="status">{L('أفلت الملفات هنا لإرفاقها', 'Drop the files here to attach them')}</div>}
 
       {showHistory && (
         <div className="sr-history card" role="region" aria-label={L('سجل المحادثات', 'Conversation history')}>
@@ -312,9 +484,12 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       {showFilters && <FilterPanel key={`${spec ? JSON.stringify(spec.scope) + spec.compare : JSON.stringify(sharedSpec.scope)}`} spec={spec || sharedSpec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={applyFilters} />}
 
       <div className="sr-note" role="note">
-        <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result.')}</b>
+        <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة. الملفات المرفقة تُقرأ داخل متصفحك ولا تُرفع إلى أي خادم؛ وحدها أرقام الفواتير المستخرجة منها تُطابَق مع بيانات النظام.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result. Attached files are read inside your browser and are never uploaded; only the invoice numbers found in them are matched with the system data.')}</b>
         <details className="rv-more"><summary>{L('أمثلة، وعن المساعد، وأين تُحفظ بياناتي', 'Examples, about the assistant, where my data is kept')}</summary>
-          <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}</ul>
+          <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}
+            <li>{L('المرفقات: PDF رقمي، Word (.docx)، Excel وCSV، PowerPoint (.pptx) تُقرأ فعلاً؛ والصور تُعرض معاينةً فقط لأن النظام لا يجري OCR.', 'Attachments: digital PDF, Word (.docx), Excel and CSV, PowerPoint (.pptx) are really read; images are shown as a preview only because the system performs no OCR.')}</li>
+            <li>{L('بعد أي نتيجة: «غيّر الرسم إلى خطي»، «اعرض الجداول فقط»، «قارن حسب البلدية»، «لخّص النتيجة»، «حوّله إلى عرض تقديمي / Word / PDF / Excel / CSV».', 'After any result: “change the chart to a line chart”, “show the tables only”, “compare by municipality”, “summarise”, “turn it into a presentation / Word / PDF / Excel / CSV”.')}</li>
+          </ul>
           <div>{L('تُبنى التقارير من بيانات النظام التجريبية.', 'Reports are built from the system’s demo data.')}</div>
           <LocalDataPanel />
         </details>
@@ -324,18 +499,23 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         {empty && (
           <div className="sr-welcome">
             <h2>{L('ماذا تريد أن تعرف؟', 'What would you like to see?')}</h2>
-            <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>
+            <p className="muted sr-welcome__sub">{L('اسأل عن الإيرادات والتحصيل، أو أرفق ملفات (PDF، Word، Excel، CSV، PowerPoint) لأحللها مع بيانات النظام.', 'Ask about revenue and collection, or attach files (PDF, Word, Excel, CSV, PowerPoint) and I will analyse them together with the system data.')}</p>
+            <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}<button type="button" className="sr-suggest__btn" onClick={() => fileRef.current?.click()}>📎 {L('إرفاق ملفات للتحليل', 'Attach files to analyse')}</button></div>
           </div>
         )}
         {conv?.messages.map((m) => {
-          if (m.role === 'user') return <div key={m.id} className="sr-msg sr-msg--user"><div className="sr-bubble">{m.text}</div></div>;
-          const model = models[m.id]; const isBusy = busy?.msgId === m.id; const isLast = m.id === lastReportId;
+          if (m.role === 'user') return (
+            <div key={m.id} className="sr-msg sr-msg--user"><div className="sr-bubble">{m.text}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, ar)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
+          );
+          const model = modelOf(m); const isBusy = busy?.msgId === m.id; const res = resultOf(m, conv.messages); const isLast = !!latest && m.id === latest.msgId;
+          const shown = res?.model || null; const isFileResult = m.kind === 'attachments'; const showCard = !!shown && m.kind !== 'export';
           return (
             <div key={m.id} className="sr-msg sr-msg--ai">
               <div className="sr-avatar" aria-hidden="true">ذ</div>
               <div className="sr-ai">
                 {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b>{m.question[ar ? 'ar' : 'en']}</b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
                 {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b>{m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')}</b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'text' && <div className="sr-bubble sr-bubble--ai" style={{ whiteSpace: 'pre-line' }}>{m.plain}</div>}
                 {m.kind === 'confirm' && (
                   <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
                     <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
@@ -346,7 +526,30 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.status === 'superseded' && <div className="muted">{L('حلّ محلّه طلب أحدث.', 'Replaced by a newer request.')}</div>}
                   </div>
                 )}
-                {m.kind !== 'unsupported' && m.kind !== 'clarify' && m.kind !== 'confirm' && (
+                {m.kind === 'view' && <div className="sr-bubble sr-bubble--ai">{m.note}</div>}
+                {m.kind === 'export' && (
+                  <div className="sr-bubble sr-bubble--ai sr-filecard" role="group" aria-label={L('ملف النتيجة', 'The result file')}>
+                    {m.status === 'working' && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {L('أُجهّز الملف…', 'Preparing the file…')}</div>}
+                    {m.status === 'done' && res && <>
+                      <div><b>{m.format === 'pdf' ? L('جاهز للطباعة / الحفظ PDF', 'Ready to print / save as PDF') : L('أنشأتُ الملف ونزّلته', 'The file was created and downloaded')}</b></div>
+                      <div className="sr-filecard__row"><span className="sr-file__ico" aria-hidden="true">{m.format.toUpperCase()}</span><bdi>{m.fileName || reportFileName(res.model, m.format)}</bdi>
+                        <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => doExport(m.format, res.model)}>{L('تنزيل مرة أخرى', 'Download again')}</button></div>
+                      <div className="muted" style={{ fontSize: 12 }}>{m.format === 'pdf' ? L('فُتح مربع الطباعة: اختر «حفظ بصيغة PDF». ', 'The print dialog opened: choose “Save as PDF”. ') : ''}{L('يحتوي الملف النتيجة المعروضة الآن كما هي (بما فيها نوع الرسم والأجزاء المعروضة).', 'The file holds the result exactly as it is shown now (including the chart type and the parts shown).')}</div>
+                    </>}
+                    {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إنشاء الملف.', 'The file could not be created.')} {res && <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => { patchMsg(conv.id, m.id, { status: 'working' }); runExport(conv.id, m.id, m.format, res.model); }}>{L('إعادة المحاولة', 'Retry')}</button>}</div>}
+                    {!res && m.status !== 'working' && m.status !== 'error' && <div className="muted">{L('النتيجة التي بُني منها هذا الملف لم تعد محملة؛ اطلب التقرير من جديد.', 'The result this file was built from is no longer loaded; ask for the report again.')}</div>}
+                  </div>
+                )}
+                {m.kind === 'attachments' && (
+                  <div className="sr-bubble sr-bubble--ai">
+                    {m.regroup ? <b>{L('أعدتُ تجميع النتيجة:', 'Regrouped the result:')}</b> : <b>{L('حلّلتُ المرفقات مع بيانات النظام:', 'Analysed the attachments together with the system data:')}</b>}
+                    {shown?.summaryText && <div style={{ lineHeight: 1.9 }}>{shown.summaryText}</div>}
+                    {isBusy && <div className="sr-progress" role="status"><span className="sr-spin" aria-hidden="true" /> {stepText(busy.step)}… <button type="button" className="btn btn-sm btn-ghost" onClick={stop}>{L('إيقاف', 'Stop')}</button></div>}
+                    {m.status === 'stopped' && <div className="sr-warn">{L('أُوقف التحليل. أرفق الملفات من جديد للمحاولة.', 'The analysis was stopped. Attach the files again to retry.')}</div>}
+                    {(m.status === 'error' || (m.status === 'working' && !isBusy && !model)) && <div className="sr-warn" role="alert">{L('تعذّر تحليل المرفقات أو انقطع قبل اكتماله. أرفق الملفات من جديد.', 'The attachments could not be analysed, or the analysis was interrupted. Attach the files again.')}</div>}
+                  </div>
+                )}
+                {(m.kind === 'report' || m.kind === 'question') && m.kind !== 'attachments' && (
                   <div className="sr-bubble sr-bubble--ai">
                     {m.kind === 'question' ? L('الإجابة:', 'Answer:') : (m.changes?.length > 0 ? L('فهمتُ الطلب:', 'Understood:') : L('التقرير بالنطاق الحالي.', 'Report for the current scope.'))}
                     {m.changes?.length > 0 && <div className="sr-changes">{m.changes.map((c, i) => <span key={i} className="sr-chip sr-chip--changed">{c}</span>)}</div>}
@@ -356,16 +559,16 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إعداد التقرير. تحقق من اتصال خدمة البيانات ثم أعد المحاولة.', 'The report could not be prepared. Check the data service and try again.')} <button type="button" className="btn btn-sm" onClick={() => retry(m)}>{L('إعادة المحاولة', 'Retry')}</button></div>}
                   </div>
                 )}
-                {model && (
+                {showCard && (
                   <div className="sr-card card">
                     <div className="sr-card__bar">
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${model.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
-                      {isLast && <div className="sr-card__actions">
-                        {[['docx', 'Word'], ['xlsx', 'Excel'], ['pptx', 'PowerPoint']].map(([k, n]) => <button key={k} type="button" className="btn btn-sm" disabled={model.empty} aria-disabled={!!exporting || undefined} onClick={() => doExport(k, model)}>{exporting === k ? L('جارٍ التصدير…', 'Exporting…') : `${L('تصدير', 'Export')} ${n}`}</button>)}
-                        <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>
-                      </div>}
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${shown.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
+                      {isLast && <>
+                        {exportButtons(shown)}
+                        {!isFileResult && m.spec && m.kind !== 'view' && <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>}
+                      </>}
                     </div>
-                    {!(collapsed[m.id] ?? !isLast) && (model.empty ? <div className="rv-empty">{L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو التصفية.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={model} />)}
+                    {!(collapsed[m.id] ?? !isLast) && (shown.empty ? <div className="rv-empty">{isFileResult ? L('لم يمكن قراءة أي ملف من المرفقات؛ راجع الملاحظات أعلاه.', 'None of the attached files could be read; see the notes above.') : L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو التصفية.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={shown} />)}
                   </div>
                 )}
                 {m.status === 'done' && m.spec && !model && !isBusy && <button type="button" className="btn btn-sm" onClick={() => run(conv.id, m.id, m.spec)} disabled={!!busy}>{L('عرض هذا التقرير', 'Show this report')}</button>}
@@ -377,13 +580,20 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       </div>
 
       <div className="sr-dock">
-        {!empty && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{FOLLOW_UPS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
+        {!empty && followUps.length > 0 && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{followUps.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
+        {files.length > 0 && <div className="sr-files" role="list" aria-label={L('المرفقات', 'Attachments')}>{files.map((f) => <FileChip key={f.id} f={f} ar={ar} L={L} open={previewId === f.id} onToggle={() => setPreviewId((p) => (p === f.id ? null : f.id))} onRemove={() => removeFile(f.id)} />)}</div>}
+        {previewId && files.find((f) => f.id === previewId && !f.reading) && <FilePreview f={files.find((f) => f.id === previewId)} ar={ar} L={L} />}
+        {fileNote && <div className="sr-warn" role="status">{fileNote}</div>}
         <div className="sr-composer">
-          <textarea ref={taRef} id="sr-input" rows={1} className="sr-composer__input" value={input} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} aria-label={L('طلب تقرير أو سؤال', 'Report request or question')} placeholder={L('اطلب تقريرًا أو اسأل عن الإيرادات والتحصيل…', 'Ask for a report or about revenue and collection…')} />
+          <input ref={fileRef} id="sr-file" type="file" multiple accept={ACCEPT} hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+          <button type="button" className="sr-composer__attach" onClick={() => fileRef.current?.click()} disabled={!!busy || files.length >= MAX_FILES} aria-label={L('إرفاق ملفات', 'Attach files')} title={L('إرفاق PDF أو Word أو Excel أو CSV أو PowerPoint أو صور', 'Attach PDF, Word, Excel, CSV, PowerPoint or images')}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+          </button>
+          <textarea ref={taRef} id="sr-input" rows={1} className="sr-composer__input" value={input} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} aria-label={L('طلب تقرير أو سؤال', 'Report request or question')} placeholder={files.length ? L('ماذا تريد من الملفات؟ أو أرسل للتحليل', 'What do you want from the files? Or just send') : L('اطلب تقريرًا أو اسأل، أو أرفق ملفات…', 'Ask for a report or a question, or attach files…')} />
           {busy ? <button type="button" className="sr-composer__btn sr-composer__btn--stop" onClick={stop} aria-label={L('إيقاف الإعداد', 'Stop generation')}>■</button>
-            : <button type="button" className="sr-composer__btn" onClick={() => send(input)} disabled={!input.trim()} aria-label={L('إرسال', 'Send')}>{ar ? '↰' : '➤'}</button>}
+            : <button type="button" className="sr-composer__btn" onClick={() => send(input)} disabled={!canSend} aria-label={L('إرسال', 'Send')}>{ar ? '↰' : '➤'}</button>}
         </div>
-        <div className="muted sr-hint">{L('Enter للإرسال · Shift+Enter لسطر جديد', 'Enter to send · Shift+Enter for a new line')}</div>
+        <div className="muted sr-hint">{L('Enter للإرسال · Shift+Enter لسطر جديد · اسحب الملفات إلى هنا لإرفاقها', 'Enter to send · Shift+Enter for a new line · drag files here to attach them')}</div>
       </div>
     </div>
   );

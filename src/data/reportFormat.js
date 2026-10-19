@@ -11,6 +11,7 @@ export function fmtCell(v, kind, unit, lang) {
   if (v == null || v === '') return '—';
   if (kind === 'money') return typeof v === 'number' ? scaled(v, unit) : String(v);
   if (kind === 'count') return fmtInt(v);
+  if (kind === 'plain') return typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString('en-US') : v.toLocaleString('en-US', { maximumFractionDigits: 2 })) : String(v); // a number from an attached file: its own unit, never scaled as money
   if (kind === 'pct') return typeof v === 'number' ? `${(v * 100).toFixed(1)}%` : String(v);
   return String(v);
 }
@@ -21,7 +22,9 @@ export function tableToText(table, lang = 'ar') {
   const fmtRow = (r) => r.map((v, j) => fmtCell(v, table.headers[j].kind, unit, lang));
   return { headers, rows: table.rows.map(fmtRow), total: table.total ? fmtRow(table.total) : null, unit: hasMoney ? unit : null, unitText: hasMoney ? unitLabel(unit, lang) : null };
 }
+const plainNum = (v) => (Number.isInteger(v) ? v.toLocaleString('en-US') : Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 }));
 export function chartInfo(block, lang = 'ar') {
+  if (block.plain) return { cu: { unit: { key: 'plain', div: 1 }, title: block.valueTitle || (lang === 'ar' ? 'القيمة' : 'Value'), tick: plainNum, fmt: plainNum }, unitText: '', plain: true }; // values from an attached file: shown as they are, never scaled or labelled as SAR
   const cu = chartUnit(block.series.flatMap((s) => s.values).filter((v) => v != null), lang);
   return { cu, unitText: unitLabel(cu.unit, lang) };
 }
