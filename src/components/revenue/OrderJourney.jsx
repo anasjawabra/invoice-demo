@@ -4,7 +4,7 @@ import { RecordLink } from '../../utils/returnContext';
 import { invoicePath } from '../../utils/paths';
 import { PayStatusChip, Chip, CONFLICT_LABEL, KIND_LABEL, SOURCE_LABEL, RESOLVE_HINT } from './EnforcementUI';
 import { ORIGIN_LABEL, isHardConflict } from '../../data/orderMatching';
-import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED } from '../../data/orderSummary';
+import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED, matchCriteria, PARTIAL_MATCH } from '../../data/orderSummary';
 import { samplesForOrder, SIM_LABEL } from '../../data/ocrSimulation';
 import { FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
 import { locLabel } from '../../data/docxText';
@@ -13,12 +13,16 @@ import { useOrderWork } from './useOrderWork';
 
 // The order's journey in three plain steps — 1 add the document · 2 analyse it · 3 review and confirm the links — with ONE primary action and ONE consolidated review table.
 // References from the structured field, the description, the notes and every document are combined automatically; nothing asks for a separate confirmation per source.
-export default function OrderJourney({ c, rev, rows, loading, error, onRetry, comp, inputFor, others, onMessage, setTick, setFocus }) {
+export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onRetry, comp, inputFor, others, onMessage, setTick, setFocus }) {
   const { L, B, ar, sar } = useL();
   const work = useOrderWork({ order: c, rev, onMessage, L, B });
   const fileRef = useRef(null);
   const [ran, setRan] = useState(false); const [manual, setManual] = useState(''); const [ov, setOv] = useState({}); const [done, setDone] = useState(null); const [fix, setFix] = useState({}); const [why, setWhy] = useState({});
   const docs = c.docs || []; const canReview = rev.canReview;
+  // D22 — three criteria must agree (invoice number · Amanah · amount). The order's amount is compared with the invoices matched by reference: the one invoice, or their total.
+  const orderTotal = useMemo(() => { const ids = new Map(); for (const r of rowsIn) { const st = rowState(r); if (st.candidate && st.kind !== 'duplicate' && st.kind !== 'needs_evidence' && st.kind !== 'ambiguous') ids.set(st.candidate.invoiceId, st.candidate.grossAmount || 0); } return [...ids.values()].reduce((t, x) => t + x, 0); }, [rowsIn]);
+  const rows = useMemo(() => rowsIn.map((r) => { const cr = matchCriteria(c, r, orderTotal); return { ...r, criteria: cr, partialMatch: !!cr && !cr.full && rowState(r).kind === 'ready' }; }), [rowsIn, c, orderTotal]);
+  const [autoRun, setAutoRun] = useState(false);
   const pending = docs.filter((d) => !d.extraction && d.kind !== 'manual');
   const ownSamples = samplesForOrder(work.samples, c.enforceNum);
   const visible = useMemo(() => rows.filter((r) => rowState(r).kind !== 'duplicate'), [rows]); // a reference that is the same invoice as another row is merged into that row (its evidence is kept)
@@ -36,6 +40,14 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
     onMessage(null); const out = await work.analyze();
     if (out) { setRan(true); setTick((x) => x + 1); if (out.missing) onMessage({ ok: false, text: L(`${out.missing} document(s) have no original file in this browser and could not be analysed: restore the file first.`, `${out.missing} مستند بلا ملف أصلي في هذا المتصفح فلم يُحلَّل: استعد الملف أولاً.`) }); }
   };
+  // the target flow (D21): the system retrieves the order's document from Sanad itself, reads it (OCR) and matches — a SIMULATION in the demo, labelled as such
+  const retrieveFromSanad = async () => {
+    onMessage(null);
+    if (!ownSamples.length) { onMessage({ ok: false, text: L('No document for this order exists in the simulated Sanad data. The references in the order itself can still be analysed below.', 'لا يوجد مستند لهذا الأمر في بيانات سند المحاكاة. ويمكن تحليل المراجع الواردة في الأمر نفسه أدناه.') }); await run(); return; }
+    for (const smp of ownSamples) if (!docs.some((d) => d.sampleId === smp.id)) await work.addSample(smp);
+    setTick((x) => x + 1); setAutoRun(true);
+  };
+  React.useEffect(() => { if (autoRun && !work.busy && pending.length > 0) { setAutoRun(false); run(); } }, [autoRun, work.busy, pending.length]); // eslint-disable-line react-hooks/exhaustive-deps
   const confirmSelected = () => {
     const ok = []; let fails = 0;
     for (const { row, candidate } of selected) { const r = rev.enforcement.confirm(c.enforceNum, candidate.invoiceId, { note: why[candidate.invoiceId] || '', input: inputFor(row, candidate) }); if (r.ok) ok.push(candidate); else fails += 1; }
@@ -49,7 +61,7 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
   const resultChip = (st, row) => {
     const n = row.candidates.length;
     if (st.kind === 'confirmed') return <Chip def={{ en: 'Linked', ar: 'مربوط', cls: 'rv-cat--enforcement' }} />;
-    if (st.kind === 'ready') return <Chip def={{ en: 'Exact match', ar: 'مطابقة تامة', cls: 'rv-cat--collected' }} />;
+    if (st.kind === 'ready') return row.partialMatch ? <Chip def={{ en: PARTIAL_MATCH.en, ar: PARTIAL_MATCH.ar, cls: 'rv-cat--partial' }} /> : <Chip def={{ en: 'Full match', ar: 'مطابقة تامة', cls: 'rv-cat--collected' }} />;
     if (st.kind === 'weak') return <Chip def={{ en: 'Match on an incomplete number', ar: 'مطابقة برقم ناقص', cls: 'rv-cat--partial' }} />;
     if (st.kind === 'rejected') return <Chip def={{ en: 'Rejected before', ar: 'رُفض سابقاً', cls: 'rv-cat--excluded' }} />;
     if (st.kind === 'corrupted') return <Chip def={{ en: 'Corrupted number — cannot be matched', ar: 'رقم مشوّه — لا يمكن مطابقته', cls: 'rv-cat--overdue' }} />;
@@ -68,12 +80,20 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
 
       {/* 1 · add */}
       <div className="oj-panel" style={{ marginBlockStart: 14 }}>
-        <h3>{L('1 · Add the document', '1 · إضافة المستند')}</h3>
-        <div className="oj-row">
-          <label style={{ display: 'grid', gap: 3, fontSize: 13 }}>{L('Upload a file (PDF or Word .docx)', 'رفع ملف (PDF أو Word .docx)')}
-            <input ref={fileRef} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff,application/pdf" disabled={!canReview || work.busy} onChange={async (e) => { const f = e.target.files?.[0]; await work.addFile(f); if (fileRef.current) fileRef.current.value = ''; setTick((x) => x + 1); }} />
-          </label>
+        <h3>{L('1 · Get the document', '1 · الحصول على المستند')}</h3>
+        <div className="oj-row" style={{ alignItems: 'center' }}>
+          <button type="button" className="btn btn-primary oj-primary" disabled={!canReview || work.busy} onClick={retrieveFromSanad}>{L('Retrieve the document from Sanad automatically', 'استرجاع المستند من سند تلقائيًا')}</button>
+          <span className="rv-tag rv-tag--warn">{L('Simulation — pending the link to the Sanad database', 'محاكاة – بانتظار الربط مع قاعدة بيانات سند')}</span>
         </div>
+        <div className="muted" style={{ fontSize: 13 }}>{L('The system fetches the order’s document from the Sanad database itself, reads it (OCR) and matches the invoices: invoice number + Amanah + amount. Nothing is uploaded by hand.', 'تجلب المنظومة مستند الأمر من قاعدة بيانات سند بنفسها، وتقرؤه (OCR)، ثم تطابق الفواتير: رقم الفاتورة + الأمانة + المبلغ. ولا يُرفع شيء يدويًا.')}</div>
+        <details>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{L('Other ways to add a document (not the target flow)', 'طرق أخرى لإضافة مستند (ليست المسار المستهدف)')}</summary>
+          <div className="oj-row" style={{ marginBlockStart: 6 }}>
+            <label style={{ display: 'grid', gap: 3, fontSize: 13 }}>{L('Upload a file (PDF or Word .docx)', 'رفع ملف (PDF أو Word .docx)')}
+              <input ref={fileRef} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff,application/pdf" disabled={!canReview || work.busy} onChange={async (e) => { const f = e.target.files?.[0]; await work.addFile(f); if (fileRef.current) fileRef.current.value = ''; setTick((x) => x + 1); }} />
+            </label>
+          </div>
+        </details>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBlockEnd: 4 }}>{L('Or choose a prepared demo sample for this order', 'أو اختر عينة معدّة لهذا الأمر')} <span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span></div>
           {ownSamples.length ? (
@@ -179,6 +199,11 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
                     </td>
                     <td className="num" dir="ltr">{cand ? sar(cand.grossAmount) : '—'}</td>
                     <td>{resultChip(st, row)}
+                      {row.criteria && cand && (
+                        <ul className="oj-crit" aria-label={L('Matching criteria', 'معايير المطابقة')}>
+                          {[[L('Invoice number', 'رقم الفاتورة'), row.criteria.invoiceNo], [L('Amanah', 'الأمانة'), row.criteria.amanah], [L('Amount', 'المبلغ'), row.criteria.amount]].map(([lbl, ok]) => <li key={lbl} className={ok === true ? 'rp-ok' : ok === false ? 'rp-bad' : 'muted'}><span aria-hidden="true">{ok === true ? '✓' : ok === false ? '✗' : '—'}</span> {lbl}</li>)}
+                        </ul>
+                      )}
                       {st.kind === 'ambiguous' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{B(RESOLVE_HINT.ambiguous_reference)}
                         {canReview && <div className="oj-row" style={{ marginBlockStart: 4 }}><input className="input" dir="ltr" style={{ width: 200 }} aria-label={L('Full invoice number', 'رقم الفاتورة الكامل')} placeholder="177-2200000054" value={fix[row.key] || ''} onChange={(e) => setFix((m) => ({ ...m, [row.key]: e.target.value }))} />
                           <button type="button" className="btn btn-sm" disabled={!(fix[row.key] || '').trim()} onClick={() => { if (work.addManual(fix[row.key])) { setFix((m) => ({ ...m, [row.key]: '' })); setTick((x) => x + 1); } }}>{L('Add as evidence', 'إضافة كدليل')}</button></div>}

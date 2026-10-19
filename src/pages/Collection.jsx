@@ -119,7 +119,7 @@ export default function Collection() {
               {rows.length ? rows.map((w, i) => (
                 <tr key={w.id} data-clickable="true" onClick={() => setDetail(detail === w.id ? null : w.id)}>
                   <td className="num">{i + 1}</td>
-                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link></td>
+                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link><div className="muted" style={{ fontSize: 11 }} dir="auto">{L('Biller', 'المفوتر')} {w.billerId} · {ar ? w.billerAr : w.billerEn}</div></td>
                   <td>{ar ? w.amanahAr : w.amanahEn} · {ar ? PRODUCTS[w.productKey].ar : PRODUCTS[w.productKey].en}{w.invoiceKindAr ? ` — ${w.invoiceKindAr}` : ''} <span className="muted" style={{ fontSize: 11 }}>({ar ? REVENUE_SOURCES[w.source].ar : REVENUE_SOURCES[w.source].en})</span></td>
                   <td>{ar ? ORIGIN_AR[w.origin] : ORIGIN_EN[w.origin]}</td>
                   <td><span className={`rv-cat rv-cat--${w.category}`}>{B(CATEGORY_LABELS[w.category])}</span></td>

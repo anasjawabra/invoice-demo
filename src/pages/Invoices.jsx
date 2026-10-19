@@ -185,7 +185,7 @@ export default function Invoices() {
                   onClick={(e) => openDetail(r)}
                   style={idParam === r.id ? { background: 'rgba(21, 112, 239, 0.08)' } : undefined}
                 >
-                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
+                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button><div className="muted" style={{ fontSize: 11, fontWeight: 400 }} dir="auto">{bi.L('Biller', 'المفوتر')} {r.billerId} · {bi.ar ? r.billerAr : r.billerEn}</div>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
                   <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
                   <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
                   <td>{bi.ar ? r.productAr : r.productEn}{r.invoiceKindAr && <div className="muted" style={{ fontSize: 11 }}>{r.invoiceKindAr}</div>}</td>

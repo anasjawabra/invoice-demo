@@ -69,7 +69,7 @@ add('p4-decl', 'ما هي عاصمة اليابان؟', { kind: 'unsupported' })
 add('p4-decl', 'translate this report to French', { kind: ['clarify', 'unsupported'] });
 add('p4-decl', 'ارسل التقرير بالبريد', { kind: ['unsupported', 'clarify'] });
 add('p4-decl', 'change the invoice amount', { kind: ['unsupported', 'clarify'] });
-add('p4-decl', 'ألغ الفاتورة INV-2026-0000100', { kind: ['unsupported', 'clarify'] });
+add('p4-decl', 'ألغ الفاتورة 177-882600000100', { kind: ['unsupported', 'clarify'] });
 add('p4-decl', 'ماذا ستكون الإيرادات العام القادم؟', { kind: ['clarify', 'unsupported'] });
 add('p4-decl', 'اعطني رأيك في الميزانية', { kind: ['clarify', 'unsupported', 'report', 'question'] });
 add('p4-decl', 'hello', { kind: ['unsupported', 'clarify'] });

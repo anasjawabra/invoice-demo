@@ -17,8 +17,20 @@ export function rowState(row) {
   if ((row.unresolved[cand.invoiceId] || []).some(isHardConflict)) return { kind: 'needs_evidence', selectable: false, preselect: false, candidate: cand };
   if (row.rejected) return { kind: 'rejected', selectable: true, preselect: false, candidate: cand };
   if (row.weak) return { kind: 'weak', selectable: true, preselect: false, candidate: cand };
-  return { kind: 'ready', selectable: true, preselect: true, candidate: cand };
+  return { kind: 'ready', selectable: true, preselect: !row.partialMatch, candidate: cand }; // D22: a PARTIAL match (invoice number agrees but the Amanah or the amount does not) is never preselected — the user confirms it
 }
+
+// D22 — an invoice matches an execution order only when THREE things agree: the invoice number (found by reference), the Amanah and the amount.
+// `ok` for a criterion is true / false; `amount` is null when the order states no amount. A row is a FULL match only when all three are true.
+export const AMOUNT_TOLERANCE_SAR = 1;
+export function matchCriteria(order, row, orderTotal) {
+  const st = rowState(row); const cand = st.candidate; if (!cand) return null;
+  const invoiceNo = !row.weak && st.kind !== 'ambiguous' && st.kind !== 'needs_evidence';
+  const amanah = !!(order.amanahEn && cand.amanahEn) && order.amanahEn === cand.amanahEn;
+  const amount = order.amount > 0 ? Math.abs((orderTotal ?? cand.grossAmount) - order.amount) <= AMOUNT_TOLERANCE_SAR : null;
+  return { invoiceNo, amanah, amount, full: invoiceNo && amanah && amount === true };
+}
+export const PARTIAL_MATCH = { ar: 'مطابقة جزئية – تحتاج تأكيد المستخدم', en: 'Partial match — needs the user’s confirmation' };
 
 // the invoices to link: one entry per distinct invoice (several references to the same invoice are one link)
 export function selectionFor(rows, overrides = {}) {
@@ -67,7 +79,7 @@ export function reviewStatusOf(comp, order, exceptions = []) {
   return r.state === 'incomplete' || exceptions.some((x) => REVIEW_REASONS.includes(x)) ? 'needs_review' : 'complete';
 }
 export const REVIEW_LABEL = {
-  not_identified: { ar: 'أرقام الفواتير غير محددة', en: 'Invoice numbers not identified', tone: 'warn' },
+  not_identified: { ar: 'تحتاج مراجعة — لا فاتورة مرتبطة', en: 'Needs review — no linked invoice', tone: 'warn' }, // D20: an order with no linked invoice is shown as «تحتاج مراجعة»
   contract_level: { ar: 'على مستوى العقد', en: 'Contract level', tone: 'warn' },
   needs_review: { ar: 'تحتاج مراجعة', en: 'Needs review', tone: 'warn' },
   complete: { ar: 'مكتملة', en: 'Complete', tone: 'ok' }
