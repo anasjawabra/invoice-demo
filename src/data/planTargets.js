@@ -1,7 +1,7 @@
 // المستهدفات (IIM-14) — the targets a person enters for the fiscal year, per الأمانة / الجهة:
 //   مستهدف نسبة التغطية (coverage target)   — collected ÷ الميزانية المبلغة للأبواب الثلاثة الأولى;  coverage target × budget = the REVENUE target
 //   مستهدف نسبة التحصيل (collection-rate)   — collected ÷ net billed
-//   مستهدف الفوترة (billing target)          — the net billed amount planned for the year
+//   مستهدف الفوترة (billing target)          — DERIVED, never typed: revenue target ÷ collection-rate target (so the three can never contradict each other)
 // and the split of the annual revenue target by month (weights summing to 1). Saved on this device with «آخر تعديل»; editable at any time (an approved change, for example).
 // Defaults reproduce the revenue appropriation, so nothing changes until a person edits a target. Pure functions, no I/O (the store is a plain object).
 export const TARGETS_KEY = 'ib_plan_targets_v1';
@@ -24,7 +24,7 @@ export function targetsOf(store, year, key, a) {
   const coverage = saved?.coverage != null ? saved.coverage : budget > 0 ? rev / budget : null;
   const collectionRate = saved?.collectionRate != null ? saved.collectionRate : DEFAULT_COLLECTION_RATE;
   const revenueTarget = coverage != null && budget > 0 ? coverage * budget : 0; // coverage × budget = the revenue target
-  const billing = saved?.billing != null ? saved.billing : (revenueTarget > 0 && collectionRate > 0 ? revenueTarget / collectionRate : 0);
+  const billing = revenueTarget > 0 && collectionRate > 0 ? revenueTarget / collectionRate : 0; // derived: target ÷ collection rate (an older saved `billing` value is ignored)
   const weights = normalizeWeights(saved?.weights);
   const cum = cumulative(weights.map((w) => revenueTarget * w));
   return { key, year, budget, coverage, collectionRate, billing, weights, revenueTarget, monthly: weights.map((w) => revenueTarget * w), cumulative: cum, source: saved ? 'saved' : 'default', savedAt: saved?.savedAt || null, savedBy: saved?.savedBy || null };
@@ -46,6 +46,13 @@ export function totalTargets(rows) {
 export function applyOverallCoverage(store, year, c, rows, opts) {
   const totalBudget = rows.reduce((t, r) => t + r.budget, 0); const totalRev = rows.reduce((t, r) => t + r.revenueTarget, 0); const goal = c * totalBudget;
   let next = store;
-  for (const r of rows) { if (!(r.revenueTarget > 0) || !(r.budget > 0) || !(totalRev > 0)) continue; const share = r.revenueTarget / totalRev; next = setTargets(next, year, r.key, { coverage: (goal * share) / r.budget, billing: null }, opts); }
+  for (const r of rows) { if (!(r.revenueTarget > 0) || !(r.budget > 0) || !(totalRev > 0)) continue; const share = r.revenueTarget / totalRev; next = setTargets(next, year, r.key, { coverage: (goal * share) / r.budget }, opts); }
   return next;
+}
+
+/** the only checks a typed target needs: coverage is a non-negative number; the collection rate is above 0 and at most 100 % (a share of billing cannot be collected twice) → an error code or null */
+export function targetError(patch) {
+  if (patch.coverage != null && !(Number.isFinite(patch.coverage) && patch.coverage >= 0)) return 'coverage';
+  if (patch.collectionRate != null && !(Number.isFinite(patch.collectionRate) && patch.collectionRate > 0 && patch.collectionRate <= 1)) return 'collection_rate';
+  return null;
 }

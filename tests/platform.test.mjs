@@ -1624,7 +1624,7 @@ await test('D27 · licence fees are prepaid: 100 % collected, nothing uncollecte
   assert.ok(sn.totals.collectedOverNet.value >= 0.999 && sn.totals.collectedOverNet.value <= 1, 'collection rate 100 % (never above)');
 });
 
-import { targetsOf, setTargets, emptyTargetStore, applyOverallCoverage, totalTargets, normalizeWeights } from '../src/data/planTargets.js';
+import { targetsOf, setTargets, emptyTargetStore, applyOverallCoverage, totalTargets, normalizeWeights, targetError } from '../src/data/planTargets.js';
 import { forecastYear, focusRanking, normalCdf } from '../src/data/planForecast.js';
 await test('IIM-14 · targets: coverage × budget = the revenue target (66 % × 30 bn = 19.8 bn), split by month; defaults reproduce the appropriation; saved values carry «آخر تعديل»', () => {
   const a = { revAdjusted: 12e9, expAdjusted: 30e9 };
@@ -1637,6 +1637,17 @@ await test('IIM-14 · targets: coverage × budget = the revenue target (66 % × 
   const rows = [targetsOf(emptyTargetStore(), 2026, 'A', { revAdjusted: 6e9, expAdjusted: 10e9 }), targetsOf(emptyTargetStore(), 2026, 'B', { revAdjusted: 4e9, expAdjusted: 20e9 }), targetsOf(emptyTargetStore(), 2026, 'HQ', { revAdjusted: 0, expAdjusted: 0 })];
   const applied = applyOverallCoverage(emptyTargetStore(), 2026, 0.66, rows); const after = ['A', 'B', 'HQ'].map((k, j) => targetsOf(applied, 2026, k, [{ revAdjusted: 6e9, expAdjusted: 10e9 }, { revAdjusted: 4e9, expAdjusted: 20e9 }, { revAdjusted: 0, expAdjusted: 0 }][j]));
   const tot = totalTargets(after); assert.ok(Math.abs(tot.revenueTarget - 0.66 * 30e9) < 1, 'the overall target is the coverage × the total budget'); assert.ok(Math.abs(tot.coverage - 0.66) < 1e-9);
+});
+await test('planning targets · billing is DERIVED (target ÷ collection rate), so coverage, collection rate and billing can never contradict each other; invalid typed targets are refused; the colour scale has no tier above 100 %', async () => {
+  const a = { revAdjusted: 12e9, expAdjusted: 30e9 };
+  const st = setTargets(emptyTargetStore(), 2026, 'X', { coverage: 0.5, collectionRate: 0.8, billing: 99e9 }); const t = targetsOf(st, 2026, 'X', a);
+  assert.ok(Math.abs(t.revenueTarget - 15e9) < 1); assert.ok(Math.abs(t.billing - 15e9 / 0.8) < 1, 'a stale saved billing value is ignored: billing = target ÷ collection rate');
+  assert.ok(Math.abs(t.revenueTarget - t.collectionRate * t.billing) < 1, 'target = collection rate × billing, always');
+  const t2 = targetsOf(setTargets(st, 2026, 'X', { coverage: 0.6 }), 2026, 'X', a); assert.ok(Math.abs(t2.billing - 18e9 / 0.8) < 1 && t2.collectionRate === 0.8, 'changing the coverage re-derives the billing and keeps the collection rate');
+  assert.equal(targetError({ collectionRate: 1.2 }), 'collection_rate'); assert.equal(targetError({ collectionRate: 0 }), 'collection_rate'); assert.equal(targetError({ coverage: -0.1 }), 'coverage'); assert.equal(targetError({ coverage: NaN }), 'coverage');
+  assert.equal(targetError({ coverage: 0.66, collectionRate: 0.6 }), null);
+  const { PCT_COLORS, PCT_CUTS, pctColor } = await import('../src/components/strategic/EntityMap.jsx');
+  assert.equal(PCT_COLORS.length, 4); assert.equal(pctColor('share', 1.5), pctColor('share', 0.85), 'above 100 % is the same top tier as 80 % and above');
 });
 await test('IIM-15 · forecast: a low target gives a high probability and «reasons to reach it»; an unrealistic one gives a low probability and «billing is insufficient»; the closed months are the actuals', () => {
   const months = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100]; const base = { monthlyCollected: months, reportingMonth: 10, yearEnded: false, dayFraction: 1, billedMonthly: months.map(() => 110), standingUncollected: 300 };

@@ -809,6 +809,22 @@
 .tg-table td, .tg-table th { vertical-align: middle; } .tg-table tr.is-on { background: color-mix(in srgb, var(--primary) 8%, transparent); }
 .tg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-block: 6px; }
 .tg-cell { display: grid; gap: 3px; font-size: 12px; }
+/* the targets section: first on the planning page */
+.cg-defs { font-size: 12.5px; line-height: 1.7; }
+.tg-top { border-inline-start: 4px solid var(--primary); }
+.tg-title { margin: 0; font-size: 18px; color: var(--heading); }
+.tg-title__sub { font-size: 13px; font-weight: 500; }
+.tg-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.tg-stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; display: grid; gap: 2px; background: color-mix(in srgb, var(--primary) 5%, var(--surface)); min-width: 0; }
+.tg-stat__l { font-size: 12.5px; color: var(--txt-dim); }
+.tg-stat__v { font-size: 22px; font-weight: 700; color: var(--heading); text-align: start; font-variant-numeric: tabular-nums; }
+.tg-stat__s { font-size: 12px; color: var(--txt-mute); }
+.tg-table .num { text-align: end; font-variant-numeric: tabular-nums; }
+.tg-row--total td { font-weight: 700; border-top: 2px solid var(--line-strong); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); }
+.tg-row--muted td { color: var(--txt-mute); font-size: 13px; }
+.tg-months > summary { cursor: pointer; padding-block: 4px; }
+.tg-months[open] > summary { margin-bottom: 8px; }
+.cg-recon { max-width: 560px; } .cg-recon .num { text-align: end; font-variant-numeric: tabular-nums; }
 .pf-panel { display: grid; gap: 12px; }
 .pf-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; align-items: center; }
 .pf-tiles { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }

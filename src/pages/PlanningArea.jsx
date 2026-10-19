@@ -69,6 +69,7 @@ export default function PlanningArea() {
   const dateText = (iso) => fmtDateText(iso, lang);
   const entityName = amanah === 'all' ? L('الوزارة (كل الجهات)', 'The Ministry (all entities)') : nameOf(amanah);
   const ok = g && g.state === 'ok'; const noTarget = g && g.state === 'no_target';
+  const noBudget = year !== APPROPRIATION_YEAR; // budgets are loaded for one fiscal year only
   const budget = A?.expAdjusted || 0;
   const coverage = ok && budget > 0 ? g.collected / budget : null;
 
@@ -76,11 +77,12 @@ export default function PlanningArea() {
   const rows = useMemo(() => {
     if (!DATA.data) return [];
     const recv = DATA.data.byAmanah;
-    const list = visibleKeys.map((k) => { const a = appropriationOf(k, year); return { key: k, a, collected: recv[k] || 0 }; })
-      .sort((x, y) => (y.a?.revAdjusted || 0) - (x.a?.revAdjusted || 0) || (y.a?.expAdjusted || 0) - (x.a?.expAdjusted || 0));
-    if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, collected: recv[UNASSIGNED] || 0 });
+    const tgt = new Map(entityRows.map((r) => [r.key, r.revenueTarget])); // the SAME target as the targets table (edited targets included)
+    const list = visibleKeys.map((k) => { const a = appropriationOf(k, year); return { key: k, a, target: tgt.get(k) || 0, collected: recv[k] || 0 }; })
+      .sort((x, y) => y.target - x.target || (y.a?.expAdjusted || 0) - (x.a?.expAdjusted || 0));
+    if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, target: 0, collected: recv[UNASSIGNED] || 0 });
     return list;
-  }, [DATA.data, visibleKeys, year, rev.org]);
+  }, [DATA.data, visibleKeys, year, rev.org, entityRows]);
 
   const basis = (ok || noTarget) ? (
     <div className="muted cg-basis">
@@ -99,6 +101,7 @@ export default function PlanningArea() {
         </div>
       </header>
 
+      <div className="muted cg-defs" role="note">{L('نسبة التغطية = المحصّل ÷ الميزانية المبلغة · نسبة تحقق المستهدف = المحصّل ÷ المستهدف · نسبة التحصيل = المحصّل ÷ صافي المفوتر.', 'Coverage ratio = collected ÷ communicated budget · target achievement = collected ÷ target · collection rate = collected ÷ net billed.')}</div>
       <div className="card card-pad cg-controls">
         <label className="cg-field" htmlFor="cg-year">{L('العام المالي', 'Fiscal year')}
           <select id="cg-year" className="input" value={year} onChange={(e) => setYear(Number(e.target.value))}>{years.map((y) => <option key={y} value={y}>{y}</option>)}</select>
@@ -116,18 +119,31 @@ export default function PlanningArea() {
       </div>
 
       <AsyncBlock state={DATA} onRetry={() => setRetry((n) => n + 1)} height={260}>
-        {noTarget && (
+        {(ok || noTarget) && !noBudget && (
+          <TargetsPanel year={year} entityRows={entityRows} store={tstore} setStore={setTstore} selectedKey={amanah} total={total} canEdit={canEdit} by={by}
+            collectedByKey={DATA.data?.byAmanah || {}} collectedTotal={DATA.data?.total || 0} unassignedCollected={DATA.data?.byAmanah?.[UNASSIGNED] || 0}
+            L={L} ar={ar} short={short} nameOf={nameOf} dateText={dateText} />
+        )}
+        {noBudget && (
+          <div className="rv-callout rv-callout--warn" role="status">
+            <b>{L(`لا ميزانية مبلغة محمّلة للعام ${year}.`, `No communicated budget is loaded for ${year}.`)}</b>
+            <div style={{ fontSize: 13, marginTop: 4 }}>{L(`المستهدفات تعتمد على الميزانية، فلا مستهدفات ولا خريطة لهذا العام. يُعرض المحصّل الفعلي فقط؛ اختر ${APPROPRIATION_YEAR} للتخطيط.`, `Targets depend on the budget, so there are no targets or map for this year. Only the actual collection is shown; choose ${APPROPRIATION_YEAR} to plan.`)}</div>
+          </div>
+        )}
+        {noTarget && !noBudget && (
           <>
             {basis}
             <div className="rv-callout rv-callout--warn" role="status">
               <b>{L('لم يتم تحديد مستهدف تحصيل صالح.', 'No valid collection target has been set.')}</b>
-              <div style={{ fontSize: 13, marginTop: 4 }}>{L(`لا يوجد مستهدف إيراد صالح (${entityName}) في ${year}: حدّد مستهدف نسبة التغطية في لوحة المستهدفات أدناه. ولا يُعدّ التحصيل الصفري أو غير المقابل بمستهدف نجاحًا.`, `There is no valid revenue target (${entityName}) in ${year}: set a coverage target in the targets panel below. Zero collection against no target is never success.`)}</div>
-            </div>
-            <div className="rv-tiles cg-tiles">
-              <MetricTile label={L(`المحصّل حتى ${dateText(g.reportingDate)}`, `Collected to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — بتاريخ الدفع', 'year to date — by payment date')} />
-              <MetricTile label={L('المستهدف السنوي للإيراد', 'Annual revenue target')} value={L('غير محدد', 'Not set')} sub={L('لا مستهدف تغطية صالح', 'no valid coverage target')} />
+              <div style={{ fontSize: 13, marginTop: 4 }}>{L(`لا يوجد مستهدف إيراد صالح (${entityName}) في ${year}: حدّد مستهدف نسبة التغطية في جدول المستهدفات أعلاه. ولا يُعدّ التحصيل الصفري أو غير المقابل بمستهدف نجاحًا.`, `There is no valid revenue target (${entityName}) in ${year}: set a coverage target in the targets table above. Zero collection, or collection with no target, is not a success.`)}</div>
             </div>
           </>
+        )}
+        {noTarget && (
+          <div className="rv-tiles cg-tiles">
+            <MetricTile label={L(`المحصّل حتى ${dateText(g.reportingDate)}`, `Collected to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — بتاريخ الدفع', 'year to date — by payment date')} />
+            {!noBudget && <MetricTile label={L('المستهدف السنوي للإيراد', 'Annual revenue target')} value={L('غير محدد', 'Not set')} sub={L('لا مستهدف تغطية صالح', 'no valid coverage target')} />}
+          </div>
         )}
         {ok && (
           <>
@@ -135,7 +151,7 @@ export default function PlanningArea() {
             <div className="rv-tiles cg-tiles">
               <MetricTile label={L('الميزانية المبلغة للأبواب الثلاثة الأولى', 'Communicated budget, chapters 1–3')} value={short(budget)} sub={L('ثابتة للعام — تبلّغها وزارة المالية', 'fixed for the year — from the Ministry of Finance')} />
               <MetricTile label={L(`المحصّل حتى ${dateText(g.reportingDate)}`, `Collected to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — بتاريخ الدفع', 'year to date — by payment date')} />
-              <MetricTile label={L('نسبة التغطية', 'Coverage ratio')} value={<PctBadge kind="coverage" v={coverage} text={pct(coverage)} />} sub={L(`المحصّل ÷ الميزانية المبلغة — المستهدف ${pct(selected.coverage)}`, `Collected ÷ communicated budget — target ${pct(selected.coverage)}`)} />
+              <MetricTile label={L('نسبة التغطية', 'Coverage ratio')} value={<PctBadge kind="coverage" v={selected.coverage > 0 && coverage != null ? coverage / selected.coverage : null} text={pct(coverage)} />} sub={L(`المحصّل ÷ الميزانية المبلغة — المستهدف ${pct(selected.coverage)} (اللون = نسبة تحقق مستهدف التغطية)`, `Collected ÷ communicated budget — target ${pct(selected.coverage)} (colour = share of the coverage target reached)`)} />
               <MetricTile label={L('المستهدف السنوي للإيراد', 'Annual revenue target')} value={short(g.target)} sub={L(`= مستهدف التغطية ${pct(selected.coverage)} × الميزانية`, `= coverage target ${pct(selected.coverage)} × budget`)} />
               <MetricTile label={L('المتبقي للوصول إلى المستهدف', 'Remaining to the target')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تم تحقيق المستهدف', 'Target reached') : L('المستهدف − المحصّل', 'Target − collected')} />
             </div>
@@ -147,13 +163,8 @@ export default function PlanningArea() {
             targetRate={selected.collectionRate ?? targetRate} L={L} ar={ar} lang={lang} short={short} sourceName={(k) => (ar ? sourceAr(k) : sourceEn(k))} nameOf={nameOf} />
         )}
 
-        {(ok || noTarget) && (
-          <TargetsPanel year={year} entityRows={entityRows} store={tstore} setStore={setTstore} selectedKey={amanah} selectedRow={selectedRow} total={total} canEdit={canEdit} by={by}
-            L={L} ar={ar} short={short} nameOf={nameOf} dateText={dateText} appropriationOf={(k) => appropriationOf(k, year)} />
-        )}
-
-        {(ok || noTarget) && year === APPROPRIATION_YEAR && rows.length > 0 && (
-          <EntityMap rows={rows.filter((r) => r.key !== HQ_KEY)} hqRow={rows.find((r) => r.key === HQ_KEY)} L={L} ar={ar} short={short} nameOf={nameOf} selected={amanah} onSelect={setAmanah} />
+        {(ok || noTarget) && !noBudget && rows.length > 0 && (
+          <EntityMap rows={rows.filter((r) => r.key !== HQ_KEY)} hqRow={rows.find((r) => r.key === HQ_KEY)} totals={{ target: total.revenueTarget, collected: DATA.data?.total || 0 }} L={L} ar={ar} short={short} nameOf={nameOf} selected={amanah} onSelect={setAmanah} />
         )}
       </AsyncBlock>
     </div>
