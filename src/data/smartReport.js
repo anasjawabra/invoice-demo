@@ -69,7 +69,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   if (focus === 'investment') {
     const inv = snapshot.bySource.find((s) => s.key === 'investment');
     discoveries.unshift(inv
-      ? L(`Investment (Furas-origin) invoices: ${inv.count} issued, ${M(inv.net)} net billed, ${M(inv.outstanding)} outstanding. Contract schedules, future installments and Sanad execution are on the Contracts page; execution amounts are not added to the debt.`, `فواتير الاستثمار (مصدرها فرص): ${inv.count} صادرة، صافي مفوتر ${M(inv.net)}، متبقٍ ${M(inv.outstanding)}. جداول العقود والدفعات المستقبلية وتنفيذ سند في صفحة العقود؛ ولا تُضاف مبالغ التنفيذ إلى المديونية.`)
+      ? L(`Investment invoices: ${inv.count} issued, ${M(inv.net)} net billed, ${M(inv.outstanding)} outstanding. Contract schedules, future installments and Sanad execution are on the Investment contracts page; execution amounts are not added to the debt.`, `فواتير الاستثمار: ${inv.count} صادرة، صافي مفوتر ${M(inv.net)}، متبقٍ ${M(inv.outstanding)}. جداول العقود والدفعات المستقبلية وتنفيذ سند في صفحة العقود الاستثمارية؛ ولا تُضاف مبالغ التنفيذ إلى المديونية.`)
       : L('No investment-source invoices in this scope.', 'لا توجد فواتير بمصدر استثماري في هذا النطاق.'));
   }
   if (!discoveries.length) discoveries.push(L('No findings in this scope.', 'لا توجد نتائج في هذا النطاق.'));

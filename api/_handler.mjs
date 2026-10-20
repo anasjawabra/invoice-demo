@@ -1458,13 +1458,13 @@ var PRODUCTS = {
 };
 var PRODUCT_KEYS = Object.keys(PRODUCTS);
 var PRODUCT_OF_SOURCE = { investment: "foras", fines: "mumtathil", municipal_fees: "baladi", licenses: "internal", accommodation: "accommodation", tobacco: "tobacco", white_lands: "whiteLands", housing_sales: "baladi" };
-var productOf = (sourceKey, itemKey) => sourceKey === "investment" && itemKey === "ad_sites" ? "screen" : PRODUCT_OF_SOURCE[sourceKey] || "baladi";
+var productOf = (sourceKey, itemKey, originIdx = 0) => sourceKey === "investment" && itemKey === "ad_sites" ? "screen" : sourceKey === "investment" && originIdx === 1 ? "internal" : PRODUCT_OF_SOURCE[sourceKey] || "baladi";
 var PROD_POS = Object.fromEntries(PRODUCT_KEYS.map((k, i) => [k, i]));
-var PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length);
+var PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length * 2);
 SOURCES.forEach((sr, si) => ITEMS.forEach((it, ii) => {
-  PROD_TABLE[si * ITEMS.length + ii] = PROD_POS[productOf(sr.key, it.key)];
+  for (let o = 0; o < 2; o += 1) PROD_TABLE[(si * ITEMS.length + ii) * 2 + o] = PROD_POS[productOf(sr.key, it.key, o)];
 }));
-var productIdxOf = (srcIdx, itemIdx) => PROD_TABLE[srcIdx * ITEMS.length + itemIdx];
+var productIdxOf = (srcIdx, itemIdx, originIdx = 0) => PROD_TABLE[(srcIdx * ITEMS.length + itemIdx) * 2 + originIdx];
 var DISCLOSURE_PRODUCTS = ["tobacco", "accommodation"];
 var MAIN = { municipal: "\u0631\u0633\u0648\u0645 \u0628\u0644\u062F\u064A\u0629", investment: "\u0627\u0633\u062A\u062B\u0645\u0627\u0631", penalties: "\u062C\u0632\u0627\u0621\u0627\u062A \u0648\u063A\u0631\u0627\u0645\u0627\u062A", misc: "\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0645\u062E\u062A\u0644\u0641\u0629", accommodation: "\u0625\u064A\u0648\u0627\u0621", tobacco: "\u062A\u0628\u063A", other: "\u0623\u062E\u0631\u0649" };
 var UNCLASSIFIED = "\u063A\u064A\u0631 \u0645\u0635\u0646\u0641";
@@ -3553,7 +3553,7 @@ function resolveScope(ctx, scope = {}) {
   out.key = `${out.from}|${out.to}|${am === "all" ? "all" : [].concat(am).join(",")}|${srcF}|${orgKeys ? orgKeys.join(",") : "all"}|${out.scopeType}|${out.muni}|${out.item}|${out.status}|${prodSet ? [...prodSet].sort().join(",") : "all"}|${out.mainClass}|${out.includeOther ? 1 : 0}`;
   return out;
 }
-var inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1 && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx) && (sc.muniEnt < 0 || st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx) && (!sc.prodOk || sc.prodOk[productIdxOf(st.src[i], st.item[i])] === 1) && inClass(st, sc, i);
+var inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1 && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx) && (sc.muniEnt < 0 || st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx) && (!sc.prodOk || sc.prodOk[productIdxOf(st.src[i], st.item[i], originIdxOf(st.ent[i], st.scope[i]))] === 1) && inClass(st, sc, i);
 function inClass(st, sc, i) {
   const mc = mainClassIdx(st.gfs[i], originIdxOf(st.ent[i], st.scope[i]));
   if (sc.mainClass >= 0) return mc === sc.mainClass;
@@ -3677,7 +3677,7 @@ function snapshot(st, req) {
     per.ent.add(e, dd);
     per.src.add(s, dd);
     per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd);
-    per.prod.add(productIdxOf(st.src[i], st.item[i]), dd);
+    per.prod.add(productIdxOf(st.src[i], st.item[i], originIdxOf(st.ent[i], st.scope[i])), dd);
     {
       const ym = isoOf(st.issue[i]).slice(0, 7);
       let am = accMonth.get(ym);
@@ -4173,7 +4173,7 @@ function iimFields(st, i) {
   const origin = originOf(b.id);
   const oIdx = originIdxOf(ent, sc);
   const sourceKey = SOURCES[st.src[i]].key;
-  const pk = productOf(sourceKey, ITEMS[st.item[i]].key);
+  const pk = productOf(sourceKey, ITEMS[st.item[i]].key, oIdx);
   const cls = classOfRow(st.gfs[i], origin === "central" ? 0 : 1);
   const disclosure = DISCLOSURE_PRODUCTS.includes(pk);
   const kind = disclosure && !fx ? hashOf(st.idKey[i]) % 100 < DIFFERENCES_SHARE ? "differences" : "occupancy" : null;

@@ -56,13 +56,14 @@ export const PRODUCT_KEYS = Object.keys(PRODUCTS);
 // the product-management unit groups tobacco and accommodation in ONE card (they stay separate in the filters)
 export const PRODUCT_GROUPS = [['foras'], ['screen'], ['baladi'], ['mumtathil'], ['tobacco', 'accommodation'], ['whiteLands'], ['internal']];
 export const PRODUCT_OF_SOURCE = { investment: 'foras', fines: 'mumtathil', municipal_fees: 'baladi', licenses: 'internal', accommodation: 'accommodation', tobacco: 'tobacco', white_lands: 'whiteLands', housing_sales: 'baladi' };
-// the electronic-screen product is the investment ITEM «advertising sites»; every other product follows the revenue source
-export const productOf = (sourceKey, itemKey) => (sourceKey === 'investment' && (itemKey === 'ad_sites') ? 'screen' : PRODUCT_OF_SOURCE[sourceKey] || 'baladi');
+// the electronic-screen product is the investment ITEM «advertising sites»; every other product follows the revenue source — EXCEPT investment: an investment invoice is a Furas invoice only when it is
+// billed centrally (biller 177). Investment of the Amanahs and municipalities issued from their own internal systems is NOT Furas: its product is «الأنظمة الداخلية» (originIdx 0 central · 1 internal).
+export const productOf = (sourceKey, itemKey, originIdx = 0) => (sourceKey === 'investment' && (itemKey === 'ad_sites') ? 'screen' : sourceKey === 'investment' && originIdx === 1 ? 'internal' : PRODUCT_OF_SOURCE[sourceKey] || 'baladi');
 const PROD_POS = Object.fromEntries(PRODUCT_KEYS.map((k, i) => [k, i]));
-const PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length);
-SOURCES.forEach((sr, si) => ITEMS.forEach((it, ii) => { PROD_TABLE[si * ITEMS.length + ii] = PROD_POS[productOf(sr.key, it.key)]; }));
-/** compact per-invoice lookup used by scans: product index of (source index, item index) */
-export const productIdxOf = (srcIdx, itemIdx) => PROD_TABLE[srcIdx * ITEMS.length + itemIdx];
+const PROD_TABLE = new Uint8Array(SOURCES.length * ITEMS.length * 2);
+SOURCES.forEach((sr, si) => ITEMS.forEach((it, ii) => { for (let o = 0; o < 2; o += 1) PROD_TABLE[(si * ITEMS.length + ii) * 2 + o] = PROD_POS[productOf(sr.key, it.key, o)]; }));
+/** compact per-invoice lookup used by scans: product index of (source index, item index, origin index) */
+export const productIdxOf = (srcIdx, itemIdx, originIdx = 0) => PROD_TABLE[(srcIdx * ITEMS.length + itemIdx) * 2 + originIdx];
 export const DISCLOSURE_PRODUCTS = ['tobacco', 'accommodation'];
 
 /* ---------- revenue classification ---------- */

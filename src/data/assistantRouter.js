@@ -115,7 +115,7 @@ export function parseAmanah(text) {
 }
 
 const SOURCE_PATTERNS = [
-  ['investment', /invest|furas|lease|استثمار|فرص/],
+  ['investment', /invest|lease|استثمار/], // «فرص» / Furas is a platform, not a revenue source: Amanah and municipal investment is outside it
   ['fines', /\bfines?\b|penalt|violation|غرام|مخالف|جزاء/],
   ['white_lands', /white.?land|الأراضي البيضاء|اراضي بيضاء/],
   ['tobacco', /tobacco|التبغ/],

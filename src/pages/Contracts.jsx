@@ -47,7 +47,7 @@ export default function Contracts() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Investment contracts', 'العقود الاستثمارية')}</h1>
-          <div className="page-sub">{L('Investment contracts and the payments linked to them only: how much was paid, what is overdue, what is invoiced but not yet due, and what is still to come.', 'العقود الاستثمارية والدفعات المرتبطة بها فقط: كم دُفع، وما المتأخر، وما فُوتر ولم يحن استحقاقه، وما هو قادم.')}</div>
+          <div className="page-sub">{L('Investment contracts and the payments linked to them only: how much was paid, what is overdue, what is invoiced but not yet due, and what is still to come. Only contracts present in the contract data are listed; investment contracts managed in the internal systems of the Amanahs and municipalities are not in it.', 'العقود الاستثمارية والدفعات المرتبطة بها فقط: كم دُفع، وما المتأخر، وما فُوتر ولم يحن استحقاقه، وما هو قادم. تُعرض العقود الموجودة في بيانات العقود فقط؛ أما العقود الاستثمارية التي تُدار في الأنظمة الداخلية للأمانات والبلديات فليست فيها.')}</div>
         </div>
       </div>
 

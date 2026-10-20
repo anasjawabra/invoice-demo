@@ -67,8 +67,8 @@ export default function ProductPage() {
           </section>
 
           {isFuras && (
-            <section className="card card-pad" aria-label={L('Furas contracts', 'عقود فرص')}>
-              <h2 className="h3" style={{ marginTop: 0 }}>{L('Furas — contracts and receivables', 'فرص — العقود والمستحقات')}</h2>
+            <section className="card card-pad" aria-label={L('Contracts and receivables', 'العقود والمستحقات')}>
+              <h2 className="h3" style={{ marginTop: 0 }}>{L('Contracts and receivables (central invoices only)', 'العقود والمستحقات (الفواتير المركزية فقط)')}</h2>
               <div className="rv-tiles">
                 <MetricTile label={L('Contract values', 'قيم العقود')} value={short(sum((t) => t.contractValue))} sub={L(`${count(cards.length)} contracts`, `${count(cards.length)} عقود`)} />
                 <MetricTile label={L('Receivables to date', 'المستحقات حتى تاريخه')} value={short(sum((t) => t.dueToDate))} sub={L('installments due up to the reference date', 'دفعات استحقت حتى تاريخ المرجع')} />

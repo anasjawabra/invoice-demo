@@ -14,7 +14,7 @@ export function iimFields(st, i) {
   const ent = st.ent[i]; const sc = st.scope[i];
   const b = fx?.billerId ? { id: fx.billerId, ar: billerOf(ent, sc).ar, en: billerOf(ent, sc).en } : billerOf(ent, sc);
   const origin = originOf(b.id); const oIdx = originIdxOf(ent, sc);
-  const sourceKey = SOURCES[st.src[i]].key; const pk = productOf(sourceKey, ITEMS[st.item[i]].key);
+  const sourceKey = SOURCES[st.src[i]].key; const pk = productOf(sourceKey, ITEMS[st.item[i]].key, oIdx);
   const cls = classOfRow(st.gfs[i], origin === 'central' ? 0 : 1);
   const disclosure = DISCLOSURE_PRODUCTS.includes(pk);
   const kind = disclosure && !fx ? (hashOf(st.idKey[i]) % 100 < DIFFERENCES_SHARE ? 'differences' : 'occupancy') : null;

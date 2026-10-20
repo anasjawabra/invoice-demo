@@ -26,7 +26,7 @@ export const SOURCE_ROLES = [
     authority: [BI('الأمانة المعنية بالفاتورة', 'Amanah responsible for the invoice')], notAuthority: [BI('المبالغ والحالات', 'Amounts and statuses')],
     rule: BI('لا تُفترض الأمانة من اسم ملف أو من بيانات غير موثوقة؛ غير المطابق يبقى «غير محدد».', 'The Amanah is never assumed from a file name or untrusted data; unmatched stays "unassigned".') },
   { id: 'furas', name: BI('فرص', 'Furas'), cadence: BI('أسبوعي', 'Weekly'),
-    role: BI('عقود الاستثمار ودفعاتها، أرقام العقود والفواتير أو سداد عند توفرها، مواعيد الاستحقاق وحالات العقود', 'Investment contracts and their payments, contract / invoice / SADAD numbers when available, due dates and contract statuses'),
+    role: BI('عقود المنصة المركزية ودفعاتها، أرقام العقود والفواتير أو سداد عند توفرها، مواعيد الاستحقاق وحالات العقود', 'The central platform’s contracts and their payments, contract / invoice / SADAD numbers when available, due dates and contract statuses'),
     authority: [BI('رقم العقد وحالته', 'Contract number and status'), BI('جدول الدفعات ومواعيدها', 'Payment schedule and due dates')], notAuthority: [BI('التحصيل الفعلي (من تحصيل)', 'Actual collection (Tahseel)')] },
   { id: 'sanad', name: BI('سند', 'Sanad'), cadence: BI('أسبوعي', 'Weekly'),
     role: BI('طلبات التنفيذ وحالاتها، العقود المرتبطة بالتنفيذ، تفاصيل الفواتير أو المستندات والبنود، أدلة ربط التنفيذ بالفواتير', 'Enforcement requests and statuses, contracts tied to enforcement, invoice / document details and items, evidence linking enforcement to invoices'),

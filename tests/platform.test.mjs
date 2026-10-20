@@ -1649,6 +1649,11 @@ await test('planning targets · billing is DERIVED (target ÷ collection rate), 
   const { PCT_COLORS, PCT_CUTS, pctColor } = await import('../src/components/strategic/EntityMap.jsx');
   assert.equal(PCT_COLORS.length, 4); assert.equal(pctColor('share', 1.5), pctColor('share', 0.85), 'above 100 % is the same top tier as 80 % and above');
 });
+await test('product «فرص» is NOT every investment invoice: investment billed centrally is Furas; investment of the Amanahs and municipalities from their internal systems is «الأنظمة الداخلية»; advertising sites stay the electronic-screen product', () => {
+  assert.equal(productOf('investment', 'land_lease', 0), 'foras'); assert.equal(productOf('investment', 'land_lease', 1), 'internal');
+  assert.equal(productOf('investment', 'ad_sites', 0), 'screen'); assert.equal(productOf('investment', 'ad_sites', 1), 'screen');
+  assert.equal(productOf('fines', 'x', 1), 'mumtathil', 'other sources do not depend on the origin');
+});
 await test('IIM-15 · forecast: a low target gives a high probability and «reasons to reach it»; an unrealistic one gives a low probability and «billing is insufficient»; the closed months are the actuals', () => {
   const months = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100]; const base = { monthlyCollected: months, reportingMonth: 10, yearEnded: false, dayFraction: 1, billedMonthly: months.map(() => 110), standingUncollected: 300 };
   const cum = (t) => Array.from({ length: 12 }, (_, k) => (t * (k + 1)) / 12);
