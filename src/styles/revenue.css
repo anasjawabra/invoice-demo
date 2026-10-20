@@ -868,3 +868,8 @@
 .dr-actions__row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; } .dr-actions__row .cg-field { min-width: 170px; flex: 1 1 170px; }
 .dr-hist { margin: 0; padding-inline-start: 20px; display: grid; gap: 4px; font-size: 13px; }
 @media (max-width: 760px) { .dr-item__head { grid-template-columns: auto minmax(0, 1fr) auto; } .dr-item__owner, .dr-status { grid-column: 2 / -1; justify-self: start; } }
+/* report tables you can work with */
+.rv-sort { background: none; border: 0; font: inherit; color: inherit; cursor: pointer; padding: 0; text-align: inherit; font-weight: inherit; }
+.rv-sort:hover, .rv-sort:focus-visible { color: var(--primary); text-decoration: underline; outline: none; }
+.rv-row--link td:first-child a { color: var(--secondary); text-decoration: underline; text-underline-offset: 3px; }
+.rv-row--link:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); }

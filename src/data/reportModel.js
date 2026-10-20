@@ -70,6 +70,8 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   const ctxTotals = { count: T.count, gross: T.gross, exclusions: T.exclusions, cancelled: T.cancelled, net: T.net, collected: T.collected, outstanding: T.outstanding, collectedOverNet: T.collectedOverNet, exclusionRate: T.exclusionRate };
 
   const tbl = (id, title, headers, rows, { total = null, note = null } = {}) => ({ type: 'table', id, title, headers, rows, total, note });
+  // a row opens the uncollected-invoices list for the same period and scope (a multi-Amanah selection leaves the Amanah to the row); the report's own period travels with the link
+  const drill = (over) => { const sc = spec.scope; const q = new URLSearchParams({ from: sc.from, to: sc.to }); const am = over.amanah ?? (Array.isArray(sc.amanah) || sc.amanah === 'all' ? null : sc.amanah); const so = over.src ?? (sc.source === 'all' ? null : sc.source); if (am) q.set('amanah', am); if (so) q.set('src', so); return `/collection?${q.toString()}`; };
   const H = (label, kind = 'text') => ({ label, kind });
   const prevRate = (key, by) => { const g = (prev?.[by] || []).find((x) => x.key === key); return g && g.net > 0 ? g.collected / g.net : null; };
 
@@ -124,7 +126,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     const totalRow = (withPrev) => [L('الإجمالي', 'Total'), T.count, T.gross, T.exclusions, T.net, T.collected, T.outstanding, ratio(T.collected, T.net), ratio(T.exclusions, T.gross), ...(withPrev ? [ratio(prev?.totals.collected, prev?.totals.net)] : [])];
     const srcs = [...new Set(snapshot.matrix.amanahSource.map((r) => r.source))];
     const cell = (a, s) => snapshot.matrix.amanahSource.find((r) => r.amanah === a && r.source === s);
-    return [
+    const blocks = [
       { type: 'chart', kind: 'bar', title: L('صافي المفوتر والمحصّل حسب الأمانة', 'Net billed and collected by Amanah'), labels: am.map((g) => B(g.label)), series: [{ label: L('صافي المفوتر', 'Net billed'), values: am.map((g) => g.net) }, { label: L('المحصّل', 'Collected'), values: am.map((g) => g.collected) }] },
       tbl('amanah', L('حسب الأمانة / الجهة', 'By Amanah'), heads(L('الأمانة / الجهة', 'Amanah'), comparable), am.map((g) => row(B(g.label), g, comparable)), { total: totalRow(comparable), note: L('«غير محدد الأمانة» فواتير لم يطابقها مكين وتُعرض مستقلة دون توزيع.', '“Amanah not determined” = invoices Makeen could not match; shown apart, never spread over the others.') }),
       tbl('muni', L('حسب البلدية', 'By municipality'), heads(L('البلدية', 'Municipality'), false), mu.map((g) => row(`${g.municipality ? (ar ? g.municipality.ar : g.municipality.en) : L('بلا بلدية', 'No municipality')} — ${B(g.amanahLabel)}`, g, false)), { total: totalRow(false), note: L('البلديات متاحة للفواتير المركزية ووحدة المبيعات السكنية؛ ما بلا بلدية يُعرض كما هو.', 'Municipalities exist for central invoices and the housing sales unit; invoices without one are listed as such.') }),
@@ -134,16 +136,20 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
       tbl('amanah_source_net', L('صافي المفوتر: الأمانة / الجهة × المصدر', 'Net billed: Amanah × source'), [H(L('الأمانة / الجهة', 'Amanah')), ...srcs.map((s) => H(ar ? sourceAr(s) : sourceEn(s), 'money')), H(L('الإجمالي', 'Total'), 'money')], am.map((g) => [B(g.label), ...srcs.map((s) => cell(g.key, s)?.net ?? null), g.net]), { total: [L('الإجمالي', 'Total'), ...srcs.map((s) => snapshot.matrix.amanahSource.filter((r) => r.source === s).reduce((t, r) => t + r.net, 0)), T.net] }),
       tbl('amanah_source_rate', L('نسبة التحصيل: الأمانة / الجهة × المصدر', 'Collection rate: Amanah × source'), [H(L('الأمانة / الجهة', 'Amanah')), ...srcs.map((s) => H(ar ? sourceAr(s) : sourceEn(s), 'pct')), H(L('الإجمالي', 'Total'), 'pct')], am.map((g) => [B(g.label), ...srcs.map((s) => { const c = cell(g.key, s); return c ? ratio(c.collected, c.net) : null; }), ratio(g.collected, g.net)]), { total: [L('الإجمالي', 'Total'), ...srcs.map((s) => { const rs = snapshot.matrix.amanahSource.filter((r) => r.source === s); return ratio(rs.reduce((t, r) => t + r.collected, 0), rs.reduce((t, r) => t + r.net, 0)); }), ratio(T.collected, T.net)] })
     ];
+    blocks.find((b) => b.id === 'amanah').links = am.map((g) => drill({ amanah: g.key }));
+    return blocks;
   };
   sections.sources = () => {
     const src = snapshot.bySource.slice().sort((a, b) => b.net - a.net);
-    return [
+    const blocks = [
       { type: 'chart', kind: 'bar', title: L('صافي المفوتر والمحصّل حسب مصدر الإيراد', 'Net billed and collected by revenue source'), labels: src.map((g) => (ar ? sourceAr(g.key) : sourceEn(g.key))), series: [{ label: L('صافي المفوتر', 'Net billed'), values: src.map((g) => g.net) }, { label: L('المحصّل', 'Collected'), values: src.map((g) => g.collected) }] },
       tbl('sources', L('حسب مصدر الإيراد', 'By revenue source'), [H(L('مصدر الإيراد', 'Revenue source')), H(L('الفواتير', 'Invoices'), 'count'), H(L('إجمالي المفوتر', 'Gross billed'), 'money'), H(L('الاستبعادات', 'Exclusions'), 'money'), H(L('صافي المفوتر', 'Net billed'), 'money'), H(L('المحصّل', 'Collected'), 'money'), H(L('غير المحصّل', 'Uncollected'), 'money'), H(L('نسبة التحصيل', 'Collection rate'), 'pct'), ...(comparable ? [H(L('نسبة العام السابق', 'Last year rate'), 'pct')] : []), H(L('نسبة الاستبعاد', 'Exclusion rate'), 'pct')],
         src.map((g) => [ar ? sourceAr(g.key) : sourceEn(g.key), g.count, g.gross, g.exclusions, g.net, g.collected, g.outstanding, ratio(g.collected, g.net), ...(comparable ? [prevRate(g.key, 'bySource')] : []), ratio(g.exclusions, g.gross)]),
         { total: [L('الإجمالي', 'Total'), T.count, T.gross, T.exclusions, T.net, T.collected, T.outstanding, ratio(T.collected, T.net), ...(comparable ? [ratio(prev.totals.collected, prev.totals.net)] : []), ratio(T.exclusions, T.gross)] }),
       { type: 'callout', tone: 'info', text: L('غير متاح في هذا الديمو: التحصيل الفعلي من «تحصيل» (غير مربوط)، مستهدفات التحصيل المعتمدة لكل أمانة، اعتمادات الأبواب 1–3 لكل أمانة، سبب عدم السداد، وتاريخ سداد الدافع. لا تُقدَّر.', 'Not available in this demo: actual Tahseel collections (not connected), approved per-Amanah collection targets, per-Amanah budgets of chapters 1–3, the reason a payer did not pay, and payer payment history. They are not estimated.') }
     ];
+    blocks.find((b) => b.id === 'sources').links = src.map((g) => drill({ src: g.key }));
+    return blocks;
   };
   sections.aging = () => {
     const S = snapshot.stock; const sum = S.aging.reduce((t, a) => t + a.amount, 0);

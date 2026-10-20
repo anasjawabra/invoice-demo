@@ -16,7 +16,9 @@ import { loadStore } from '../server/store.js';
 import { snapshot, idOf } from '../server/engine.js';
 import { resolveReferences } from '../server/orderMatch.js';
 import { buildReportModel } from '../src/data/reportModel.js';
-import { defaultSpec } from '../src/data/reportIntents.js';
+import { defaultSpec, interpret } from '../src/data/reportIntents.js';
+import { parsePeriod } from '../src/data/assistantRouter.js';
+import { suggestionsFor } from '../src/data/reportSuggestions.js';
 import { DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
 
 let n = 0; const ok = (name, fn) => { fn(); n += 1; };
@@ -158,6 +160,32 @@ ok('views: chart type and only-parts apply to the model and are reflected in eve
   for (const k of ['bar', 'hbar', 'line']) { const b = model.sections.flatMap((s) => s.blocks).find((x) => x.type === 'chart'); const svg = chartSvg({ ...b, kind: k }, { lang: 'en' }); assert.ok(svg.startsWith('<svg') && svg.endsWith('</svg>')); }
   const one = { type: 'chart', kind: 'pie', plain: true, valueTitle: 'v', title: 't', labels: ['a', 'b'], series: [{ label: 's', values: [3, 1] }] };
   assert.ok(chartSvg(one, { lang: 'ar' }).includes('75.0%'));
+});
+
+/* ---------------- interactivity (phase 1) ---------------- */
+ok('reading the request: a numbered month with a glued preposition and Arabic digits is that month; the Amanah section is recognised in a list; «مقسم» is a known word', () => {
+  for (const q of ['لشهر 6 2026', 'لشهر ٦ ٢٠٢٦', 'بشهر 6 2026']) assert.deepEqual([parsePeriod(q, TODAY).from, parsePeriod(q, TODAY).to], ['2026-06-01', '2026-06-30'], q);
+  assert.equal(parsePeriod('شهر ٣ ٢٠٢٥', TODAY).from, '2025-03-01');
+  const r = interpret('تقرير الإيرادات للسنة حتى اليوم حسب المصدر والأمانة والاتجاه الشهري', null, TODAY); assert.deepEqual(r.spec.sections, ['trends', 'amanah', 'sources']);
+  const m = interpret('تقرير الإيرادات مقسم على مصادر الإيرادات لشهر ٦ ٢٠٢٦', null, TODAY); assert.equal(m.kind, 'report'); assert.equal(m.spec.scope.from, '2026-06-01'); assert.deepEqual(m.spec.sections, ['sources']);
+});
+ok('report tables: the Amanah and source rows carry a link to the uncollected invoices of that row, with the report’s own period; the links line up with the rows', () => {
+  const snap = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
+  const out = { snapshot: snap, forecast: { ready: false, reasonNotReady: { ar: 'x', en: 'x' } }, targetPos: null, achievement: null, cards: [], anomalies: [] };
+  const spec = { ...defaultSpec(TODAY), sections: ['executive', 'amanah', 'sources'], scope: { ...defaultSpec(TODAY).scope, from: '2026-01-01', to: TODAY } };
+  const model = buildReportModel({ spec, lang: 'ar', out, targets: DEFAULT_TARGETS, cases: [], meta: { size: 'compact', counts: { invoicesTotal: st.n } } });
+  const blocks = model.sections.flatMap((x) => x.blocks); const am = blocks.find((b) => b.id === 'amanah'); const so = blocks.find((b) => b.id === 'sources');
+  assert.equal(am.links.length, am.rows.length); assert.equal(so.links.length, so.rows.length);
+  for (const l of [...am.links, ...so.links]) { assert.ok(l.startsWith('/collection?') && l.includes('from=2026-01-01') && l.includes(`to=${TODAY}`)); }
+  assert.ok(am.links.every((l) => l.includes('amanah=')) && so.links.every((l) => l.includes('src=')));
+  assert.ok(!am.links.some((l) => l.includes('src=')), 'the Amanah row does not invent a source');
+  // suggestions come from the report itself
+  const sg = suggestionsFor(model, spec); assert.ok(sg.length >= 2 && sg.length <= 4);
+  const topAm = am.rows.slice().sort((a, b) => b[6] - a[6])[0][0]; assert.ok(sg.some((x) => x.ar === `اعرض ${topAm} فقط`), 'the Amanah with the largest uncollected balance is suggested');
+  assert.ok(!sg.some((x) => /مصادر الإيراد/.test(x.ar) && x.ar.startsWith('أضف')), 'a section already in the report is not offered again');
+  assert.ok(sg.some((x) => x.ar === 'أضف الاتجاه الشهري'), 'a missing analysis is offered');
+  const one = suggestionsFor(model, { ...spec, scope: { ...spec.scope, amanah: 'Riyadh Amanah' } }); assert.ok(!one.some((x) => x.ar === `اعرض ${topAm} فقط`), 'with one Amanah selected, no other Amanah is suggested');
+  assert.deepEqual(suggestionsFor({ empty: true, sections: [] }, spec), []);
 });
 
 console.log(`chat workspace: ${n} test groups passed`);

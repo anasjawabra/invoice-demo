@@ -1,6 +1,6 @@
 // Renders a report MODEL (src/data/reportModel.js) inside the conversation. Nothing here recomputes a figure: tables show the model's
 // numbers in the ONE unit stated in each header, charts use one unit per chart.
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
@@ -30,22 +30,36 @@ function Insight({ it }) {
   );
 }
 
+const TOP = 10;
+// A report table you can work with: click a header to sort (view only — exports keep the report's own order), «show all» for long tables, and a row that carries a link opens the invoices behind it.
 function Table({ b }) {
   const { lang, ar } = useL(); const L = (a, e) => (ar ? a : e);
   const t = useMemo(() => tableToText(b, lang), [b, lang]);
+  const [sort, setSort] = useState(null); const [all, setAll] = useState(false);
+  const order = useMemo(() => {
+    const idx = b.rows.map((_, i) => i); if (!sort) return idx;
+    const num = b.headers[sort.col].kind !== 'text';
+    return idx.sort((x, y) => { const p = b.rows[x][sort.col]; const q = b.rows[y][sort.col]; const r = num ? (Number(p) || 0) - (Number(q) || 0) : String(p ?? '').localeCompare(String(q ?? ''), ar ? 'ar' : 'en'); return (sort.dir === 'asc' ? r : -r) || x - y; });
+  }, [b, sort, ar]);
+  const shown = all || order.length <= TOP + 2 ? order : order.slice(0, TOP);
+  const click = (j) => setSort((s) => (s && s.col === j ? (s.dir === 'desc' ? { col: j, dir: 'asc' } : null) : { col: j, dir: b.headers[j].kind === 'text' ? 'asc' : 'desc' }));
+  const aria = (j) => (sort && sort.col === j ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none');
   return (
     <div>
       {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}{t.unitText ? <small className="muted"> — {L('المبالغ بوحدة', 'amounts in')}: {t.unitText}</small> : null}</h4>}
       <div className="table-wrap" tabIndex={0}>
-        <table className="table" aria-label={b.title}>
-          <thead><tr>{t.headers.map((h, i) => <th key={i}>{h}</th>)}</tr></thead>
+        <table className="table rv-table" aria-label={b.title}>
+          <thead><tr>{t.headers.map((h, i) => <th key={i} aria-sort={aria(i)}><button type="button" className="rv-sort" onClick={() => click(i)} title={L('اضغط للفرز', 'Click to sort')}>{h}{sort && sort.col === i ? <span aria-hidden="true">{sort.dir === 'asc' ? ' ▲' : ' ▼'}</span> : null}</button></th>)}</tr></thead>
           <tbody>
-            {t.rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'} title={b.headers[j].kind === 'money' && typeof b.rows[i][j] === 'number' ? fmtSar(b.rows[i][j], lang) : undefined}>{c}</td>)}</tr>)}
+            {shown.map((i) => { const r = t.rows[i]; const link = b.links?.[i]; return (
+              <tr key={i} className={link ? 'rv-row--link' : undefined}>{r.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'} title={b.headers[j].kind === 'money' && typeof b.rows[i][j] === 'number' ? fmtSar(b.rows[i][j], lang) : undefined}>{j === 0 && link ? <Link to={link} title={L('افتح الفواتير غير المحصّلة لهذا الصف', 'Open the uncollected invoices for this row')}>{c}</Link> : c}</td>)}</tr>
+            ); })}
             {!t.rows.length && <tr><td colSpan={t.headers.length}><div className="rv-empty">{L('لا بيانات في هذا الاختيار.', 'No data in this selection.')}</div></td></tr>}
             {t.total && t.rows.length > 0 && <tr style={{ fontWeight: 700 }}>{t.total.map((c, j) => <td key={j} dir={j === 0 ? 'auto' : 'ltr'}>{c}</td>)}</tr>}
           </tbody>
         </table>
       </div>
+      {order.length > TOP + 2 && <button type="button" className="btn btn-sm btn-ghost" onClick={() => setAll((v) => !v)}>{all ? L(`عرض أعلى ${TOP} فقط`, `Show the top ${TOP} only`) : L(`عرض كل الصفوف (${order.length})`, `Show all ${order.length} rows`)}</button>}
       {b.note && <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{b.note}</div>}
     </div>
   );

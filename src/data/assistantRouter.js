@@ -31,7 +31,8 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   const year = Number(cutoff.slice(0, 4));
   const curMonth = Number(cutoff.slice(5, 7));
   const lastYearWord = /(?:ال|لل|ل)?(?:عام|سنه)\s*(?:ال)?(?:ماضي|سابق)|\b(?:last|previous)\s+year\b/.test(s);
-  const explicitYear = (s.match(/\b(20\d{2})\b/) || [])[1] || (lastYearWord ? String(year - 1) : undefined); // «الربع الأول للعام الماضي» → that quarter of the previous year
+  const sNum = normAr(String(text || '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))).replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))); // Arabic-Indic digits read as digits for the year and the numbered month (normAr's mark-stripping range would otherwise delete them)
+  const explicitYear = (sNum.match(/\b(20\d{2})\b/) || [])[1] || (lastYearWord ? String(year - 1) : undefined); // «الربع الأول للعام الماضي» → that quarter of the previous year
   const monthRange = (m) => {
     let y = explicitYear ? Number(explicitYear) : year;
     if (!explicitYear && m > curMonth) y -= 1; // a month later than the current one means the previous year's
@@ -58,7 +59,7 @@ export function parsePeriod(text, cutoff = DATA_CUTOFF, { reportFuture = false }
   if (/q3|third quarter|(?:ال|لل|ل)?ربع (?:ال)?ثالث/.test(s)) return q(3);
   if (/q4|fourth quarter|(?:ال|لل|ل)?ربع (?:ال)?رابع/.test(s)) return q(4);
   if (/all data|all time|since the start|كل البيانات/.test(s)) return { from: DATA_START, to: cutoff, label: 'all' };
-  const numMonth = s.match(/(?:^|\s)(?:شهر|month)\s*(\d{1,2})(?!\d)/); if (numMonth && Number(numMonth[1]) >= 1 && Number(numMonth[1]) <= 12) return monthRange(Number(numMonth[1]));
+  const numMonth = sNum.match(/(?:^|\s)(?:ل|ب|ال)?(?:شهر|month)\s*(\d{1,2})(?!\d)/); if (numMonth && Number(numMonth[1]) >= 1 && Number(numMonth[1]) <= 12) return monthRange(Number(numMonth[1])); // «لشهر 6 2026»: a preposition glued to «شهر» is allowed
   if (explicitYear) { // a bare year: the whole year up to the cut-off; before the data starts it is reported to the caller, never turned into a period
     const y = Number(explicitYear); const from = `${y}-01-01`; const to = `${y}-12-31`;
     if (to < DATA_START) return reportFuture ? { from, to, label: 'year', beforeData: true } : null;

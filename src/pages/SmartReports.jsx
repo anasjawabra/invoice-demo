@@ -20,6 +20,7 @@ import { interpretChat, CHART_NAME } from '../data/chatIntents';
 import { applyView, mergeView, emptyView, hasCharts, hasTables } from '../data/reportView';
 import { readAttachment, previewOf, kindLabel, noteText, sizeText, ACCEPT, MAX_FILES } from '../data/chatFiles';
 import { buildAttachmentModel, refsOfAttachments } from '../data/chatAnalysis';
+import { suggestionsFor } from '../data/reportSuggestions';
 import { fmtRiyadh, fmtRangeText, fmtDateText } from '../data/clock';
 import { DateRangeFields } from '../components/revenue/RevenueUI';
 import { measure, headlineCfg } from '../data/measure';
@@ -43,12 +44,6 @@ const SUGGESTIONS = [
   { ar: 'قارن أداء التحصيل بين الأمانات', en: 'Compare collection performance between Amanahs' },
   { ar: 'حلّل المتأخرات حسب مصدر الإيراد', en: 'Analyse overdue balances by revenue source' },
   { ar: 'جهّز تقريراً شهرياً بالمقارنة مع العام الماضي', en: 'Prepare a monthly report compared with last year' }
-];
-const FOLLOW_UPS = [
-  { ar: 'قارن بالشهر الماضي', en: 'Compare with last month' },
-  { ar: 'اعرض أمانة الرياض فقط', en: 'Show Riyadh Amanah only' },
-  { ar: 'أضف تحليل الاستبعادات', en: 'Add the exclusions analysis' },
-  { ar: 'حوّله إلى ملخص تنفيذي', en: 'Turn it into an executive summary' }
 ];
 const STEPS = { scope: ['أحدد النطاق والتصفية', 'Setting the scope and filters'], read: ['أقرأ بيانات الفواتير والتحصيل', 'Reading invoice and collection data'], compare: ['أحسب المقارنة بالفترة المكافئة', 'Computing the equivalent-period comparison'], build: ['أُعدّ الجداول والرسوم والنتائج', 'Preparing tables, charts and findings'], check: ['أراجع المطابقة المالية', 'Checking the financial reconciliation'] };
 
@@ -87,18 +82,21 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
 // «How I understood your request»: the six things that decide what the report says, each tagged with where it came from.
 // It states what WAS applied (never that the request was applied in full); the latest report can be edited with the filter panel.
 const FIELD_GROUPS = [['period', ['period']], ['amanah', ['amanah', 'muni']], ['source', ['source']], ['status', ['status', 'st']], ['cmp', ['cmp']], ['basis', ['basis']]];
-function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel, pending = false }) {
+function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel, pending = false, sections = null }) {
   const by = Object.fromEntries(chips.map((c) => [c.k, c]));
-  const changed = new Set(msg.changeKeys || []); const keyOf = { period: ['period'], amanah: ['amanah', 'muni'], source: ['source'], status: ['status', 'scopeType'], cmp: ['compare'], basis: [] };
+  const changed = new Set(msg.changeKeys || []); const keyOf = { period: ['period'], amanah: ['amanah', 'muni'], source: ['source'], status: ['status', 'scopeType'], cmp: ['compare'], basis: [], sections: ['sections', 'depth'] };
+  const secs = msg.spec?.sections || sections || [];
   const rows = [
     [L('الفترة', 'Reporting period'), by.period?.value, 'period'],
     [L('الأمانة / البلدية', 'Amanah / municipality'), [by.amanah?.value, by.muni?.value && by.muni.value !== L('كل البلديات', 'All municipalities') ? by.muni.value : null].filter(Boolean).join(' · '), 'amanah'],
     [L('مصدر الإيراد', 'Revenue source'), by.source?.value, 'source'],
     [L('حالة الفاتورة', 'Invoice status'), [by.status?.value, by.st?.value].filter(Boolean).join(' · '), 'status'],
     [L('فترة المقارنة', 'Comparison'), by.cmp?.value || L('بدون مقارنة', 'No comparison'), 'cmp'],
-    [L('أساس القياس', 'Reporting basis'), by.basis?.value, 'basis']
+    [L('أساس القياس', 'Reporting basis'), by.basis?.value, 'basis'],
+    ...(secs.length ? [[L('أقسام التقرير', 'Report sections'), secs.map((k) => (SECTION_META[k] ? L(SECTION_META[k].ar, SECTION_META[k].en) : k)).join(L('، ', ', ')), 'sections']] : [])
   ];
-  const tag = (g) => (keyOf[g].some((k) => changed.has(k)) ? L('من طلبك', 'from your request') : msg.changeKeys ? (msg.firstReport ? L('الافتراضي', 'default') : L('كما كان', 'unchanged')) : null);
+  const sc0 = msg.spec?.scope; const inherited = (g) => !!sc0 && ((g === 'amanah' && (sc0.amanah !== 'all' || sc0.muni !== 'all')) || (g === 'source' && sc0.source !== 'all') || (g === 'status' && ((sc0.status || 'all') !== 'all' || (sc0.scopeType || 'all') !== 'all')));
+  const tag = (g) => (keyOf[g].some((k) => changed.has(k)) ? L('من طلبك', 'from your request') : msg.changeKeys ? (msg.firstReport ? (inherited(g) ? L('من تصفية لوحة المعلومات', 'from the dashboard filter') : L('الافتراضي', 'default')) : L('كما كان', 'unchanged')) : null);
   return (
     <div className="sr-interp" role="group" aria-label={L('كيف فهمتُ طلبك', 'How I read your request')}>
       <div className="sr-interp__head"><b>{L('كيف فهمتُ طلبك', 'How I read your request')}</b>{editable && <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!!editing} onClick={onEdit}>{editing ? L('إغلاق التعديل', 'Close editing') : L('تعديل', 'Edit')}</button>}</div>
@@ -464,12 +462,11 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       if (hasTables(latest.model)) out.push({ ar: 'اعرض الجداول فقط', en: 'Show the tables only' });
       out.push({ ar: 'حوّله إلى عرض تقديمي', en: 'Turn it into a presentation' }, { ar: 'حوّله إلى Excel', en: 'Export it to Excel' });
     } else {
-      out.push(...FOLLOW_UPS.slice(0, 3), { ar: 'قارن حسب البلدية', en: 'Compare by municipality' });
-      if (hasCharts(latest.model)) out.push(chartChip);
-      out.push({ ar: 'حوّله إلى عرض تقديمي', en: 'Turn it into a presentation' });
+      const root = conv?.messages.find((x) => x.id === latest.rootId); // a report: suggestions come from what it contains
+      out.push(...suggestionsFor(latest.model, root?.spec));
     }
     return out;
-  }, [latest]);
+  }, [latest, conv]);
 
   const exportButtons = (model) => (
     <div className="sr-card__actions" role="group" aria-label={L('تنزيل النتيجة', 'Download the result')}>
@@ -547,7 +544,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                   <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
                     <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
                     <div className="muted" style={{ fontSize: 13 }}>{L('يستدعي التأكيد: ', 'Needs confirmation: ')}{m.confirm.map((c) => (ar ? c.ar : c.en)).join(L('؛ ', '; '))}.</div>
-                    <InterpretationSummary pending msg={{ changeKeys: m.pending.changeKeys, firstReport: m.pending.firstReport }} chips={specChips(m.pending.spec)} L={L} editable={m.status === 'pending' && !busy} editing={m.status === 'pending' && editPendingId === m.id} onEdit={() => setEditPendingId((v) => (v === m.id ? null : m.id))} panel={<FilterPanel key={`${m.id}${JSON.stringify(m.pending.spec.scope)}`} spec={m.pending.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditPendingId(null); applyFilters(p, m.pending.spec); }} />} />
+                    <InterpretationSummary pending sections={m.pending.spec.sections} msg={{ changeKeys: m.pending.changeKeys, firstReport: m.pending.firstReport }} chips={specChips(m.pending.spec)} L={L} editable={m.status === 'pending' && !busy} editing={m.status === 'pending' && editPendingId === m.id} onEdit={() => setEditPendingId((v) => (v === m.id ? null : m.id))} panel={<FilterPanel key={`${m.id}${JSON.stringify(m.pending.spec.scope)}`} spec={m.pending.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditPendingId(null); applyFilters(p, m.pending.spec); }} />} />
                     {m.status === 'pending' && <div className="sr-suggest sr-suggest--inline"><button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => confirmPending(m)}>{L('تأكيد وإعداد التقرير', 'Confirm and build the report')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => cancelPending(m)}>{L('إلغاء', 'Cancel')}</button></div>}
                     {m.status === 'cancelled' && <div className="muted">{L('أُلغي الطلب ولم يُعدّ تقرير.', 'Cancelled — no report was built.')}</div>}
                     {m.status === 'superseded' && <div className="muted">{L('حلّ محلّه طلب أحدث.', 'Replaced by a newer request.')}</div>}
@@ -607,7 +604,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       </div>
 
       <div className="sr-dock">
-        {!empty && followUps.length > 0 && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{followUps.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
+        {!empty && followUps.length > 0 && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{followUps.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} title={s.why ? s.why[ar ? 'ar' : 'en'] : undefined} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
         {files.length > 0 && <div className="sr-files" role="list" aria-label={L('المرفقات', 'Attachments')}>{files.map((f) => <FileChip key={f.id} f={f} ar={ar} L={L} open={previewId === f.id} onToggle={() => setPreviewId((p) => (p === f.id ? null : f.id))} onRemove={() => removeFile(f.id)} />)}</div>}
         {previewId && files.find((f) => f.id === previewId && !f.reading) && <FilePreview f={files.find((f) => f.id === previewId)} ar={ar} L={L} />}
         {fileNote && <div className="sr-warn" role="status">{fileNote}</div>}

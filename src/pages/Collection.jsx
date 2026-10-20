@@ -28,9 +28,10 @@ export default function Collection() {
   const [cat, setCat] = useState(searchParams.get('category') || mem.cat || 'all');
   // a link from the Decision Room (?amanah=…&src=…&category=…) sets the SHARED filter and the status chip, then drops the parameters
   React.useEffect(() => {
-    const a = searchParams.get('amanah'); const s = searchParams.get('src'); if (!a && !s && !searchParams.get('category')) return;
-    if (a) rev.setAmanah(a); if (s) rev.setSource(s);
-    setSearchParams((p) => { const n = new URLSearchParams(p); ['amanah', 'src', 'category'].forEach((k) => n.delete(k)); return n; }, { replace: true });
+    const a = searchParams.get('amanah'); const s = searchParams.get('src'); const f = searchParams.get('from'); const t = searchParams.get('to'); if (!a && !s && !f && !searchParams.get('category')) return;
+    if (f && t) rev.setCustomRange(f, t); // the period of the report the link comes from
+    rev.setAmanah(a || 'all'); rev.setSource(s || 'all'); // a link from a report states its whole scope: a missing part means «all»
+    setSearchParams((p) => { const n = new URLSearchParams(p); ['amanah', 'src', 'category', 'from', 'to'].forEach((k) => n.delete(k)); return n; }, { replace: true });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reason, setReason] = useState(mem.reason ?? 'all'); // all · none (not excluded) · a rule id
   const [kind, setKind] = useState(mem.kind ?? 'all'); // نوع الفاتورة (tobacco / accommodation)
