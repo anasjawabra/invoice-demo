@@ -12,7 +12,6 @@ import { AmanahMap } from '../revenue/ExecutiveParts';
 import RevenueAnalysis from './RevenueAnalysis';
 import UnitLines from '../strategic/UnitLines';
 import { useAsync } from '../../utils/useAsync';
-import { sourceAr, sourceEn } from '../../data/insightsEngine';
 import DecisionSummary from '../decisions/DecisionSummary';
 import { fmtRangeText, fmtMonthText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
@@ -39,8 +38,6 @@ export default function InsightsDashboard() {
 
   const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: u });
   const months = snapshot.byMonth;
-  const src = snapshot.bySource.slice().sort((a, b) => b.outstanding - a.outstanding); const prevSrc = new Map((prevSnapshot?.bySource || []).map((g) => [g.key, g]));
-  const mun = snapshot.byMunicipality.filter((g) => g.municipality).sort((a, b) => b.outstanding - a.outstanding).slice(0, 5); const uM = unitOfValues(mun.map((g) => g.outstanding));
 
   return (
     <div className="st-page" style={{ gap: 14 }}>
@@ -66,27 +63,11 @@ export default function InsightsDashboard() {
         <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : ''}</div>
       </div>
 
-      <div className="st-grid st-grid--wide-first">
-        <div className="card st-card">
+      <div className="card st-card">
           <b>{L('الأمانات / الجهات', 'Amanahs')}</b>
           <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
           <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/smart-reports?q=%D9%82%D8%A7%D8%B1%D9%86%20%D8%A3%D8%AF%D8%A7%D8%A1%20%D8%A7%D9%84%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%20%D8%A8%D9%8A%D9%86%20%D8%A7%D9%84%D8%A3%D9%85%D8%A7%D9%86%D8%A7%D8%AA">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
         </div>
-        <div className="st-pair">
-          <div className="card st-card">
-            <b>{L('مصادر الإيراد', 'Revenue sources')}</b>
-            <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('مصادر الإيراد', 'Revenue sources')}><thead><tr><th>{L('المصدر', 'Source')}</th><th>{L('معدل التحصيل', 'Rate')}</th>{comparable && <th>{L('السابق', 'Prior')}</th>}<th>{L('الفواتير', 'Invoices')}</th></tr></thead>
-              <tbody>{src.map((g) => <tr key={g.key}><td><Link to={`/invoices?src=${g.key}`}>{ar ? sourceAr(g.key) : sourceEn(g.key)}</Link></td><td dir="ltr">{pct(g.net > 0 ? g.collected / g.net : null, '—')}</td>{comparable && <td dir="ltr">{pct(prevSrc.get(g.key) && prevSrc.get(g.key).net > 0 ? prevSrc.get(g.key).collected / prevSrc.get(g.key).net : null, '—')}</td>}<td dir="ltr">{count(g.count)}</td></tr>)}</tbody></table></div>
-            <Link to="/smart-reports?q=%D8%AD%D9%84%D9%84%20%D8%A7%D9%84%D8%A5%D9%8A%D8%B1%D8%A7%D8%AF%D8%A7%D8%AA%20%D8%AD%D8%B3%D8%A8%20%D8%A7%D9%84%D9%85%D8%B5%D8%AF%D8%B1" className="btn btn-sm btn-ghost">{L('تقرير المصادر', 'Sources report')}</Link>
-          </div>
-          {mun.length > 0 && (
-            <div className="card st-card">
-              <b>{L('البلديات (الأعلى غير محصّل)', 'Municipalities (largest uncollected)')}</b>
-              <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('البلديات', 'Municipalities')}><thead><tr><th>{L('البلدية', 'Municipality')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uM, lang)})</th><th>{L('معدل التحصيل', 'Rate')}</th></tr></thead>
-                <tbody>{mun.map((g) => <tr key={g.key}><td>{ar ? g.municipality.ar : g.municipality.en}</td><td dir="ltr">{scaled(g.outstanding, uM)}</td><td dir="ltr">{pct(g.net > 0 ? g.collected / g.net : null, '—')}</td></tr>)}</tbody></table></div>
-            </div>)}
-        </div>
-      </div>
 
       <RevenueAnalysis />
     </div>
