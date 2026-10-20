@@ -586,7 +586,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                 {showCard && (
                   <div className={`sr-card card${fresh ? ' sr-reveal' : ''}`}>
                     <div className="sr-card__bar">
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${shown.title}` : `▾ ${L('طيّ', 'Collapse')}`}</button>
+                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${shown.title}` : `▾ ${L('إغلاق', 'Close')}`}</button>
                       {isLast && <>
                         {exportButtons(shown)}
                         {!isFileResult && m.spec && m.kind !== 'view' && <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>}
