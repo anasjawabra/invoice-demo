@@ -524,7 +524,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         {empty && (
           <div className="sr-welcome">
             <h2>{L('ماذا تريد أن تعرف؟', 'What would you like to see?')}</h2>
-            <p className="muted sr-welcome__sub">{L('اسأل عن الإيرادات والتحصيل، أو أرفق ملفات (PDF، Word، Excel، CSV، PowerPoint) لأحللها مع بيانات النظام.', 'Ask about revenue and collection, or attach files (PDF, Word, Excel, CSV, PowerPoint) and I will analyse them together with the system data.')}</p>
+            <p className="muted sr-welcome__sub">{L('اسأل عن الإيرادات والتحصيل.', 'Ask about revenue and collection.')}</p>
             <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}<button type="button" className="sr-suggest__btn" onClick={() => fileRef.current?.click()}>📎 {L('إرفاق ملفات للتحليل', 'Attach files to analyse')}</button></div>
           </div>
         )}
