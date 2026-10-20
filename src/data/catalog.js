@@ -84,13 +84,14 @@ export const ITEMS = [
   { key: 'white_land_fee', source: 'white_lands', ar: 'رسوم الأراضي البيضاء', en: 'White-land fees' },
   { key: 'misc_revenue', source: 'municipal_fees', ar: 'إيرادات مختلفة', en: 'Miscellaneous revenue' },
   { key: 'housing_sales', source: 'housing_sales', ar: 'المبيعات السكنية', en: 'Residential sales' },
-  { key: 'housing_fees', source: 'housing_sales', ar: 'رسوم المبيعات', en: 'Sales fees' }
+  { key: 'housing_fees', source: 'housing_sales', ar: 'رسوم المبيعات', en: 'Sales fees' },
+  { key: 'ad_boards_amanah', source: 'licenses', ar: 'اللوحات الإعلانية (الأمانات)', en: 'Advertising boards (Amanah)' } // same revenue account as «اللوحات الإعلانية» of the central billing: its main class depends on the biller (IIM D6)
 ];
 export const ITEM_INDEX = Object.fromEntries(ITEMS.map((x, i) => [x.key, i]));
 export const REVENUE_ITEMS = ITEMS.reduce((m, it) => { (m[it.source] = m[it.source] || []).push(it); return m; }, {});
 
 /* ---------- Code tables ---------- */
-export const RULE_IDS = ['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1', 'OBJ-1', 'ENF-1']; // bit position = index
+export const RULE_IDS = ['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1', 'OBJ-1', 'ENF-1', 'SND-1', 'ATT-1', 'ENC-1']; // bit position = index
 export const RULE_BIT = Object.fromEntries(RULE_IDS.map((id, i) => [id, 1 << i]));
 export const CR_STATUS = [null, 'Active', 'Deleted', 'Suspended', 'Cancelled'];
 export const EFAA_STATUS = [null, 'مسددة', 'قائمة', 'تحت الاعتراض', 'غير مكتملة', 'منفذ ضده'];

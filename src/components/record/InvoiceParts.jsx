@@ -1,4 +1,4 @@
-// The invoice page's own building blocks: a money panel (amounts and how much of the net billed is collected), a payment panel (the payment date, how it
+// The invoice page's own building blocks: a money panel (invoice value, collection status, payment date), a payment panel (the payment date, how it
 // compares with the due date, and a timeline from issue to the reference date), grouped facts, and an in-page section navigation.
 import React from 'react';
 import { daysBetween } from '../../data/revenueLedger';
@@ -8,27 +8,26 @@ import { pctColor } from '../strategic/EntityMap';
 
 const pc = (v) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)}%`;
 
-// amounts first: net billed, collected and remaining as ONE bar, with gross and exclusions as the small print that explains the net
-export function MoneyPanel({ der, sar, L }) {
-  const net = der.net; const share = net > 0 ? Math.min(der.collected / net, 1) : 0;
+// IIM-13 — the financial summary shows ONLY: invoice value (قيمة الفاتورة), collection status and the payment date. The remaining balance and the separate collected figure are
+// not shown here; the bar is the collected share of the invoice value. An excluded invoice shows the reason (and the excluded amount as small print).
+export function MoneyPanel({ der, rec, sar, L, ar }) {
+  const value = der.gross; const share = value > 0 ? Math.min(der.collected / value, 1) : 0;
   const late = der.outstanding > 0 && der.daysOverdue > 0;
+  const status = der.cancelled ? { ar: 'ملغاة', en: 'Cancelled', tone: 'neutral' } : der.collected >= value && value > 0 ? { ar: 'محصلة', en: 'Collected', tone: 'ok' } : der.collected > 0 ? { ar: 'محصلة جزئيًا', en: 'Partially collected', tone: 'warn' } : { ar: 'غير محصلة', en: 'Not collected', tone: late ? 'late' : 'neutral' };
+  const paid = rec?.iim?.paidDate; const ex = rec?.iim?.exclusion;
   return (
     <section className="ip-card ip-money" aria-label={L('Financial summary', 'الملخص المالي')}>
       <h2 className="ip-h">{L('Financial summary', 'الملخص المالي')}</h2>
       <div className="ip-money__row">
-        <div><span className="ip-k">{L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr">{sar(net)}</b></div>
-        <div><span className="ip-k">{L('Collected', 'المحصّل')}</span><b className="ip-big" dir="ltr">{sar(der.collected)}</b></div>
-        <div><span className="ip-k">{L('Remaining balance', 'الرصيد المتبقي')}</span><b className={`ip-big${late ? ' ip-bad' : ''}`} dir="ltr">{sar(der.outstanding)}</b></div>
+        <div><span className="ip-k">{L('Invoice value', 'قيمة الفاتورة')}</span><b className="ip-big" dir="ltr">{sar(value)}</b></div>
+        <div><span className="ip-k">{L('Collection status', 'حالة التحصيل')}</span><b className={`ip-big${status.tone === 'late' ? ' ip-bad' : ''}`}>{ar ? status.ar : status.en}</b></div>
+        <div><span className="ip-k">{L('Payment date', 'تاريخ السداد')}</span><b className="ip-big" dir="ltr">{paid ? fmtDateText(paid, ar ? 'ar' : 'en') : '—'}</b></div>
       </div>
-      <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of net billed`, `المحصّل ${pc(share)} من صافي المفوتر`)}>
-        <i className="ip-bar__paid" style={{ width: `${share * 100}%`, background: pctColor('share', share) || undefined }} />{net > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
+      <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of the invoice value`, `المحصّل ${pc(share)} من قيمة الفاتورة`)}>
+        <i className="ip-bar__paid" style={{ width: `${share * 100}%`, background: pctColor('share', share) || undefined }} />{value > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
       </div>
-      <div className="ip-bar__cap"><span>{L('Collected', 'المحصّل')} <b dir="ltr">{pc(share)}</b></span>{net > 0 && <span>{L('Remaining', 'المتبقي')} <b dir="ltr">{pc(1 - share)}</b></span>}</div>
-      <dl className="ip-sub">
-        <div><dt>{L('Gross billed', 'إجمالي المفوتر')}</dt><dd dir="ltr">{sar(der.gross)}</dd></div>
-        <div><dt>{L('Exclusions', 'الاستبعادات')}</dt><dd dir="ltr">{sar(der.exclusionsTotal)}</dd></div>
-        {der.overpayment > 0 && <div><dt>{L('Paid above billed', 'مدفوع فوق المفوتر')}</dt><dd dir="ltr">{sar(der.overpayment)}</dd></div>}
-      </dl>
+      {ex && <dl className="ip-sub"><div><dt>{L('Exclusion reason', 'سبب الاستبعاد')}</dt><dd>{ar ? ex.reasonAr : ex.reasonEn}</dd></div><div><dt>{L('Excluded amount', 'المبلغ المستبعد')}</dt><dd dir="ltr">{sar(der.exclusionsTotal)}</dd></div></dl>}
+      {der.overpayment > 0 && <dl className="ip-sub"><div><dt>{L('Paid above the invoice value', 'مدفوع فوق قيمة الفاتورة')}</dt><dd dir="ltr">{sar(der.overpayment)}</dd></div></dl>}
     </section>
   );
 }

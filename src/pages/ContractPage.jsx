@@ -41,7 +41,7 @@ export default function ContractPage() {
         { label: L('Future installments', 'الدفعات المستقبلية'), value: short(t.futureNotInvoiced), note: L('not arrears', 'ليست متأخرات') }
       ]} />
       <section className="rp-section"><Facts items={[
-        { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : c.tenantEn }, { k: L('Amanah', 'الأمانة'), v: amanahName(c.amanahEn, ar) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) }, { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }
+        { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : c.tenantEn }, { k: L('Amanah', 'الأمانة / الجهة'), v: amanahName(c.amanahEn, ar) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) }, { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }
       ]} /></section>
 
       <Section id="relation" title={L('Enforcement relationship — three different facts', 'علاقة الإنفاذ — ثلاث حقائق مختلفة')}>

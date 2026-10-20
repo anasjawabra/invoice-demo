@@ -16,7 +16,7 @@ import OrdersView from './EnforcementOrders';
 import { Section } from '../components/record/RecordPage';
 import { loadPreparedSamples, SIM_LABEL } from '../data/ocrSimulation';
 
-const VIEWS = ['orders', 'invoices', 'contracts'];
+const VIEWS = ['orders', 'eligible', 'invoices', 'contracts'];
 const EXC_LABEL = {
   no_references: { en: 'Invoice numbers not identified — needs review', ar: 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة', def: { en: 'No invoice reference in the structured fields, the description, the notes or any document added. This is NOT «no related invoices».', ar: 'لا مرجع فاتورة في الحقول المهيكلة ولا الوصف ولا الملاحظات ولا أي مستند مضاف. وهذا ليس «لا فواتير مرتبطة».' } },
   corrupted_reference: { en: 'Corrupted invoice number (scientific notation)', ar: 'رقم فاتورة مشوّه (صيغة علمية)', def: { en: 'The structured invoice number arrived as scientific notation (digits lost): it cannot be matched. The description or a document may carry the full number.', ar: 'وصل رقم الفاتورة المهيكل بصيغة علمية (ضاعت أرقامه): لا يمكن مطابقته. وقد يحمل الوصف أو مستند الرقم الكامل.' } },
@@ -56,9 +56,10 @@ export default function EnforcementHome() {
     return out;
   }, [cd, cases, idx]);
   const contractsMentioned = contracts.filter((x) => x.mentioned.length).length;
-  const conflictReq = useMemo(() => ({ ...rev.scopeEff, from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff, rev.cfg.cutoff]);
-  const { data: conflictRes } = useAsync(() => rev.data.list(conflictReq, { filters: { exec: 'conflict', allPeriods: true }, page: 0, pageSize: 1 }), [rev.data, conflictReq, rev.dataVersion, cases]);
-  const conflictN = conflictRes?.total ?? null;
+  // الفواتير القابلة للإحالة (D21): the count and the list come from the data service (overdue, uncollected, not excluded, complete data, no order yet)
+  const eligReq = useMemo(() => ({ ...rev.scopeEff, from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff, rev.cfg.cutoff]);
+  const { data: eligRes } = useAsync(() => rev.data.list(eligReq, { filters: { eligible: true, allPeriods: true }, page: 0, pageSize: 1 }), [rev.data, eligReq, rev.dataVersion, cases]);
+  const eligibleN = eligRes?.total ?? null;
   const contractsDirect = contracts.filter((x) => x.direct.length).length; const contractsWithInv = contracts.filter((x) => x.referred.length).length;
   const excCount = (t) => comps.filter((x) => x.ex.includes(t)).length;
   const needing = comps.filter((x) => x.review !== 'complete').length;
@@ -85,7 +86,7 @@ export default function EnforcementHome() {
           {card(cases.length, L('Enforcement requests', 'طلبات التنفيذ'), L('count of requests', 'عدد الطلبات'), { onClick: () => go('orders') })}
           {card(needing, L('Need action', 'تحتاج إجراء'), L('requests', 'طلب'), { warn: true, onClick: () => go('orders', { review: 'open' }) })}
           {card(inv.ever, L('Referred invoices', 'فواتير محالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('invoices') })}
-          {card(conflictN == null ? '…' : conflictN, L('Cancelled yet referred', 'ملغاة ومحالة'), L('invoices — kept cancelled', 'فاتورة — تبقى ملغاة'), { warn: true })}
+          {card(eligibleN == null ? '…' : eligibleN, L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('eligible') })}
         </div>
         <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>
         <details className="oj-more" style={{ marginBlockStart: 6 }}>
@@ -108,11 +109,12 @@ export default function EnforcementHome() {
       </section>
 
       <nav className="rp-tabs" aria-label={L('Enforcement views', 'عروض الإنفاذ')}>
-        {[['orders', L('Requests', 'الطلبات'), cases.length], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length]].map(([k, label, n]) => (
+        {[['orders', L('Requests', 'الطلبات'), cases.length], ['eligible', L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), eligibleN ?? 0], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length]].map(([k, label, n]) => (
           <button key={k} type="button" className={`rp-tab${view === k ? ' rp-tab--on' : ''}`} aria-current={view === k ? 'page' : undefined} onClick={() => go(k)}>{label} <span className="rp-count">{fmt(n)}</span></button>
         ))}
       </nav>
       {view === 'orders' && <OrdersView />}
+      {view === 'eligible' && <EligibleInvoices />}
       {view === 'invoices' && <ReferredInvoices idx={idx} />}
       {view === 'contracts' && <RelatedContracts items={contracts} />}
 
@@ -146,6 +148,29 @@ function LegacyRecords() {
   );
 }
 
+// «الفواتير القابلة للإحالة» — very important for the business: overdue invoices that can be referred to execution now.
+function EligibleInvoices() {
+  const rev = useRevenue(); const { L, ar, sar } = useL();
+  const [page, setPage] = useState(0);
+  const req = useMemo(() => ({ ...rev.scopeEff, from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff, rev.cfg.cutoff]);
+  const { data } = useAsync(() => rev.data.list(req, { filters: { eligible: true, allPeriods: true }, page, pageSize: 25, sort: { key: 'outstanding', dir: 'desc' } }), [rev.data, req, page, rev.dataVersion]);
+  const rows = data?.rows || [];
+  useRestoreScroll(rows.length > 0);
+  return (
+    <section className="rp-section" aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
+      <div className="rp-limit">{L('Overdue, uncollected invoices that are not excluded or cancelled, have complete data and no execution order yet. They can be referred now.', 'فواتير متأخرة وغير محصّلة، غير مستبعدة ولا ملغاة، بياناتها مكتملة، وليس لها أمر تنفيذ بعد. يمكن إحالتها الآن.')}</div>
+      <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
+        <thead><tr><th>{L('Invoice', 'رقم الفاتورة')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Product', 'اسم المنتج')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th></tr></thead>
+        <tbody>{rows.map((r) => (
+          <tr key={r.id}><td><RecordLink to={invoicePath(r.id)} dir="ltr"><b>{r.id}</b></RecordLink></td><td>{ar ? r.amanahAr : r.amanahEn}</td><td>{ar ? r.productAr : r.productEn}</td><td className="num" dir="ltr">{sar(r.outstanding)}</td><td dir="ltr">{r.dueDate}</td><td className="num">{r.daysOverdue}</td></tr>
+        ))}
+        {!rows.length && <tr><td colSpan={6} className="muted">{L('No invoice is eligible for referral in this scope.', 'لا فواتير قابلة للإحالة في هذا النطاق.')}</td></tr>}</tbody>
+      </table></div>
+      <Pager page={page} total={data?.total ?? 0} size={25} onPage={setPage} />
+    </section>
+  );
+}
+
 function ReferredInvoices({ idx }) {
   const rev = useRevenue(); const { L, B, sar } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('enf-invoices', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -160,7 +185,7 @@ function ReferredInvoices({ idx }) {
     <section className="rp-section" aria-label={L('Referred invoices', 'الفواتير المحالة')}>
       <div className="rp-limit">{L('Invoices with at least one CONFIRMED order. Payment status and remaining balance are the invoice’s own; the enforcement columns are separate.', 'فواتير عليها أمر مؤكد واحد على الأقل. حالة السداد والمتبقي من الفاتورة نفسها؛ وأعمدة الإنفاذ منفصلة.')}</div>
       <div className="rv-form" role="search" style={{ margin: '8px 0' }}>
-        <label style={{ flex: '1 1 200px' }}>{L('Search invoice number', 'بحث برقم الفاتورة')}<input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} dir="ltr" placeholder="INV-2025" /></label>
+        <label style={{ flex: '1 1 200px' }}>{L('Search invoice number', 'بحث برقم الفاتورة')}<input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} dir="ltr" placeholder="177-2200000123" /></label>
         <label>{L('Enforcement', 'الإنفاذ')}<select className="input" value={f} onChange={(e) => { setF(e.target.value); setPage(0); }}><option value="all">{L('Ever referred', 'سبقت إحالتها')}</option><option value="inexec">{L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{L('All orders closed', 'كل الأوامر مغلقة')}</option></select></label>
       </div>
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Referred invoices', 'الفواتير المحالة')}>

@@ -4,7 +4,7 @@ import { RecordLink } from '../../utils/returnContext';
 import { invoicePath } from '../../utils/paths';
 import { PayStatusChip, Chip, CONFLICT_LABEL, KIND_LABEL, SOURCE_LABEL, RESOLVE_HINT } from './EnforcementUI';
 import { ORIGIN_LABEL, isHardConflict } from '../../data/orderMatching';
-import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED } from '../../data/orderSummary';
+import { rowState, selectionFor, totalsFor, summaryLines, NOT_IDENTIFIED, matchCriteria, PARTIAL_MATCH, confidenceOf, CONFIDENCE_LABEL } from '../../data/orderSummary';
 import { samplesForOrder, SIM_LABEL } from '../../data/ocrSimulation';
 import { FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
 import { locLabel } from '../../data/docxText';
@@ -13,12 +13,15 @@ import { useOrderWork } from './useOrderWork';
 
 // The order's journey in three plain steps — 1 add the document · 2 analyse it · 3 review and confirm the links — with ONE primary action and ONE consolidated review table.
 // References from the structured field, the description, the notes and every document are combined automatically; nothing asks for a separate confirmation per source.
-export default function OrderJourney({ c, rev, rows, loading, error, onRetry, comp, inputFor, others, onMessage, setTick, setFocus }) {
+export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onRetry, comp, inputFor, others, onMessage, setTick, setFocus }) {
   const { L, B, ar, sar } = useL();
   const work = useOrderWork({ order: c, rev, onMessage, L, B });
   const fileRef = useRef(null);
   const [ran, setRan] = useState(false); const [manual, setManual] = useState(''); const [ov, setOv] = useState({}); const [done, setDone] = useState(null); const [fix, setFix] = useState({}); const [why, setWhy] = useState({});
   const docs = c.docs || []; const canReview = rev.canReview;
+  // D22 — three criteria must agree (invoice number · Amanah · amount). The order's amount is compared with the invoices matched by reference: the one invoice, or their total.
+  const orderTotal = useMemo(() => { const ids = new Map(); for (const r of rowsIn) { const st = rowState(r); if (st.candidate && st.kind !== 'duplicate' && st.kind !== 'needs_evidence' && st.kind !== 'ambiguous') ids.set(st.candidate.invoiceId, st.candidate.grossAmount || 0); } return [...ids.values()].reduce((t, x) => t + x, 0); }, [rowsIn]);
+  const rows = useMemo(() => rowsIn.map((r) => { const cr = matchCriteria(c, r, orderTotal); return { ...r, criteria: cr, confidence: cr ? confidenceOf(c, r, cr) : null, partialMatch: !!cr && !cr.full && rowState(r).kind === 'ready' }; }), [rowsIn, c, orderTotal]);
   const pending = docs.filter((d) => !d.extraction && d.kind !== 'manual');
   const ownSamples = samplesForOrder(work.samples, c.enforceNum);
   const visible = useMemo(() => rows.filter((r) => rowState(r).kind !== 'duplicate'), [rows]); // a reference that is the same invoice as another row is merged into that row (its evidence is kept)
@@ -49,7 +52,7 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
   const resultChip = (st, row) => {
     const n = row.candidates.length;
     if (st.kind === 'confirmed') return <Chip def={{ en: 'Linked', ar: 'مربوط', cls: 'rv-cat--enforcement' }} />;
-    if (st.kind === 'ready') return <Chip def={{ en: 'Exact match', ar: 'مطابقة تامة', cls: 'rv-cat--collected' }} />;
+    if (st.kind === 'ready') return row.partialMatch ? <Chip def={{ en: PARTIAL_MATCH.en, ar: PARTIAL_MATCH.ar, cls: 'rv-cat--partial' }} /> : <Chip def={{ en: 'Full match', ar: 'مطابقة تامة', cls: 'rv-cat--collected' }} />;
     if (st.kind === 'weak') return <Chip def={{ en: 'Match on an incomplete number', ar: 'مطابقة برقم ناقص', cls: 'rv-cat--partial' }} />;
     if (st.kind === 'rejected') return <Chip def={{ en: 'Rejected before', ar: 'رُفض سابقاً', cls: 'rv-cat--excluded' }} />;
     if (st.kind === 'corrupted') return <Chip def={{ en: 'Corrupted number — cannot be matched', ar: 'رقم مشوّه — لا يمكن مطابقته', cls: 'rv-cat--overdue' }} />;
@@ -73,6 +76,12 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
           <label style={{ display: 'grid', gap: 3, fontSize: 13 }}>{L('Upload a file (PDF or Word .docx)', 'رفع ملف (PDF أو Word .docx)')}
             <input ref={fileRef} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff,application/pdf" disabled={!canReview || work.busy} onChange={async (e) => { const f = e.target.files?.[0]; await work.addFile(f); if (fileRef.current) fileRef.current.value = ''; setTick((x) => x + 1); }} />
           </label>
+          <span className="rv-tag rv-tag--warn">{L('Simulation — pending the link to the Sanad database', 'محاكاة – بانتظار الربط مع قاعدة بيانات سند')}</span>
+        </div>
+        {/* D19: the target flow is automatic retrieval from Sanad; until that integration exists the manual upload above stays, and this step is shown only to illustrate the future flow */}
+        <div className="oj-row" style={{ alignItems: 'center' }}>
+          <button type="button" className="btn oj-primary" disabled title={L('Not available yet — needs the Sanad database link', 'غير متاح بعد — يحتاج الربط مع قاعدة بيانات سند')}>{L('Retrieve the document from Sanad automatically (future)', 'استرجاع المستند من سند تلقائيًا (مستقبلًا)')}</button>
+          <span className="muted" style={{ fontSize: 13 }}>{L('Future flow: the system fetches the order’s document from Sanad, reads it (OCR) and matches the invoice number + Amanah + amount.', 'المسار المستقبلي: تجلب المنظومة مستند الأمر من سند، وتقرؤه (OCR)، وتطابق رقم الفاتورة + الأمانة + المبلغ.')}</span>
         </div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBlockEnd: 4 }}>{L('Or choose a prepared demo sample for this order', 'أو اختر عينة معدّة لهذا الأمر')} <span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span></div>
@@ -86,8 +95,8 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{L('Type invoice numbers by hand', 'إدخال أرقام الفواتير يدوياً')}</summary>
           <div className="oj-row" style={{ marginBlockStart: 6 }}>
-            <label style={{ flex: '1 1 260px', display: 'grid', gap: 3, fontSize: 13 }}>{L('One number per line (a full number such as INV-2025-0000123, or a serial of 4–7 digits)', 'رقم في كل سطر (رقم كامل مثل INV-2025-0000123 أو تسلسل من 4–7 أرقام)')}
-              <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="INV-2025-0000123" disabled={!canReview} /></label>
+            <label style={{ flex: '1 1 260px', display: 'grid', gap: 3, fontSize: 13 }}>{L('One number per line (a full number such as 177-2200000123 (biller id – Sadad number))', 'رقم في كل سطر (رقم كامل مثل 177-2200000123 (رقم المفوتر – رقم السداد))')}
+              <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="177-2200000123" disabled={!canReview} /></label>
             <button type="button" className="btn btn-sm" disabled={!canReview || !manual.trim()} onClick={() => { if (work.addManual(manual)) { setManual(''); setTick((x) => x + 1); } }}>{L('Add the numbers', 'إضافة الأرقام')}</button>
           </div>
           <div className="rp-limit">{L('Recorded as «typed by a person» — kept apart from any extraction.', 'تُسجَّل «أدخلها شخص» — منفصلة عن أي استخراج.')}</div>
@@ -179,8 +188,14 @@ export default function OrderJourney({ c, rev, rows, loading, error, onRetry, co
                     </td>
                     <td className="num" dir="ltr">{cand ? sar(cand.grossAmount) : '—'}</td>
                     <td>{resultChip(st, row)}
+                      {row.criteria && cand && (
+                        <ul className="oj-crit" aria-label={L('Matching criteria', 'معايير المطابقة')}>
+                          {[[L('Invoice number', 'رقم الفاتورة'), row.criteria.invoiceNo], [L('Amanah', 'الأمانة'), row.criteria.amanah], [L('Amount', 'المبلغ'), row.criteria.amount]].map(([lbl, ok]) => <li key={lbl} className={ok === true ? 'rp-ok' : ok === false ? 'rp-bad' : 'muted'}><span aria-hidden="true">{ok === true ? '✓' : ok === false ? '✗' : '—'}</span> {lbl}</li>)}
+                        </ul>
+                      )}
+                      {row.confidence && cand && <div className="oj-conf" style={{ fontSize: 12, marginBlockStart: 4 }}><b>{L('Confidence', 'درجة التيقن')}:</b> <span dir="ltr">{row.confidence.score}%</span> — {B(CONFIDENCE_LABEL[row.confidence.level])}</div>}
                       {st.kind === 'ambiguous' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{B(RESOLVE_HINT.ambiguous_reference)}
-                        {canReview && <div className="oj-row" style={{ marginBlockStart: 4 }}><input className="input" dir="ltr" style={{ width: 200 }} aria-label={L('Full invoice number', 'رقم الفاتورة الكامل')} placeholder="INV-2025-0000054" value={fix[row.key] || ''} onChange={(e) => setFix((m) => ({ ...m, [row.key]: e.target.value }))} />
+                        {canReview && <div className="oj-row" style={{ marginBlockStart: 4 }}><input className="input" dir="ltr" style={{ width: 200 }} aria-label={L('Full invoice number', 'رقم الفاتورة الكامل')} placeholder="177-2200000054" value={fix[row.key] || ''} onChange={(e) => setFix((m) => ({ ...m, [row.key]: e.target.value }))} />
                           <button type="button" className="btn btn-sm" disabled={!(fix[row.key] || '').trim()} onClick={() => { if (work.addManual(fix[row.key])) { setFix((m) => ({ ...m, [row.key]: '' })); setTick((x) => x + 1); } }}>{L('Add as evidence', 'إضافة كدليل')}</button></div>}
                       </div>}
                       {st.kind === 'needs_evidence' && <div className="rp-limit rp-limit--warn" style={{ margin: '4px 0' }}>{hard.map((x) => <div key={x}>{B(RESOLVE_HINT[x] || { en: '', ar: '' })}</div>)}</div>}

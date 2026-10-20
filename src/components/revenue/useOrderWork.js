@@ -52,7 +52,7 @@ export function useOrderWork({ order, rev, onMessage, L, B }) {
 
   const addManual = useCallback((text) => {
     const ex = manualExtraction(text, { orderNo: order.enforceNum });
-    if (!ex.refs.length) { say(false, L('No invoice number was recognised in the text. Use a full number such as INV-2025-0000123, or a serial of 4–7 digits.', 'لم يُتعرَّف على رقم فاتورة في النص. استخدم رقماً كاملاً مثل INV-2025-0000123 أو تسلسلاً من 4–7 أرقام.')); return false; }
+    if (!ex.refs.length) { say(false, L('No invoice number was recognised in the text. Use a full number such as 177-2200000123 (biller id – Sadad number).', 'لم يُتعرَّف على رقم فاتورة في النص. استخدم رقماً كاملاً مثل 177-2200000123 (رقم المفوتر – رقم السداد).')); return false; }
     const r = rev.enforcement.addManual(order.enforceNum, ex);
     say(r.ok, r.ok ? L(`${ex.refs.length} reference(s) recorded as typed by a person.`, `سُجّل ${ex.refs.length} مرجع على أنه أدخله شخص.`) : L('Could not record the references.', 'تعذّر تسجيل المراجع.'));
     return r.ok;

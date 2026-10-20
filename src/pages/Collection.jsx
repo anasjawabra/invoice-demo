@@ -2,46 +2,50 @@ import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import { useNavigate } from 'react-router-dom';
 import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
-import { invoicePath, contractPath, orderPath } from '../utils/paths';
+import { invoicePath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
-import { useL, ratioText } from '../utils/bi';
-import { ScopeBar, MetricTile, ProvenanceBadge } from '../components/revenue/RevenueUI';
-import { worklistRows, PRIORITY_WEIGHTS, pickBi } from '../data/revenueInsights';
+import { useL } from '../utils/bi';
+import { ScopeBar, MetricTile } from '../components/revenue/RevenueUI';
+import { worklistRows, PRIORITY_WEIGHTS } from '../data/revenueInsights';
 import { CATEGORY_LABELS, NONCOLLECTION_CATEGORIES } from '../data/revenueMetrics';
 import { REVENUE_SOURCES } from '../data/revenueLedger';
+import { kpiOf } from '../data/kpis';
+import { EXCLUSION_REASONS, ORIGIN_AR, ORIGIN_EN, PRODUCTS, DISCLOSURE_PRODUCTS } from '../data/iim';
 
-// Outstanding collection worklist. Only invoices with a balance still to collect
-// appear here; collected and excluded invoices never do. Data-quality and anomaly
-// follow-up lives on its own screens (Risks & Deviations; Data Quality under system settings).
+// Uncollected invoices list (IIM-06 / IIM-07). The header has three cards and ONE relation between them:
+//   إجمالي غير المحصل (excluded invoices INCLUDED)  −  إجمالي المستبعد  =  غير المحصل القابل للتحصيل.
+// The list shows every uncollected invoice — the excluded ones too — with the reason it was excluded; clicking إجمالي المستبعد opens the
+// breakdown by reason, and each reason row filters the list. Partly collected invoices stay in the list (their status is on the invoice).
+const STATE_CHIPS = NONCOLLECTION_CATEGORIES.filter((c) => !['excluded', 'cancelled', 'partial'].includes(c));
+
 export default function Collection() {
   const rev = useRevenue();
-  const { snapshot } = rev;
-  const { L, B, ar, lang, short, count, sar } = useL();
   const nav = useNavigate();
+  const { snapshot } = rev;
+  const { L, B, ar, short, count, sar } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('collection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [cat, setCat] = useState(mem.cat ?? 'all');
+  const [reason, setReason] = useState(mem.reason ?? 'all'); // all · none (not excluded) · a rule id
+  const [kind, setKind] = useState(mem.kind ?? 'all'); // نوع الفاتورة (tobacco / accommodation)
   const [detail, setDetail] = useState(mem.detail ?? null);
-  React.useEffect(() => { writeListMemory('collection', { cat, detail }); }, [cat, detail]);
-  const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
+  React.useEffect(() => { writeListMemory('collection', { cat, reason, kind, detail }); }, [cat, reason, kind, detail]);
+  const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status, product: rev.scopeEff.product, mainClass: rev.scopeEff.mainClass }), [rev.scopeEff]);
   // the service ranks the whole population and returns the top of the list (never the entire set)
-  const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100), [rev.data, scopeReq]);
-  const { data: wlCat } = useAsync(() => (cat === 'all' ? Promise.resolve(null) : rev.data.worklist(scopeReq, 100, { category: cat })), [rev.data, scopeReq, cat]);
-  const T = snapshot.totals;
-  const nc = snapshot.noncollection;
-  const allRows = useMemo(() => worklistRows(cat === 'all' ? wl : wlCat), [wl, wlCat, cat]);
-  const rows = allRows;
-  const actionableAmt = nc.overdue.amount + nc.partial.amount;
-  const actionableN = nc.overdue.count + nc.partial.count;
-  const maxAge = Math.max(nc.overdue.maxDaysOverdue || 0, nc.partial.maxDaysOverdue || 0);
+  const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100, { includeExcluded: true, reason, kind, ...(cat === 'all' ? {} : { category: cat }) }), [rev.data, scopeReq, cat, reason, kind]);
+  const T = snapshot.totals; const nc = snapshot.noncollection; const K = kpiOf(T);
+  const rows = useMemo(() => worklistRows(wl), [wl]);
+  const uncollectedCount = ['excluded', 'objection', 'linkage_unresolved', 'ineligible_referral', 'partial', 'overdue', 'not_due'].reduce((t, c) => t + (nc[c]?.count || 0), 0);
+  const stats = snapshot.ruleStats || {};
   const totalN = wl?.total ?? 0;
   useRestoreScroll(rows.length > 0);
+  const reasonLabel = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : r.en) : id; };
 
   return (
     <div className="rv-page">
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</h1>
-          <div className="page-sub">{L('Invoices with a balance still to collect, ranked by amount, aging, actionable opportunity and evidence quality — not by the lowest collection percentage.', 'فواتير لها رصيد متبقٍ للتحصيل، مرتبة بحسب المبلغ والتقادم والفرصة القابلة للتنفيذ وجودة الدليل — وليس بأقل نسبة تحصيل.')}</div>
+          <div className="page-sub">{L('Every uncollected invoice — including the excluded ones, with the reason — ranked by amount, aging, actionable opportunity and evidence quality.', 'كل الفواتير غير المحصّلة — ومنها المستبعدة مع سبب الاستبعاد — مرتبة بالمبلغ والتقادم وفرصة الإجراء وجودة الدليل.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => rev.startAnalysis('noncollection', {}, { origin: 'collection' })}>{L('Analyze reasons for noncollection', 'تحليل أسباب عدم التحصيل')}</button>
@@ -52,47 +56,64 @@ export default function Collection() {
       <ScopeBar />
 
       <div className="rv-tiles">
-        <MetricTile metric="outstanding" label={L('Uncollected (not excluded)', 'غير المحصّل (غير المستبعد)')} value={short(T.outstanding)} sub={L(`${count(totalN)} invoices`, `${count(totalN)} فاتورة`)} />
-        <MetricTile label={L('Actionable now (overdue + partial)', 'قابل للإجراء الآن (متأخر + جزئي)')} value={short(actionableAmt)} sub={L(`${count(actionableN)} invoices; oldest ${maxAge} days overdue`, `${count(actionableN)} فاتورة؛ الأقدم متأخرة ${maxAge} يوماً`)} />
-        <MetricTile label={L('Not yet due', 'لم يحن استحقاقها')} value={short(snapshot.noncollection.not_due.amount)} sub={L('No action yet — monitor', 'لا إجراء بعد — مراقبة')} />
-        <MetricTile label={L('Blocked (objection / link / data)', 'معطّل (اعتراض / ربط / بيانات)')} value={short(snapshot.noncollection.objection.amount + snapshot.noncollection.linkage_unresolved.amount + snapshot.noncollection.ineligible_referral.amount)} sub={L('Resolve the blocker first', 'احسم المعطّل أولاً')} />
+        <MetricTile metric="outstanding" label={L('Total uncollected (excluded included)', 'إجمالي غير المحصل (يشمل المستبعد)')} value={short(K.uncollectedTotal)} sub={L(`${count(uncollectedCount)} invoices`, `${count(uncollectedCount)} فاتورة`)} />
+        <MetricTile id="excluded-card" label={L('Total excluded', 'إجمالي المستبعد')} value={short(K.excluded)} sub={L(`${count(K.excludedCount)} invoices — by reason`, `${count(K.excludedCount)} فاتورة — حسب السبب`)} onAction={() => nav('/exclusions')} actionLabel={L('Open exclusions management', 'فتح إدارة الاستبعادات')} />
+        <MetricTile label={L('Collectible uncollected', 'غير المحصل القابل للتحصيل')} value={short(K.collectible)} sub={L('Total uncollected − total excluded', 'إجمالي غير المحصل − إجمالي المستبعد')} />
       </div>
 
-      <div className="card card-pad">
+      <div className="card card-pad" id="uncollected-list">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }} role="group" aria-label={L('Filter by state', 'تصفية حسب الحالة')}>
-          <button type="button" className={`btn btn-sm ${cat === 'all' ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>{L('All', 'الكل')} · {count(totalN)}</button>
-          {NONCOLLECTION_CATEGORIES.filter((c) => !['excluded'].includes(c)).map((c) => (
+          <button type="button" className={`btn btn-sm ${cat === 'all' ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>{L('All', 'الكل')}</button>
+          {STATE_CHIPS.map((c) => (
             <button key={c} type="button" className={`btn btn-sm ${cat === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === c} onClick={() => setCat(c)}>{B(CATEGORY_LABELS[c])} · {count(nc[c].count)}</button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+          <label htmlFor="rv-reason" className="rv-scope__lbl">{L('Exclusion reason', 'سبب الاستبعاد')}</label>
+          <select id="rv-reason" className="select" value={reason} onChange={(e) => { setReason(e.target.value); setCat('all'); }}>
+            <option value="all">{L('All (excluded and not)', 'الكل (مستبعدة وغير مستبعدة)')}</option>
+            <option value="none">{L('Not excluded', 'غير مستبعدة')}</option>
+            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : r.en}{stats[r.ruleId]?.primaryCount ? ` · ${count(stats[r.ruleId].primaryCount)}` : ''}</option>)}
+          </select>
+          {(rev.scopeEff.product || []).some((k) => DISCLOSURE_PRODUCTS.includes(k)) && (
+            <select id="rv-kind" className="select" aria-label={L('Invoice type', 'نوع الفاتورة')} value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="all">{L('All invoice types', 'كل أنواع الفاتورة')}</option>
+              <option value="occupancy">{L('Occupancy (declared by the taxpayer)', 'إشغالات (إفصاح من المكلف)')}</option>
+              <option value="differences">{L('Differences (from the audit)', 'فروقات (ناتجة عن التدقيق)')}</option>
+            </select>
+          )}
+          <span className="muted" style={{ fontSize: 12 }}>{L(`${count(totalN)} invoices in this view`, `${count(totalN)} فاتورة في هذا العرض`)}{reason !== 'all' && reason !== 'none' ? ` — ${reasonLabel(reason)}` : ''}</span>
+        </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · source', 'الأمانة · المصدر')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Outstanding (SAR)', 'المتبقي (ريال)')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Suggested next step', 'الخطوة المقترحة')}</th></tr></thead>
+            <thead><tr><th>#</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah · product', 'الأمانة · المنتج')}</th><th>{L('Origin', 'مصدر الفاتورة')}</th><th>{L('State', 'الحالة')}</th><th className="num">{L('Uncollected (SAR)', 'غير المحصّل (ريال)')}</th><th>{L('Exclusion reason', 'سبب الاستبعاد')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th><th className="num">{L('Priority', 'الأولوية')}</th><th>{L('Next step', 'الخطوة التالية')}</th></tr></thead>
             <tbody>
               {rows.length ? rows.map((w, i) => (
                 <tr key={w.id} data-clickable="true" onClick={() => setDetail(detail === w.id ? null : w.id)}>
                   <td className="num">{i + 1}</td>
-                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link></td>
-                  <td>{ar ? w.amanahAr : w.amanahEn} · {ar ? REVENUE_SOURCES[w.source].ar : REVENUE_SOURCES[w.source].en}</td>
+                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link><div className="muted" style={{ fontSize: 11 }} dir="auto">{L('Biller', 'المفوتر')} {w.billerId} · {ar ? w.billerAr : w.billerEn}</div></td>
+                  <td>{ar ? w.amanahAr : w.amanahEn} · {ar ? PRODUCTS[w.productKey].ar : PRODUCTS[w.productKey].en}{w.invoiceKindAr ? ` — ${w.invoiceKindAr}` : ''} <span className="muted" style={{ fontSize: 11 }}>({ar ? REVENUE_SOURCES[w.source].ar : REVENUE_SOURCES[w.source].en})</span></td>
+                  <td>{ar ? ORIGIN_AR[w.origin] : ORIGIN_EN[w.origin]}</td>
                   <td><span className={`rv-cat rv-cat--${w.category}`}>{B(CATEGORY_LABELS[w.category])}</span></td>
-                  <td className="num" dir="ltr">{sar(w.outstanding)}</td>
+                  <td className="num" dir="ltr">{sar(w.uncollected ?? w.outstanding)}</td>
+                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : w.exclusionReason.reasonEn) : '—'}{w.exclusionReason && detail === w.id && <div className="muted" style={{ fontSize: 11 }}>{L('Source', 'المصدر')}: {ar ? w.exclusionReason.sourceAr : w.exclusionReason.sourceEn}</div>}</td>
                   <td className="num">{w.daysOverdue || '—'}</td>
-                  <td className="num" title={L(`amount ${PRIORITY_WEIGHTS.amount}, aging ${PRIORITY_WEIGHTS.aging}, actionability ${PRIORITY_WEIGHTS.actionability}, evidence ${PRIORITY_WEIGHTS.evidence}`, `المبلغ ${PRIORITY_WEIGHTS.amount}، التقادم ${PRIORITY_WEIGHTS.aging}، القابلية ${PRIORITY_WEIGHTS.actionability}، الدليل ${PRIORITY_WEIGHTS.evidence}`)}>{w.score.toFixed(2)}</td>
+                  <td className="num" title={L(`amount ${PRIORITY_WEIGHTS.amount}, aging ${PRIORITY_WEIGHTS.aging}, actionability ${PRIORITY_WEIGHTS.actionability}, evidence ${PRIORITY_WEIGHTS.evidence}`, `المبلغ ${PRIORITY_WEIGHTS.amount}، التقادم ${PRIORITY_WEIGHTS.aging}، قابلية الإجراء ${PRIORITY_WEIGHTS.actionability}، الدليل ${PRIORITY_WEIGHTS.evidence}`)}>{w.score}</td>
                   <td dir="auto" style={{ fontSize: 12 }}>
                     {B(w.nextStep)}
                     {detail === w.id && (
                       <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
-                        {L(`Actionability ${w.actionability}; evidence quality ${w.evidenceQuality}. Priority = ${PRIORITY_WEIGHTS.amount}×amount + ${PRIORITY_WEIGHTS.aging}×aging + ${PRIORITY_WEIGHTS.actionability}×actionability + ${PRIORITY_WEIGHTS.evidence}×evidence (configurable weights, not truth). No probability of payment is shown: none is supported by the data.`, `القابلية ${w.actionability}؛ جودة الدليل ${w.evidenceQuality}. الأولوية = ${PRIORITY_WEIGHTS.amount}×المبلغ + ${PRIORITY_WEIGHTS.aging}×التقادم + ${PRIORITY_WEIGHTS.actionability}×القابلية + ${PRIORITY_WEIGHTS.evidence}×الدليل (أوزان قابلة للضبط وليست حقيقة). لا يُعرض احتمال سداد لعدم وجود ما يدعمه في البيانات.`)}
+                        {L(`Actionability ${w.actionability}; evidence quality ${w.evidenceQuality}.`, `قابلية الإجراء ${w.actionability}؛ جودة الدليل ${w.evidenceQuality}.`)}
                         {w.tags.length > 0 && <div>{w.tags.join(' · ')}</div>}
                       </div>
                     )}
                   </td>
                 </tr>
-              )) : <tr><td colSpan={8}><div className="rv-empty">{L('No outstanding invoices in this scope.', 'لا توجد فواتير متبقية في هذا النطاق.')}</div></td></tr>}
+              )) : <tr><td colSpan={10}><div className="rv-empty">{L('No uncollected invoices in this view.', 'لا توجد فواتير غير محصّلة في هذا العرض.')}</div></td></tr>}
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected and excluded invoices never appear here. Invoices with risk flags or amount conflicts are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة أو المستبعدة. أما الفواتير ذات تنبيهات المخاطر أو تعارض المبالغ فتُراجع في ')}<Link className="xref" to="/risk">{L('Risks & Deviations', 'المخاطر والانحرافات')}</Link>{L('; missing fields and unlinked contracts in ', '، والحقول الناقصة والعقود غير المرتبطة في ')}<Link className="xref" to="/settings/data-quality">{L('Data quality', 'جودة البيانات')}</Link>.</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected invoices never appear here. Excluded invoices appear with their reason; the exclusion applies to the uncollected part only. Invoices with risk flags or amount conflicts are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة. وتظهر المستبعدة مع سببها؛ والاستبعاد يخص الجزء غير المحصّل فقط. أما الفواتير ذات أعلام المخاطر أو تعارض المبالغ فتُراجَع في ')}<Link to="/risk">{L('Risks & Deviations', 'المخاطر والانحرافات')}</Link>.</p>
       </div>
     </div>
   );

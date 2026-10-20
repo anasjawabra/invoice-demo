@@ -26,7 +26,7 @@ Collection, Risk and Noncollection now restore their filters, page and scroll li
 | Primary entry | «إدارة التنفيذ» between planning and the operations menu; landing counts as above (28 orders: 17 / 4 / 7; invoices 8 / 6 / 7 / 21; contracts 4 / 4) |
 | Closed order keeps an unpaid invoice uncollected | INV-2026-0000076 (order EN-5026 closed): *Due and overdue* + tag «referred before»; filter «all orders closed» lists it |
 | Suspended separate | filter «suspended» → 2 invoices tagged «order suspended»; chip «Only suspended orders — not proceeding»; landing «Open but NOT proceeding» |
-| Collected invoice with an order in execution stays collected | INV-2026-0722 / 0635 shown *Collected* + «order in execution» |
+| Collected invoice with an order in execution stays collected | 177-882607220000 / 0635 shown *Collected* + «order in execution» |
 | Contracts | CT-2023-0013: «Directly referred by 1 order (EN-3100, closed)» **and** «3 of 21 invoiced installments carry a confirmed order»; CT-2023-0048: no order names it, 2 of 16 invoices referred |
 | Return journeys | Collection (chip «Not yet due · 23» + scroll 1899 → 1899), Risk (chip + 927 → 927), Noncollection (filter *overdue*, page 2/4, 1855 → 1855), Orders (status *open*, 2342 → 2342); record pages open at scroll 0 |
 | Inventory of former drawer entry points | 15 pages scanned (dashboard, planning, invoices, collection, risk, noncollection, contracts + page, the four enforcement views, order page, invoice page, data sources): **0 legacy addresses** (`?id=`, `?no=`, `/sanad-orders`, `/investment-invoices`, bare `/enforcement-orders`), **0 dialogs/drawers**; record links found: invoices 6–38 per list, orders up to 28, contracts 7 |

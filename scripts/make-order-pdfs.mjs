@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadStore } from '../server/store.js';
-import { invoiceIdOf, payerName, sadadOf, violationOf, beneficiaryIdOf } from '../server/names.js';
+import { invoiceIdFor, payerName, sadadOf, violationOf, beneficiaryIdOf } from '../server/names.js';
 import { ENTITIES, SOURCES, isoOf } from '../src/data/catalog.js';
 import { adaptSourceCase } from '../src/data/sanadSource.js';
 
@@ -44,7 +44,7 @@ const head = (q, title) => [
   { text: `Enforcement order no: ${q.enforceNum}` }, { text: `Issued by: Sanad (demo feed)    Opened: ${isoOf(q.openedDay)}    Order status: ${adaptSourceCase(q).status === 'مغلق' ? 'Closed' : 'In execution'}` },
   { text: `Municipality: ${ENTITIES[q.ent].en}` }, { text: `Debtor: ${payerName(q.debtor).en} (Beneficiary ID ${beneficiaryIdOf(q.debtor)})` }, { gap: 6 }
 ];
-const refRow = (i) => ({ text: `${invoiceIdOf(st.idKey[i])}   |   ${SOURCES[st.src[i]].en || SOURCES[st.src[i]].key}   |   Issued ${isoOf(st.issue[i])}   |   ${num(st.gross[i])} SAR` });
+const refRow = (i) => ({ text: `${invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i])}   |   ${SOURCES[st.src[i]].en || SOURCES[st.src[i]].key}   |   Issued ${isoOf(st.issue[i])}   |   ${num(st.gross[i])} SAR` });
 const wrote = [];
 const write = (name, pages) => { fs.writeFileSync(path.join(OUT, name), pdf(pages)); wrote.push(name); };
 const FIRST = new Set(['single', 'multi_exact', 'multi_partial_refs', 'multi_no_refs', 'multi_typo_ref', 'serial_ambiguous', 'amount_discrepancy', 'duplicate_across_orders']);
@@ -68,7 +68,7 @@ for (const q of st.requests.filter((r) => r.archetype && FIRST.has(r.archetype))
 for (const q of st.requests.filter((r) => ['attach_pdf', 'attach_unreadable'].includes(r.archetype))) {
   if (q.archetype === 'attach_pdf') {
     const all = [...q.covers]; const p1 = [...head(q, 'ENFORCEMENT ORDER - attached schedule'), { text: `Total amount: ${num(q.amount)} SAR`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.slice(0, 1).map(refRow)];
-    const p2 = [{ text: `Enforcement order ${q.enforceNum} - page 2`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.slice(1).map(refRow), { gap: 8 }, { text: `Invoice ${invoiceIdOf(st.idKey[all[0]])} is repeated here (same invoice, second occurrence).` }];
+    const p2 = [{ text: `Enforcement order ${q.enforceNum} - page 2`, size: 11 }, { gap: 6 }, { text: 'Invoice No   |   Type   |   Issue date   |   Amount' }, ...all.slice(1).map(refRow), { gap: 8 }, { text: `Invoice ${invoiceIdFor(st.ent[all[0]], st.scope[all[0]], st.idKey[all[0]])} is repeated here (same invoice, second occurrence).` }];
     write(`${q.enforceNum}-attachment.pdf`, [{ lines: p1 }, { lines: p2 }]);
   } else {
     write(`${q.enforceNum}-scan.pdf`, [{ lines: [{ text: 'SYNTHETIC DEMO DOCUMENT - scanned image (no text layer)', size: 8 }] }, { blank: true }]);

@@ -51,7 +51,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Collection target achievement', 'تحقيق مستهدف التحصيل'), value: formatRatio(achievement.achievement, ar ? 'ar' : 'en'), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs cumulative target ${M(achievement.targetYtd || 0)} (target is a demo input)`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المستهدف التراكمي ${M(achievement.targetYtd || 0)} (المستهدف مُدخل توضيحي)`) });
 
   const analysisTable = {
-    headers: [L('Amanah', 'الأمانة'), L('Invoices', 'الفواتير'), L(`Gross (${unitName})`, `الإجمالي (${unitName})`), L(`Exclusions (${unitName})`, `الاستبعادات (${unitName})`), L(`Net (${unitName})`, `الصافي (${unitName})`), L(`Collected (${unitName})`, `المحصّل (${unitName})`), L(`Uncollected (${unitName})`, `غير المحصّل (${unitName})`), L('Collection rate', 'نسبة التحصيل')],
+    headers: [L('Amanah', 'الأمانة / الجهة'), L('Invoices', 'الفواتير'), L(`Gross (${unitName})`, `الإجمالي (${unitName})`), L(`Exclusions (${unitName})`, `الاستبعادات (${unitName})`), L(`Net (${unitName})`, `الصافي (${unitName})`), L(`Collected (${unitName})`, `المحصّل (${unitName})`), L(`Uncollected (${unitName})`, `غير المحصّل (${unitName})`), L('Collection rate', 'نسبة التحصيل')],
     rows: snapshot.byAmanah.map((g) => [pickBi(g.label, lang), cnt(g.count), scaled(g.gross, tu), scaled(g.exclusions, tu), scaled(g.net, tu), scaled(g.collected, tu), scaled(g.outstanding, tu), formatRatio(g.collectedOverNet, ar ? 'ar' : 'en', 0)]),
     // exports keep the exact numbers in SAR beside the abbreviated display columns (never the abbreviated value alone)
     rawHeaders: ['amanah', 'invoice_count', 'gross_sar', 'exclusions_sar', 'net_sar', 'collected_sar', 'uncollected_sar', 'collection_rate_pct', `gross_${tu.key.toLowerCase()}`, `exclusions_${tu.key.toLowerCase()}`, `net_${tu.key.toLowerCase()}`, `collected_${tu.key.toLowerCase()}`, `uncollected_${tu.key.toLowerCase()}`],
@@ -69,7 +69,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   if (focus === 'investment') {
     const inv = snapshot.bySource.find((s) => s.key === 'investment');
     discoveries.unshift(inv
-      ? L(`Investment (Furas-origin) invoices: ${inv.count} issued, ${M(inv.net)} net billed, ${M(inv.outstanding)} outstanding. Contract schedules, future installments and Sanad execution are on the Contracts page; execution amounts are not added to the debt.`, `فواتير الاستثمار (مصدرها فرص): ${inv.count} صادرة، صافي مفوتر ${M(inv.net)}، متبقٍ ${M(inv.outstanding)}. جداول العقود والدفعات المستقبلية وتنفيذ سند في صفحة العقود؛ ولا تُضاف مبالغ التنفيذ إلى المديونية.`)
+      ? L(`Investment invoices: ${inv.count} issued, ${M(inv.net)} net billed, ${M(inv.outstanding)} outstanding. Contract schedules, future installments and Sanad execution are on the Investment contracts page; execution amounts are not added to the debt.`, `فواتير الاستثمار: ${inv.count} صادرة، صافي مفوتر ${M(inv.net)}، متبقٍ ${M(inv.outstanding)}. جداول العقود والدفعات المستقبلية وتنفيذ سند في صفحة العقود الاستثمارية؛ ولا تُضاف مبالغ التنفيذ إلى المديونية.`)
       : L('No investment-source invoices in this scope.', 'لا توجد فواتير بمصدر استثماري في هذا النطاق.'));
   }
   if (!discoveries.length) discoveries.push(L('No findings in this scope.', 'لا توجد نتائج في هذا النطاق.'));

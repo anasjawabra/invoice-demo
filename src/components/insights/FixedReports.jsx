@@ -17,7 +17,7 @@ function ReportBody({ def }) {
   const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const s = rev.scopeEff; const today = cfg.cutoff;
   const [exporting, setExporting] = useState(''); const [rt, setRt] = useState(0); const [exportErr, setExportErr] = useState(''); const [exportDone, setExportDone] = useState('');
   const needs = def.sections;
-  const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status }), [s.amanah, s.source, s.scopeType, s.muni, s.status]);
+  const scopeBase = useMemo(() => ({ amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status, product: s.product, mainClass: s.mainClass }), [s.amanah, s.source, s.scopeType, s.muni, s.status, s.product, s.mainClass]);
   const X = useAsync(async () => {
     const sc = { from: s.from, to: s.to, ...scopeBase };
     const [cash, bridge, forecast] = await Promise.all([

@@ -64,7 +64,7 @@ add('p3-follow', 'use Taif instead', { amanah: TF, keep: ['from', 'to'] }, 'repo
 add('p3-neg', 'ما أفضل وقت لزيارة الرياض؟', { kind: 'unsupported' });
 add('p3-neg', 'write me a poem', { kind: 'unsupported' });
 add('p3-neg', 'احجز لي موعدا', { kind: 'unsupported' });
-add('p3-neg', 'سدد الفاتورة INV-2026-0000010', { kind: ['unsupported', 'clarify'] });
+add('p3-neg', 'سدد الفاتورة 177-882600000010', { kind: ['unsupported', 'clarify'] });
 add('p3-neg', 'delete all invoices', { kind: ['unsupported', 'clarify'] });
 add('p3-neg', 'قارن', { kind: 'clarify' });
 add('p3-neg', 'تقرير بعد غد', { kind: 'clarify' });

@@ -131,7 +131,7 @@ export default function AnalysisProgress({ task, variant = 'modal', stale = fals
         )}
         {failMsg && <div className="ap__fail" role="alert">{failMsg}</div>}
         {task.status === 'cancelled' && <div className="ap__fail ap__fail--soft">{L('Cancelled by the user. No results were produced; completed stages above were not saved as findings.', 'ألغاها المستخدم. لم تُنتج نتائج؛ ولم تُحفظ المراحل المكتملة أعلاه كنتائج.')}</div>}
-        {stale && terminal && <div className="ap__stale">{L('Filters or data changed after this analysis ran — re-run it before relying on it.', 'تغيّرت المرشحات أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
+        {stale && terminal && <div className="ap__stale">{L('Filters or data changed after this analysis ran — re-run it before relying on it.', 'تغيّرت التصفية أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
 
         <div className="ap__foot">
           <span className="ap__demo" title={task.paced ? L('Stage display is paced for readability; the calculations themselves run on in-browser illustrative data.', 'عرض المراحل مُبطَّأ للقراءة؛ أما الحسابات فتجري على بيانات توضيحية داخل المتصفح.') : ''}>

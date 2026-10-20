@@ -41,10 +41,10 @@ export function decompose(currGroups, prevGroups) {
 
 // `data` is the data-service provider ({ snapshot, series }); the explanation is computed from two server snapshots and their monthly receipts.
 export async function explainChange(data, scope, cfg = {}, pre = {}) {
-  const sc0 = { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status };
+  const sc0 = { from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status, product: scope.product, mainClass: scope.mainClass };
   const prevScopeV = previousScope(scope);
   const curr = pre.curr || await data.snapshot(sc0);
-  const prev = pre.prev || await data.snapshot({ from: prevScopeV.from, to: prevScopeV.to, basis: prevScopeV.basis, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status });
+  const prev = pre.prev || await data.snapshot({ from: prevScopeV.from, to: prevScopeV.to, basis: prevScopeV.basis, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType, muni: scope.muni, status: scope.status, product: scope.product, mainClass: scope.mainClass });
   const cmp = compareSnapshots(curr, prev);
   const out = { curr, prev, cmp, comparable: cmp.comparable, scopeCurr: curr.scope, scopePrev: prev.scope, factors: [], needsVerification: [] };
   if (!cmp.comparable) {
@@ -67,7 +67,7 @@ export async function explainChange(data, scope, cfg = {}, pre = {}) {
   // exceptional collections
   const exceptionalOf = async (snap) => {
     try {
-      const mr = await data.series({ from: snap.scope.from, to: snap.scope.to, amanah: snap.scope.amanah, source: snap.scope.source, scopeType: snap.scope.scopeType, muni: snap.scope.muni, status: snap.scope.status }, { asOf: snap.scope.to });
+      const mr = await data.series({ from: snap.scope.from, to: snap.scope.to, amanah: snap.scope.amanah, source: snap.scope.source, scopeType: snap.scope.scopeType, muni: snap.scope.muni, status: snap.scope.status, product: snap.scope.product, mainClass: snap.scope.mainClass }, { asOf: snap.scope.to });
       return detectExceptionalPayments(mr.months, mr.values, mr.payments, { typicalPayment: mr.typicalPayment });
     } catch { return []; }
   };

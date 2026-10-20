@@ -101,7 +101,7 @@ export function ChangeExplanation() {
           {ex.byAmanah && (
             <div className="rv-table-wrap" tabIndex={0}>
               <table className="rv-table" style={{ minWidth: 0 }}>
-                <thead><tr><th>{L('Amanah', 'الأمانة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
+                <thead><tr><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
                 <tbody>{ex.byAmanah.rows.slice(0, 5).map((r) => <tr key={r.key}><td>{r.label ? pickBi(r.label, ar ? 'ar' : 'en') : r.key}</td><td className="num" dir="ltr">{r.mixPp.toFixed(2)}</td><td className="num" dir="ltr">{r.ratePp.toFixed(2)}</td><td className="num" dir="ltr"><b>{r.totalPp.toFixed(2)}</b></td></tr>)}</tbody>
               </table>
             </div>
@@ -119,7 +119,7 @@ export function ChangeExplanation() {
 /* ---------------------------------------------------------------- Amanah map */
 export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
   const { L, B, ar, short, count } = useL();
-  const [sort, setSort] = useState('attention');
+  const [sort, setSort] = useState('rate'); // D32: the entities are ranked by the LOWEST collection rate first
   const total = snapshot.byAmanah.reduce((s, g) => s + g.outstanding, 0);
   const prev = new Map((prevSnapshot?.byAmanah || []).map((g) => [g.key, g]));
   const rows = snapshot.byAmanah.map((g) => {
@@ -142,14 +142,14 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
     <div className="card card-pad">
       <div className="rv-card__head">
         <div>
-          <h2 className="rv-sec-title">{L('Amanah map', 'خريطة الأمانات')}</h2>
+          <h2 className="rv-sec-title">{L('Amanahs and entities', 'الأمانات / الجهات')}</h2>
 
         </div>
         <label className="rv-inline">{L('Sort', 'الترتيب')}
           <select className="input" value={sort} onChange={(e) => setSort(e.target.value)} aria-label={L('Sort Amanahs', 'ترتيب الأمانات')}>
-            <option value="attention">{L('Needs attention (uncollected ÷ own net)', 'الأحوج للانتباه (غير المحصّل ÷ صافيها)')}</option>
+            <option value="rate">{L('Lowest collection rate first', 'الأدنى نسبة تحصيل أولاً')}</option>
+            <option value="attention">{L('Highest uncollected share of net', 'الأعلى نسبة غير محصّلة من الصافي')}</option>
             <option value="amount">{L('Outstanding amount', 'مبلغ غير المحصّل')}</option>
-            <option value="rate">{L('Lowest rate', 'أدنى نسبة')}</option>
             <option value="trend">{L('Largest decline', 'أكبر تراجع')}</option>
           </select>
         </label>
@@ -157,9 +157,9 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
       <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table">
           <thead><tr>
-            <th>{L('Amanah', 'الأمانة')}</th>
+            <th>{L('Amanah', 'الأمانة / الجهة')}</th>
             <th>{L('Size (net billed)', 'الحجم (صافي المفوتر)')}</th>
-            <th className="num">{L('Collected ÷ net', 'المحصّل ÷ الصافي')}</th>
+            <th className="num">{L('Collection rate', 'نسبة التحصيل')}</th>
             <th className="num">{L('Change vs last year (pp)', 'التغير عن العام الماضي (نقطة)')}</th>
             <th className="num">{L('Uncollected', 'غير المحصّل')}</th>
             <th className="num">{L('Uncollected share of its net', 'نسبة غير المحصّل من صافيها')}</th>

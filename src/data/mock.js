@@ -399,7 +399,7 @@ export const AGENTS = [
 // Invoices deep-link, and `.entityEn` is still the exact PAYER_MASTER key.
 export const INVOICES = [
   {
-    id: 'INV-2026-0731',
+    id: '177-882607310000', billerId: '177', sadadNo: '882607310000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Al-Rajhi 建设集团',
@@ -419,7 +419,7 @@ export const INVOICES = [
     tag: 'normal'
   },
   {
-    id: 'INV-2026-0730',
+    id: '177-882607300000', billerId: '177', sadadNo: '882607300000',
     payType: 'deferred',
     centralSource: true,
     entity: 'NEOM 物流服务',
@@ -440,7 +440,7 @@ export const INVOICES = [
     tag: 'fraud'
   },
   {
-    id: 'INV-2026-0729',
+    id: '177-882607290000', billerId: '177', sadadNo: '882607290000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Saudi Tech Solutions',
@@ -464,7 +464,7 @@ export const INVOICES = [
     collectedVia: 'voluntary'
   },
   {
-    id: 'INV-2026-0728',
+    id: '177-882607280000', billerId: '177', sadadNo: '882607280000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Gulf Facility Mgmt',
@@ -485,7 +485,7 @@ export const INVOICES = [
     tag: 'dup'
   },
   {
-    id: 'INV-2026-0727',
+    id: '177-882607270000', billerId: '177', sadadNo: '882607270000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Aramco 后勤供应',
@@ -507,7 +507,7 @@ export const INVOICES = [
     tag: 'taxfail'
   },
   {
-    id: 'INV-2026-0726',
+    id: '301-882607260000', billerId: '301', sadadNo: '882607260000',
     payType: 'prepaid',
     centralSource: false,
     entity: 'Riyadh 市政工程',
@@ -528,7 +528,7 @@ export const INVOICES = [
     tag: 'normal'
   },
   {
-    id: 'INV-2026-0725',
+    id: '304-882607250000', billerId: '304', sadadNo: '882607250000',
     payType: 'prepaid',
     centralSource: false,
     entity: 'STC 通信服务',
@@ -550,7 +550,7 @@ export const INVOICES = [
     tag: 'normal'
   },
   {
-    id: 'INV-2026-0724',
+    id: '177-882607240000', billerId: '177', sadadNo: '882607240000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Bahri 海运物流',
@@ -571,7 +571,7 @@ export const INVOICES = [
     tag: 'normal'
   },
   {
-    id: 'INV-2026-0722',
+    id: '177-882607220000', billerId: '177', sadadNo: '882607220000',
     payType: 'deferred',
     centralSource: true,
     entity: 'Al-Noor 贸易',
@@ -598,56 +598,56 @@ export const INVOICES = [
   // dated rows to show visibly different totals for, instead of every
   // preset collapsing to the same single-week cluster above.
   {
-    id: 'INV-2025-0810', payType: 'deferred', centralSource: true,
+    id: '177-882508100000', billerId: '177', sadadNo: '882508100000', payType: 'deferred', centralSource: true,
     entity: 'Red Sea 承包', entityEn: 'Red Sea Global Contracting', entityAr: 'البحر الأحمر للمقاولات',
     amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '3088112233',
     amount: 599000, currency: 'SAR', source: 'Baladi', co: 'CO-86210', vat: '3008811223300010',
     date: '2025-08-14', status: 'approved', risk: 9, confidence: 0.97, tag: 'normal'
   },
   {
-    id: 'INV-2025-0855', payType: 'prepaid', centralSource: false,
+    id: '302-882508100000', billerId: '302', sadadNo: '882508100000', payType: 'prepaid', centralSource: false,
     entity: 'Jeddah 开发公司', entityEn: 'Jeddah Development Co.', entityAr: 'جدة للتطوير',
     amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1022001100',
     amount: 266500, currency: 'SAR', source: 'Amanah Internal Reports (Jeddah Amanah)', co: 'CO-86340', vat: '3002200110000011',
     date: '2025-09-10', status: 'approved', risk: 6, confidence: 0.98, tag: 'normal'
   },
   {
-    id: 'INV-2025-0902', payType: 'deferred', centralSource: true,
+    id: '177-882509020000', billerId: '177', sadadNo: '882509020000', payType: 'deferred', centralSource: true,
     entity: 'NEOM 物流服务', entityEn: 'NEOM Logistics', entityAr: 'نيوم للخدمات اللوجستية',
     amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '7009988766',
     amount: 630500, currency: 'SAR', source: 'Mumathil', co: 'CO-86510', vat: '3009988776600001',
     date: '2025-10-05', status: 'approved', risk: 11, confidence: 0.96, tag: 'normal'
   },
   {
-    id: 'INV-2025-0940', payType: 'deferred', centralSource: true,
+    id: '177-882509400000', billerId: '177', sadadNo: '882509400000', payType: 'deferred', centralSource: true,
     entity: 'Al-Ahsa 农业机构', entityEn: 'Al-Ahsa Agricultural Est.', entityAr: 'مؤسسة الأحساء الزراعية',
     amanah: '哈萨', amanahEn: 'Al-Ahsa Amanah', amanahAr: 'أمانة محافظة الأحساء', beneficiaryId: '1044115566',
     amount: 169500, currency: 'SAR', source: 'Foras', co: 'CO-86690', vat: '3004411556600012',
     date: '2025-11-18', status: 'duplicate', risk: 0, confidence: 0.93, tag: 'dup'
   },
   {
-    id: 'INV-2025-0975', payType: 'deferred', centralSource: true,
+    id: '177-882509750000', billerId: '177', sadadNo: '882509750000', payType: 'deferred', centralSource: true,
     entity: 'Al-Rajhi 建设集团', entityEn: 'Al-Rajhi Construction Group', entityAr: 'مجموعة الراجحي للإنشاءات',
     amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1042883055',
     amount: 937500, currency: 'SAR', source: 'Foras', co: 'CO-86840', vat: '3001234567800003',
     date: '2025-12-22', status: 'approved', risk: 14, confidence: 0.97, tag: 'normal'
   },
   {
-    id: 'INV-2026-0520', payType: 'deferred', centralSource: true,
+    id: '177-882605200000', billerId: '177', sadadNo: '882605200000', payType: 'deferred', centralSource: true,
     entity: 'Bahri 海运物流', entityEn: 'Bahri Maritime Logistics', entityAr: 'البحري للخدمات اللوجستية البحرية',
     amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '3066778899',
     amount: 2641000, currency: 'SAR', source: 'Baladi', co: 'CO-87010', vat: '3006677889900005',
     date: '2026-01-12', status: 'approved', risk: 20, confidence: 0.92, tag: 'normal'
   },
   {
-    id: 'INV-2026-0530', payType: 'prepaid', centralSource: false,
+    id: '304-882605200000', billerId: '304', sadadNo: '882605200000', payType: 'prepaid', centralSource: false,
     entity: 'STC 通信服务', entityEn: 'STC Telecom Services', entityAr: 'STC لخدمات الاتصالات',
     amanah: '麦加', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة', beneficiaryId: '1033445566',
     amount: 182000, currency: 'SAR', source: 'Amanah Internal Reports (Makkah Amanah)', co: 'CO-87070', vat: '3003344556600009',
     date: '2026-01-28', status: 'approved', risk: 4, confidence: 0.99, tag: 'normal'
   },
   {
-    id: 'INV-2026-0545', payType: 'deferred', centralSource: true,
+    id: '177-882605450000', billerId: '177', sadadNo: '882605450000', payType: 'deferred', centralSource: true,
     entity: 'Tabuk 住房机构', entityEn: 'Tabuk Housing Authority', entityAr: 'هيئة إسكان تبوك',
     amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '1055002233',
     amount: 578000, currency: 'SAR', source: 'Mumathil', co: 'CO-87140', vat: '3005500223300013',
@@ -658,35 +658,35 @@ export const INVOICES = [
     debtorInvalidReason: 'struck_off_registry'
   },
   {
-    id: 'INV-2026-0560', payType: 'deferred', centralSource: true,
+    id: '177-882605600000', billerId: '177', sadadNo: '882605600000', payType: 'deferred', centralSource: true,
     entity: 'Gulf Facility Mgmt', entityEn: 'Gulf Facility Mgmt', entityAr: 'إدارة مرافق الخليج',
     amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '1041883055',
     amount: 1089500, currency: 'SAR', source: 'Mumathil', co: 'CO-87220', vat: '3001234567800003',
     date: '2026-03-09', status: 'approved', risk: 10, confidence: 0.98, tag: 'normal'
   },
   {
-    id: 'INV-2026-0575', payType: 'deferred', centralSource: true,
+    id: '177-882605750000', billerId: '177', sadadNo: '882605750000', payType: 'deferred', centralSource: true,
     entity: 'Saudi Tech Solutions', entityEn: 'Saudi Tech Solutions', entityAr: 'الحلول التقنية السعودية',
     amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1022334455',
     amount: 625500, currency: 'SAR', source: 'Foras', co: 'CO-87300', vat: '3002233445500007',
     date: '2026-03-30', status: 'approved', risk: 7, confidence: 0.98, tag: 'normal'
   },
   {
-    id: 'INV-2026-0590', payType: 'deferred', centralSource: true,
+    id: '177-882605900000', billerId: '177', sadadNo: '882605900000', payType: 'deferred', centralSource: true,
     entity: 'Aramco 后勤供应', entityEn: 'Aramco Logistics Supply', entityAr: 'أرامكو للإمداد اللوجستي',
     amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '2055667788',
     amount: 1465500, currency: 'SAR', source: 'Baladi', co: 'CO-87380', vat: '3005566778800002',
     date: '2026-04-20', status: 'approved', risk: 17, confidence: 0.95, tag: 'normal'
   },
   {
-    id: 'INV-2026-0605', payType: 'prepaid', centralSource: false,
+    id: '301-882606050000', billerId: '301', sadadNo: '882606050000', payType: 'prepaid', centralSource: false,
     entity: 'Riyadh 市政工程', entityEn: 'Riyadh Municipal Works', entityAr: 'أعمال بلدية الرياض',
     amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1077889900',
     amount: 1109000, currency: 'SAR', source: 'Amanah Internal Reports (Riyadh Amanah)', co: 'CO-87450', vat: '3007788990000004',
     date: '2026-05-11', status: 'approved', risk: 12, confidence: 0.96, tag: 'normal'
   },
   {
-    id: 'INV-2026-0620', payType: 'deferred', centralSource: true,
+    id: '177-882606200000', billerId: '177', sadadNo: '882606200000', payType: 'deferred', centralSource: true,
     entity: 'Al-Noor 贸易', entityEn: 'Al-Noor Trading', entityAr: 'النور للتجارة',
     amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1044556677',
     amount: 670000, currency: 'SAR', source: 'Mumathil', co: 'CO-87560', vat: '3004455667700006',
@@ -694,7 +694,7 @@ export const INVOICES = [
     collectedVia: 'voluntary'
   },
   {
-    id: 'INV-2026-0635', payType: 'deferred', centralSource: true,
+    id: '177-882606350000', billerId: '177', sadadNo: '882606350000', payType: 'deferred', centralSource: true,
     entity: 'Metro 运输', entityEn: 'Metro Transport', entityAr: 'مترو للنقل',
     amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '3066004455',
     amount: 1363500, currency: 'SAR', source: 'Baladi', co: 'CO-87630', vat: '3006600445500014',
@@ -702,7 +702,7 @@ export const INVOICES = [
     collectedVia: 'enforcement'
   },
   {
-    id: 'INV-2026-0650', payType: 'deferred', centralSource: true,
+    id: '177-882606500000', billerId: '177', sadadNo: '882606500000', payType: 'deferred', centralSource: true,
     entity: 'Coastal 物流', entityEn: 'Coastal Logistics', entityAr: 'الساحلية للخدمات اللوجستية',
     amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '3066770011',
     amount: 572000, currency: 'SAR', source: 'Foras', co: 'CO-87700', vat: '3006677001100015',
@@ -715,28 +715,28 @@ export const INVOICES = [
   // invoice each, so every Amanah/province has at least some coverage across
   // the map, the Amanah filter, and the target-achievement ring gauges.
   {
-    id: 'INV-2026-0801', payType: 'deferred', centralSource: true,
+    id: '177-882608010000', billerId: '177', sadadNo: '882608010000', payType: 'deferred', centralSource: true,
     entity: 'Najran 边境贸易公司', entityEn: 'Najran Border Trading Co.', entityAr: 'شركة نجران للتجارة الحدودية',
     amanah: '纳季兰', amanahEn: 'Najran Amanah', amanahAr: 'أمانة منطقة نجران', beneficiaryId: '1099887701',
     amount: 415000, currency: 'SAR', source: 'Baladi', co: 'CO-88301', vat: '3009988770100016',
     date: '2025-09-05', status: 'approved', risk: 11, confidence: 0.97, tag: 'normal'
   },
   {
-    id: 'INV-2026-0802', payType: 'prepaid', centralSource: false,
+    id: '177-882608020000', billerId: '177', sadadNo: '882608020000', payType: 'prepaid', centralSource: false,
     entity: 'Arar 物流枢纽', entityEn: 'Arar Logistics Hub', entityAr: 'مركز عرعر اللوجستي',
     amanah: '北部边境', amanahEn: 'Northern Borders Amanah', amanahAr: 'أمانة منطقة الحدود الشمالية', beneficiaryId: '1088776602',
     amount: 268000, currency: 'SAR', source: 'Mumathil', co: 'CO-88321', vat: '3008877660200017',
     date: '2026-02-01', status: 'pending', risk: 27, confidence: 0.89, tag: 'normal'
   },
   {
-    id: 'INV-2026-0803', payType: 'deferred', centralSource: true,
+    id: '177-882608030000', billerId: '177', sadadNo: '882608030000', payType: 'deferred', centralSource: true,
     entity: 'Hail 农业工业公司', entityEn: 'Hail Agri Industries', entityAr: 'حائل للصناعات الزراعية',
     amanah: '哈伊勒', amanahEn: "Ha'il Amanah", amanahAr: 'أمانة منطقة حائل', beneficiaryId: '1077665503',
     amount: 512500, currency: 'SAR', source: 'Foras', co: 'CO-88341', vat: '3007766550300018',
     date: '2025-10-18', status: 'approved', risk: 9, confidence: 0.98, tag: 'normal'
   },
   {
-    id: 'INV-2026-0804', payType: 'deferred', centralSource: true,
+    id: '177-882608040000', billerId: '177', sadadNo: '882608040000', payType: 'deferred', centralSource: true,
     entity: 'Abha 高地开发商', entityEn: 'Abha Highland Developers', entityAr: 'مطورو أبها للمرتفعات',
     amanah: '阿西尔', amanahEn: 'Asir Amanah', amanahAr: 'أمانة منطقة عسير', beneficiaryId: '1066554404',
     amount: 891000, currency: 'SAR', source: 'Baladi', co: 'CO-88361', vat: '3006655440400019',
@@ -749,14 +749,14 @@ export const INVOICES = [
     debtorInvalidReason: 'deceased_person'
   },
   {
-    id: 'INV-2026-0805', payType: 'prepaid', centralSource: false,
+    id: '305-882608050000', billerId: '305', sadadNo: '882608050000', payType: 'prepaid', centralSource: false,
     entity: 'Madinah 酒店集团', entityEn: 'Madinah Hospitality Group', entityAr: 'مجموعة المدينة للضيافة',
     amanah: '麦地那', amanahEn: 'Al Madinah Amanah', amanahAr: 'أمانة المدينة المنورة', beneficiaryId: '1055443305',
     amount: 1245000, currency: 'SAR', source: 'Amanah Internal Reports (Al Madinah Amanah)', co: 'CO-88381', vat: '3005544330500020',
     date: '2026-01-15', status: 'approved', risk: 13, confidence: 0.96, tag: 'normal'
   },
   {
-    id: 'INV-2026-0806', payType: 'deferred', centralSource: true,
+    id: '177-882608060000', billerId: '177', sadadNo: '882608060000', payType: 'deferred', centralSource: true,
     entity: 'Qassim 农业科技', entityEn: 'Qassim AgroTech', entityAr: 'القصيم للتقنية الزراعية',
     amanah: '卡西姆', amanahEn: 'Al-Qassim Amanah', amanahAr: 'أمانة منطقة القصيم', beneficiaryId: '1044332206',
     amount: 356500, currency: 'SAR', source: 'Foras', co: 'CO-88401', vat: '3004433220600021',
@@ -765,21 +765,21 @@ export const INVOICES = [
     hasContract: false
   },
   {
-    id: 'INV-2026-0807', payType: 'prepaid', centralSource: false,
+    id: '177-882608070000', billerId: '177', sadadNo: '882608070000', payType: 'prepaid', centralSource: false,
     entity: 'Al Bahah 旅游地产', entityEn: 'Al Bahah Tourism Estates', entityAr: 'عقارات الباحة السياحية',
     amanah: '巴哈', amanahEn: 'Al Bahah Amanah', amanahAr: 'أمانة منطقة الباحة', beneficiaryId: '1033221107',
     amount: 198000, currency: 'SAR', source: 'Baladi', co: 'CO-88421', vat: '3003322110700022',
     date: '2025-12-08', status: 'approved', risk: 6, confidence: 0.98, tag: 'normal'
   },
   {
-    id: 'INV-2026-0808', payType: 'deferred', centralSource: true,
+    id: '177-882608080000', billerId: '177', sadadNo: '882608080000', payType: 'deferred', centralSource: true,
     entity: 'Jazan 港口服务', entityEn: 'Jazan Port Services', entityAr: 'خدمات ميناء جازان',
     amanah: '吉赞', amanahEn: 'Jazan Amanah', amanahAr: 'أمانة منطقة جازان', beneficiaryId: '1022110008',
     amount: 733500, currency: 'SAR', source: 'Mumathil', co: 'CO-88441', vat: '3002211000800023',
     date: '2026-04-05', status: 'duplicate', risk: 0, confidence: 0.94, tag: 'dup'
   },
   {
-    id: 'INV-2026-0809', payType: 'prepaid', centralSource: false,
+    id: '317-882608090000', billerId: '317', sadadNo: '882608090000', payType: 'prepaid', centralSource: false,
     entity: 'Al Jawf 农业公司', entityEn: 'Al Jawf Agricultural Co.', entityAr: 'شركة الجوف الزراعية',
     amanah: '焦夫', amanahEn: 'Al Jawf Amanah', amanahAr: 'أمانة منطقة الجوف', beneficiaryId: '1011009909',
     amount: 287000, currency: 'SAR', source: 'Amanah Internal Reports (Al Jawf Amanah)', co: 'CO-88461', vat: '3001100990900024',
@@ -848,7 +848,7 @@ export const PAYER_MASTER = {
    Status chips are DERIVED in ReconciliationTable from these raw values. */
 export const RECON = {
   normal: {
-    invoiceNo: 'INV-2026-0731',
+    invoiceNo: '177-882607310000',
     payer: 'Al-Rajhi Construction Group',
     co: 'CO-88231',
     accrual: 'AC-2026-4471',
@@ -863,7 +863,7 @@ export const RECON = {
     taxId: { value: '3001234567800003', valid: true }
   },
   fraud: {
-    invoiceNo: 'INV-2026-0730',
+    invoiceNo: '177-882607300000',
     payer: 'NEOM Logistics',
     co: 'CO-88192',
     accrual: 'AC-2026-4460',
@@ -879,13 +879,13 @@ export const RECON = {
     taxId: { value: '3009988776600001', valid: true }
   },
   dup: {
-    invoiceNo: 'INV-2026-0728',
+    invoiceNo: '177-882607280000',
     payer: 'Gulf Facility Mgmt',
     co: 'CO-88231',
     accrual: 'AC-2026-4471',
     contract: 'SANAD-CT-2231',
     currency: 'SAR',
-    duplicateOf: 'INV-2026-0731',
+    duplicateOf: '177-882607310000',
     lines: [
       { no: 1, item: { zh: '设施运营许可费 (月)', en: 'Facility operating license fee (month)', ar: 'رسوم ترخيص تشغيل المرفق (شهر)' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 1250000, poUnit: 1250000, benchUnit: 1250000 }
     ],
@@ -893,7 +893,7 @@ export const RECON = {
     taxId: { value: '3001234567800003', valid: true }
   },
   taxfail: {
-    invoiceNo: 'INV-2026-0727',
+    invoiceNo: '177-882607270000',
     payer: 'Aramco Logistics Supply',
     co: 'CO-87990',
     accrual: 'AC-2026-4402',

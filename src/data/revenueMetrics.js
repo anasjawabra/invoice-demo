@@ -29,6 +29,7 @@ import { appropriationTotal } from './appropriations';
 import { DATA_CUTOFF, DATA_START, addDays, daysBetween, monthOf, REVENUE_SOURCE_KEYS, accessibleLedger } from './revenueLedger';
 
 /* ---------- Not-calculable handling ---------- */
+import { EXCLUSIONS_AUTO_APPLY } from './iim.js';
 export const NOT_CALCULABLE_LABEL = { en: 'Not available', ar: 'غير متاحة', zh: '不可用' };
 
 // Ratio that refuses zero / invalid denominators instead of returning 0 or Infinity.
@@ -60,7 +61,7 @@ export function formatRatio(r, lang = 'en', digits = 1) {
    confirmed the rule: it is OFF by default, so no headline figure (adjusted total, net billed, collection rate) deducts anything the business has not approved.
    It stays configurable as an explicit what-if in the rule registry, and then its effect is always shown as
    "غير معتمدة / unapproved" — it is never presented as an official figure. */
-export const EXCLUSION_RULE_SET_VERSION = 'EXCL-RULES v2 (demo configuration)';
+export const EXCLUSION_RULE_SET_VERSION = 'EXCL-RULES v3 (meeting 18 Oct — demo configuration)';
 
 export const EXCLUSION_RULES = [
   { id: 'DUP-1', category: 'duplicate', version: 1, priority: 1, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
@@ -69,27 +70,38 @@ export const EXCLUSION_RULES = [
   { id: 'CR-1', category: 'struck_off_registry', version: 1, priority: 2, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
     label: { en: 'Struck-off commercial registration', ar: 'سجل تجاري مشطوب' },
     note: { en: 'Meeting: all invoices of a struck-off registration are ready for exclusion without judgement. The raw CR status is kept as-is; only statuses listed in the rule parameter qualify, and only after human review.', ar: 'الاجتماع: جميع فواتير السجل التجاري المشطوب جاهزة للاستبعاد دون تقدير. تُحفظ حالة السجل الخام كما هي؛ والحالات المدرجة في معامل القاعدة فقط هي المؤهلة، وبعد المراجعة البشرية.' } },
-  { id: 'DEC-1', category: 'deceased_debtor', version: 1, priority: 3, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'DEC-1', category: 'deceased_debtor', version: 1, priority: 3, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Deceased debtor (evidence required)', ar: 'مدين متوفى (يتطلب دليلاً)' },
     note: { en: 'Proposed category; requires human review of evidence before it affects net billed.', ar: 'فئة مقترحة؛ تتطلب مراجعة بشرية للدليل قبل أن تؤثر على صافي المفوتر.' } },
-  { id: 'NOC-1', category: 'no_contract', version: 1, priority: 4, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'NOC-1', category: 'no_contract', version: 1, priority: 4, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Investment invoice with no contract (confirmed by Furas)', ar: 'فاتورة استثمار بلا عقد (مؤكد من فرص)' },
     note: { en: 'Applies only when Furas confirms no contract exists. An UNMATCHED contract (not found) is never excluded — it stays in net billed and is flagged.', ar: 'تنطبق فقط عند تأكيد فرص عدم وجود عقد. العقد غير المطابق (لم يُعثر عليه) لا يُستبعد أبداً — يبقى في صافي المفوتر ويُعلَّم.' } },
-  { id: 'INC-1', category: 'incomplete_data', version: 1, priority: 5, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'INC-1', category: 'incomplete_data', version: 1, priority: 5, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Incomplete data (Efaa incomplete-violations report)', ar: 'بيانات غير مكتملة (تقرير إيفاء للمخالفات غير المكتملة)' },
     note: { en: 'Candidate rule from the Efaa incomplete report. Not confirmed by the business; configurable.', ar: 'قاعدة مرشحة من تقرير إيفاء غير المكتمل. غير مؤكدة من الجهة؛ قابلة للضبط.' } },
-  { id: 'EXE-1', category: 'executed_against', version: 1, priority: 6, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'EXE-1', category: 'executed_against', version: 1, priority: 6, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Executed-against list (Efaa)', ar: 'قائمة المنفذ ضده (إيفاء)' },
     note: { en: 'Candidate rule. Being executed against does not mean the amount ended; treated as a configurable, unapproved exclusion.', ar: 'قاعدة مرشحة. كون المدين منفذاً ضده لا يعني انتهاء المبلغ؛ تُعامل كاستبعاد قابل للضبط وغير معتمد.' } },
-  { id: 'EFA-1', category: 'outside_efaa', version: 1, priority: 7, defaultEnabled: false, locked: false, basis: 'proposed', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'EFA-1', category: 'outside_efaa', version: 1, priority: 7, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Violation not present in Efaa (system of record)', ar: 'مخالفة غير موجودة في إيفاء (النظام المرجعي)' },
     note: { en: 'Candidate rule. Tahseel and Efaa statuses are kept separate; a missing Efaa match is evidence for review, not proof.', ar: 'قاعدة مرشحة. تُحفظ حالتا تحصيل وإيفاء منفصلتين؛ غياب المطابقة في إيفاء دليل للمراجعة وليس إثباتاً.' } },
-  { id: 'OBJ-1', category: 'objection', version: 1, priority: 8, defaultEnabled: false, locked: false, basis: 'unresolved', approval: 'unapproved', effectiveFrom: null, owner: { en: 'Not assigned', ar: 'غير محدد' },
+  { id: 'OBJ-1', category: 'objection', version: 1, priority: 8, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
     label: { en: 'Open objection / appeal', ar: 'اعتراض / استئناف مفتوح' },
     note: { en: 'Not confirmed in the latest meeting. Default OFF: an objection is a follow-up state, not an exclusion. Configurable.', ar: 'غير مؤكد في آخر اجتماع. الافتراضي: معطّل؛ الاعتراض حالة متابعة وليس استبعاداً. قابل للضبط.' } },
   { id: 'ENF-1', category: 'enforcement', version: 1, priority: 99, defaultEnabled: false, locked: true, basis: 'not_an_exclusion', approval: 'approved', effectiveFrom: '2026-07-01', owner: { en: 'Revenue data steward', ar: 'أمين بيانات الإيرادات' },
     label: { en: 'Referred to enforcement (reported as a separate dimension)', ar: 'محال إلى التنفيذ (يُعرض كبُعد منفصل)' },
     note: { en: 'Not applied: a source-cancelled invoice referred to enforcement stays cancelled (conditions and approver unconfirmed); enforcement is reported as a separate dimension.', ar: 'غير مطبّقة: الفاتورة الملغاة في المصدر والمحالة للتنفيذ تبقى ملغاة (الشروط وجهة الاعتماد غير مؤكدة)؛ ويُعرض الإنفاذ بُعداً منفصلاً.' } }
+,
+  { id: 'SND-1', category: 'executed_against_sanad', version: 1, priority: 6.5, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
+    label: { en: 'Executed against – cases (Sanad)', ar: 'منفذ ضده – قضايا (سند)' },
+    note: { en: 'Any UNCOLLECTED invoice found in Sanad (new cases) is excluded, whatever its Sanad status (D12). Applies only to uncollected invoices.', ar: 'أي فاتورة غير محصّلة تظهر في سند (قضايا جديدة) تُستبعد مهما كانت حالتها في سند (D12). تنطبق على الفواتير غير المحصّلة فقط.' } }
+,
+  { id: 'ATT-1', category: 'amanah_statements', version: 1, priority: 4.5, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-19', owner: { en: 'Revenue management (meeting 19 Oct)', ar: 'إدارة الإيرادات (اجتماع 19 أكتوبر)' },
+    label: { en: 'Amanah statements', ar: 'إفادات الأمانات' },
+    note: { en: 'Added in the 19 Oct meeting: invoices an Amanah has stated (by a written statement) are not collectible. Applies only to uncollected invoices. Whether this is a separate reason or a sub-type of «invoices not based on contracts» is still to be confirmed.', ar: 'أُضيف في اجتماع 19 أكتوبر: فواتير أفادت الأمانة (بإفادة مكتوبة) بأنها غير قابلة للتحصيل. تنطبق على الفواتير غير المحصّلة فقط. وما زال التأكد قائمًا: هل هي سبب مستقل أم نوع فرعي من «فواتير لا تستند على عقود».' } },
+  { id: 'ENC-1', category: 'site_encroachment', version: 1, priority: 4.6, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-19', owner: { en: 'Revenue management (meeting 19 Oct)', ar: 'إدارة الإيرادات (اجتماع 19 أكتوبر)' },
+    label: { en: 'Encroachments / site exploitation', ar: 'التعديات / استغلال المواقع' },
+    note: { en: 'Added in the 19 Oct meeting: invoices raised for the exploitation of a site without a contract (an encroachment). Applies only to uncollected invoices.', ar: 'أُضيف في اجتماع 19 أكتوبر: فواتير استغلال موقع دون عقد (تعدٍّ). تنطبق على الفواتير غير المحصّلة فقط.' } }
 ];
 export const EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
 export const ruleById = (id) => EXCLUSION_RULES.find((r) => r.id === id);
@@ -148,7 +160,7 @@ export function applyReviewDecisions(ledger, decisions = {}) {
 export function exclusionReasons(rec, cfg) {
   const reasons = [];
   for (const ex of exclusionRecordsOf(rec)) {
-    if (ex.reviewStatus !== 'approved') continue;
+    if (ex.reviewStatus !== 'approved' && !(EXCLUSIONS_AUTO_APPLY && ex.reviewStatus !== 'rejected')) continue; // S6: applied automatically unless a reviewer rejected it
     const rule = ruleById(ex.ruleId);
     if (rule && !cfg.rules[rule.id]) continue;
     if (ex.effectiveTo && ex.effectiveTo < cfg.cutoff) continue;
@@ -159,6 +171,10 @@ export function exclusionReasons(rec, cfg) {
   if (cfg.rules['OBJ-1'] && rec.objection?.open && !reasons.some((r) => r.ruleId === 'OBJ-1')) {
     const rule = ruleById('OBJ-1');
     reasons.push({ category: 'objection', ruleId: 'OBJ-1', ruleVersion: 1, reviewStatus: 'rule_applied', priority: rule.priority, approval: rule.approval, evidence: { en: 'Open objection (rule OBJ-1 enabled).', ar: 'اعتراض مفتوح (القاعدة OBJ-1 مفعّلة).' } });
+  }
+  if (cfg.rules['SND-1'] && (rec.enforcementLinks || []).some((l) => ['confirmed', 'open', 'suspended', 'closed'].includes(l.status)) && !reasons.some((r) => r.ruleId === 'SND-1')) {
+    const rule = ruleById('SND-1');
+    reasons.push({ category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, reviewStatus: 'rule_applied', priority: rule.priority, approval: rule.approval, evidence: { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' } });
   }
   reasons.sort((a, b) => a.priority - b.priority);
   return reasons;
@@ -188,13 +204,19 @@ export function deriveRecord(rec, cfg, periodEnd) {
   const exclusion = reasons[0] || null;
   const received = paymentsUpTo(rec, asOf).reduce((s, p) => s + p.amount, 0);
   const cancelled = isCancelled(rec, asOf);
+  // D10 — exclusions come ONLY from uncollected invoices: a fully collected invoice is never excluded (the exclusion is ignored and counted as a data warning);
+  // a partly collected invoice keeps what was collected and only its uncollected remainder is excluded.
+  const baseAmount = Math.max(billedAfterAdj - (cancelled ? Math.max(0, billedAfterAdj - received) : 0), 0);
+  const fullyCollected = !cancelled && received >= billedAfterAdj && billedAfterAdj > 0;
+  const ignoredExclusion = !!exclusion && fullyCollected;
   // Cancelled takes precedence over exclusion so the same amount is never deducted twice.
-  const excluded = !cancelled && !!exclusion;
+  const excluded = !cancelled && !!exclusion && !fullyCollected;
   const overlapsCancelled = cancelled && !!exclusion;
   const cancelledAmount = cancelled ? Math.max(0, billedAfterAdj - received) : 0;
-  const collected = excluded ? 0 : Math.min(received, Math.max(billedAfterAdj - cancelledAmount, 0));
-  const overpayment = excluded ? 0 : Math.max(0, received - Math.max(billedAfterAdj - cancelledAmount, 0));
+  const collected = Math.min(received, baseAmount);
+  const overpayment = Math.max(0, received - baseAmount);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billedAfterAdj - received);
+  const excludedAmount = excluded ? Math.max(0, billedAfterAdj - received) : 0;
   const daysOverdue = Math.max(0, daysBetween(addDays(rec.dueDate, cfg.graceDays), cfg.cutoff));
   return {
     rec, asOf, excluded, exclusion, reasons,
@@ -203,8 +225,9 @@ export function deriveRecord(rec, cfg, periodEnd) {
     gross: rec.grossAmount,
     adjustments,
     billedAfterAdj,
-    exclusionAmount: excluded ? billedAfterAdj : 0,
-    net: excluded ? 0 : billedAfterAdj - cancelledAmount,
+    exclusionAmount: excludedAmount,
+    ignoredExclusion,
+    net: billedAfterAdj - cancelledAmount - excludedAmount,
     received,
     receiptsOnExcluded: excluded ? received : 0,
     collected,
@@ -293,6 +316,8 @@ export function normalizeScope(scope = {}, cfg = DEFAULT_CONFIG) {
     muni: scope.muni ?? 'all',
     status: scope.status ?? 'all',
     org: scope.org || null,
+    product: Array.isArray(scope.product) ? scope.product : [], // اسم المنتج (multi-select)
+    mainClass: scope.mainClass ?? 'all', // تصنيف الإيراد الرئيسي
     ...(scope.basis ? { basis: scope.basis } : {})
   };
 }
@@ -310,7 +335,7 @@ export function scopeLedger(ledger, scope = {}, cfg = DEFAULT_CONFIG) {
 
 export function scopeKey(scope = {}) {
   const sc = normalizeScope(scope);
-  return `${sc.from}|${sc.to}|${Array.isArray(sc.amanah) ? sc.amanah.join(',') : sc.amanah}|${sc.source}|${sc.scopeType}|${sc.muni}|${sc.status}|${sc.org?.id || 'all'}`;
+  return `${sc.from}|${sc.to}|${Array.isArray(sc.amanah) ? sc.amanah.join(',') : sc.amanah}|${sc.source}|${sc.scopeType}|${sc.muni}|${sc.status}|${sc.org?.id || 'all'}|${sc.product.slice().sort().join(',')}|${sc.mainClass}`;
 }
 
 /* ---------- Aggregation over derived records ---------- */
@@ -318,7 +343,7 @@ function emptyAgg() {
   return {
     count: 0, gross: 0, adjustments: 0, exclusions: 0, net: 0, collected: 0, outstanding: 0, overpayment: 0, receiptsOnExcluded: 0, excludedCount: 0,
     cancelled: 0, cancelledCount: 0, overlapCount: 0, overlapAmount: 0, multiReasonCount: 0,
-    exclusionsApproved: 0, exclusionsUnapproved: 0, overdueOutstanding: 0, notDueOutstanding: 0
+    exclusionsApproved: 0, exclusionsUnapproved: 0, overdueOutstanding: 0, notDueOutstanding: 0, ignoredExclusions: 0
   };
 }
 
@@ -339,6 +364,7 @@ export function aggregate(derived) {
       if (d.reasons.length > 1) a.multiReasonCount += 1;
       if (d.exclusion.approval === 'approved') a.exclusionsApproved += d.exclusionAmount; else a.exclusionsUnapproved += d.exclusionAmount;
     }
+    if (d.ignoredExclusion) a.ignoredExclusions += 1; // D10: an exclusion on a collected invoice is ignored and counted as a data warning
     if (d.cancelled) { a.cancelled += d.cancelledAmount; a.cancelledCount += 1; }
     if (d.overlapsCancelled) { a.overlapCount += 1; a.overlapAmount += d.overlapAmount; if (d.reasons.length > 1) a.multiReasonCount += 1; }
     if (d.outstanding > 0) { if (d.daysOverdue > 0) a.overdueOutstanding += d.outstanding; else a.notDueOutstanding += d.outstanding; }

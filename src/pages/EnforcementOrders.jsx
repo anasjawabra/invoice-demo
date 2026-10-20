@@ -33,8 +33,9 @@ export default function OrdersView() {
   const [fFin, setFFin] = useState(mem.fFin ?? 'all');
   const [fWhy, setFWhy] = useState(mem.fWhy ?? 'all');
   const [sort, setSort] = useState(mem.sort ?? 'recent');
+  const [dFrom, setDFrom] = useState(mem.dFrom ?? ''); const [dTo, setDTo] = useState(mem.dTo ?? ''); // D23: period filter on the referral (raise) date
   useEffect(() => { if (fromUrl) { setFRev(fromUrl); setPage(0); } }, [fromUrl]);
-  useEffect(() => { writeListMemory('orders', { page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort }); }, [page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort]);
+  useEffect(() => { writeListMemory('orders', { page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo }); }, [page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo]);
 
   const rows = useMemo(() => cases.map((c) => {
     const comp = orderCompleteness(c); const ex = orderExceptions(c);
@@ -47,17 +48,19 @@ export default function OrdersView() {
     const out = rows.filter((r) => (fAm === 'all' || r.c.amanahEn === fAm) && (fRev === 'all' || (fRev === 'open' ? r.review !== 'complete' : r.review === fRev))
       && (fSrc === 'all' || String(r.c.source?.statusId) === fSrc) && (fType === 'all' || String(r.c.source?.debtorTypeId) === fType) && (fDoc === 'all' || r.comp.extraction.state === fDoc)
       && (fFin === 'all' || (fFin === 'difference' ? ['short', 'over'].includes(r.comp.finance.state) : r.comp.finance.state === fFin)) && (fWhy === 'all' || r.ex.includes(fWhy))
-      && (!t || r.blob.includes(t)));
+      && (!t || r.blob.includes(t))
+      && (!(dFrom || dTo) || (() => { const d = String(r.c.source?.raiseAt || r.c.openedDate || '').slice(0, 10); return !!d && (!dFrom || d >= dFrom) && (!dTo || d <= dTo); })()));
     const key = { recent: (r) => -(Date.parse(String(r.c.source?.raiseAt || r.c.openedDate).replace(' ', 'T')) || 0), amount: (r) => -(r.c.amount || 0), request: (r) => Number(r.c.source?.requestNo) || 0 }[sort];
     return out.sort((a, b) => key(a) - key(b));
-  }, [rows, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort]);
+  }, [rows, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo]);
   const view = shown.slice(page * PAGE, (page + 1) * PAGE);
   useRestoreScroll(view.length > 0);
 
   const extras = [fSrc, fType, fDoc, fFin, fWhy].filter((v) => v !== 'all');
-  const reset = () => { setQ(''); setFAm('all'); setFRev('all'); setFSrc('all'); setFType('all'); setFDoc('all'); setFFin('all'); setFWhy('all'); setPage(0); };
+  const reset = () => { setDFrom(''); setDTo(''); setQ(''); setFAm('all'); setFRev('all'); setFSrc('all'); setFType('all'); setFDoc('all'); setFFin('all'); setFWhy('all'); setPage(0); };
   const why = REASONS.find((x) => x[0] === fWhy);
   const active = [
+    (dFrom || dTo) && { k: 'per', t: `${L('Referral date', 'تاريخ الإحالة')}: ${dFrom || '…'} → ${dTo || '…'}`, off: () => { setDFrom(''); setDTo(''); } },
     q.trim() && { k: 'q', t: `${L('Search', 'بحث')}: ${q.trim()}`, off: () => setQ('') },
     fAm !== 'all' && { k: 'am', t: amanahName(fAm, ar), off: () => setFAm('all') },
     fRev !== 'all' && { k: 'rev', t: fRev === 'open' ? L('Needs attention', 'تحتاج إجراء') : B(REVIEW_LABEL[fRev] || { en: fRev, ar: fRev }), off: () => setFRev('all') },
@@ -71,9 +74,11 @@ export default function OrdersView() {
 
   return (
     <section className="rp-section" aria-label={L('Enforcement requests', 'طلبات التنفيذ')}>
-      <div className="rv-form" role="search" aria-label={L('Filters', 'المرشحات')} style={{ marginBottom: 8 }}>
+      <div className="rv-form" role="search" aria-label={L('Filters', 'التصفية')} style={{ marginBottom: 8 }}>
         <label style={{ flex: '1 1 240px' }}>{L('Search by request number or invoice number', 'بحث برقم طلب التنفيذ أو رقم الفاتورة')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="4606056" dir="auto" /></label>
-        <label>{L('Amanah', 'الأمانة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
+        <label>{L('Referral from', 'من تاريخ الإحالة')}<input id="ord_from" className="input" type="date" value={dFrom} max={dTo || undefined} onChange={(e) => { setDFrom(e.target.value); setPage(0); }} /></label>
+        <label>{L('Referral to', 'إلى تاريخ الإحالة')}<input id="ord_to" className="input" type="date" value={dTo} min={dFrom || undefined} onChange={(e) => { setDTo(e.target.value); setPage(0); }} /></label>
+        <label>{L('Amanah', 'الأمانة / الجهة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
         {sel('ord_rev', L('Matching review', 'مراجعة المطابقة'), fRev, setFRev, [['all', 'All', 'الكل'], ['open', 'Needs attention', 'تحتاج إجراء'], ['needs_review', 'Needs review', 'تحتاج مراجعة'], ['not_identified', 'Numbers not identified', 'أرقام غير محددة'], ['complete', 'Complete', 'مكتملة']])}
       </div>
       <details open={extras.length > 0} className="oj-more">
@@ -89,7 +94,7 @@ export default function OrdersView() {
       <div className="oj-bar">
         <span role="status" aria-live="polite"><b>{shown.length}</b> {L('requests', 'طلب')}</span>
         {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة المرشح')}: ${x.t}`}>{x.t} ×</button>)}
-        {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل المرشحات')}</button>}
+        {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل التصفية')}</button>}
         <label className="oj-sort">{L('Sort', 'الترتيب')}<select id="ord_sort" className="input" value={sort} onChange={(e) => { setSort(e.target.value); setPage(0); }}>{SORTS.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>
       </div>
       <div className="rp-tablewrap" tabIndex={0}>

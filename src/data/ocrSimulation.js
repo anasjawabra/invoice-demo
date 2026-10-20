@@ -28,6 +28,6 @@ export async function simulateOcr(sample, { orderNo = null, onPage = () => {}, d
 // manual entry: one reference per line (a full number, or a bare serial); recorded as «typed by a person»
 export function manualExtraction(text, { orderNo = null } = {}) {
   const lines = String(text || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const prepared = lines.map((l) => (/^\d{4,7}$/.test(l) ? `Invoice number: ${l}` : /^(?:INV)[\s\-–/]*\d{4}/i.test(l) ? `Invoice ${l}` : l));
+  const prepared = lines.map((l) => (/^\d{4,7}$/.test(l) ? `Invoice number: ${l}` : /^\d{3,4}[\s\-–/]+\d{6,14}$/.test(l) ? `Invoice ${l}` : l));
   return buildExtraction([{ page: 1, text: prepared.join('\n'), hasTextLayer: true }], 'manual_entry', { orderNo, format: 'manual' });
 }

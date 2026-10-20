@@ -11,6 +11,7 @@ import { useAsync } from '../utils/useAsync';
 import { useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
 import { fmtDateText } from '../data/clock';
+import { PRODUCTS, ORIGIN_AR, ORIGIN_EN, DISCLOSURE_PRODUCTS } from '../data/iim';
 
 const PAGE_SIZE = 50;
 const SORTABLE = { id: 'id', issue: 'issue', gross: 'gross', outstanding: 'outstanding', age: 'daysOverdue' };
@@ -38,33 +39,37 @@ export default function Invoices() {
   const mem = useMemo(() => readListMemory('invoices', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const amanahParam = searchParams.get('amanah'); // a link such as /invoices?amanah=… sets the SHARED Amanah filter (the scope bar), then drops the parameter
   const [collectionFilter, setCollectionFilter] = useState(mem.collectionFilter ?? 'all');
+  const [kind, setKind] = useState(mem.kind ?? 'all'); // نوع الفاتورة (tobacco / accommodation): إشغالات or فروقات
   const [search, setSearch] = useState(mem.search ?? (highlightCo || ''));
   const allPeriods = !!highlightCo; // a contract link (?co=…) lists that contract's invoices of every period
   const [page, setPage] = useState(mem.page ?? 0);
   const [sort, setSort] = useState(mem.sort ?? { key: 'issue', dir: 'desc' });
-  useEffect(() => { writeListMemory('invoices', { collectionFilter, search, page, sort }); }, [collectionFilter, search, page, sort]);
+  useEffect(() => { writeListMemory('invoices', { collectionFilter, kind, search, page, sort }); }, [collectionFilter, kind, search, page, sort]);
   const debouncedSearch = useDebounced(search.trim(), 350);
 
-  const activeFilterCount = (collectionFilter !== 'all' ? 1 : 0) + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
+  const activeFilterCount = (collectionFilter !== 'all' ? 1 : 0) + (kind !== 'all' ? 1 : 0) + (debouncedSearch ? 1 : 0) + (srcParam ? 1 : 0) + (filterMode ? 1 : 0);
 
   // any filter change returns to the first page
-  const filterKey = JSON.stringify([collectionFilter, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
+  const filterKey = JSON.stringify([collectionFilter, kind, debouncedSearch, srcParam, filterMode, sort, rev.currentScopeKey, rev.dataVersion]);
   const lastKey = useRef(filterKey);
   useEffect(() => { if (lastKey.current !== filterKey) { lastKey.current = filterKey; setPage(0); } }, [filterKey]);
 
   const request = useMemo(() => {
     const sc = rev.scopeEff;
     // the shared scope bar (period, Amanah, source, municipality) plus this page's own collection-state, revenue-item and age filters
-    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: 'all', muni: sc.muni, item: 'all' };
-    const filters = { search: debouncedSearch, state: collectionFilter === 'all' ? 'paid' : collectionFilter, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
+    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: srcParam || sc.source, status: 'all', scopeType: sc.scopeType, product: sc.product, mainClass: sc.mainClass, muni: sc.muni, item: 'all' };
+    const filters = { search: debouncedSearch, state: collectionFilter === 'all' ? 'paid' : collectionFilter, kind, allPeriods, tag: filterMode === 'problem' ? 'problem' : undefined };
     return { scope, filters };
-  }, [rev.scopeEff, srcParam, debouncedSearch, collectionFilter, allPeriods, filterMode]);
+  }, [rev.scopeEff, srcParam, debouncedSearch, collectionFilter, kind, allPeriods, filterMode]);
 
   const { data: res, loading, error } = useAsync(() => rev.data.list(request.scope, { filters: request.filters, page, pageSize: PAGE_SIZE, sort }), [rev.data, request, page, sort]);
   const rows = res?.rows || [];
   const total = res?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const ST = rev.snapshot.totals; // the shared snapshot of the scope bar: every invoice of the period
+  // collected by product and by origin: each splits the SAME total (the parts add up to إجمالي المحصّل)
+  const byProduct = useMemo(() => (rev.snapshot.byProduct || []).filter((g) => g.collected > 0).map((g) => ({ key: g.key, collected: g.collected })).sort((a, b) => b.collected - a.collected), [rev.snapshot]);
+  const byOrigin = useMemo(() => (rev.snapshot.byScope || []).map((g, k) => ({ key: k === 0 ? 'central' : 'internal', collected: g.collected })).filter((x) => x.collected > 0), [rev.snapshot]);
 
   const openRecord = useOpenRecord(); // a row opens the invoice's own full page; «back» returns here with everything as it was
   const openDetail = useCallback((row) => openRecord(invoicePath(row.id)), [openRecord]);
@@ -84,7 +89,7 @@ export default function Invoices() {
   useEffect(() => { if (amanahParam) { rev.setAmanah(amanahParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('amanah'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (srcParam) { rev.setSource(srcParam); setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); return n; }, { replace: true }); } }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const clearAll = () => {
-    setCollectionFilter('all'); setSearch('');
+    setCollectionFilter('all'); setKind('all'); setSearch('');
     if (srcParam || filterMode) setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('src'); n.delete('filter'); return n; });
   };
   const selStyle = { height: 32, width: 'auto', paddingInline: 10, fontSize: 13 };
@@ -110,6 +115,13 @@ export default function Invoices() {
           <option value="collected">{bi.L('Collected in full', 'محصّلة بالكامل')}</option>
           <option value="partial">{pickBi(CATEGORY_LABELS.partial, lang)}</option>
         </select>
+        {(rev.scopeEff.product || []).some((k) => DISCLOSURE_PRODUCTS.includes(k)) && (
+          <select id="f_kind" className="select" aria-label={bi.L('Invoice type', 'نوع الفاتورة')} style={{ ...selStyle, minWidth: 160 }} value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="all">{bi.L('All invoice types', 'كل أنواع الفاتورة')}</option>
+            <option value="occupancy">{bi.L('Occupancy (declared by the taxpayer)', 'إشغالات (إفصاح من المكلف)')}</option>
+            <option value="differences">{bi.L('Differences (from the audit)', 'فروقات (ناتجة عن التدقيق)')}</option>
+          </select>
+        )}
         {activeFilterCount > 0 && (
           <button type="button" className="btn btn-sm btn-ghost" onClick={clearAll}>{t('inv_filter_clear')} ({activeFilterCount}) ×</button>
         )}
@@ -122,11 +134,17 @@ export default function Invoices() {
         <h2 className="ip-h">{bi.L('Collection statistics — all invoices in the scope above', 'إحصاءات التحصيل — كل الفواتير في النطاق أعلاه')}</h2>
         <div className="inv-stats__grid">
           <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{bi.count(ST.count)}</b></div>
-          <div><span className="ip-k">{bi.L('Net billed', 'صافي المفوتر')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.net)}>{bi.short(ST.net)}</b></div>
-          <div><span className="ip-k">{bi.L('Collected', 'المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
+          <div><span className="ip-k">{bi.L('Total collected', 'إجمالي المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
           <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big">{ST.net > 0 ? <PctBadge v={ST.collected / ST.net} text={`${(Math.round((ST.collected / ST.net) * 1000) / 10).toFixed(1)}%`} /> : '—'}</b></div>
+          <div style={{ opacity: 0.65 }} title={bi.L('For reference — the main indicator is on the dashboard', 'للاطلاع – المؤشر الرئيسي في لوحة المؤشرات')}><span className="ip-k">{bi.L('Net billed (reference)', 'صافي المفوتر (للاطلاع)')}</span><b className="ip-big" dir="ltr" style={{ color: 'var(--txt-mute)', fontWeight: 600 }}>{bi.short(ST.net)}</b></div>
         </div>
         {ST.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(ST.collected / ST.net, 1) * 100}%`, background: pctColor('share', ST.collected / ST.net) }} /></div>}
+        <div className="inv-stats__split" aria-label={bi.L('Collected by source', 'المحصّل حسب المصدر')}>
+          <div><span className="ip-k">{bi.L('Collected by product', 'المحصّل حسب المنتج')}</span>
+            <ul className="inv-split">{byProduct.map((x) => <li key={x.key}><span>{lang === 'ar' ? PRODUCTS[x.key].ar : PRODUCTS[x.key].en}</span><b dir="ltr">{bi.short(x.collected)}</b></li>)}</ul></div>
+          <div><span className="ip-k">{bi.L('Collected by invoice origin', 'المحصّل حسب مصدر الفاتورة')}</span>
+            <ul className="inv-split">{byOrigin.map((x) => <li key={x.key}><span>{lang === 'ar' ? ORIGIN_AR[x.key] : ORIGIN_EN[x.key]}</span><b dir="ltr">{bi.short(x.collected)}</b></li>)}</ul></div>
+        </div>
         <div className="muted" style={{ fontSize: 12 }}>{bi.L('Collection rate = collected ÷ net billed, for every invoice of the period (the same figures as the dashboard). The list below shows only the collected invoices.', 'نسبة التحصيل = المحصّل ÷ صافي المفوتر لكل فواتير الفترة (نفس أرقام لوحة المعلومات). والقائمة أدناه تعرض الفواتير المحصّلة فقط.')}</div>
       </section>
 
@@ -146,6 +164,8 @@ export default function Invoices() {
                 {th(t('th_id'), 'id')}
                 <th>{t('th_beneficiary')}</th>
                 <th>{t('th_amanah')}</th>
+                <th>{bi.L('Product', 'اسم المنتج')}</th>
+                <th>{bi.L('Origin', 'مصدر الفاتورة')}</th>
                 <th>{bi.L('Revenue item', 'بند الإيراد')}</th>
                 <th>{bi.L('Raw status', 'الحالة الخام')}</th>
                 <th>{t('th_collection_status')}</th>
@@ -165,15 +185,16 @@ export default function Invoices() {
                   onClick={(e) => openDetail(r)}
                   style={idParam === r.id ? { background: 'rgba(21, 112, 239, 0.08)' } : undefined}
                 >
-                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
+                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button><div className="muted" style={{ fontSize: 11, fontWeight: 400 }} dir="auto">{bi.L('Biller', 'المفوتر')} {r.billerId} · {bi.ar ? r.billerAr : r.billerEn}</div>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
                   <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
-                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
+                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.entityType === 'entity' && <span className="muted"> ({lang === 'ar' ? r.entityTypeAr : 'entity'})</span>}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
+                  <td>{bi.ar ? r.productAr : r.productEn}{r.invoiceKindAr && <div className="muted" style={{ fontSize: 11 }}>{r.invoiceKindAr}</div>}</td>
+                  <td>{bi.ar ? r.originAr : (ORIGIN_EN[r.origin])}</td>
                   <td>{bi.ar ? r.itemAr : r.itemEn}</td>
                   <td style={{ fontSize: 12 }}>{r.statusRawTahseel || '—'}{r.statusRawEfaa && r.statusRawEfaa !== r.statusRawTahseel && <div className="muted">{bi.L('Efaa', 'إيفاء')}: {r.statusRawEfaa}</div>}</td>
                   <td>
                     <span className={`rv-cat rv-cat--${r.cls}`}>{r.cls === 'collected' ? (lang === 'ar' ? 'محصّلة' : 'Collected') : pickBi(CATEGORY_LABELS[r.cls], lang)}</span>
                     {r.enforcement >= 2 && <span className={`rv-tag${r.enforcement === 3 ? ' rv-tag--warn' : ''}`} style={{ marginInlineStart: 4 }} title={bi.L('Enforcement is a separate dimension: it does not change the payment state', 'الإنفاذ بُعد منفصل: لا يغيّر حالة السداد')}>{r.enforcement === 2 ? bi.L('order not closed', 'أمر غير مغلق') : r.enforcement === 3 ? bi.L('order on hold', 'أمر معلّق') : bi.L('referred before', 'سبقت إحالتها')}</span>}
-                    {r.enfConflict && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }} title={bi.L('Cancelled in the source and referred to enforcement: it stays cancelled; review the disagreement.', 'ملغاة في المصدر ومحالة للتنفيذ: تبقى ملغاة؛ راجع التعارض.')}>{bi.L('cancelled yet referred', 'ملغاة ومحالة')}</span>}
                     {r.tags.includes('amount_conflict') && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'تعارض مبلغ' : 'amount conflict'}</span>}
                     {r.tags.includes('contract_unmatched') && <span className="rv-tag rv-tag--warn" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'عقد غير مطابق' : 'contract not matched'}</span>}
                     {r.tags.includes('exclusion_pending') && <span className="rv-tag" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'استبعاد قيد المراجعة' : 'exclusion pending'}</span>}
@@ -188,7 +209,7 @@ export default function Invoices() {
                   </td>
                 </tr>
               ))}
-              {!rows.length && !loading && <tr><td colSpan={11}><div className="rv-empty">{bi.L('No invoices match these filters.', 'لا توجد فواتير مطابقة لهذه المرشحات.')}</div></td></tr>}
+              {!rows.length && !loading && <tr><td colSpan={13}><div className="rv-empty">{bi.L('No invoices match these filters.', 'لا توجد فواتير مطابقة لهذه التصفية.')}</div></td></tr>}
             </tbody>
           </table>
         </div>

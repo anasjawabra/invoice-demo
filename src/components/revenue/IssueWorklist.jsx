@@ -17,6 +17,7 @@ export const CODE_LABEL = {
   contract_unmatched: { en: 'Contract not matched', ar: 'عقد غير مطابق' },
   enforcement_candidate: { en: 'Enforcement link pending', ar: 'رابط إنفاذ معلّق' },
   receipts_on_excluded: { en: 'Payment on excluded invoice', ar: 'دفعة على فاتورة مستبعدة' },
+  investment_no_contract: { en: 'Investment invoice not linked to a contract', ar: 'فاتورة استثمار غير مرتبطة بعقد' },
   source_cancelled: { en: 'Source says cancelled', ar: 'المصدر يفيد بالإلغاء' },
   risk_duplicate: { en: 'Possible duplicate', ar: 'تكرار محتمل' },
   risk_struck_off_registry: { en: 'Struck-off registry flag', ar: 'تنبيه سجل مشطوب' },
@@ -33,7 +34,7 @@ export default function IssueWorklist({ memKey, anomalyCodes = [], riskCats = []
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory(memKey, restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [code, setCode] = useState(mem.code ?? 'all');
   React.useEffect(() => { writeListMemory(memKey, { code }); }, [memKey, code]);
-  const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status }), [rev.scopeEff]);
+  const scopeReq = useMemo(() => ({ from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status, product: rev.scopeEff.product, mainClass: rev.scopeEff.mainClass }), [rev.scopeEff]);
 
   // the findings are computed by the data service over the whole scope; only the top rows travel
   const { data: all } = useAsync(() => (anomalyCodes.length ? rev.data.anomalies(scopeReq, 100, { codes: anomalyCodes }) : Promise.resolve(null)), [rev.data, scopeReq, anomalyCodes.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps

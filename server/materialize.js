@@ -3,7 +3,8 @@
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, ALINK, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
-import { invoiceIdOf, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
+import { iimDetail } from './iimRow.js';
+import { invoiceIdFor, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
 import { idOf, derive, makeCtx, recordRiskFlags, CLASSES } from './engine.js';
 import { sourceRecord } from './sourceRecords.js';
 
@@ -19,13 +20,15 @@ const TEMPLATES = {
   'EXE-1': { evidence: { en: 'Appears in the executed-against report.', ar: 'وارد في تقرير المنفذ ضده.' }, sources: [{ system: 'إيفاء — تقرير المنفذ ضده', field: 'حالة التنفيذ', value: 'منفذ ضده' }] },
   'EFA-1': { evidence: { en: 'Violation is not present in the Efaa system of record.', ar: 'المخالفة غير موجودة في نظام إيفاء المرجعي.' }, sources: [{ system: 'تحصيل — إيفاء v2', field: 'رقم المخالفة', value: 'غير مطابق في إيفاء' }] },
   'OBJ-1': { evidence: { en: 'Open objection in the violations system.', ar: 'اعتراض مفتوح في نظام المخالفات.' }, sources: [{ system: 'إيفاء — تقرير المخالفات العام', field: 'حالة الاعتراض', value: 'مفتوح' }] },
+  'ATT-1': { evidence: { en: 'A written statement of the Amanah that this invoice is not collectible.', ar: 'إفادة مكتوبة من الأمانة بأن هذه الفاتورة غير قابلة للتحصيل.' }, sources: [{ system: 'الأمانة', field: 'الإفادة', value: 'مرفقة' }] },
+  'ENC-1': { evidence: { en: 'Raised for exploiting a site without a contract (encroachment).', ar: 'صدرت عن استغلال موقع دون عقد (تعدٍّ).' }, sources: [{ system: 'فرص — العقود', field: 'العقد', value: 'غير موجود' }] },
   'ENF-1': { evidence: { en: 'Referred to enforcement.', ar: 'محال إلى التنفيذ.' }, sources: [] }
 };
 
 export function materialize(st, i, ctx = null) {
   if (i >= st.nGen) { const f = st.fixtures.get(i); return f ? structuredCloneSafe(f) : null; }
   const c = ctx || makeCtx(st, {});
-  const idKey = st.idKey[i]; const id = invoiceIdOf(idKey);
+  const idKey = st.idKey[i]; const id = invoiceIdFor(st.ent[i], st.scope[i], idKey);
   const e = st.ent[i]; const ent = ENTITIES[e]; const src = SOURCES[st.src[i]]; const item = ITEMS[st.item[i]];
   const issueDate = isoOf(st.issue[i]); const dueDate = isoOf(st.due[i]);
   const muni = municipalityOf(e, st.muni[i]);
@@ -106,6 +109,9 @@ export function detail(st, i, ctx) {
   const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
   const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry | deceased_person: 'open' | 'settled' } — the same rule as the Risks & Deviations page
+  rec.iim = iimDetail(st, i, rec, D);
+  // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from
+  if (D.excluded && rec.iim.exclusion?.ruleId === 'SND-1' && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) { const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const ev = { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' }; const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources: [{ system: 'سند — قضايا', field: 'رقم الأمر', value: q ? q.enforceNum : 'رابط مؤكد' }], rawValue: null, reviewStatus: 'approved', reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started' }; rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e; }
   return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
 void RULE_BIT;

@@ -58,17 +58,17 @@ export function extractFromText(rawText, page = 1) {
     const take = (re, fn) => { for (const m of line.matchAll(re)) { if (used.some(([a, b]) => m.index < b && m.index + m[0].length > a)) continue; used.push([m.index, m.index + m[0].length]); fn(m); } };
     const around = (m) => clip(line.length > 190 ? line.slice(Math.max(0, m.index - 70), m.index + m[0].length + 70) : line); // the words around the match (a long description line is not repeated for each number)
     take(/\bSA\d{22}\b/gi, (m) => out.push({ kind: 'bank_account', value: m[0].toUpperCase(), raw: m[0], label: 'IBAN', page, snippet: around(m) }));
-    // an invoice number as people really type it: any case, spaces / dashes / slashes between the parts. The ORIGINAL text is kept (`raw`); the value is the canonical INV-YYYY-NNNNNNN (leading zeros kept; a short serial is left as typed and marked weak by the matcher)
-    take(/\bINV[\s_\u2013\u2014\/-]*(\d{4})[\s_\u2013\u2014\/-]*(\d{1,7})\b/gi, (m) => out.push({ kind: 'invoice_no', value: `INV-${m[1]}-${m[2]}`, raw: m[0], label: 'pattern', page, snippet: around(m) }));
     take(/\b(?:EN|WLX)-\d{4,8}\b/gi, (m) => out.push({ kind: 'order_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
     take(/\b(?:CT|CNT)-\d{4}-\d{3,6}\b|\bCO-\d{4,6}\b/gi, (m) => out.push({ kind: 'contract_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
+    // an invoice number as people really type it: `{biller id}-{Sadad number}` with any separator (space, dash, slash). The ORIGINAL text is kept (`raw`); the value is the canonical `177-2200000123`
+    take(/\b(\d{3,4})[\s_\u2013\u2014\/-]+(\d{6,14})\b/g, (m) => out.push({ kind: 'invoice_no', value: `${m[1]}-${m[2]}`, raw: m[0], label: 'pattern', page, snippet: around(m) }));
     take(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![\d.,])\d+\.\d{1,2}(?![\d])/g, () => {}); // amounts: consumed, never a reference
     take(/(?<![\d.,-])\d{7,16}(?![\d])/g, (m) => {
       const v = m[0]; const nonInv = NON_INVOICE_LABELS.find(hasLabel); const inv = hasLabel('invoice') || hasLabel('sadad') || hasLabel('violation') || section === 'invoice' || section === 'sadad' || section === 'violation';
       let kind = 'other_number'; let label = nonInv || 'unlabelled';
       if (v.length === 12 && !(nonInv && !hasLabel('sadad') && !hasLabel('invoice'))) { kind = 'sadad_no'; label = 'sadad'; }
       else if (v.length === 14 && !(nonInv && !hasLabel('violation') && !hasLabel('invoice'))) { kind = 'violation_no'; label = 'violation'; }
-      else if (v.length === 7 && !nonInv && (hasLabel('invoice') || (inv && v.startsWith('0')))) { kind = 'invoice_serial'; label = 'invoice'; } // a bare 7-digit amount under an «Invoice» heading is not taken for a serial
+      else if (v.length === 7 && !nonInv && (hasLabel('invoice') || (inv && v.startsWith('0')))) { kind = 'invoice_serial'; label = 'invoice'; } // a year-less serial (legacy): ambiguous across years, never a match on its own; a bare 7-digit amount under an «Invoice» heading is not taken for a serial
       out.push({ kind, value: v, raw: v, label, page, snippet: around(m) });
     });
   }

@@ -2,9 +2,11 @@
 // columnar store. Nothing here materialises more than one page of invoice objects.
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
+import { REFERRED_CANCELLED_STAYS_BILLED } from '../src/data/iim.js';
 import { materialize } from './materialize.js';
-import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
-import { parseInvoiceId, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, invoiceIdOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
+import { iimFields, exclusionOf, investmentOutcome, INVOICE_KIND_SHORT_AR } from './iimRow.js';
+import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
+import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
 import { grpOf, GRP } from '../src/data/catalog.js';
 
@@ -17,23 +19,15 @@ export function resolveSearch(st, q) {
   if (!s) return null;
   // exact invoice id
   const exact = lookupId(st, s); if (exact >= 0) return { list: Int32Array.of(exact) };
-  const key = parseInvoiceId(s);
   const upper = s.toUpperCase();
-  let m = /^INV-(\d{4})(?:-(\d{1,7}))?$/.exec(upper);
-  if (m) { // id prefix -> contiguous range of the id-sorted region
-    const y = Number(m[1]); const frag = m[2] || '';
-    const lo = y * 1e8 + (frag ? Number(frag.padEnd(7, '0')) : 0); const hi = y * 1e8 + (frag ? Number(frag.padEnd(7, '9')) : 99999999);
-    return { range: [lowerBound(st, lo), lowerBound(st, hi + 1)] };
-  }
-  if (key != null) return { list: new Int32Array(0) };
   if (/^CT-\d{4}-\d{4}$/.test(upper)) { const ct = st.contracts.find((c) => c && c.contractNo === upper); return { list: Int32Array.from(ct ? ct.invs : []) }; }
   if (/^\d{10}$/.test(s)) { const ct = st.contracts.find((c) => c && c.crNo === s); if (ct) return { list: Int32Array.from(ct.invs) }; }
-  if (/^\d{12}$/.test(s)) { const k = idKeyFromSadad(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
-  if (/^\d{10}$/.test(s)) { const k = idKeyFromSubscription(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
-  if (/^\d{14}$/.test(s)) { const k = idKeyFromViolation(s); if (k != null) { const i = lookupId(st, `INV-${Math.floor(k / 1e8)}-${String(k % 1e8).padStart(7, '0')}`); if (i >= 0) return { list: Int32Array.of(i) }; } }
+  if (/^\d{12}$/.test(s)) { const l = lookupSadad(st, s); if (l.length) return { list: Int32Array.from(l) }; } // a Sadad number can repeat across billers: every invoice that carries it is returned
+  if (/^\d{10}$/.test(s)) { const k = idKeyFromSubscription(s); if (k != null) { const i = lookupKey(st, k); if (i >= 0) return { list: Int32Array.of(i) }; } }
+  if (/^\d{14}$/.test(s)) { const k = idKeyFromViolation(s); if (k != null) { const i = lookupKey(st, k); if (i >= 0) return { list: Int32Array.of(i) }; } }
   // source-record identifiers: disclosure / schedule / visit / licence / request keys point at ONE invoice; a deed at its owners' invoices; a facility at all its invoices
-  for (const codec of [DISCLOSURE, SCHEDULE, VISIT, LICENCE, REQUEST]) { const k = codec.decode(upper); if (k != null) { const i = lookupId(st, invoiceIdOf(k)); return { list: i >= 0 ? Int32Array.of(i) : new Int32Array(0) }; } }
-  { const k = DEED.decode(upper); if (k != null) { const i = lookupId(st, invoiceIdOf(k)); if (i < 0) return { list: new Int32Array(0) }; const g = grpOf(st.flags[i]); const n = g === GRP.WL_HEAD2 ? 2 : g === GRP.WL_HEAD3 ? 3 : 1; return { list: Int32Array.from({ length: n }, (_, j) => i + j) }; } }
+  for (const codec of [DISCLOSURE, SCHEDULE, VISIT, LICENCE, REQUEST]) { const k = codec.decode(upper); if (k != null) { const i = lookupKey(st, k); return { list: i >= 0 ? Int32Array.of(i) : new Int32Array(0) }; } }
+  { const k = DEED.decode(upper); if (k != null) { const i = lookupKey(st, k); if (i < 0) return { list: new Int32Array(0) }; const g = grpOf(st.flags[i]); const n = g === GRP.WL_HEAD2 ? 2 : g === GRP.WL_HEAD3 ? 3 : 1; return { list: Int32Array.from({ length: n }, (_, j) => i + j) }; } }
   { const fk = parseFacilityKey(upper); if (fk != null) { const bm = new Uint8Array(65536); bm[fk] = 1; return { payer: bm, fixtures: [] }; } }
   { const q = st.requests.find((x) => x.enforceNum === upper); if (q) return { list: Int32Array.from(q.identified.length ? q.identified : (st.contracts[q.contractIdx]?.invs || [])) }; }
   { const m2 = /^(?:مالك أرض|LAND OWNER)\s*(\d{5})$/.exec(upper.replace(/\s+/g, ' ')); if (m2) { const bm = new Uint8Array(65536); const idx = WL_PAYER_BASE + Number(m2[1]) - 1000; if (idx >= WL_PAYER_BASE && idx < 65536) bm[idx] = 1; return { payer: bm, fixtures: [] }; } }
@@ -73,6 +67,7 @@ export function rowOut(st, ctx, i, D) {
   const fx = i >= st.nGen ? st.fixtures.get(i) : null;
   const ct = st.contract[i] >= 0 ? st.contracts[st.contract[i]] : null;
   const rules = []; for (let b = 0; b < RULE_IDS.length; b += 1) if (st.exMask[i] & (1 << b)) rules.push(RULE_IDS[b]);
+  const im = iimFields(st, i);
   return {
     id: idOf(st, i), index: i,
     entityKey: ENTITIES[e].en, amanahAr: ENTITIES[e].ar, amanahEn: ENTITIES[e].en, amanahZh: ENTITIES[e].zh,
@@ -83,7 +78,8 @@ export function rowOut(st, ctx, i, D) {
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
     contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
-    primaryRule: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED)
+    primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED),
+    ...im, invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null, exclusionReason: exclusionOf(D)
   };
 }
 
@@ -117,7 +113,7 @@ export function candidates(st, req) {
     if (cs === -2 && st.cstat[i] !== 2 && st.cstat[i] !== 4) return;
     if (f.exec && f.exec !== 'all') { // ENFORCEMENT dimension (from confirmed links only): inexec = an order in execution · suspended = none in execution, one suspended · closed = referred before, every order closed · ever = any of the three · none = never referred
       const lk = ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0; const srcCancelled = st.cancelDay[i] !== 0 && st.cancelDay[i] <= ctx.cutoffN;
-      const ok = f.exec === 'conflict' ? srcCancelled && (lk >= 2 || lk === 5) : f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
+      const ok = f.exec === 'conflict' ? !REFERRED_CANCELLED_STAYS_BILLED && srcCancelled && (lk >= 2 || lk === 5) : f.exec === 'inexec' ? lk === 2 : f.exec === 'suspended' ? lk === 3 : f.exec === 'closed' ? lk === 4 : f.exec === 'ever' ? lk >= 2 : f.exec === 'none' ? lk < 2
         : f.exec === 'yes' ? (st.exec[i] >= 0 || lk >= 2) : f.exec === 'no' ? (st.exec[i] < 0 && lk < 2) : true; // «yes» / «no»: the older two-value filter
       if (!ok) return;
     }
@@ -132,6 +128,9 @@ export function candidates(st, req) {
     if (f.state === 'paid' && D.cls !== CLASS_INDEX.collected && D.cls !== CLASS_INDEX.partial) return; // the invoice register: invoices with money collected (in full or in part)
     if (ageB >= 0 && !(D.outstanding > 0 && agingBucket(D.daysOverdue) === ageB)) return;
     if (f.ageMin != null && !(D.outstanding > 0 && !D.excluded && D.daysOverdue >= f.ageMin && D.daysOverdue <= f.ageMax)) return;
+    // الفواتير القابلة للإحالة (D21): overdue, uncollected, not excluded or cancelled, with complete data and no order yet
+    if (f.eligible && !(D.outstanding > 0 && D.daysOverdue > 0 && !D.excluded && !D.cancelled && D.link < 2 && st.exec[i] < 0 && !(st.flags[i] & (F.MISSING_ID | F.OBJECTION)) && D.cls !== CLASS_INDEX.linkage_unresolved)) return;
+    if (f.kind && f.kind !== 'all' && iimFields(st, i).invoiceKind !== f.kind) return; // نوع الفاتورة: occupancy / differences (tobacco and accommodation only)
     if (f.tag) { const tg = tagsOf(st, i, D); if (f.tag === 'problem' ? !tg.some((x) => PROBLEM_TAGS.has(x)) : !tg.includes(f.tag)) return; }
     out.push(i); sums.gross += D.gross; sums.exclusions += D.exclTotal; sums.net += D.net; sums.collected += D.collected; sums.outstanding += D.outstanding;
   };
@@ -203,7 +202,7 @@ export function* exportChunks(st, req, chunk = 4000) {
 }
 
 /* ------------------------------------------------------------------ worklists */
-const ACT = { overdue: 1, partial: 0.85, linkage_unresolved: 0.5, ineligible_referral: 0.35, enforcement: 0.45, objection: 0.2, not_due: 0.1 };
+const ACT = { excluded: 0.05, overdue: 1, partial: 0.85, linkage_unresolved: 0.5, ineligible_referral: 0.35, enforcement: 0.45, objection: 0.2, not_due: 0.1 };
 const W_ = { amount: 0.4, aging: 0.25, actionability: 0.25, evidence: 0.1 };
 function evidenceQuality(st, i, D) {
   let qv = 1; const f = st.flags[i]; const cs = st.cstat[i];
@@ -219,14 +218,19 @@ export function worklist(st, req) {
     for (let i = 0; i < st.n; i += 1) {
       if (st.issue[i] > ctx.cutoffN || st.issue[i] < sc.fromN || st.issue[i] > sc.toN || !inScope(st, sc, i)) continue;
       derive(ctx, i, ctx.cutoffN);
-      if (!(D.outstanding > 0) || D.excluded || D.cls === CLASS_INDEX.collected) continue;
+      // IIM-06: the list shows ALL uncollected invoices — the excluded ones included (they are uncollected too); a reason filter narrows it
+      const exIn = D.excluded && req.includeExcluded; const bal = exIn ? D.exclusionAmount : D.outstanding;
+      if (!exIn && (!(D.outstanding > 0) || D.excluded || D.cls === CLASS_INDEX.collected)) continue;
+      if (!(bal > 0)) continue;
       if (req.category && req.category !== 'all' && CLASSES[D.cls] !== req.category) continue;
-      if (pass === 0) { total += 1; totalOut += D.outstanding; if (D.outstanding > maxAmt) maxAmt = D.outstanding; if (D.daysOverdue > maxAge) maxAge = D.daysOverdue; continue; }
+      if (req.kind && req.kind !== 'all' && iimFields(st, i).invoiceKind !== req.kind) continue;
+      if (req.reason && req.reason !== 'all') { const xr = exclusionOf(D); if (req.reason === 'none' ? D.excluded : req.reason === 'any' ? !D.excluded : !xr || xr.ruleId !== req.reason) continue; }
+      if (pass === 0) { total += 1; totalOut += bal; if (bal > maxAmt) maxAmt = bal; if (D.daysOverdue > maxAge) maxAge = D.daysOverdue; continue; }
       const ev = evidenceQuality(st, i, D); const act = ACT[CLASSES[D.cls]] ?? 0.3;
-      top.push(i, W_.amount * (D.outstanding / maxAmt) + W_.aging * (D.daysOverdue / maxAge) + W_.actionability * act + W_.evidence * ev);
+      top.push(i, W_.amount * (bal / maxAmt) + W_.aging * (D.daysOverdue / maxAge) + W_.actionability * act + W_.evidence * ev);
     }
     if (pass === 1) {
-      const rows = top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); const r = rowOut(st, ctx, i, D); return { ...r, category: r.cls, actionability: ACT[r.cls] ?? 0.3, evidenceQuality: Math.round(evidenceQuality(st, i, D) * 100) / 100, score: Math.round(score * 1000) / 1000 }; });
+      const rows = top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); const r = rowOut(st, ctx, i, D); return { ...r, category: r.cls, uncollected: r.outstanding + r.exclusionAmount, actionability: ACT[r.cls] ?? 0.3, evidenceQuality: Math.round(evidenceQuality(st, i, D) * 100) / 100, score: Math.round(score * 1000) / 1000 }; });
       return { total, totalOutstanding: totalOut, rows };
     }
   }
@@ -249,6 +253,7 @@ export function anomalies(st, req) {
     if (st.src[i] === 0 && st.cstat[i] === 2) found.push(['contract_unmatched', 2]);
     if (D.link === 1) found.push(['enforcement_candidate', 2]);
     if (D.excluded && D.received > 0) found.push(['receipts_on_excluded', 3]);
+    if (st.src[i] === 0) { const oc = investmentOutcome(st, i, iimFields(st, i)); if (oc === 'not_linked') found.push(['investment_no_contract', 2]); } // IIM-16: a central investment invoice that Furas does not know
     const inGroup = group ? found.filter(([c]) => group.has(c)) : found;
     let sev = 0; const codes = []; for (const [c, v] of inGroup) { codes.push(c); sev = Math.max(sev, v); }
     for (const c of codes) bump(c);

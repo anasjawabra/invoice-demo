@@ -6,6 +6,7 @@ import { amanahFilterOptions, REVENUE_SOURCES, REVENUE_SOURCE_KEYS, UNAVAILABLE_
 import { METRIC_DEFINITIONS } from '../../data/revenueMetrics';
 import { metricDictionary } from '../../data/metricDictionary';
 import { municipalitiesOf } from '../../data/catalog';
+import { PRODUCTS, MAIN_LIST, MAIN_EN, OTHER_CLASS, UNCLASSIFIED } from '../../data/iim';
 import { DATA_START } from '../../data/revenueLedger';
 import { fmtMoney } from '../../utils/money';
 import { measure, basisLabel, hasToDateVariant, BASIS } from '../../data/measure';
@@ -75,15 +76,16 @@ export function DefinitionButton({ metric }) {
 }
 
 /* ---------- Metric tile ---------- */
-export function MetricTile({ label, value, sub, metric, tone, delta, children, wide, to }) {
+export function MetricTile({ label, value, sub, metric, tone, delta, children, wide, to, onAction, actionLabel, id }) {
   const { L } = useL();
   return (
-    <div className={`rv-tile${tone ? ` rv-tile--${tone}` : ''}${wide ? ' rv-tile--wide' : ''}`}>
+    <div id={id} className={`rv-tile${tone ? ` rv-tile--${tone}` : ''}${wide ? ' rv-tile--wide' : ''}`}>
       <div className="rv-tile__label"><span>{label}</span>{metric && <DefinitionButton metric={metric} />}</div>
       <div className="rv-tile__value" dir="ltr">{value}</div>
       {delta}
       {sub && <div className="rv-tile__sub">{sub}</div>}
       {children}
+      {onAction && <button type="button" className="rv-tile__more" onClick={onAction} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'inherit', textAlign: 'start' }}>{actionLabel} ←</button>}
       {to && <Link className="rv-tile__more" to={to}>{L('Drill down: invoices and evidence', 'التفاصيل: الفواتير والأدلة')} ←</Link>}
     </div>
   );
@@ -137,7 +139,7 @@ export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'r
 /* ---------- Collections up to TODAY for a closed period: a separate, labelled figure shown on request (EQ1) ---------- */
 export function ToDateFigure({ snapshot }) {
   const rev = useRevenue(); const { L, lang } = useL();
-  const scope = { from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status };
+  const scope = { from: rev.scopeEff.from, to: rev.scopeEff.to, amanah: rev.scopeEff.amanah, source: rev.scopeEff.source, scopeType: rev.scopeEff.scopeType, muni: rev.scopeEff.muni, status: rev.scopeEff.status, product: rev.scopeEff.product, mainClass: rev.scopeEff.mainClass };
   const [on, setOn] = useState(false); const [res, setRes] = useState(null); const [err, setErr] = useState(false);
   const closed = hasToDateVariant(scope, rev.cfg.cutoff);
   useEffect(() => {
@@ -168,8 +170,27 @@ export function DataStatus() {
 }
 
 /* ---------- Scope bar (shared by every revenue screen) ---------- */
+/* ---------- Product (اسم المنتج): multi-select over the systems the invoices originate from ---------- */
+export function ProductPicker({ value, onChange }) {
+  const { L, lang } = useL();
+  const keys = Object.keys(PRODUCTS);
+  const toggle = (k) => onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
+  const text = value.length === 0 ? L('All products', 'كل المنتجات') : value.map((k) => (lang === 'ar' ? PRODUCTS[k].ar : PRODUCTS[k].en)).join('، ');
+  return (
+    <details className="rv-multi">
+      <summary className="select" aria-label={L('Product', 'اسم المنتج')}><span className="rv-scope__lbl" style={{ marginInlineEnd: 6 }}>{L('Product', 'اسم المنتج')}</span>{text}</summary>
+      <div className="rv-multi__list" role="group" aria-label={L('Product', 'اسم المنتج')}>
+        {keys.map((k) => (
+          <label key={k} className="rv-multi__item"><input type="checkbox" checked={value.includes(k)} onChange={() => toggle(k)} /> {lang === 'ar' ? PRODUCTS[k].ar : PRODUCTS[k].en}</label>
+        ))}
+        {value.length > 0 && <button type="button" className="btn btn-sm btn-ghost" onClick={() => onChange([])}>{L('Clear', 'مسح')}</button>}
+      </div>
+    </details>
+  );
+}
+
 export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = false }) {
-  const { scope, setPreset, setCustomRange, setAmanah, setSource, setMuni, setStatus, org, snapshot, cfg, meta } = useRevenue();
+  const { scope, setPreset, setCustomRange, setAmanah, setSource, setMuni, setStatus, setScopeType, setProduct, setMainClass, org, snapshot, cfg, meta } = useRevenue();
   const { L, B, lang, T, count } = useL();
   const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
   const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
@@ -186,9 +207,9 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
           ))}
           <DateRangeFields from={scope.from} to={scope.to} today={cfg.cutoff} lang={lang} idPrefix="rv" onChange={(r) => { if (r) setCustomRange(r.from, r.to); }} /></div>
         <div className="rv-scope__group">
-          <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة')}</label>
+          <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة / الجهة')}</label>
           <select id="rv-amanah" className="select" value={Array.isArray(scope.amanah) ? 'all' : scope.amanah} onChange={(e) => setAmanah(e.target.value)}>
-            <option value="all">{L('All Amanahs', 'جميع الأمانات')}{org.amanahKeys ? ` (${L('your access', 'ضمن صلاحيتك')})` : ''}</option>
+            <option value="all">{L('All Amanahs', 'جميع الأمانات والجهات')}{org.amanahKeys ? ` (${L('your access', 'ضمن صلاحيتك')})` : ''}</option>
             {amanahs.map((a) => <option key={a.key} value={a.key}>{label(a)}</option>)}
           </select>
           <label className="rv-scope__lbl" htmlFor="rv-source">{L('Revenue source', 'مصدر الإيراد')}</label>
@@ -204,6 +225,19 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
             {[['collected', L('Collected in full', 'محصّلة بالكامل')], ['open', L('Still owing (open)', 'قائمة (غير مسددة)')], ['overdue', L('Overdue', 'متأخرة')], ['partial', L('Partially collected', 'محصّلة جزئياً')], ['not_due', L('Not yet due', 'لم يحن استحقاقها')], ['cancelled', L('Cancelled', 'ملغاة')], ['excluded', L('Excluded', 'مستبعدة')]].filter(([k]) => !hideStatuses.includes(k)).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
           </select>
           </>)}
+          <label className="rv-scope__lbl" htmlFor="rv-origin">{L('Invoice origin', 'مصدر الفاتورة')}</label>
+          <select id="rv-origin" className="select" value={scope.scopeType || 'all'} onChange={(e) => setScopeType(e.target.value)}>
+            <option value="all">{L('All', 'الكل')}</option>
+            <option value="central">{lang === 'ar' ? 'مركزي' : 'Central'}</option>
+            <option value="internal">{lang === 'ar' ? 'داخلي' : 'Internal'}</option>
+          </select>
+          <ProductPicker value={scope.product || []} onChange={setProduct} />
+          <label className="rv-scope__lbl" htmlFor="rv-mainclass">{L('Main revenue class', 'تصنيف الإيراد الرئيسي')}</label>
+          <select id="rv-mainclass" className="select" value={scope.mainClass || 'all'} onChange={(e) => setMainClass(e.target.value)}>
+            <option value="all">{L('All classes', 'كل التصنيفات')}</option>
+            {MAIN_LIST.filter((m) => m !== OTHER_CLASS && m !== UNCLASSIFIED).map((m) => <option key={m} value={m}>{lang === 'ar' ? m : MAIN_EN[m]}</option>)}
+            <option value={UNCLASSIFIED}>{lang === 'ar' ? UNCLASSIFIED : MAIN_EN[UNCLASSIFIED]}</option>
+          </select>
           {munis.length > 0 && (<>
             <label className="rv-scope__lbl" htmlFor="rv-muni">{L('Municipality', 'البلدية')}</label>
             <select id="rv-muni" className="select" value={scope.muni || 'all'} onChange={(e) => setMuni(e.target.value)}>

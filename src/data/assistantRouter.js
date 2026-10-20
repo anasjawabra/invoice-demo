@@ -115,7 +115,7 @@ export function parseAmanah(text) {
 }
 
 const SOURCE_PATTERNS = [
-  ['investment', /invest|furas|lease|استثمار|فرص/],
+  ['investment', /invest|lease|استثمار/], // «فرص» / Furas is a platform, not a revenue source: Amanah and municipal investment is outside it
   ['fines', /\bfines?\b|penalt|violation|غرام|مخالف|جزاء/],
   ['white_lands', /white.?land|الأراضي البيضاء|اراضي بيضاء/],
   ['tobacco', /tobacco|التبغ/],
@@ -141,13 +141,13 @@ export function unavailableSourceMentioned(text) {
 }
 
 export function parseInvoiceId(text) {
-  const m = text.match(/INV-\d{4}-\d{4,7}/i);
+  const m = text.match(/\b\d{3,4}-\d{6,14}\b/);
   return m ? m[0].toUpperCase() : null;
 }
 
 export function classify(text) {
   const s = text.toLowerCase();
-  if (/inv-\d{4}-\d{4,7}/i.test(text)) return 'invoice';
+  if (/\b\d{3,4}-\d{6,14}\b/.test(text)) return 'invoice';
   if (has(s, ['analyze uncollected', 'analyse uncollected', 'net uncollected', 'uncollected bridge', 'حلل غير المحصل', 'حلل الرصيد القائم', 'تحليل الرصيد القائم', 'تحليل غير المحصل', 'صافي غير المحصل', 'جسر غير المحصل'])) return 'uncollected';
   if (has(s, ['why did collection', 'why has collection', 'why collection', 'collection fell', 'collection fall', 'collection drop', 'collection decline', 'collection decrease', 'لماذا انخفض', 'لماذا تراجع', 'ليه انخفض', 'انخفاض التحصيل', 'تراجع التحصيل'])) return 'why_decline';
   if (has(s, ['report', 'تقرير'])) return 'report';

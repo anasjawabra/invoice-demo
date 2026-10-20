@@ -1,5 +1,5 @@
 // The payment story of ONE invoice, from its payments up to the reference date — pure, no I/O.
-//   settled   = the date on which the payments first covered the net billed amount (only when they did)
+//   settled   = the date on which the payments first covered the invoice value (only when they did)
 //   offset    = days from the due date (negative = before the due date, positive = after it)
 //   the state follows the invoice's own payment status (collected · partial · overdue / not due → unpaid · cancelled · excluded)
 import { daysBetween } from './revenueLedger';

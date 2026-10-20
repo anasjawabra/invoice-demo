@@ -47,7 +47,8 @@ const RECOMMENDED_STEP = {
   ineligible_referral: bi('Complete the missing mandatory fields so the invoice becomes eligible for referral', 'استكمال الحقول الإلزامية الناقصة لتصبح الفاتورة مؤهلة للإحالة'),
   enforcement: bi('Track the confirmed enforcement case; no new collection action from this platform', 'متابعة قضية الإنفاذ المؤكدة؛ دون إجراء تحصيل جديد من هذه المنصة'),
   objection: bi('Request status of the objection from the owning unit before any follow-up', 'الاستفسار عن حالة الاعتراض من الجهة المالكة قبل أي متابعة'),
-  not_due: bi('No action yet — monitor until the due date', 'لا إجراء حالياً — مراقبة حتى تاريخ الاستحقاق')
+  not_due: bi('No action yet — monitor until the due date', 'لا إجراء حالياً — مراقبة حتى تاريخ الاستحقاق'),
+  excluded: bi('Excluded from the collectible base — no collection action; see the exclusion reason', 'مستبعدة من القابل للتحصيل — لا إجراء تحصيل؛ راجع سبب الاستبعاد')
 };
 
 // Server-computed priority list (amount, aging, actionability, evidence quality) -> rows with the recommended next step.
@@ -63,6 +64,7 @@ const ANOMALY_TEXT = {
   contract_unlinked: { severity: 2, text: bi('Investment invoice has no linked contract. Not excluded automatically — a human decision is required.', 'فاتورة استثمارية بلا عقد مرتبط. لا تُستبعد تلقائياً — يلزم قرار بشري.') },
   contract_unmatched: { severity: 2, text: bi('Contract not matched (this is not "no contract"). Kept in the base and flagged.', 'لم تتم مطابقة العقد (وليس «بدون عقد»). تبقى في الأساس وتُعلَّم.') },
   enforcement_candidate: { severity: 2, text: bi('Enforcement link proposed but not confirmed.', 'رابط إنفاذ مقترح وغير مؤكد.') },
+  investment_no_contract: { severity: 2, text: bi('Investment invoice not linked to a contract. Possible causes: an electronic-screen invoice issued manually · use of the site after the contract ended · a possible classification error · a contract that expired without renewal.', 'فاتورة استثمار غير مرتبطة بعقد. الأسباب المحتملة: فاتورة شاشة إلكترونية صادرة يدويًا · استغلال الموقع بعد انتهاء العقد · احتمال خطأ في التصنيف · عقد منتهٍ دون تجديد.') },
   receipts_on_excluded: { severity: 3, text: bi('Payments recorded on an excluded invoice.', 'مدفوعات مسجلة على فاتورة مستبعدة.') }
 };
 export const anomalyReasonText = (code) => ANOMALY_TEXT[code]?.text || bi(code, code);
@@ -262,7 +264,7 @@ function indicator(label, value, kind = 'calculated', note = null) {
 }
 
 export function describeScope(scope, lang = 'en') {
-  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات' : 'All Amanahs') : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
+  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات والجهات' : 'All Amanahs') : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
   const s = scope.source === 'all' ? (lang === 'ar' ? 'جميع مصادر الإيراد' : 'All revenue sources') : (REVENUE_SOURCES[scope.source]?.[lang === 'ar' ? 'ar' : 'en'] || scope.source);
   const ar = lang === 'ar';
   const extra = [];

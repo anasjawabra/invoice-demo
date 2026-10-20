@@ -24,7 +24,9 @@
 // ============================================================================
 import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ENT_UNASSIGNED, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
 import { PARAMS } from '../src/data/sourceAssumptions.js';
-import { invoiceIdOf, sadadOf } from './names.js';
+import { sadadOf, invoiceIdFor } from './names.js';
+import { gfsCodeOf, gfsIndexOf } from '../src/data/iim.js';
+import { ITEMS } from '../src/data/catalog.js';
 import { toSciNotation, exactNotation } from '../src/data/sanadSource.js';
 
 export const SEED = 20261008;
@@ -57,7 +59,7 @@ const COLS = {
   ent: Uint8Array, muni: Uint8Array, scope: Uint8Array, src: Uint8Array, item: Uint8Array, lines: Uint8Array,
   payStart: Int32Array, payCount: Uint8Array, cancelDay: Int32Array, exMask: Uint16Array, exAppr: Uint16Array, exRev: Uint8Array,
   flags: Uint16Array, contract: Int32Array, inst: Uint16Array, cstat: Uint8Array, crSt: Uint8Array, exec: Int16Array,
-  efaa: Uint8Array, alink: Uint8Array, payer: Uint16Array, owner: Uint16Array
+  efaa: Uint8Array, alink: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array
 };
 const PCOLS = { pInv: Int32Array, pDay: Int32Array, pAmt: Float64Array, pCh: Uint8Array };
 
@@ -234,6 +236,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     st.flags[i] = o.flags || 0;
     st.contract[i] = o.contract ?? -1; st.inst[i] = o.inst || 0; st.cstat[i] = o.cstat || 0; st.crSt[i] = o.crSt || 0; st.exec[i] = -1;
     st.efaa[i] = o.efaa || 0; st.alink[i] = o.alink ?? (o.scope === 1 ? 0 : 1); st.payer[i] = o.payer; st.owner[i] = 0;
+    st.gfs[i] = gfsIndexOf(gfsCodeOf(ITEMS[o.item].key, Math.imul((o.idKey % 2147483629) | 0, 0x85ebca6b) >>> 0)); // revenue account (رقم حساب الإيراد): a stable function of the item and the invoice
     return i;
   }
 
@@ -259,7 +262,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
   const SRC_KEYS = ['fines', 'fees', 'accommodation', 'tobacco', 'other'];
   const SRC_ID = { fines: 1, fees: 2, accommodation: 3, tobacco: 4, other: 5 };
   const feesItems = ['inspection_fees', 'waste_collection', 'excavation_permits', 'ad_boards'].map((k) => ITEM_INDEX[k]);
-  const licItems = ['commercial_license', 'commercial_license', 'signboard_license', 'building_permit', 'health_certificate'].map((k) => ITEM_INDEX[k]);
+  const licItems = ['commercial_license', 'commercial_license', 'signboard_license', 'building_permit', 'health_certificate', 'ad_boards_amanah'].map((k) => ITEM_INDEX[k]);
   const finesItems = ['building_violations', 'signage_violations', 'health_violations'].map((k) => ITEM_INDEX[k]);
   const linesFor = (r) => { const x = r.next(); return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3); };
 
@@ -570,7 +573,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
       if (opened > todayN) { all.forEach((i) => used.add(i)); continue; }
       all.forEach((i) => { used.add(i); if (arch !== 'duplicate_across_orders' || i !== firstSingle) st.payer[i] = owner; });
       const amount = all.reduce((sum, i) => sum + st.gross[i], 0);
-      const idOfi = (i) => invoiceIdOf(st.idKey[i]); const est_idKey = (i) => st.idKey[i];
+      const idOfi = (i) => invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i]); const est_idKey = (i) => st.idKey[i];
       const typo = (id) => `${id.slice(0, 9)}${String(Number(id.slice(9)) + 4000000).padStart(7, '0')}`; // a wrong number that matches no invoice (a digit slip that lands on another real invoice is covered by the debtor check)
       let refs = []; let identified = [];
       if (arch === 'single' || arch === 'multi_exact' || arch === 'duplicate_across_orders') { refs = covers.map((i) => ({ kind: 'invoice_no', value: idOfi(i) })); identified = covers.filter((i) => st.exec[i] < 0); }
@@ -598,8 +601,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
       const E2 = ['attach_pdf', 'attach_docx', 'one_attached', 'contract_mention', 'same_serial_two_years', 'genuine_conflict', 'mixed_sources', 'desc_sadad', 'corrupted_structured', 'attach_unreadable', 'desc_multi', 'desc_only', 'cancelled_open', 'cancelled_closed', 'notation_exact']; // APPEND ONLY. The scenarios the demo needs come first: the compact world has few eligible invoices
       const eligSet = new Set(elig); const partnerOk = (x) => eligSet.has(x) || (st.exec[x] < 0 && !st.cancelDay[x] && st.exMask[x] === 0 && grpOf(st.flags[x]) === 0 && st.due[x] + 150 <= ORDER_GEN_CUTOFF && st.scope[x] === 0); // the second invoice may be partly paid, it just must not be in another order or cancelled
       const cancelledPool = []; for (let i = 0; i < st.nGen; i += 1) if (st.cancelDay[i] && st.cancelDay[i] <= ORDER_GEN_CUTOFF && st.payCount[i] === 0 && st.exMask[i] === 0 && st.exec[i] < 0 && grpOf(st.flags[i]) === 0 && !used.has(i)) cancelledPool.push(i);
-      const idOfi = (i) => invoiceIdOf(st.idKey[i]);
-      const fmt = (id, v) => (v === 0 ? id : v === 1 ? id.toLowerCase() : v === 2 ? id.replace(/-/g, ' ') : id.replace('INV-', 'INV – ').replace(/-(\d{7})$/, ' / $1'));
+      const idOfi = (i) => invoiceIdFor(st.ent[i], st.scope[i], st.idKey[i]);
+      const fmt = (id, v) => (v === 0 ? id : v === 1 ? id.toLowerCase() : v === 2 ? id.replace(/-/g, ' ') : id.replace('-', ' / '));
       const contracts = st.contracts.filter(Boolean);
       // STABLE IDS. An order's id never depends on how many archetypes were generated before it: each (archetype:rep) has a FIXED id (the ids shown by build cd27e3c), and so does its position in
       // the E2 list below (APPEND ONLY — the position decides which invoices it covers). A new archetype gets an id from its FIXED list position, EN-(6200 + 7 × (rep × 20 + position)), and is appended at the END of the list.
@@ -655,6 +658,18 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const req = { idx: reqCount, enforceNum: `WLX-${String(st.idKey[w.i] % 1e8).padStart(7, '0')}`, system: 'white_lands', ent: ENT_HOUSING, amount: st.gross[w.i], openedDay: w.opened, contractIdx: -1, contractNo: null, status: roll < 0.55 ? 'قيد التنفيذ' : roll < 0.8 ? 'موقوف' : 'مغلق', identified: [w.i], crNo: null, method: 0, confidence: 1, debtor: st.payer[w.i] };
     st.requests.push(req); st.exec[w.i] = req.idx; reqCount += 1;
   }
+  // D27 (meeting 19 Oct): licence fees are PREPAID — every licence invoice is paid in full on its issue day, so collection is 100 % and nothing is uncollected. Done AFTER the enforcement orders are generated so that
+  // no stable demo id / order coverage moves; an invoice an order covers keeps its own history.
+  { const LIC = SOURCE_INDEX.licenses; for (let i = 0; i < st.nGen; i += 1) { if (st.src[i] !== LIC || st.exec[i] >= 0) continue; const p = st.addPayment(i, st.issue[i], st.gross[i], 0); st.payStart[i] = p; st.payCount[i] = 1; st.cancelDay[i] = 0; st.exMask[i] = 0; st.exAppr[i] = 0; st.flags[i] &= ~F.OBJECTION; } }
+  // 19 Oct meeting: two more exclusion types on UNCOLLECTED invoices — «إفادات الأمانات» (municipal fees) and «التعديات / استغلال المواقع» (investment). Assigned after everything else so no stable id moves.
+  { const MF = SOURCE_INDEX.municipal_fees; const INV = SOURCE_INDEX.investment; const FN = SOURCE_INDEX.fines; const D = RULE_BIT['DEC-1']; const A = RULE_BIT['ATT-1']; const E = RULE_BIT['ENC-1'];
+    for (let i = 0; i < st.nGen; i += 1) {
+      if (st.payCount[i] > 0 || st.cancelDay[i] || st.exMask[i] || st.exec[i] >= 0 || st.issue[i] > todayN) continue;
+      const h = mix(19, st.idKey[i] % 1000003) % 100;
+      if (st.src[i] === MF && h < 6) { st.exMask[i] = A; st.exAppr[i] = A; st.exRev[i] = 15 + (h % 30); }
+      else if (st.src[i] === FN && h < 2) { st.exMask[i] = D; st.exAppr[i] = D; st.exRev[i] = 15 + (h % 30); }
+      else if (st.src[i] === INV && h < 9) { st.exMask[i] = E; st.exAppr[i] = E; st.exRev[i] = 15 + (h % 30); }
+    } }
   st.trim();
   st.meta = { today, scale, generatedFrom: GEN_START, seed: SEED, ms: Date.now() - t0, contracts: contracts.filter(Boolean).length, requests: reqCount };
   worldCache.set(key, st);

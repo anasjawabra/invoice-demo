@@ -1,10 +1,11 @@
 import React from 'react';
-import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
 import DataSources from './pages/DataSources';
 import InsightsHub from './pages/InsightsHub';
+import SmartReportsPage from './pages/SmartReportsPage';
 import PlanningArea from './pages/PlanningArea';
 import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
@@ -12,6 +13,9 @@ import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
 import DataQuality from './pages/DataQuality';
 import Collection from './pages/Collection';
+import Exclusions from './pages/Exclusions';
+import Products from './pages/Products';
+import ProductPage from './pages/ProductPage';
 import EnforcementHome from './pages/EnforcementHome';
 import EnforcementOrderPage from './pages/EnforcementOrderPage';
 import InvoicePage from './pages/InvoicePage';
@@ -23,12 +27,6 @@ function ProtectedRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   return children;
-}
-
-// old links keep their query (?q=, ?r=, ?view=) when they land on the new management area
-function LegacyRedirect({ to, fallbackView }) {
-  const loc = useLocation(); const sp = new URLSearchParams(loc.search); if (!sp.get('view') && !sp.get('r')) sp.set('view', fallbackView);
-  return <Navigate to={`${to}?${sp.toString()}`} replace />;
 }
 
 function Redirect({ make }) { const p = useParams(); return <Navigate to={make(p)} replace />; }
@@ -43,9 +41,9 @@ export default function App() {
         <Route path="planning" element={<PlanningArea />} />
         <Route path="executive" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="dashboard" element={<Navigate to="/insights?view=dashboard" replace />} />
-        <Route path="reports" element={<LegacyRedirect to="/insights" fallbackView="reports" />} />
-        <Route path="smart-reports" element={<LegacyRedirect to="/insights" fallbackView="smart" />} />
-        <Route path="assistant" element={<LegacyRedirect to="/insights" fallbackView="smart" />} />
+        <Route path="reports" element={<Navigate to="/insights" replace />} />
+        <Route path="smart-reports" element={<SmartReportsPage />} />
+        <Route path="assistant" element={<Navigate to="/smart-reports" replace />} />
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
         <Route path="what-if" element={<Navigate to="/planning" replace />} />
@@ -60,6 +58,9 @@ export default function App() {
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Risk />} />
         <Route path="collection" element={<Collection />} />
+        <Route path="exclusions" element={<Exclusions />} />
+        <Route path="products" element={<Products />} />
+        <Route path="products/:key" element={<ProductPage />} />
         <Route path="invoices/:id" element={<InvoicePage />} />
         <Route path="contracts/:no" element={<ContractPage />} />
         <Route path="enforcement" element={<EnforcementHome />} />

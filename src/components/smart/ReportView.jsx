@@ -2,15 +2,15 @@
 // numbers in the ONE unit stated in each header, charts use one unit per chart.
 import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Tooltip, Legend } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend } from 'chart.js';
+import { Bar, Line, Pie } from 'react-chartjs-2';
 import { useL } from '../../utils/bi';
 import { fmtMoney, fmtSar } from '../../utils/money';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../../data/reportFormat';
 import FinancialRelations from '../revenue/FinancialRelations';
 import { fmtRiyadh, fmtRangeText } from '../../data/clock';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend);
 
 const COLORS = ['rgba(25, 65, 133, 0.8)', 'rgba(27, 131, 84, 0.8)', 'rgba(253, 176, 34, 0.85)', 'rgba(180, 35, 24, 0.7)'];
 
@@ -53,13 +53,24 @@ function Table({ b }) {
 
 function Chart({ b }) {
   const { lang, isRtl } = useL();
-  const { cu } = useMemo(() => chartInfo(b, lang), [b, lang]);
-  const data = useMemo(() => ({ labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderRadius: 4 })) }), [b]);
-  const options = useMemo(() => ({ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { rtl: isRtl, callbacks: { label: (c) => `${c.dataset.label}: ${c.parsed.y == null ? '—' : cu.fmt(c.parsed.y)}`, afterLabel: (c) => (c.parsed.y == null ? '' : fmtSar(c.parsed.y, lang)) } } }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl]);
+  const kind = b.kind || 'bar'; const { cu } = useMemo(() => chartInfo(b, lang), [b, lang]);
+  const data = useMemo(() => {
+    if (kind === 'pie') { const s = b.series[0]; return { labels: b.labels, datasets: [{ label: s.label, data: s.values, backgroundColor: b.labels.map((_, i) => COLORS[i % COLORS.length]) }] }; }
+    return { labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderColor: COLORS[i % COLORS.length], borderWidth: kind === 'line' ? 2.5 : 0, pointRadius: kind === 'line' ? 3 : 0, tension: 0.2, borderRadius: kind === 'line' ? 0 : 4 })) };
+  }, [b, kind]);
+  const value = (c) => (kind === 'hbar' ? c.parsed.x : kind === 'pie' ? c.parsed : c.parsed.y);
+  const tip = { rtl: isRtl, callbacks: { label: (c) => `${kind === 'pie' ? c.label : c.dataset.label}: ${value(c) == null ? '—' : cu.fmt(value(c))}`, afterLabel: (c) => (b.plain || value(c) == null ? '' : fmtSar(value(c), lang)) } };
+  const legend = { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } };
+  const options = useMemo(() => (kind === 'pie'
+    ? { responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip } }
+    : kind === 'hbar'
+      ? { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip }, scales: { y: { reverse: false, grid: { display: false }, ticks: { font: { size: 11 } } }, x: { beginAtZero: true, position: isRtl ? 'top' : 'bottom', reverse: isRtl, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }
+      : { responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl, kind]); // eslint-disable-line react-hooks/exhaustive-deps
+  const Cmp = kind === 'line' ? Line : kind === 'pie' ? Pie : Bar;
   return (
     <div>
       {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}</h4>}
-      <div className="rv-chart" style={{ height: 260 }} role="img" aria-label={b.title}><Bar role="presentation" data={data} options={options} /></div>
+      <div className="rv-chart" style={{ height: kind === 'pie' ? 300 : 260 }} role="img" aria-label={b.title}><Cmp key={kind} role="presentation" data={data} options={options} /></div>
     </div>
   );
 }
@@ -83,7 +94,7 @@ export default function ReportView({ model }) {
   const { ar, lang } = useL(); const L = (a, e) => (ar ? a : e);
   const hum = (v) => String(v ?? '').replace(/(\d{4}-\d{2}-\d{2}) → (\d{4}-\d{2}-\d{2})/g, (_, a, b) => fmtRangeText(a, b, lang));
   const ctx = (k) => model.context.find((c) => c.k === k)?.value;
-  const summaryLine = [hum(ctx('period')), ctx('amanah'), ctx('source'), ctx('basis') ? hum(ctx('basis')) : null].filter(Boolean).join(' · ');
+  const summaryLine = [hum(ctx('period')), ctx('amanah'), ctx('source'), ctx('basis') ? hum(ctx('basis')) : null].filter(Boolean).join(' · ') || model.subtitle;
   const FOLD = ['assumptions', 'findings', 'forecast']; // secondary explanations are expandable
   return (
     <div className="sr-report" data-report-id={model.id}>
