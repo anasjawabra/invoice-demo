@@ -3597,8 +3597,9 @@ function snapshot(st, req) {
   const pendCnt = new Float64Array(NBITS);
   const entSrcGross = new Float64Array(NE * NS);
   const entSrcNet = new Float64Array(NE * NS);
-  const MX = 6;
+  const MX = 9;
   const mxA = new Float64Array(NE * NS * MX);
+  const aged = new Float64Array(NE * 2);
   const NCOL = NBITS + 1;
   const exMx = new Float64Array(NE * NCOL * 2);
   const aging = new Float64Array(5 * 2);
@@ -3632,6 +3633,10 @@ function snapshot(st, req) {
       stk.tot.add(0, D);
       stk.ent.add(e, D);
       stk.src.add(s, D);
+    }
+    if (okCut && D.outstanding > 0 && D.daysOverdue > 180) {
+      aged[e * 2] += D.outstanding;
+      aged[e * 2 + 1] += 1;
     }
     if (okCut && D.enfConflict) {
       enfStock.sourceConflict.count += 1;
@@ -3724,6 +3729,12 @@ function snapshot(st, req) {
       mxA[o + 3] += dd.net;
       mxA[o + 4] += dd.collected;
       mxA[o + 5] += dd.outstanding;
+      if (dd.outstanding > 0) {
+        if (dd.daysOverdue > 0) {
+          mxA[o + 6] += dd.outstanding;
+          if (dd.daysOverdue > mxA[o + 8]) mxA[o + 8] = dd.daysOverdue;
+        } else mxA[o + 7] += dd.outstanding;
+      }
     }
     if (dd.cancelled) {
       const o = (e * NCOL + NBITS) * 2;
@@ -3848,7 +3859,7 @@ function snapshot(st, req) {
   for (let e = 0; e < NE; e += 1) {
     for (let s = 0; s < NS; s += 1) {
       const o = (e * NS + s) * MX;
-      if (mxA[o]) matrix.amanahSource.push({ amanah: ENTITIES[e].en, source: SOURCES[s].key, count: mxA[o], gross: mxA[o + 1], exclusions: mxA[o + 2], net: mxA[o + 3], collected: mxA[o + 4], outstanding: mxA[o + 5] });
+      if (mxA[o]) matrix.amanahSource.push({ amanah: ENTITIES[e].en, source: SOURCES[s].key, count: mxA[o], gross: mxA[o + 1], exclusions: mxA[o + 2], net: mxA[o + 3], collected: mxA[o + 4], outstanding: mxA[o + 5], overdue: mxA[o + 6], notDue: mxA[o + 7], maxDaysOverdue: mxA[o + 8] });
     }
     for (let b = 0; b < NCOL; b += 1) {
       const o = (e * NCOL + b) * 2;
@@ -3905,7 +3916,9 @@ function snapshot(st, req) {
     avgDaysOverdue: ageN ? ageSum / ageN : 0,
     objectionOutstanding: objAmt,
     byAmanah: groupOut(stk.ent, NE, entLabel, (g) => ENTITIES[g].en),
-    bySource: groupOut(stk.src, NS, () => null, (g) => SOURCES[g].key)
+    bySource: groupOut(stk.src, NS, () => null, (g) => SOURCES[g].key),
+    aged180ByAmanah: Array.from({ length: NE }, (_, e) => ({ key: ENTITIES[e].en, amount: aged[e * 2], count: aged[e * 2 + 1] })).filter((x) => x.count > 0)
+    // older than 180 days after the due date
   };
   const byAmanahSource = {};
   for (let e = 0; e < NE; e += 1) for (let s = 0; s < NS; s += 1) {

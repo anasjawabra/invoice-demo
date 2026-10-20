@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import DataSources from './pages/DataSources';
 import InsightsHub from './pages/InsightsHub';
 import SmartReportsPage from './pages/SmartReportsPage';
+import DecisionRoom from './pages/DecisionRoom';
 import PlanningArea from './pages/PlanningArea';
 import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="dashboard" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="reports" element={<Navigate to="/insights" replace />} />
         <Route path="smart-reports" element={<SmartReportsPage />} />
+        <Route path="decisions" element={<DecisionRoom />} />
         <Route path="assistant" element={<Navigate to="/smart-reports" replace />} />
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />

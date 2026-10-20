@@ -15,7 +15,7 @@ import TargetsPanel from '../components/strategic/TargetsPanel';
 import PlanForecast from '../components/strategic/PlanForecast';
 import { MetricTile } from '../components/revenue/RevenueUI';
 import { amanahFilterOptions, DATA_START } from '../data/revenueLedger';
-import { EXCLUSION_RULES, normalizeConfig } from '../data/revenueMetrics';
+import { loadPlanInputs, approvedConfigOf } from '../data/planInputs';
 import { fmtDateText } from '../data/clock';
 import { computeGoal, reportingDateFor } from '../data/collectionGoal';
 import { sourceAr, sourceEn } from '../data/insightsEngine';
@@ -51,19 +51,8 @@ export default function PlanningArea() {
 
   // ONE data request set: the payments received from 1 January to the reporting date (payment-date basis, any invoice) — by Amanah, month by month — and the billing / balance of the selection.
   const reporting = reportingDateFor(year, today);
-  const approvedCfg = useMemo(() => normalizeConfig({ ...rev.cfg, rules: Object.fromEntries(EXCLUSION_RULES.map((r) => [r.id, r.approval === 'approved'])) }), [rev.cfg]);
-  const DATA = useAsync(async () => {
-    if (!reporting) return null;
-    const scope = { from: `${year}-01-01`, to: reporting, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
-    const [snap, ser, entSnap] = await Promise.all([
-      rev.data.snapshot(scope, { cfg: approvedCfg }),
-      rev.data.series({ ...scope, amanah }, { cfg: approvedCfg }),
-      amanah === 'all' ? null : rev.data.snapshot({ ...scope, amanah }, { cfg: approvedCfg })
-    ]);
-    const S = entSnap || snap; const R = snap.receivedInPeriod;
-    const m = Number(reporting.slice(5, 7)); const netBy = new Map(S.byMonth.map((x) => [x.month, x.net]));
-    return { byAmanah: R.byAmanah || {}, total: R.total, monthly: ser.values, billedMonthly: Array.from({ length: m }, (_, k) => netBy.get(`${year}-${String(k + 1).padStart(2, '0')}`) || 0), standing: S.stock.netUncollected, cells: S.matrix.amanahSource };
-  }, [rev.data, year, amanah, reporting, approvedCfg, retry]);
+  const approvedCfg = useMemo(() => approvedConfigOf(rev.cfg), [rev.cfg]);
+  const DATA = useAsync(() => loadPlanInputs(rev, { year, amanah, reporting, approvedCfg }), [rev.data, year, amanah, reporting, approvedCfg, retry]);
 
   const g = useMemo(() => (DATA.data ? computeGoal({ year, today, target: selected?.revenueTarget, monthlyCollected: DATA.data.monthly, plan: selected?.revenueTarget > 0 ? { annualTarget: selected.revenueTarget, months: selected.cumulative, savedAt: selected.savedAt } : null }) : null), [DATA.data, year, today, selected]);
   const dateText = (iso) => fmtDateText(iso, lang);

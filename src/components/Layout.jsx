@@ -187,6 +187,7 @@ function LayoutInner() {
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
     if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';
+    if (p.startsWith('/decisions')) return lang === 'ar' ? 'غرفة القرارات' : 'Decision room';
     if (p.startsWith('/smart-reports')) return lang === 'ar' ? 'التقارير الذكية' : 'Smart reports';
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
@@ -358,7 +359,7 @@ function LayoutInner() {
 
         <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
           {primaryTabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) ? ' active' : ''}`}>
+            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) || (tab.to === '/insights' && loc.pathname.startsWith('/decisions')) ? ' active' : ''}`}>
               <span className="tab__icon"><Icon name={tab.icon} /></span>
               <span className="tab__text">{tab.label}</span>
             </NavLink>

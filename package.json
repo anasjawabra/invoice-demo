@@ -9,7 +9,7 @@
     "build": "vite build && esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error && npm run build:api",
     "preview": "vite preview",
     "start": "node index.js",
-    "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs && npm run test:chat",
+    "test": "node scripts/check-undef.mjs && esbuild tests/platform.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/platform.test.mjs && node .test-build/platform.test.mjs && npm run test:chat && npm run test:decisions",
     "verify:sources": "esbuild scripts/verify-sources.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/verify-sources.mjs && node .test-build/verify-sources.mjs",
     "check": "node scripts/check-undef.mjs",
     "build:server": "esbuild server/standalone.js --bundle --platform=node --format=esm --outfile=dist-server/server.mjs --log-level=error",
@@ -19,7 +19,8 @@
     "make:samples:docx": "esbuild scripts/make-order-docx.mjs --bundle --platform=node --format=esm --log-level=error --external:docx --outfile=.test-build/make-order-docx.mjs && node .test-build/make-order-docx.mjs",
     "make:samples:prepared": "esbuild scripts/make-prepared-samples.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-prepared-samples.mjs && node .test-build/make-prepared-samples.mjs",
     "build:api": "esbuild server/api.js --bundle --platform=node --format=esm --outfile=api/_handler.mjs --log-level=error",
-    "test:chat": "esbuild tests/chat-workspace.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --external:jszip --external:pdfjs-dist --outfile=.test-build/chat-workspace.test.mjs && node .test-build/chat-workspace.test.mjs"
+    "test:chat": "esbuild tests/chat-workspace.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --external:jszip --external:pdfjs-dist --outfile=.test-build/chat-workspace.test.mjs && node .test-build/chat-workspace.test.mjs",
+    "test:decisions": "esbuild tests/decision-room.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/decision-room.test.mjs && node .test-build/decision-room.test.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",

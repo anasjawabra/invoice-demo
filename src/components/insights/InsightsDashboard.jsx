@@ -13,6 +13,7 @@ import RevenueAnalysis from './RevenueAnalysis';
 import UnitLines from '../strategic/UnitLines';
 import { useAsync } from '../../utils/useAsync';
 import { sourceAr, sourceEn } from '../../data/insightsEngine';
+import DecisionSummary from '../decisions/DecisionSummary';
 import { fmtRangeText, fmtMonthText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
 
@@ -32,16 +33,6 @@ export default function InsightsDashboard() {
     const col = ser.values.map((v) => { cc += v; return cc; });
     return { months: ser.months, net, col };
   }, [ser, snapshot]);
-  // D29 — «يحتاج انتباه»: ALL revenue sources, ranked by uncollected × the shortfall from the collection-rate target; it follows the selected الأمانة / الجهة (the snapshot is already scoped)
-  const targetRate = targets?.collectionRate?.value ?? 0.6;
-  const ranking = useMemo(() => snapshot.bySource.map((g) => {
-    const rate = g.net > 0 ? g.collected / g.net : null; const shortfall = rate == null ? 0 : Math.max(0, targetRate - rate);
-    const money = fmtMoney(g.outstanding, { lang });
-    const reason = rate == null ? L('لا فواتير مستحقة التحصيل في هذا الاختيار.', 'No collectible invoices in this selection.')
-      : shortfall > 0 ? L(`غير المحصّل ${money}؛ نسبة التحصيل ${(rate * 100).toFixed(1)}% أقل من المستهدف ${(targetRate * 100).toFixed(0)}%.`, `Uncollected ${money}; collection rate ${(rate * 100).toFixed(1)}% is below the ${(targetRate * 100).toFixed(0)}% target.`)
-        : L(`ضمن المستهدف (${(rate * 100).toFixed(1)}%)${g.outstanding > 0 ? `؛ المتبقي ${money}` : ''}.`, `Within target (${(rate * 100).toFixed(1)}%)${g.outstanding > 0 ? `; ${money} still open` : ''}.`);
-    return { key: g.key, rate, shortfall, outstanding: g.outstanding, score: g.outstanding * shortfall, reason };
-  }).sort((a, b) => b.score - a.score || b.outstanding - a.outstanding), [snapshot, targetRate, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
   const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
   if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
@@ -66,21 +57,7 @@ export default function InsightsDashboard() {
       <div className="card st-card"><FinancialRelations totals={T} /></div>
       <ToDateFigure snapshot={snapshot} />
 
-      {ranking.length > 0 && (
-        <section className="card st-card rv-attention" aria-label={L('يحتاج انتباهاً', 'Needs attention')}>
-          <h2 className="rv-sec-title">{L('يحتاج انتباهاً', 'Needs attention')}</h2>
-          <ul className="rv-attention__list">{ranking.slice(0, 1).map((r) => (
-            <li key={r.key}><b>{ar ? sourceAr(r.key) : sourceEn(r.key)}</b><span>{r.reason}</span><Link to={`/invoices?src=${r.key}`}>{L('عرض الفواتير', 'View invoices')}</Link></li>
-          ))}</ul>
-          <details className="rv-more" open={undefined}>
-            <summary>{L(`ترتيب كل مصادر الإيراد (${ranking.length}) من الأشد حاجة للانتباه إلى الأقل`, `All revenue sources (${ranking.length}), from most to least attention needed`)}</summary>
-            <ol className="rv-attention__rank">{ranking.map((r) => (
-              <li key={r.key}><b>{ar ? sourceAr(r.key) : sourceEn(r.key)}</b><span>{r.reason}</span><Link to={`/invoices?src=${r.key}`}>{L('الفواتير', 'Invoices')}</Link></li>
-            ))}</ol>
-            <div className="muted" style={{ fontSize: 12 }}>{L('الترتيب = غير المحصّل × النقص عن مستهدف نسبة التحصيل، ويُعاد حسابه للأمانة / الجهة المختارة.', 'Rank = uncollected × shortfall from the collection-rate target; it is recalculated for the selected Amanah / entity.')}</div>
-          </details>
-        </section>
-      )}
+      <DecisionSummary />
 
       <div className="card st-card">
         <b>{L('الأداء الشهري للإيرادات', 'Monthly revenue performance')}</b> <small className="muted">{L('تراكمي منذ بداية الفترة', 'cumulative from the start of the period')}</small>

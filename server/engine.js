@@ -281,7 +281,8 @@ export function snapshot(st, req) {
   const exCat = new Map(); const reasonCounts = new Array(NBITS).fill(0); const unappr = new Set();
   const primCnt = new Float64Array(NBITS); const primAmt = new Float64Array(NBITS); const pendCnt = new Float64Array(NBITS);
   const entSrcGross = new Float64Array(NE * NS); const entSrcNet = new Float64Array(NE * NS);
-  const MX = 6; const mxA = new Float64Array(NE * NS * MX); // Amanah × source: count, gross, exclusions, net, collected, uncollected (the monthly report's per-source Amanah tables)
+  const MX = 9; const mxA = new Float64Array(NE * NS * MX); // Amanah × source: count, gross, exclusions, net, collected, uncollected, then (Decision Room) overdue part, not-yet-due part, longest days overdue
+  const aged = new Float64Array(NE * 2); // standing balance older than 180 days by Amanah: amount, count (Decision Room)
   const NCOL = NBITS + 1; const exMx = new Float64Array(NE * NCOL * 2); // Amanah × exclusion reason (primary reason, once) + cancelled: amount, count (the report's excluded-invoices appendix)
   const aging = new Float64Array(5 * 2); // amount, count
   const esm = new Map(); // entity × source × issue month: net, collected, gross (trend of every source inside every entity; same invoices and measure as the matrix above)
@@ -303,6 +304,7 @@ export function snapshot(st, req) {
     const okCut = !sc.statusSet || sc.statusSet[D.cls]; // invoice-status filter (standing balance and receipts use the status at the reference date)
     // ---- standing balance (everything issued up to the cutoff)
     if (okCut) { stk.tot.add(0, D); stk.ent.add(e, D); stk.src.add(s, D); }
+    if (okCut && D.outstanding > 0 && D.daysOverdue > 180) { aged[e * 2] += D.outstanding; aged[e * 2 + 1] += 1; }
     if (okCut && D.enfConflict) { enfStock.sourceConflict.count += 1; enfStock.sourceConflict.outstanding += D.outstanding; }
     if (okCut && D.link >= 2) { const b = D.link === 2 ? enfStock.inExecution : D.link === 3 ? enfStock.suspended : enfStock.closedOnly; b.count += 1; b.outstanding += D.outstanding + D.exclusionAmount; } // D12: an invoice found in Sanad is excluded, so its uncollected amount is the excluded amount
     if (okCut && D.outstanding > 0) { const b = agingBucket(D.daysOverdue); aging[b * 2] += D.outstanding; aging[b * 2 + 1] += 1; const dd = D.daysOverdue; const cb = dd <= 0 ? 0 : dd <= 30 ? 1 : dd <= 60 ? 2 : dd <= 90 ? 3 : 4; agingC[cb * 2] += D.outstanding; agingC[cb * 2 + 1] += 1; if (dd > 0) { ageSum += dd; ageN += 1; } if (D.cls === C.objection) objAmt += D.outstanding; }
@@ -330,7 +332,7 @@ export function snapshot(st, req) {
     per.ent.addMeta(e, viol, enf); per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross; entSrcNet[e * NS + s] += dd.net;
     { const k = `${e}|${s}|${isoOf(st.issue[i]).slice(0, 7)}`; let v = esm.get(k); if (!v) { v = [0, 0, 0]; esm.set(k, v); } v[0] += dd.net; v[1] += dd.collected; v[2] += dd.gross; }
-    { const o = (e * NS + s) * MX; mxA[o] += 1; mxA[o + 1] += dd.gross; mxA[o + 2] += dd.exclTotal; mxA[o + 3] += dd.net; mxA[o + 4] += dd.collected; mxA[o + 5] += dd.outstanding; }
+    { const o = (e * NS + s) * MX; mxA[o] += 1; mxA[o + 1] += dd.gross; mxA[o + 2] += dd.exclTotal; mxA[o + 3] += dd.net; mxA[o + 4] += dd.collected; mxA[o + 5] += dd.outstanding; if (dd.outstanding > 0) { if (dd.daysOverdue > 0) { mxA[o + 6] += dd.outstanding; if (dd.daysOverdue > mxA[o + 8]) mxA[o + 8] = dd.daysOverdue; } else mxA[o + 7] += dd.outstanding; } }
     if (dd.cancelled) { const o = (e * NCOL + NBITS) * 2; exMx[o] += dd.cancelledAmount; exMx[o + 1] += 1; }
     else if (dd.excluded) { const o = (e * NCOL + Math.round(Math.log2(dd.primaryBit))) * 2; exMx[o] += dd.exclusionAmount; exMx[o + 1] += 1; }
     const cls = dd.cls;
@@ -374,7 +376,7 @@ export function snapshot(st, req) {
   const matrix = { amanahSource: [], amanahReasons: [], amanahSourceMonth: [] };
   for (const [k, v] of esm) { const [e, sIdx, month] = k.split('|'); matrix.amanahSourceMonth.push({ amanah: ENTITIES[Number(e)].en, source: SOURCES[Number(sIdx)].key, month, net: v[0], collected: v[1], gross: v[2] }); }
   for (let e = 0; e < NE; e += 1) {
-    for (let s = 0; s < NS; s += 1) { const o = (e * NS + s) * MX; if (mxA[o]) matrix.amanahSource.push({ amanah: ENTITIES[e].en, source: SOURCES[s].key, count: mxA[o], gross: mxA[o + 1], exclusions: mxA[o + 2], net: mxA[o + 3], collected: mxA[o + 4], outstanding: mxA[o + 5] }); }
+    for (let s = 0; s < NS; s += 1) { const o = (e * NS + s) * MX; if (mxA[o]) matrix.amanahSource.push({ amanah: ENTITIES[e].en, source: SOURCES[s].key, count: mxA[o], gross: mxA[o + 1], exclusions: mxA[o + 2], net: mxA[o + 3], collected: mxA[o + 4], outstanding: mxA[o + 5] , overdue: mxA[o + 6], notDue: mxA[o + 7], maxDaysOverdue: mxA[o + 8]}); }
     for (let b = 0; b < NCOL; b += 1) { const o = (e * NCOL + b) * 2; if (exMx[o + 1]) matrix.amanahReasons.push({ amanah: ENTITIES[e].en, reason: b === NBITS ? 'cancelled' : RULES[b].id, amount: exMx[o], count: exMx[o + 1] }); }
   }
   const sumKeys = ['count', 'gross', 'exclusions', 'net', 'collected', 'outstanding'];
@@ -401,7 +403,8 @@ export function snapshot(st, req) {
     aging: AGING.map((a, b) => ({ ...a, amount: aging[b * 2], count: aging[b * 2 + 1] })),
     agingPlanning: ['current', 'd1_30', 'd31_60', 'd61_90', 'd90plus'].map((key, b) => ({ key, amount: agingC[b * 2], count: agingC[b * 2 + 1] })), avgDaysOverdue: ageN ? ageSum / ageN : 0, objectionOutstanding: objAmt,
     byAmanah: groupOut(stk.ent, NE, entLabel, (g) => ENTITIES[g].en),
-    bySource: groupOut(stk.src, NS, () => null, (g) => SOURCES[g].key)
+    bySource: groupOut(stk.src, NS, () => null, (g) => SOURCES[g].key),
+    aged180ByAmanah: Array.from({ length: NE }, (_, e) => ({ key: ENTITIES[e].en, amount: aged[e * 2], count: aged[e * 2 + 1] })).filter((x) => x.count > 0) // older than 180 days after the due date
   };
   const byAmanahSource = {};
   for (let e = 0; e < NE; e += 1) for (let s = 0; s < NS; s += 1) { const v = entSrcGross[e * NS + s]; if (v) { (byAmanahSource[ENTITIES[e].en] = byAmanahSource[ENTITIES[e].en] || {})[SOURCES[s].key] = v; } }

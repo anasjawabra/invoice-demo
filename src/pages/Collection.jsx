@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
@@ -24,7 +24,14 @@ export default function Collection() {
   const { snapshot } = rev;
   const { L, B, ar, short, count, sar } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('collection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [cat, setCat] = useState(mem.cat ?? 'all');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [cat, setCat] = useState(searchParams.get('category') || mem.cat || 'all');
+  // a link from the Decision Room (?amanah=…&src=…&category=…) sets the SHARED filter and the status chip, then drops the parameters
+  React.useEffect(() => {
+    const a = searchParams.get('amanah'); const s = searchParams.get('src'); if (!a && !s && !searchParams.get('category')) return;
+    if (a) rev.setAmanah(a); if (s) rev.setSource(s);
+    setSearchParams((p) => { const n = new URLSearchParams(p); ['amanah', 'src', 'category'].forEach((k) => n.delete(k)); return n; }, { replace: true });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reason, setReason] = useState(mem.reason ?? 'all'); // all · none (not excluded) · a rule id
   const [kind, setKind] = useState(mem.kind ?? 'all'); // نوع الفاتورة (tobacco / accommodation)
   const [detail, setDetail] = useState(mem.detail ?? null);
