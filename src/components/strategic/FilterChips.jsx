@@ -27,7 +27,7 @@ export default function FilterChips() {
     <>
       <div className="sr-context" role="region" aria-label={L('التصفية المشتركة', 'Shared filters')}>
         <div className="sr-chips">{chips.map(([k, v]) => <span key={k} className="sr-chip"><em>{k}</em> <bdi>{v}</bdi></span>)}</div>
-        {active > 0 && <><span className="st-tag st-tag--warn">{L(`مرشحات مفعّلة (${active})`, `Active filters (${active})`)}</span><button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetScope}>{L('إعادة الضبط', 'Reset')}</button></>}
+        {active > 0 && <><span className="st-tag st-tag--warn">{L(`تصفية مفعّلة (${active})`, `Active filters (${active})`)}</span><button type="button" className="btn btn-sm btn-ghost" onClick={rev.resetScope}>{L('إعادة الضبط', 'Reset')}</button></>}
         {cfgChanged && <><span className="st-tag st-tag--warn">{L('إعدادات الاحتساب معدّلة عن الافتراضي', 'Calculation settings differ from the defaults')}</span></>}
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={open} onClick={() => setOpen((v) => !v)}>{open ? L('إخفاء التصفية', 'Hide filters') : L('التصفية', 'Filters')}</button>
       </div>

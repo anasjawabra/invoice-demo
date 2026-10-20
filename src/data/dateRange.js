@@ -22,7 +22,7 @@ export function rangeMessage(code, lang, opts) {
   const ar = lang === 'ar'; const W = (d) => (d ? fmtDateText(d, lang) : d);
   const today = W(opts.today); const start = W(opts.start || DATA_START); const planMax = W(opts.planMax);
   const M = {
-    incomplete: ['التاريخ غير مكتمل: أكمل اليوم والشهر والسنة (أربعة أرقام) للبداية والنهاية ولن يُطبَّق المرشح قبل ذلك.', 'The date is incomplete: finish the day, month and four-digit year for both ends — the filter is not applied until then.'],
+    incomplete: ['التاريخ غير مكتمل: أكمل اليوم والشهر والسنة (أربعة أرقام) للبداية والنهاية ولن تُطبَّق التصفية قبل ذلك.', 'The date is incomplete: finish the day, month and four-digit year for both ends — the filter is not applied until then.'],
     inverted: ['تاريخ البداية بعد تاريخ النهاية — صحّح الفترة.', 'The start date is after the end date — correct the period.'],
     future: [`الفترة كلها بعد ${planMax ? 'أبعد نهاية مسموحة' : 'آخر تاريخ للبيانات'} (${today}).`, `The whole period is after the ${planMax ? 'latest allowed end' : 'latest data date'} (${today}).`],
     before_data: [`الفترة كلها قبل بداية البيانات (${start}).`, `The whole period is before the data starts (${start}).`],

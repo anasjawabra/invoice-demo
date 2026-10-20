@@ -699,7 +699,7 @@ await test('D-15: a partly typed date (year 0002 / 0202) is incomplete — never
   for (const y of ['0002', '0020', '0202', '1899']) assert.deepEqual(checkRange({ from: `${y}-02-01`, to: '2026-03-01' }, { today: '2026-10-09' }), { ok: false, code: 'incomplete' });
   assert.deepEqual(checkRange({ from: '', to: '2026-03-01' }, { today: '2026-10-09' }), { ok: false, code: 'incomplete' });
   assert.equal(checkRange({ from: '2026-02-01', to: '2026-03-01' }, { today: '2026-10-09' }).ok, true);
-  assert.ok(rangeMessage('incomplete', 'ar', { today: '2026-10-09' }).includes('لن يُطبَّق'));
+  assert.ok(rangeMessage('incomplete', 'ar', { today: '2026-10-09' }).includes('لن تُطبَّق'));
 });
 
 await test('Smart-report safety: a part that cannot be applied is asked about before generating; actions are declined; follow-ups use the same checks; the offer to continue is a real request', () => {

@@ -13,11 +13,9 @@ import RevenueAnalysis from './RevenueAnalysis';
 import UnitLines from '../strategic/UnitLines';
 import { useAsync } from '../../utils/useAsync';
 import { sourceAr, sourceEn } from '../../data/insightsEngine';
-import { fmtDateText, fmtRangeText, fmtMonthText } from '../../data/clock';
+import { fmtRangeText, fmtMonthText } from '../../data/clock';
 import { CATEGORY_LABELS } from '../../data/revenueMetrics';
 
-const STATUS_COLOR = { collected: 'var(--green)', partial: '#FDB022', overdue: 'var(--danger)', not_due: 'var(--secondary)', cancelled: '#9DA4AE', excluded: '#6C737F', objection: '#6C737F', enforcement: '#B54708', linkage_unresolved: '#9DA4AE', ineligible_referral: '#6C737F' };
-const STATUS_LABEL = { collected: { ar: 'محصّلة بالكامل', en: 'Collected in full' }, overdue: { ar: 'مستحقة متأخرة', en: 'Due and overdue' }, not_due: { ar: 'لم يحن استحقاقها', en: 'Not yet due' } };
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
 
 export default function InsightsDashboard() {
@@ -49,9 +47,7 @@ export default function InsightsDashboard() {
   if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
 
   const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: u });
-  const months = snapshot.byMonth; const DUE_KEYS = ['collected', 'overdue', 'not_due']; const st = (snapshot.byDue || []).filter((g) => DUE_KEYS.includes(g.key)); // D28: three statuses only — collected in full · overdue · not yet due (excluded invoices live in إدارة الاستبعادات)
-  const stTotal = st.reduce((t, g) => t + g.count, 0);
-  const aging = snapshot.stock.aging; const uA = unitOfValues(aging.map((a) => a.amount));
+  const months = snapshot.byMonth;
   const src = snapshot.bySource.slice().sort((a, b) => b.outstanding - a.outstanding); const prevSrc = new Map((prevSnapshot?.bySource || []).map((g) => [g.key, g]));
   const mun = snapshot.byMunicipality.filter((g) => g.municipality).sort((a, b) => b.outstanding - a.outstanding).slice(0, 5); const uM = unitOfValues(mun.map((g) => g.outstanding));
 
@@ -85,22 +81,6 @@ export default function InsightsDashboard() {
           </details>
         </section>
       )}
-
-      <div className="st-grid">
-        <div className="card st-card">
-          <b>{L('الفواتير وحالة الدفع', 'Invoices and payment status')} <small className="muted">({fmtInt(T.count)} {L('فاتورة', 'invoices')})</small></b>
-          <div role="img" aria-label={L('توزيع أعداد الفواتير حسب الحالة', 'Invoice counts by status')} style={{ display: 'flex', height: 14, borderRadius: 999, overflow: 'hidden' }}>{st.map((g) => <i key={g.key} title={`${B(STATUS_LABEL[g.key])}: ${fmtInt(g.count)}`} style={{ width: `${(g.count / Math.max(1, stTotal)) * 100}%`, background: STATUS_COLOR[g.key] || 'var(--line-strong)' }} />)}</div>
-          <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('حالة الدفع', 'Payment status')}><tbody>{st.map((g) => <tr key={g.key}><td><i style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: STATUS_COLOR[g.key], marginInlineEnd: 6 }} />{B(STATUS_LABEL[g.key]) || g.key}</td><td dir="ltr">{count(g.count)}</td><td dir="ltr">{pct(g.count / Math.max(1, stTotal), '—')}</td></tr>)}</tbody></table></div>
-          <Link to="/smart-reports?q=%D8%A3%D9%86%D8%B4%D8%A6%20%D8%AA%D9%82%D8%B1%D9%8A%D8%B1%20%D8%AD%D8%A7%D9%84%D8%A9%20%D8%A7%D9%84%D8%AF%D9%81%D8%B9%20%D9%84%D9%84%D9%81%D9%88%D8%A7%D8%AA%D9%8A%D8%B1" className="btn btn-sm btn-ghost">{L('تقرير حالة الدفع', 'Payment-status report')}</Link>
-        </div>
-        <div className="card st-card">
-          <b>{L(`الرصيد القائم حتى ${fmtDateText(snapshot.cutoff, 'ar')}`, `Standing balance at ${fmtDateText(snapshot.cutoff, 'en')}`)}</b> <small className="muted">{L('أعمار غير المحصّل بعد الاستحقاق', 'age of what is unpaid past due')}</small>
-          <div className="st-table-wrap" tabIndex={0}><table className="table" aria-label={L('التقادم', 'Aging')}><thead><tr><th>{L('العمر بعد الاستحقاق', 'Age past due')}</th><th>{L('الفواتير', 'Invoices')}</th><th>{L('غير المحصّل', 'Uncollected')} ({unitLabel(uA, lang)})</th></tr></thead>
-            <tbody>{aging.map((a) => <tr key={a.key}><td>{B(a.label)}</td><td dir="ltr">{count(a.count)}</td><td dir="ltr" title={fmtMoney(a.amount, { lang, mode: 'detail' })}>{scaled(a.amount, uA)}</td></tr>)}
-              <tr style={{ fontWeight: 700 }}><td>{L('إجمالي الرصيد القائم', 'Standing total')}</td><td dir="ltr">{count(snapshot.stock.invoiceCount)}</td><td dir="ltr">{scaled(snapshot.stock.netUncollected, uA)}</td></tr></tbody></table></div>
-          <div className="muted" style={{ fontSize: 12 }}>{L('يشمل كل الفواتير غير المسددة مهما كان تاريخ إصدارها.', 'Includes every unpaid invoice, whatever its issue date.')}</div>
-        </div>
-      </div>
 
       <div className="card st-card">
         <b>{L('الأداء الشهري للإيرادات', 'Monthly revenue performance')}</b> <small className="muted">{L('تراكمي منذ بداية الفترة', 'cumulative from the start of the period')}</small>

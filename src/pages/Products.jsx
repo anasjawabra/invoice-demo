@@ -37,7 +37,7 @@ export default function Products() {
         ))}
         {!cards.length && <div className="rv-empty">{L('No invoices in this selection.', 'لا فواتير في هذا الاختيار.')}</div>}
       </div>
-      {ar && <p className="muted" style={{ fontSize: 12 }}>تجمع بطاقة «تبغ وإيواء» المنتجين معًا؛ ويبقيان منفصلين في فلتر اسم المنتج.</p>}
+      {ar && <p className="muted" style={{ fontSize: 12 }}>تجمع بطاقة «تبغ وإيواء» المنتجين معًا؛ ويبقيان منفصلين في تصفية اسم المنتج.</p>}
     </div>
   );
 }

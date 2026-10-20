@@ -161,7 +161,7 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
   // ---- «remove the Amanah filter»
   if (has(s, /\b(?:remove|clear|drop)\s+(?:the\s+)?amanah(?:\s+filter)?\b|(?:ازل|امسح|احذف|الغ|الغي)\s+(?:ال)?(?:مرشح|فلتر)\s+(?:ال)?امانه|(?:بدون|دون)\s+(?:ال)?امانه/) && spec.scope.amanah !== 'all') { spec.scope.amanah = 'all'; spec.scope.muni = 'all'; note('amanah', 'amanah', 'all'); }
   // ---- reset
-  const reset = has(s, /(ابدا من جديد|(?:ازل|امسح|احذف|صفر|الغ(?:ي)?) (?:كل )?(?:ال)?(?:مرشحات|فلاتر|فلتر)|بدون مرشحات|كل التصفية|\b(?:reset|clear|remove) (?:all )?(?:the )?filters\b)/);
+  const reset = has(s, /(ابدا من جديد|(?:ازل|امسح|احذف|صفر|الغ(?:ي)?) (?:كل )?(?:ال)?(?:مرشحات|فلاتر|فلتر|تصفيه)|بدون مرشحات|بدون تصفيه|كل التصفية|\b(?:reset|clear|remove) (?:all )?(?:the )?filters\b)/);
   if (reset) { const d = defaultSpec(today); spec.scope = d.scope; spec.preset = d.preset; spec.compare = 'none'; note('reset', 'reset', null); }
 
   // ---- comparison. Only the OBJECT of «قارن / مقارنة … / compare with …» is a comparison; a period word elsewhere in the sentence

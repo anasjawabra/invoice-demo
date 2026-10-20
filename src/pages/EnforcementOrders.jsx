@@ -15,7 +15,7 @@ const SORTS = [['recent', 'Latest referral', 'الأحدث رفعاً'], ['amoun
 const REASONS = [['all', 'Any', 'أي سبب'], ['no_references', 'Numbers not identified', 'أرقام غير محددة'], ['unresolved_references', 'Open references', 'مراجع مفتوحة'], ['corrupted_reference', 'Unreliable number', 'رقم غير موثوق'], ['proposals_pending', 'Proposals to confirm', 'اقتراحات للتأكيد'], ['conflicts', 'Conflicts', 'تعارضات'], ['unread_pages', 'Unread document', 'مستند لم يُقرأ'], ['amount_difference', 'Financial gap', 'فرق مالي']];
 
 // The ORDERS list of «إدارة التنفيذ» — the main working area: one row per Sanad ENFORCEMENT REQUEST, the original source status, linked invoices and ONE matching-review status (with small alerts).
-// Three filters are visible; the rest are under «فلاتر إضافية». Everything else about an order is in its details page.
+// Three filters are visible; the rest are under «تصفية إضافية». Everything else about an order is in its details page.
 export default function OrdersView() {
   const { cases } = useRevenue();
   const { L, B, sar, ar } = useL();
@@ -82,7 +82,7 @@ export default function OrdersView() {
         {sel('ord_rev', L('Matching review', 'مراجعة المطابقة'), fRev, setFRev, [['all', 'All', 'الكل'], ['open', 'Needs attention', 'تحتاج إجراء'], ['needs_review', 'Needs review', 'تحتاج مراجعة'], ['not_identified', 'Numbers not identified', 'أرقام غير محددة'], ['complete', 'Complete', 'مكتملة']])}
       </div>
       <details open={extras.length > 0} className="oj-more">
-        <summary>{L('More filters', 'فلاتر إضافية')}{extras.length ? ` (${extras.length})` : ''}</summary>
+        <summary>{L('More filters', 'تصفية إضافية')}{extras.length ? ` (${extras.length})` : ''}</summary>
         <div className="rv-form" style={{ marginTop: 6 }}>
           <label>{L('Source status', 'حالة الطلب في سند')}<select id="ord_src" className="input" value={fSrc} onChange={(e) => { setFSrc(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{usedStatuses.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
           <label>{L('Debtor type', 'نوع المنفذ ضده')}<select id="ord_type" className="input" value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{DEBTOR_TYPES.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
@@ -93,7 +93,7 @@ export default function OrdersView() {
       </details>
       <div className="oj-bar">
         <span role="status" aria-live="polite"><b>{shown.length}</b> {L('requests', 'طلب')}</span>
-        {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة المرشح')}: ${x.t}`}>{x.t} ×</button>)}
+        {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة التصفية')}: ${x.t}`}>{x.t} ×</button>)}
         {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل التصفية')}</button>}
         <label className="oj-sort">{L('Sort', 'الترتيب')}<select id="ord_sort" className="input" value={sort} onChange={(e) => { setSort(e.target.value); setPage(0); }}>{SORTS.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>
       </div>

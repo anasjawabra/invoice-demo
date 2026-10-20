@@ -185,7 +185,7 @@ export default function RevenueAnalysis() {
 
             {/* the four answers */}
             {/* the analysis's own filters: always visible, so the entity and source in focus are never hidden */}
-            <div className="card st-card ra-filters" role="group" aria-label={L('مرشحات التحليل', 'Analysis filters')}>
+            <div className="card st-card ra-filters" role="group" aria-label={L('تصفية التحليل', 'Analysis filters')}>
               <label className="cg-field" htmlFor="ra-entity">{L('الجهة', 'Entity')}
                 <select id="ra-entity" className="input" value={entity ? `e:${entity}` : iso ? `r:${iso}` : ''} onChange={(e) => { const v = e.target.value; if (!v) { setIso(null); setEntity(null); } else if (v.startsWith('r:')) { setIso(v.slice(2)); setEntity(null); } else { const k = v.slice(2); const p = regions.find((r) => r.keys.includes(k)); setIso(p ? p.iso : null); setEntity(k); } }}>
                   <option value="">{L('الوزارة — كل الجهات', 'The Ministry — all entities')}</option>
@@ -201,7 +201,7 @@ export default function RevenueAnalysis() {
               </label>
               <div className="ra-filters__state" role="status">
                 {focused ? <>{L('الاختيار الحالي:', 'Current choice:')} <b>{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</b></> : <span className="muted">{L('العرض العام: كل الجهات وكل المصادر.', 'Overall view: all entities and all sources.')}</span>}
-                <span className="muted" style={{ fontSize: 12 }}> {L('(الفترة من مرشحات الصفحة أعلاه)', '(the period comes from the page filters above)')}</span>
+                <span className="muted" style={{ fontSize: 12 }}> {L('(الفترة من تصفية الصفحة أعلاه)', '(the period comes from the page filters above)')}</span>
               </div>
               {focused && <button type="button" className="btn btn-sm" onClick={back}>{L('✕ العودة إلى العرض العام', '✕ Back to the overall view')}</button>}
             </div>
