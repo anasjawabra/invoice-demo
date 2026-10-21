@@ -1755,4 +1755,48 @@ await test('v3 · R11: same customer, amount, product, revenue account and issue
   for (let i = 0; i < st.nGen; i += 1) { if (st.idKey[i] % 1e8 <= 9_900_000) continue; const D = derive(ctx, i, ctx.cutoffN); if (st.flags[i] & F_V3.DUPLICATE_WF) { twins += 1; assert.equal(D.primaryBit, RULE_BIT_V3['DUP-1']); } else { repeats += 1; assert.equal(D.mask & RULE_BIT_V3['DUP-1'], 0, 'a yearly repeat is not a duplicate'); } }
   assert.ok(twins >= 3 && repeats >= 1, `${twins} twins, ${repeats} yearly repeats`);
 });
+// ---- IIM-30 (v3): the exclusion upload template ----
+import { isoOf as isoOf_I30, dayNum as dayNum_I30 } from '../src/data/catalog.js';
+import * as XLSX_I30 from 'xlsx';
+import JSZip_I30 from 'jszip';
+import { checkExclusionRows as checkRows_I30 } from '../server/exclusionUpload.js';
+import { TEMPLATE_COLUMNS as COLS_I30, buildTemplate as buildTpl_I30, readRows as readRows_I30, buildRejectedWorkbook as buildRej_I30, reasonRuleOf as reasonRule_I30, normDate as normDate_I30, normNumber as normNumber_I30 } from '../src/data/exclusionUpload.js';
+import { ENTITIES as ENT_I30 } from '../src/data/catalog.js';
+import { iimFields as iimF_I30 } from '../server/iimRow.js';
+await test('IIM-30 · the upload template: seven columns, the Amanah and reason columns are drop-downs, a file is read back by its headers; Arabic digits and Excel dates are understood', async () => {
+  const buf = await buildTpl_I30(XLSX_I30, JSZip_I30); const zip = await JSZip_I30.loadAsync(buf); const xml = await zip.file('xl/worksheets/sheet1.xml').async('string');
+  assert.ok(xml.includes('<dataValidations count="2">') && xml.includes('type="list"'), 'two drop-down lists (Amanah, reason)');
+  const wb = XLSX_I30.read(buf, { type: 'array' }); const cells = XLSX_I30.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+  assert.deepEqual(cells[0], ['رقم الفاتورة', 'تاريخ الفاتورة', 'المبلغ', 'الأمانة / الجهة', 'اسم المكلف', 'رقم حساب الإيراد', 'سبب الاستبعاد']); assert.equal(COLS_I30.length, 7);
+  const lists = XLSX_I30.utils.sheet_to_json(wb.Sheets[wb.SheetNames[1]], { header: 1, defval: '' }); assert.equal(lists[1][1], 'التعديات واستغلال المواقع (محضر التعدي)'); assert.equal(lists[2][1], 'إفادات الأمانات');
+  assert.equal(readRows_I30([['x']]).error, 'no_header'); assert.deepEqual(readRows_I30([['رقم الفاتورة']]).error, 'missing_columns');
+  assert.equal(normDate_I30('٢٠٢٦-٠٣-٠٤'), '2026-03-04'); assert.equal(normDate_I30('04/03/2026'), '2026-03-04'); assert.equal(normDate_I30(46085), '2026-03-04'); assert.equal(normNumber_I30('١٬٢٥٠٫٥'), 1250.5);
+  assert.equal(reasonRule_I30('إفادات الأمانات'), 'ATT-1'); assert.equal(reasonRule_I30('التعديات واستغلال المواقع (محضر التعدي)'), 'ENC-1'); assert.equal(reasonRule_I30('فاتورة مكررة'), null, 'only R8 and R9 can be uploaded');
+});
+await test('IIM-30 · rows are matched on الأمانة + رقم الفاتورة; a full match is accepted, every mismatch is rejected with its reason; applied rows exclude the invoice (R8 / R9) with the file, and the KPIs still add up', async () => {
+  const ctx0 = makeCtx(st, { cfg }); const open = []; const coll = [];
+  for (let i = 0; i < st.nGen; i += 1) { if (st.issue[i] > ctx0.cutoffN || st.cancelDay[i]) continue; const D = derive(ctx0, i, ctx0.cutoffN); if (D.received >= D.billed && D.billed > 0) coll.push(i); else if (!D.excluded && !st.exMask[i] && D.outstanding > 0 && st.ent[i] < 17) open.push(i); }
+  assert.ok(open.length >= 6 && coll.length >= 1);
+  const rowOf = (i, extra = {}) => { const im = iimF_I30(st, i); return { row: 2, invoiceNo: idOf(st, i), date: isoOf_I30(st.issue[i]), amount: st.gross[i], amanah: ENT_I30[st.ent[i]].ar, name: 'x', account: im.gfsCode, reason: 'إفادات الأمانات', ...extra }; };
+  const [a, b, c, d, e2, f] = open; const bad = (r) => checkRows_I30(st, { rows: [r], cfg }).rows[0].code;
+  assert.equal(checkRows_I30(st, { rows: [rowOf(a)], cfg }).rows[0].ok, true, 'a full match is accepted');
+  assert.equal(bad(rowOf(b, { amount: st.gross[b] + 50 })), 'amount_mismatch'); assert.equal(bad(rowOf(c, { date: '2025-01-01' })), 'date_mismatch'); assert.equal(bad(rowOf(d, { account: '0000' })), 'account_mismatch');
+  assert.equal(bad(rowOf(e2, { amanah: ENT_I30[(st.ent[e2] + 1) % 17].ar })), 'other_amanah'); assert.equal(bad(rowOf(f, { invoiceNo: '177-000000000001' })), 'invoice_not_found');
+  assert.equal(bad(rowOf(coll[0])), 'already_collected', 'only uncollected invoices'); assert.equal(bad(rowOf(a, { reason: 'فاتورة مكررة' })), 'reason_invalid'); assert.equal(bad(rowOf(a, { amanah: '' })), 'amanah_missing');
+  assert.equal(bad(rowOf(a, { amanah: 'أمانة غير موجودة' })), 'amanah_unknown');
+  const two = checkRows_I30(st, { rows: [rowOf(a), { ...rowOf(a), row: 3 }], cfg }); assert.equal(two.accepted, 1); assert.equal(two.rows[1].code, 'duplicate_in_file');
+  // the Sadad number alone is enough when the Amanah is given
+  const im = iimF_I30(st, a); assert.equal(checkRows_I30(st, { rows: [rowOf(a, { invoiceNo: im.sadadNo })], cfg }).rows[0].ok, true);
+  // applying: the invoice is excluded as R9 with its file; the equation still holds; the invoice page shows the source and the file
+  const before = snapshot(st, { scope: YTD, cfg }); const fe = { [idOf(st, a)]: { ruleId: 'ATT-1', file: 'amanah-oct.xlsx', at: '2026-10-08T09:00:00Z', by: 'tester' } };
+  const after = snapshot(st, { scope: YTD, cfg, fileExclusions: fe }); const Da = derive(makeCtx(st, { cfg, fileExclusions: fe }), a, ctx0.cutoffN);
+  assert.equal(Da.excluded, true); assert.equal(Da.primaryBit, RULE_BIT_V3['ATT-1']);
+  if (st.issue[a] >= dayNum_I30(YTD.from)) { assert.ok(after.totals.exclusionsRules > before.totals.exclusionsRules, 'the exclusion figure moved'); }
+  assert.ok(Math.abs(after.totals.gross - after.totals.cancelled - after.totals.exclusionsRules - after.totals.net) < 1, 'gross − exclusions = net after the upload');
+  const det = detail(st, a, makeCtx(st, { cfg, fileExclusions: fe })); const ex = det.rec.exclusions.find((x) => x.ruleId === 'ATT-1'); assert.ok(ex && ex.file.name === 'amanah-oct.xlsx' && ex.sources[0].system === 'ملف الأمانة (رفع يدوي)');
+  assert.equal(det.rec.iim.exclusion.sourceAr, 'ملف الأمانة (رفع يدوي)');
+  // only R8 / R9 can arrive from a file: another rule id in the overlay is ignored
+  const sneaky = derive(makeCtx(st, { cfg, fileExclusions: { [idOf(st, b)]: { ruleId: 'CR-1', file: 'x', at: 'x', by: 'x' } } }), b, ctx0.cutoffN); assert.equal(sneaky.excluded, false);
+  const rej = XLSX_I30.read(buildRej_I30(XLSX_I30, [{ ...rowOf(b), rejection: 'x' }]), { type: 'array' }); assert.equal(XLSX_I30.utils.sheet_to_json(rej.Sheets[rej.SheetNames[0]], { header: 1 })[0].at(-1), 'سبب الرفض');
+});
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -50,6 +50,9 @@ export function RevenueProvider({ children }) {
   const enfRef = useRef(enfStore);
   const [uploads, setUploads] = usePersistent('ib_rev_uploads', { log: [], count: 0 });
   const [notes, setNotes] = usePersistent('ib_rev_notes', {});
+  // R8 / R9 loaded from an Amanah's file (the exclusion upload template): invoice id → { ruleId, file, at, by }; and the log of the files (kept on this device, demo storage only)
+  const [fileExclusions, setFileExclusions] = usePersistent('ib_rev_file_exclusions', {});
+  const [exclusionUploads, setExclusionUploads] = usePersistent('ib_rev_exclusion_uploads', []);
 
   const cfgN = useMemo(() => normalizeConfig(cfg), [cfg]);
 
@@ -78,10 +81,10 @@ export function RevenueProvider({ children }) {
   const orgKeys = org.amanahKeys || null;
   const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all', org }), [scope, org]);
   const currentScopeKey = useMemo(() => scopeKey(scopeEff), [scopeEff]);
-  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, cfg]);
+  const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${hashOf(JSON.stringify(fileExclusions))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, fileExclusions, cfg]);
 
   // request body used by every data-service call (the scope carries only what the service needs from the organisation)
-  const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, ...extra }), [orgKeys, cfgN, decisions, links]);
+  const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, fileExclusions, ...extra }), [orgKeys, cfgN, decisions, links, fileExclusions]);
 
   // the same provider the analysis tasks use, for pages that need extra aggregates (series, bridge, contracts, ...)
   const data = useMemo(() => ({
@@ -100,8 +103,8 @@ export function RevenueProvider({ children }) {
     // a plain GET URL; review decisions / links ride along only while they are small enough for a URL
     exportUrl: (sc, extra) => {
       const full = requestFor(sc, extra);
-      const small = JSON.stringify({ d: full.decisions, l: full.links }).length < 3000;
-      return api.exportUrl(small ? full : { ...full, decisions: {}, links: {} });
+      const small = JSON.stringify({ d: full.decisions, l: full.links, f: full.fileExclusions }).length < 3000;
+      return api.exportUrl(small ? full : { ...full, decisions: {}, links: {}, fileExclusions: {} });
     }
   }), [requestFor]);
 
@@ -166,6 +169,18 @@ export function RevenueProvider({ children }) {
     });
     return { ok: true };
   }, [canReview, user, setDecisions]);
+
+
+  /* ---------- the exclusion upload template (IIM-30): rows are checked by the data service, applied only after the person confirms ---------- */
+  const checkExclusionRows = useCallback((rows) => api.exclusionCheck(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { rows })), [requestFor]);
+  const applyFileExclusions = useCallback(({ file, accepted, rejected = 0 }) => {
+    if (!canReview) return { ok: false, error: 'no_permission' };
+    if (!accepted?.length) return { ok: false, error: 'nothing_to_apply' };
+    const by = user?.nameAr || user?.nameEn || user?.name || 'user'; const at = new Date().toISOString();
+    setFileExclusions((prev) => { const next = { ...prev }; for (const r of accepted) next[r.invoiceId] = { ruleId: r.ruleId, file, at, by }; return next; });
+    setExclusionUploads((prev) => [{ file, at, by, accepted: accepted.length, rejected, amount: accepted.reduce((t, r) => t + (r.outstanding || 0), 0) }, ...prev].slice(0, 20));
+    return { ok: true, applied: accepted.length };
+  }, [canReview, user, setFileExclusions, setExclusionUploads]);
 
   /* ---------- enforcement orders: the person's work (every action is attributed, dated and kept in the order's history) ---------- */
   const enfAct = useCallback((enforceNum, fn) => {
@@ -303,6 +318,7 @@ export function RevenueProvider({ children }) {
     decideExclusion,
     cases, enforcement, enf1Decisions: enfStore?.enf1 || {}, legacyRecords: enfStore?.legacy || {},
     uploads, commitUpload, clearUploads, notes, addNote,
+    fileExclusions, exclusionUploads, checkExclusionRows, applyFileExclusions,
     tasks, modalTaskId, resultTaskId, viewResult, closeResult, startAnalysis, cancelTask, sendToBackground, dismissTask, closeModal, openTask, isStale
   };
   // F-31: the sign-in page does not wait for (or fail with) the data service; the provider keeps one stable shape so signing in or out never remounts the tree

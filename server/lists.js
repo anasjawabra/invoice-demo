@@ -2,10 +2,10 @@
 // columnar store. Nothing here materialises more than one page of invoice objects.
 import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
-import { REFERRED_CANCELLED_STAYS_BILLED } from '../src/data/iim.js';
+import { REFERRED_CANCELLED_STAYS_BILLED, OBJECTION_STATUS_OF } from '../src/data/iim.js';
 import { materialize } from './materialize.js';
 import { iimFields, exclusionOf, investmentOutcome, INVOICE_KIND_SHORT_AR } from './iimRow.js';
-import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK } from './engine.js';
+import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK, objectionStatusKey } from './engine.js';
 import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
 import { grpOf, GRP } from '../src/data/catalog.js';
@@ -79,7 +79,11 @@ export function rowOut(st, ctx, i, D) {
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
     contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED),
-    ...im, invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null, exclusionReason: exclusionOf(D)
+    ...im, invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null, exclusionReason: exclusionOf(D),
+    // R7: the Mumtathil appeal status; R11: the invoice it repeats; R8 / R9: the file the exclusion came from
+    objectionStatus: st.flags[i] & F.OBJECTION ? (() => { const x = OBJECTION_STATUS_OF[objectionStatusKey(st, i)]; return { key: x.key, ar: x.ar, en: x.en, excludes: x.exclude }; })() : null,
+    duplicateOf: st.dupOf?.has(i) ? idOf(st, st.dupOf.get(i)) : null,
+    exclusionFile: ctx.ov?.get(i)?.files?.[D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : ''] || null
   };
 }
 

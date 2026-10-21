@@ -20,7 +20,8 @@
     "make:samples:prepared": "esbuild scripts/make-prepared-samples.mjs --bundle --platform=node --format=esm --log-level=error --outfile=.test-build/make-prepared-samples.mjs && node .test-build/make-prepared-samples.mjs",
     "build:api": "esbuild server/api.js --bundle --platform=node --format=esm --outfile=api/_handler.mjs --log-level=error",
     "test:chat": "esbuild tests/chat-workspace.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --external:jszip --external:pdfjs-dist --outfile=.test-build/chat-workspace.test.mjs && node .test-build/chat-workspace.test.mjs",
-    "test:decisions": "esbuild tests/decision-room.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/decision-room.test.mjs && node .test-build/decision-room.test.mjs"
+    "test:decisions": "esbuild tests/decision-room.test.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:docx --external:pptxgenjs --outfile=.test-build/decision-room.test.mjs && node .test-build/decision-room.test.mjs",
+    "sample:exclusion": "esbuild scripts/make-exclusion-sample.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:jszip --outfile=.test-build/make-exclusion-sample.mjs && node .test-build/make-exclusion-sample.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",

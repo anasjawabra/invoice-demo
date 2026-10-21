@@ -72,6 +72,7 @@ export class Store {
     this.fixtures = new Map(); // idx -> original record object (anchors, uploads)
     this.fixtureById = new Map();
     this.contracts = []; this.requests = []; this.crView = new Map(); this.meta = {};
+    this.dupOf = new Map(); // R11: a duplicate invoice → the earliest-numbered invoice it repeats
   }
   grow() {
     const nc = this.cap * 2;
@@ -510,7 +511,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
   { const FN = SOURCE_INDEX.fines; const MFS = SOURCE_INDEX.municipal_fees; const DUPB = RULE_BIT['DUP-1']; let made = 0; let serial = 9_900_000; const open = (i) => st.payCount[i] === 0 && !st.cancelDay[i] && !st.exMask[i] && (st.src[i] === FN || st.src[i] === MFS) && st.payer[i] >= 2 && st.payer[i] < HOUSING_PAYER_BASE && st.due[i] < todayN;
     const twin = (i, issue, flagged) => { const due = issue + (st.due[i] - st.issue[i]); serial += 1;
       const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i], alink: st.alink[i] });
-      st.gfs[j] = st.gfs[i]; return j; };
+      st.gfs[j] = st.gfs[i]; if (flagged) st.dupOf.set(j, i); return j; };
     const n0 = st.n; const j26 = dayNum('2026-01-05'); const j25a = dayNum('2025-03-01'); const j25b = dayNum('2025-12-31');
     for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) { twin(i, st.issue[i], true); made += 1; }
     let rep = 0; for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) { twin(i, st.issue[i] + 365, false); rep += 1; } }

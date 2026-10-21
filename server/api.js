@@ -9,6 +9,7 @@ import { sourcesReport } from './sourcesReport.js';
 import { resolveReferences, sameDebtorInvoices } from './orderMatch.js';
 import { detail } from './materialize.js';
 import { appendRecord } from './fixtures.js';
+import { checkExclusionRows } from './exclusionUpload.js';
 
 const memo = new Map();
 const MAX_MEMO = 60;
@@ -72,6 +73,7 @@ export async function handleApi(req, res) {
         if (i < 0 || (st.owner[i] !== 0 && st.owner[i] !== owner)) return send(res, 404, { error: 'invoice_not_found' });
         return send(res, 200, detail(st, i, makeCtx(st, body)));
       }
+      case '/exclusion-check': return send(res, 200, checkExclusionRows(st, body));
       case '/order-match': return send(res, 200, resolveReferences(st, body));
       case '/order-debtor-invoices': return send(res, 200, sameDebtorInvoices(st, body));
       case '/upload': {

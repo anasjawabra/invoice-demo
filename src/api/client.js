@@ -75,6 +75,7 @@ export const api = {
   contracts: (req, o) => post('/contracts', req, o),
   contract: (req, o) => post('/contract', req, o),
   invoice: (req, o) => post('/invoice', req, o),
+  exclusionCheck: (req, o) => post('/exclusion-check', req, { ...o, cached: false }),
   orderMatch: (req, o) => post('/order-match', req, { ...o, cached: false }),
   orderDebtorInvoices: (req, o) => post('/order-debtor-invoices', req, { ...o, cached: false }),
   upload: async (records) => { const r = await post('/upload', { records }, { cached: false }); bumpEpoch(); return r; },
