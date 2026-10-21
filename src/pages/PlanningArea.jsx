@@ -1,5 +1,5 @@
 // «التخطيط المالي والاستراتيجي» — where the year stands against its targets (meeting 19 Oct):
-//   الميزانية المبلغة للأبواب الثلاثة الأولى (fixed, communicated by the Ministry of Finance at the start of the year) · نسبة التغطية = المحصّل ÷ الميزانية ·
+//   الميزانية المبلغة للأبواب الثلاثة (fixed, communicated by the Ministry of Finance at the start of the year) · نسبة التغطية = المحصّل ÷ الميزانية ·
 //   المستهدفات (entered by a person: coverage, collection rate, billing; coverage × budget = the revenue target, split by month) · أين نحن من الخطة (target · estimate · actual, probability, focus, reasons).
 // There are NO spending figures here: spending belongs to the Financial Copilot. One fiscal year (up to the reporting date), one entity or the whole Ministry.
 // Calculations: src/data/collectionGoal.js (progress), planTargets.js (targets), planForecast.js (the demonstration estimate); the budget figures are illustrative (src/data/appropriations.js).
@@ -19,7 +19,7 @@ import { loadPlanInputs, approvedConfigOf } from '../data/planInputs';
 import { fmtDateText } from '../data/clock';
 import { computeGoal, reportingDateFor } from '../data/collectionGoal';
 import { sourceAr, sourceEn } from '../data/insightsEngine';
-import { loadTargetStore, targetsOf, totalTargets } from '../data/planTargets';
+import { loadTargetStore, entityTargets, totalTargets } from '../data/planTargets';
 import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY, APPROPRIATION_YEAR } from '../data/appropriations';
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
@@ -44,7 +44,7 @@ export default function PlanningArea() {
   const targetRate = rev.targets?.collectionRate?.value ?? 0.6;
 
   // the targets of every visible entity (defaults reproduce the revenue appropriation) and of the selection
-  const entityRows = useMemo(() => visibleKeys.map((k) => targetsOf(tstore, year, k, appropriationOf(k, year))), [visibleKeys, tstore, year]);
+  const entityRows = useMemo(() => entityTargets(tstore, year, visibleKeys.map((k) => ({ key: k, a: appropriationOf(k, year) }))), [visibleKeys, tstore, year]);
   const total = useMemo(() => totalTargets(entityRows), [entityRows]);
   const selectedRow = amanah === 'all' ? null : entityRows.find((r) => r.key === amanah) || null;
   const selected = amanah === 'all' ? { ...total, savedAt: entityRows.map((r) => r.savedAt).filter(Boolean).sort().pop() || null } : selectedRow;
@@ -76,7 +76,7 @@ export default function PlanningArea() {
   const basis = (ok || noTarget) ? (
     <div className="muted cg-basis">
       <div>{L(`العام المالي ${year}: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (تاريخ التقرير) · ${entityName}.`, `Fiscal year ${year}: ${dateText(`${year}-01-01`)} – ${dateText(g.reportingDate)} (reporting date) · ${entityName}.`)}</div>
-      <div>{L('الميزانية المبلغة ثابتة للعام (تبلّغها وزارة المالية في بدايته). نسبة التغطية = المحصّل ÷ الميزانية. المستهدف السنوي للإيراد = مستهدف نسبة التغطية × الميزانية. المحصّل = المدفوعات المستلمة بتاريخ الدفع (لا الفوترة).', 'The communicated budget is fixed for the year (the Ministry of Finance announces it at the start). Coverage = collected ÷ budget. The annual revenue target = the coverage target × the budget. Collected = payments received by payment date (not billing).')}</div>
+      <div>{L('الميزانية المبلغة ثابتة للعام (تبلّغها وزارة المالية في بدايته). نسبة التغطية = المحصّل ÷ الميزانية. المستهدف السنوي للإيراد = مستهدف نسبة التغطية × الميزانية. الفوترة المطلوبة = المستهدف ÷ مستهدف نسبة التحصيل. المحصّل = المدفوعات المستلمة بتاريخ الدفع (لا الفوترة).', 'The communicated budget is fixed for the year (the Ministry of Finance announces it at the start). Coverage = collected ÷ budget. The annual revenue target = the coverage target × the budget. Required billing = the target ÷ the collection-rate target. Collected = payments received by payment date (not billing).')}</div>
       <div><span className="rv-tag rv-tag--warn">{L('بيانات توضيحية', 'Illustrative data')}</span> {L('أرقام الميزانية مُنشأة لهذا العرض على هيكل ملف الأداء المالي لوزارة المالية ولا تمثل أرقامًا فعلية.', 'The budget figures are created for this demo on the structure of the Ministry of Finance performance file; they are not actual figures.')}</div>
     </div>
   ) : null;
@@ -102,7 +102,7 @@ export default function PlanningArea() {
           </select>
         </label>
         <div className="cg-equiv" role="status">
-          {A ? <>{L('الميزانية المبلغة للأبواب الثلاثة الأولى', 'Communicated budget, chapters 1–3')}: <b dir="ltr">{short(A.expAdjusted)}</b></> : <span className="muted">{L(`لا تتوفر ميزانية مبلغة لـ ${entityName} في ${year}.`, `No communicated budget is available for ${entityName} in ${year}.`)}</span>}
+          {A ? <>{L('الميزانية المبلغة للأبواب الثلاثة', 'Communicated budget, chapters 1–3')}: <b dir="ltr">{short(A.expAdjusted)}</b></> : <span className="muted">{L(`لا تتوفر ميزانية مبلغة لـ ${entityName} في ${year}.`, `No communicated budget is available for ${entityName} in ${year}.`)}</span>}
           <div className="muted" style={{ fontSize: 12 }}>{L(`الميزانيات المحمّلة للعام المالي ${APPROPRIATION_YEAR} فقط.`, `Budgets are loaded for fiscal year ${APPROPRIATION_YEAR} only.`)}</div>
         </div>
       </div>
@@ -138,9 +138,9 @@ export default function PlanningArea() {
           <>
             {basis}
             <div className="rv-tiles cg-tiles">
-              <MetricTile label={L('الميزانية المبلغة للأبواب الثلاثة الأولى', 'Communicated budget, chapters 1–3')} value={short(budget)} sub={L('ثابتة للعام — تبلّغها وزارة المالية', 'fixed for the year — from the Ministry of Finance')} />
+              <MetricTile label={L('الميزانية المبلغة للأبواب الثلاثة', 'Communicated budget, chapters 1–3')} value={short(budget)} sub={L('ثابتة للعام — تبلّغها وزارة المالية', 'fixed for the year — from the Ministry of Finance')} />
               <MetricTile label={L(`المحصّل حتى ${dateText(g.reportingDate)}`, `Collected to ${dateText(g.reportingDate)}`)} value={short(g.collected)} sub={L('منذ بداية السنة — بتاريخ الدفع', 'year to date — by payment date')} />
-              <MetricTile label={L('نسبة التغطية', 'Coverage ratio')} value={<PctBadge kind="coverage" v={selected.coverage > 0 && coverage != null ? coverage / selected.coverage : null} text={pct(coverage)} />} sub={L(`المحصّل ÷ الميزانية المبلغة — المستهدف ${pct(selected.coverage)} (اللون = نسبة تحقق مستهدف التغطية)`, `Collected ÷ communicated budget — target ${pct(selected.coverage)} (colour = share of the coverage target reached)`)} />
+              <MetricTile label={L('نسبة التغطية', 'Coverage ratio')} value={<PctBadge kind="coverage" v={selected.coverage > 0 && coverage != null ? coverage / selected.coverage : null} text={pct(coverage)} />} sub={L(`المحصّل ÷ الميزانية المبلغة للأبواب الثلاثة — المستهدف ${pct(selected.coverage)} (اللون = نسبة تحقق مستهدف التغطية)`, `Collected ÷ communicated budget — target ${pct(selected.coverage)} (colour = share of the coverage target reached)`)} />
               <MetricTile label={L('المستهدف السنوي للإيراد', 'Annual revenue target')} value={short(g.target)} sub={L(`= مستهدف التغطية ${pct(selected.coverage)} × الميزانية`, `= coverage target ${pct(selected.coverage)} × budget`)} />
               <MetricTile label={L('المتبقي للوصول إلى المستهدف', 'Remaining to the target')} value={short(g.remaining)} tone={g.achieved ? 'good' : 'warn'} sub={g.achieved ? L('تم تحقيق المستهدف', 'Target reached') : L('المستهدف − المحصّل', 'Target − collected')} />
             </div>

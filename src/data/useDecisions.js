@@ -10,7 +10,7 @@ import { amanahFilterOptions } from './revenueLedger';
 import { sourceAr, sourceEn } from './insightsEngine';
 import { loadPlanInputs, approvedConfigOf } from './planInputs';
 import { reportingDateFor } from './collectionGoal';
-import { loadTargetStore, targetsOf } from './planTargets';
+import { loadTargetStore, entityTargets } from './planTargets';
 import { appropriationOf, appropriationKeys, APPROPRIATION_YEAR, HQ_KEY } from './appropriations';
 import { buildDecisionItems, planSectionOf, withState, summaryOf, ROLES } from './decisionRoom';
 import * as store from './decisionStore';
@@ -31,7 +31,7 @@ export function useDecisions() {
   const inputs = useAsync(async () => {
     const reporting = reportingDateFor(year, today);
     const tstore = loadTargetStore();
-    const entityRows = year === APPROPRIATION_YEAR ? visible.map((k) => targetsOf(tstore, year, k, appropriationOf(k, year))) : [];
+    const entityRows = year === APPROPRIATION_YEAR ? entityTargets(tstore, year, visible.map((k) => ({ key: k, a: appropriationOf(k, year) }))) : []; // the same overall / override targets as the planning page
     const approvedCfg = approvedConfigOf(rev.cfg);
     const [plan, contracts, noContract, quality] = await Promise.all([
       entityRows.length && reporting ? loadPlanInputs(rev, { year, amanah: 'all', reporting, approvedCfg }) : Promise.resolve(null),
