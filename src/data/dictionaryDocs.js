@@ -75,8 +75,8 @@ const D = {
     feed: BI('بيانات العرض: كود إيفاء 5 (منفذ ضده) + بت EXE-1.', 'Demo: Efaa code 5 (executed against) + the EXE-1 bit.')
   },
   'OBJ-1': {
-    what: BI('اعتراضات/استئنافات قائمة على الفاتورة في ممتثل لم تُحسم بالرفض؛ تُجمَّد المتابعة إلى أن تُحسم.', 'Objections / appeals open on the invoice in Mumtathil that were not settled by a rejection; follow-up is frozen until they are decided.'),
-    basedOn: [BI('ممتثل: عمود حالة الاستئناف (خمس حالات)', 'Mumtathil: the appeal-status column (five statuses)'), BI('تحصيل: رقم الفاتورة', 'Tahseel: the invoice number')],
+    what: BI('اعتراضات/استئنافات قائمة على الفاتورة لم تُحسم بالرفض؛ تُجمَّد المتابعة إلى أن تُحسم.', 'Objections / appeals open on the invoice that were not settled by a rejection; follow-up is frozen until they are decided.'),
+    basedOn: [BI('إيفاء: عمود حالة الاستئناف (خمس حالات) — المصدر في الشكل الحالي', 'Efaa: the appeal-status column (five statuses) — the source in the current form'), BI('ممتثل: العمود نفسه — سيُغذّي القاعدة مستقبلًا أيضًا دون تغيير في القاعدة', 'Mumtathil: the same column — will also feed the rule in future, with no change to the rule'), BI('تحصيل: رقم الفاتورة', 'Tahseel: the invoice number')],
     rule: 'status ∈ { بانتظار توجيه العضو, بانتظار مراجعة اللجنة, مقبول جزئيًا, مكتمل مقبول }  →  exclude the WHOLE invoice\nstatus = مكتمل مرفوض  →  keep collectable (not an objection case)',
     notWhen: BI('«مكتمل مرفوض» لا يستبعد ولا يُصنَّف «قيد الاعتراض». الخريطة الحالات ← قرار في OBJECTION_STATUSES (iim.js).', '«Complete – rejected» neither excludes nor counts as under objection. The status → decision map is OBJECTION_STATUSES (iim.js).'),
     feed: BI('عمود objSt (1–5) لكل فاتورة بها اعتراض؛ المحرك يقرأه في derive() ويضيف/يزيل بت OBJ-1.', 'The objSt column (1–5) on each invoice with an objection; derive() reads it and sets / clears the OBJ-1 bit.')
@@ -196,7 +196,7 @@ export const DEV_REFERENCE = {
     ['cancelDay', 'source cancellation date (0 = none)'],
     ['exMask / exAppr', 'bit per exclusion rule: candidate / approved (bit index = position in RULE_IDS, catalog.js)'],
     ['flags', 'OBJECTION · MISSING_ID · AMT_CONFLICT · DUPLICATE_WF · FIXTURE · UPLOADED …'],
-    ['objSt · crSt · efaa · cstat', 'Mumtathil appeal status 1–5 · CR status · Efaa status code · contract-link state'],
+    ['objSt · crSt · efaa · cstat', 'appeal status 1–5 (Efaa today, Mumtathil also later) · CR status · Efaa status code · contract-link state'],
     ['payer · ent · scope · src · item · gfs', 'customer index · Amanah · central/internal · revenue source · item · revenue account index'],
     ['exec · contract', 'Sanad request index · Furas contract index']
   ],

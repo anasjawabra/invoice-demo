@@ -49,7 +49,7 @@ One module owns the list: `EXCLUSION_RULES` (rule engine ids stay, so stored dec
 | R4 | EEFAA_INCOMPLETE | غير مكتمل | INC-1 | إيفاء – تقرير إشعار المطالبة بالأداء | status غير مكتمل → violation number → invoice number |
 | R5 | OUTSIDE_EEFAA | خارج إيفاء | EFA-1 | المديونيات مقابل قائمة إيفاء | uncollected, main class الغرامات والجزاءات only, no Eefaa record |
 | R6 | EEFAA_EXECUTED | منفذ ضده – إيفاء | EXE-1 | إيفاء – تقرير المنفذ ضده | every violation in the report is linked to its invoice |
-| R7 | OPEN_OBJECTION | اعتراضات قائمة | OBJ-1 | ممتثل (حالة الاستئناف) | exclude: بانتظار توجيه العضو · بانتظار مراجعة اللجنة · مقبول جزئيًا · مكتمل مقبول. Keep: مكتمل مرفوض |
+| R7 | OPEN_OBJECTION | اعتراضات قائمة | OBJ-1 | إيفاء + ممتثل (حالة الاستئناف) — Efaa in the current form, Mumtathil also in future (owner's decision after the review) | exclude: بانتظار توجيه العضو · بانتظار مراجعة اللجنة · مقبول جزئيًا · مكتمل مقبول. Keep: مكتمل مرفوض |
 | R8 | ENCROACHMENT | التعديات واستغلال المواقع (محضر التعدي) | ENC-1 | ملف الأمانة (رفع يدوي) | upload template only |
 | R9 | AMANAH_STATEMENT | إفادات الأمانات | ATT-1 | ملف الأمانة (رفع يدوي) | upload template only |
 | R10 | STRUCK_OFF_CR | سجلات مشطوبة | CR-1 | بلدي + عرض السجل التجاري | CR status Deleted or Cancelled |

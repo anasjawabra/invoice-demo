@@ -234,7 +234,7 @@ export const EXCLUSION_REASON_OF_RULE = Object.fromEntries(EXCLUSION_REASONS.map
 export const EXCLUSION_SOURCE_OF_RULE = {
   'NOC-1': { ar: 'فرص', en: 'Furas' }, 'STY-1': { ar: 'قائمة الوزارة', en: 'Ministry list' }, 'SND-1': { ar: 'سند', en: 'Sanad' },
   'INC-1': { ar: 'إيفاء – تقرير إشعار المطالبة بالأداء', en: 'Efaa – payment-claim notice report' }, 'EFA-1': { ar: 'المديونيات مقابل قائمة إيفاء', en: 'Uncollected debt vs the Efaa list' },
-  'EXE-1': { ar: 'إيفاء – تقرير المنفذ ضده', en: 'Efaa – executed-against report' }, 'OBJ-1': { ar: 'ممتثل (حالة الاستئناف)', en: 'Mumtathil (appeal status)' },
+  'EXE-1': { ar: 'إيفاء – تقرير المنفذ ضده', en: 'Efaa – executed-against report' }, 'OBJ-1': { ar: 'إيفاء + ممتثل (حالة الاستئناف)', en: 'Efaa + Mumtathil (appeal status)' },
   'ENC-1': { ar: 'ملف الأمانة (رفع يدوي)', en: "Amanah file (manual upload)" }, 'ATT-1': { ar: 'ملف الأمانة (رفع يدوي)', en: 'Amanah file (manual upload)' },
   'CR-1': { ar: 'بلدي + عرض السجل التجاري', en: 'Balady + the CR view' }, 'DUP-1': { ar: 'الكشف بالذكاء الاصطناعي', en: 'AI duplicate detection' }
 };

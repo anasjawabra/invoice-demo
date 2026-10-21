@@ -175,10 +175,10 @@ export default function InvoicePage() {
           rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true },
           rec.statusRawEfaa && { k: L('Efaa status', 'حالة إيفاء'), v: rec.statusRawEfaa === 'غير مكتملة' ? L('Incomplete', 'غير مكتمل') : L('Complete', 'مكتمل') },
           rec.statusRawEfaa && { k: L('Executed against (Efaa)', 'منفذ ضده (إيفاء)'), v: rec.statusRawEfaa === 'منفذ ضده' ? L('Yes', 'نعم') : L('No', 'لا') },
-          rec.objection?.statusAr && { k: L('Objection status (Mumtathil)', 'حالة الاعتراض (ممتثل)'), v: ar ? rec.objection.statusAr : rec.objection.statusEn },
+          rec.objection?.statusAr && { k: L('Objection status (Efaa / Mumtathil)', 'حالة الاعتراض (إيفاء / ممتثل)'), v: ar ? rec.objection.statusAr : rec.objection.statusEn },
           rec.objection?.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
         ] },
-        rec.revenueSource !== 'fines' && rec.objection?.statusAr && { title: L('Objection data (Mumtathil)', 'بيانات الاعتراض (ممتثل)'), items: [
+        rec.revenueSource !== 'fines' && rec.objection?.statusAr && { title: L('Objection data (Efaa / Mumtathil)', 'بيانات الاعتراض (إيفاء / ممتثل)'), items: [
           { k: L('Objection status', 'حالة الاعتراض'), v: ar ? rec.objection.statusAr : rec.objection.statusEn }, rec.objection.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
         ] },
         (rec.crNo || rec.crStatusRaw) && { title: L('Commercial registration', 'بيانات السجل التجاري'), items: [

@@ -29,8 +29,8 @@ export const RULE_DETAILS = {
     scope: BI('الغرامات', 'Fines'), evidence: BI('سطر التقرير', 'Report row')
   },
   'OBJ-1': {
-    definition: BI('المصدر ممتثل (حالة الاستئناف). تُستبعد: بانتظار توجيه العضو، بانتظار مراجعة اللجنة، مقبول جزئيًا، مكتمل مقبول. تبقى: مكتمل مرفوض.', 'Source: Mumtathil (appeal status). Excluded: awaiting the member, awaiting the committee, partly accepted, complete – accepted. Kept: complete – rejected.'),
-    sources: [BI('ممتثل — حالة الاستئناف', 'Mumtathil — appeal status')], fields: ['رقم الاعتراض', 'حالة الاستئناف'],
+    definition: BI('المصدر: إيفاء في الشكل الحالي، وممتثل أيضًا مستقبلًا (حالة الاستئناف). تُستبعد: بانتظار توجيه العضو، بانتظار مراجعة اللجنة، مقبول جزئيًا، مكتمل مقبول. تبقى: مكتمل مرفوض.', 'Source: Efaa in the current form, Mumtathil also in future (appeal status). Excluded: awaiting the member, awaiting the committee, partly accepted, complete – accepted. Kept: complete – rejected.'),
+    sources: [BI('إيفاء — حالة الاستئناف (حاليًا)', 'Efaa — appeal status (current)'), BI('ممتثل — حالة الاستئناف (مستقبلًا)', 'Mumtathil — appeal status (future)')], fields: ['رقم الاعتراض', 'حالة الاستئناف'],
     scope: BI('الغرامات', 'Fines'), evidence: BI('سجل الاعتراض وحالته', 'Objection record and its status')
   },
   'INC-1': {

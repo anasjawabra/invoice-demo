@@ -1716,7 +1716,7 @@ await test('v3 · R1–R11: the labels, codes and sources are exactly those of t
   assert.deepEqual(byPriority, [3, 6, 7, 4, 5, 2, 1, 10, 8, 9, 11]);
   assert.ok(RSV_V3.includes('21 Oct')); assert.ok(!RULE_IDS_V3.includes('DEC-1') && !RULES_V3.some((r) => r.id === 'DEC-1') && DEC_DEFERRED_V3 === true);
   const src = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, EXCLUSION_SOURCE_OF_RULE_V3[r.ruleId].ar]));
-  assert.equal(src['OBJ-1'], 'ممتثل (حالة الاستئناف)'); assert.equal(src['ENC-1'], 'ملف الأمانة (رفع يدوي)'); assert.equal(src['ATT-1'], 'ملف الأمانة (رفع يدوي)'); assert.ok(!JSON.stringify(EXCLUSION_REASONS).includes('بايفاء') && !JSON.stringify(EXCLUSION_REASONS).includes('متوفى'));
+  assert.equal(src['OBJ-1'], 'إيفاء + ممتثل (حالة الاستئناف)'); assert.equal(src['ENC-1'], 'ملف الأمانة (رفع يدوي)'); assert.equal(src['ATT-1'], 'ملف الأمانة (رفع يدوي)'); assert.ok(!JSON.stringify(EXCLUSION_REASONS).includes('بايفاء') && !JSON.stringify(EXCLUSION_REASONS).includes('متوفى'));
   assert.ok(!RISK_CATEGORIES.includes('deceased_person') && !RISK_FLAG_CATEGORIES.includes('deceased_person'), 'the deceased category is out of the risk radar too (deferred)');
 });
 await test('v3 · every reason R1–R11 is the PRIMARY reason of at least three uncollected invoices; the reasons add up exactly to the excluded amount', () => {

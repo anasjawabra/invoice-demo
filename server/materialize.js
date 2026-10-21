@@ -20,7 +20,7 @@ const TEMPLATES = {
   'INC-1': { evidence: { en: 'Status «incomplete» in the payment-claim notice report; the violation number is linked to the invoice.', ar: 'الحالة «غير مكتمل» في تقرير إشعار المطالبة بالأداء؛ ورقم المخالفة مربوط بالفاتورة.' }, sources: [{ system: 'إيفاء — تقرير إشعار المطالبة بالأداء', field: 'الحالة', value: 'غير مكتمل' }] },
   'EXE-1': { evidence: { en: 'The violation appears in the executed-against report and is linked to the invoice.', ar: 'المخالفة واردة في تقرير المنفذ ضده ومربوطة بالفاتورة.' }, sources: [{ system: 'إيفاء — تقرير المنفذ ضده', field: 'رقم التنفيذ', value: 'وارد' }] },
   'EFA-1': { evidence: { en: 'A penalty in the uncollected debt that does not appear in the Efaa list.', ar: 'جزاء ضمن المديونيات غير المحصّلة لا يظهر في قائمة إيفاء.' }, sources: [{ system: 'المديونيات مقابل قائمة إيفاء', field: 'رقم المخالفة', value: 'غير موجود في إيفاء' }] },
-  'OBJ-1': { evidence: { en: 'Open objection in Mumtathil.', ar: 'اعتراض قائم في ممتثل.' }, sources: [{ system: 'ممتثل', field: 'حالة الاستئناف', value: 'قائم' }] },
+  'OBJ-1': { evidence: { en: 'Open objection (appeal status in Efaa today; Mumtathil also in future).', ar: 'اعتراض قائم (حالة الاستئناف في إيفاء حاليًا، وفي ممتثل أيضًا مستقبلًا).' }, sources: [{ system: 'إيفاء + ممتثل', field: 'حالة الاستئناف', value: 'قائم' }] },
   'ATT-1': { evidence: { en: 'A written statement of the Amanah that this invoice is not collectible (uploaded file).', ar: 'إفادة مكتوبة من الأمانة بأن هذه الفاتورة غير قابلة للتحصيل (ملف مرفوع).' }, sources: [{ system: 'ملف الأمانة (رفع يدوي)', field: 'الإفادة', value: 'مرفقة' }] },
   'ENC-1': { evidence: { en: 'Raised for exploiting a site without a contract (encroachment report of the Amanah).', ar: 'صدرت عن استغلال موقع دون عقد (محضر التعدي من الأمانة).' }, sources: [{ system: 'ملف الأمانة (رفع يدوي)', field: 'محضر التعدي', value: 'مرفق' }] },
   'ENF-1': { evidence: { en: 'Referred to enforcement.', ar: 'محال إلى التنفيذ.' }, sources: [] }
@@ -66,7 +66,7 @@ export function materialize(st, i, ctx = null) {
     let status = st.exAppr[i] & bit ? 'approved' : 'pending';
     if (c.ov.get(i)) { const o = c.ov.get(i); if (o.set & bit) status = 'approved'; else if (o.rej & bit) status = 'rejected'; else if (o.clr & bit) status = 'pending'; }
     const crRaw = ruleId === 'CR-1' ? CR_STATUS[st.crSt[i]] : null;
-    const sources = ruleId === 'CR-1' ? [{ system: 'بلدي + عرض السجل التجاري', field: 'Crstatus', value: crRaw }] : ruleId === 'OBJ-1' ? [{ system: 'ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
+    const sources = ruleId === 'CR-1' ? [{ system: 'بلدي + عرض السجل التجاري', field: 'Crstatus', value: crRaw }] : ruleId === 'OBJ-1' ? [{ system: 'إيفاء + ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
     exclusions.push({
       category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: ruleId === 'CR-1' ? { en: `CR status "${crRaw}" (raw), from the commercial-registration view.`, ar: `حالة السجل التجاري "${crRaw}" (خام) من عرض السجل التجاري.` } : tpl.evidence,
       sources, rawValue: crRaw, reviewStatus: status, reviewer: status === 'approved' ? REVIEWER : null, reviewDate: status === 'approved' ? isoOf(st.issue[i] + st.exRev[i]) : null,
@@ -119,7 +119,7 @@ export function detail(st, i, ctx) {
     RULE_IDS.forEach((ruleId, b) => {
       if (!(D.mask & (1 << b)) || have.has(ruleId) || ruleId === 'SND-1' || !TEMPLATES[ruleId]) return;
       const tpl = TEMPLATES[ruleId]; const f = fo[ruleId] || null;
-      const sources = f ? [{ system: 'ملف الأمانة (رفع يدوي)', field: 'اسم الملف', value: f.file }] : ruleId === 'OBJ-1' ? [{ system: 'ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
+      const sources = f ? [{ system: 'ملف الأمانة (رفع يدوي)', field: 'اسم الملف', value: f.file }] : ruleId === 'OBJ-1' ? [{ system: 'إيفاء + ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
       const e = { category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: tpl.evidence, sources, rawValue: null, reviewStatus: 'approved', reviewer: f ? { en: f.by, ar: f.by } : null, reviewDate: f ? String(f.at).slice(0, 10) : null, effectiveFrom: f ? String(f.at).slice(0, 10) : isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started', file: f ? { name: f.file, at: f.at, by: f.by } : null };
       rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e;
     }); }
