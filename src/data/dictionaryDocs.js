@@ -43,7 +43,7 @@ const D = {
     what: BI('فواتير شركة المياه الوطنية والشركات الخدمية الواقعة تحت أمر عالٍ بإيقاف التنفيذ بانتظار لجنة. التسمية مؤقتة للتأكيد.', 'Invoices of the National Water Company and service companies under a high-order stay of execution pending a committee. The label is a working label.'),
     basedOn: [BI('قائمة الوزارة للشركات (قابلة للضبط): SERVICE_COMPANY_LIST في iim.js', 'The Ministry\'s list of companies (configurable): SERVICE_COMPANY_LIST in iim.js'), BI('تحصيل: عميل الفاتورة (payer) والمدفوعات', 'Tahseel: the invoice\'s customer (payer) and its payments')],
     rule: 'customer ∈ SERVICE_COMPANY_LIST  AND  invoice has no payment  AND  not rejected by a reviewer   → takes precedence over R1',
-    notWhen: BI('فاتورة عليها أي دفعة لا تُستبعد كاملة بهذه القاعدة (تُحفظ المقبوضات على الفواتير المستبعدة منفصلة في هذا النموذج).', 'An invoice with a payment is not taken out whole by this rule (receipts on excluded invoices are kept apart in this model).'),
+    notWhen: BI('فاتورة عليها أي دفعة لا تُستبعد كاملة بهذه القاعدة (تُحفظ المدفوعات على الفواتير المستبعدة منفصلة في هذا النموذج).', 'An invoice with a payment is not taken out whole by this rule (receipts on excluded invoices are kept apart in this model).'),
     feed: BI('محسوبة في المحرك مباشرة من فهرس العميل (0 و1 = القائمة). حوالي خُمس فواتير «بلا عقد» نُقلت إليها.', 'Computed in the engine from the customer index (0 and 1 = the list). About a fifth of the «no contract» invoices were moved to it.')
   },
   'SND-1': {
