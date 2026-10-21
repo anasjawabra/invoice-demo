@@ -91,7 +91,7 @@ export const ITEM_INDEX = Object.fromEntries(ITEMS.map((x, i) => [x.key, i]));
 export const REVENUE_ITEMS = ITEMS.reduce((m, it) => { (m[it.source] = m[it.source] || []).push(it); return m; }, {});
 
 /* ---------- Code tables ---------- */
-export const RULE_IDS = ['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1', 'OBJ-1', 'ENF-1', 'SND-1', 'ATT-1', 'ENC-1']; // bit position = index
+export const RULE_IDS = ['DUP-1', 'CR-1', 'STY-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1', 'OBJ-1', 'ENF-1', 'SND-1', 'ATT-1', 'ENC-1']; // bit position = index
 export const RULE_BIT = Object.fromEntries(RULE_IDS.map((id, i) => [id, 1 << i]));
 export const CR_STATUS = [null, 'Active', 'Deleted', 'Suspended', 'Cancelled'];
 export const EFAA_STATUS = [null, 'مسددة', 'قائمة', 'تحت الاعتراض', 'غير مكتملة', 'منفذ ضده'];

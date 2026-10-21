@@ -34,7 +34,7 @@ export function exclusionOf(D) {
   if (!D.excluded || !D.primaryBit) return null;
   const ruleId = RULE_IDS[Math.round(Math.log2(D.primaryBit))];
   const r = EXCLUSION_REASON_OF_RULE[ruleId]; const s = EXCLUSION_SOURCE_OF_RULE[ruleId];
-  return r ? { ruleId, reasonAr: r.ar, reasonEn: r.en, sourceAr: s?.ar || null, sourceEn: s?.en || null } : null;
+  return r ? { ruleId, n: r.n, code: r.code, reasonAr: r.ar, reasonEn: r.en, sourceAr: s?.ar || null, sourceEn: s?.en || null } : null;
 }
 void ENTITIES; void gfsCodeAt;
 

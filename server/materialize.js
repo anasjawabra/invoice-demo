@@ -5,23 +5,24 @@ import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
 import { iimDetail } from './iimRow.js';
 import { invoiceIdFor, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
-import { idOf, derive, makeCtx, recordRiskFlags, CLASSES } from './engine.js';
+import { idOf, derive, makeCtx, recordRiskFlags, CLASSES, objectionStatusKey } from './engine.js';
+import { OBJECTION_STATUS_OF } from '../src/data/iim.js';
 import { sourceRecord } from './sourceRecords.js';
 
 const RULE_BY_ID = Object.fromEntries(EXCLUSION_RULES.map((r) => [r.id, r]));
 const REVIEWER = { en: 'Revenue data steward (demo reviewer)', ar: 'أمين بيانات الإيرادات (مراجع تجريبي)' };
 
 const TEMPLATES = {
-  'DUP-1': { evidence: { en: 'Same payer, amount and period as an earlier invoice (duplicate detection).', ar: 'نفس الدافع والمبلغ والفترة لفاتورة سابقة (كشف التكرار).' }, sources: [{ system: 'تحصيل — تفاصيل الفواتير', field: 'بنود الفاتورة', value: 'مطابقة لفاتورة سابقة' }] },
-  'CR-1': { evidence: { en: 'CR status (raw) linked through Sanad document extraction.', ar: 'حالة السجل التجاري (خام) المرتبطة عبر استخراج مستندات سند.' }, sources: [] },
-  'DEC-1': { evidence: { en: 'Civil-registry flag suggests the debtor is deceased; heir/estate position not established.', ar: 'إشارة السجل المدني تفيد بوفاة المدين؛ وضع الورثة/التركة غير مثبت.' }, sources: [{ system: 'السجل المدني', field: 'حالة الوفاة', value: 'متوفى' }] },
-  'NOC-1': { evidence: { en: 'Furas confirms no contract exists for this invoice.', ar: 'فرص تؤكد عدم وجود عقد لهذه الفاتورة.' }, sources: [{ system: 'فرص — العقود', field: 'رقم العقد', value: 'لا يوجد عقد (مؤكد)' }] },
-  'INC-1': { evidence: { en: 'Mandatory data incomplete in the source report.', ar: 'بيانات إلزامية غير مكتملة في تقرير المصدر.' }, sources: [{ system: 'إيفاء — تقرير غير المكتمل', field: 'اكتمال البيانات', value: 'غير مكتمل' }] },
-  'EXE-1': { evidence: { en: 'Appears in the executed-against report.', ar: 'وارد في تقرير المنفذ ضده.' }, sources: [{ system: 'إيفاء — تقرير المنفذ ضده', field: 'حالة التنفيذ', value: 'منفذ ضده' }] },
-  'EFA-1': { evidence: { en: 'Violation is not present in the Efaa system of record.', ar: 'المخالفة غير موجودة في نظام إيفاء المرجعي.' }, sources: [{ system: 'تحصيل — إيفاء v2', field: 'رقم المخالفة', value: 'غير مطابق في إيفاء' }] },
-  'OBJ-1': { evidence: { en: 'Open objection in the violations system.', ar: 'اعتراض مفتوح في نظام المخالفات.' }, sources: [{ system: 'إيفاء — تقرير المخالفات العام', field: 'حالة الاعتراض', value: 'مفتوح' }] },
-  'ATT-1': { evidence: { en: 'A written statement of the Amanah that this invoice is not collectible.', ar: 'إفادة مكتوبة من الأمانة بأن هذه الفاتورة غير قابلة للتحصيل.' }, sources: [{ system: 'الأمانة', field: 'الإفادة', value: 'مرفقة' }] },
-  'ENC-1': { evidence: { en: 'Raised for exploiting a site without a contract (encroachment).', ar: 'صدرت عن استغلال موقع دون عقد (تعدٍّ).' }, sources: [{ system: 'فرص — العقود', field: 'العقد', value: 'غير موجود' }] },
+  'DUP-1': { evidence: { en: 'Same customer, amount, product, revenue account and issue date as an earlier-numbered invoice (AI duplicate detection).', ar: 'نفس العميل والمبلغ والمنتج وحساب الإيراد وتاريخ الإصدار لفاتورة أقدم رقمًا (الكشف بالذكاء الاصطناعي).' }, sources: [{ system: 'الكشف بالذكاء الاصطناعي', field: 'مطابقة الفاتورة', value: 'مطابقة لفاتورة أقدم رقمًا في اليوم نفسه' }] },
+  'CR-1': { evidence: { en: 'CR status (raw) from the commercial-registration view.', ar: 'حالة السجل التجاري (خام) من عرض السجل التجاري.' }, sources: [] },
+  'STY-1': { evidence: { en: 'The customer is on the list of companies under a stay of execution pending a committee.', ar: 'العميل ضمن قائمة الشركات الواقعة تحت إيقاف التنفيذ بانتظار لجنة.' }, sources: [{ system: 'قائمة الوزارة', field: 'العميل', value: 'ضمن القائمة' }] },
+  'NOC-1': { evidence: { en: 'Furas has no contract for this invoice (investment revenue account).', ar: 'لا يوجد عقد لهذه الفاتورة في فرص (حساب إيراد استثماري).' }, sources: [{ system: 'فرص — العقود', field: 'رقم العقد', value: 'لا يوجد عقد' }] },
+  'INC-1': { evidence: { en: 'Status «incomplete» in the payment-claim notice report; the violation number is linked to the invoice.', ar: 'الحالة «غير مكتمل» في تقرير إشعار المطالبة بالأداء؛ ورقم المخالفة مربوط بالفاتورة.' }, sources: [{ system: 'إيفاء — تقرير إشعار المطالبة بالأداء', field: 'الحالة', value: 'غير مكتمل' }] },
+  'EXE-1': { evidence: { en: 'The violation appears in the executed-against report and is linked to the invoice.', ar: 'المخالفة واردة في تقرير المنفذ ضده ومربوطة بالفاتورة.' }, sources: [{ system: 'إيفاء — تقرير المنفذ ضده', field: 'رقم التنفيذ', value: 'وارد' }] },
+  'EFA-1': { evidence: { en: 'A penalty in the uncollected debt that does not appear in the Efaa list.', ar: 'جزاء ضمن المديونيات غير المحصّلة لا يظهر في قائمة إيفاء.' }, sources: [{ system: 'المديونيات مقابل قائمة إيفاء', field: 'رقم المخالفة', value: 'غير موجود في إيفاء' }] },
+  'OBJ-1': { evidence: { en: 'Open objection in Mumtathil.', ar: 'اعتراض قائم في ممتثل.' }, sources: [{ system: 'ممتثل', field: 'حالة الاستئناف', value: 'قائم' }] },
+  'ATT-1': { evidence: { en: 'A written statement of the Amanah that this invoice is not collectible (uploaded file).', ar: 'إفادة مكتوبة من الأمانة بأن هذه الفاتورة غير قابلة للتحصيل (ملف مرفوع).' }, sources: [{ system: 'ملف الأمانة (رفع يدوي)', field: 'الإفادة', value: 'مرفقة' }] },
+  'ENC-1': { evidence: { en: 'Raised for exploiting a site without a contract (encroachment report of the Amanah).', ar: 'صدرت عن استغلال موقع دون عقد (محضر التعدي من الأمانة).' }, sources: [{ system: 'ملف الأمانة (رفع يدوي)', field: 'محضر التعدي', value: 'مرفق' }] },
   'ENF-1': { evidence: { en: 'Referred to enforcement.', ar: 'محال إلى التنفيذ.' }, sources: [] }
 };
 
@@ -65,9 +66,9 @@ export function materialize(st, i, ctx = null) {
     let status = st.exAppr[i] & bit ? 'approved' : 'pending';
     if (c.ov.get(i)) { const o = c.ov.get(i); if (o.set & bit) status = 'approved'; else if (o.rej & bit) status = 'rejected'; else if (o.clr & bit) status = 'pending'; }
     const crRaw = ruleId === 'CR-1' ? CR_STATUS[st.crSt[i]] : null;
-    const sources = ruleId === 'CR-1' ? [{ system: 'CR View', field: 'Crstatus', value: crRaw }, { system: 'سند', field: 'CrNo (استخراج)', value: ctReq?.method === 1 ? 'OCR' : 'منظم' }] : tpl.sources;
+    const sources = ruleId === 'CR-1' ? [{ system: 'بلدي + عرض السجل التجاري', field: 'Crstatus', value: crRaw }] : ruleId === 'OBJ-1' ? [{ system: 'ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
     exclusions.push({
-      category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: ruleId === 'CR-1' ? { en: `CR status "${crRaw}" (raw) linked through Sanad document extraction.`, ar: `حالة السجل التجاري "${crRaw}" (خام) المرتبطة عبر استخراج مستندات سند.` } : tpl.evidence,
+      category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: ruleId === 'CR-1' ? { en: `CR status "${crRaw}" (raw), from the commercial-registration view.`, ar: `حالة السجل التجاري "${crRaw}" (خام) من عرض السجل التجاري.` } : tpl.evidence,
       sources, rawValue: crRaw, reviewStatus: status, reviewer: status === 'approved' ? REVIEWER : null, reviewDate: status === 'approved' ? isoOf(st.issue[i] + st.exRev[i]) : null,
       effectiveFrom: status === 'approved' ? isoOf(st.issue[i] + st.exRev[i]) : issueDate, effectiveTo: null, reassessment: status === 'approved' ? 'scheduled_annual' : 'not_started'
     });
@@ -86,7 +87,7 @@ export function materialize(st, i, ctx = null) {
     lineItems: lines, payments, adjustments: [], adjustmentTotal: 0,
     sourceStatus: cancelled ? 'cancelled' : paid >= gross ? 'collected' : 'uncollected', statusRawTahseel: tahseel, statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null,
     workflowStatus: 'normal',
-    objection: flags & F.OBJECTION ? { open: true, ref: `OBJ-${String(idKey % 1e7).padStart(7, '0')}`, system: 'momtathil' } : null,
+    objection: flags & F.OBJECTION ? { open: true, ref: `OBJ-${String(idKey % 1e7).padStart(7, '0')}`, system: 'momtathil', status: objectionStatusKey(st, i), statusAr: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar, statusEn: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].en } : null,
     enforcementLinks: [], contract: { required: src.key === 'investment', status: CSTAT[st.cstat[i]], ref: ct && st.cstat[i] === 1 ? ct.contractNo : null },
     contractPaymentNo: st.inst[i] || null, contractPaymentTotal: ct ? ct.dues.length : null,
     exclusion: exclusions[0] || null, exclusions, cancelled,
@@ -108,10 +109,19 @@ export function detail(st, i, ctx) {
   const D = derive(ctx, i, ctx.cutoffN);
   const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
-  const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry | deceased_person: 'open' | 'settled' } — the same rule as the Risks & Deviations page
+  const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry: 'open' | 'settled' } — the same rule as the Risks & Deviations page
   rec.iim = iimDetail(st, i, rec, D);
   // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from
   if (D.excluded && rec.iim.exclusion?.ruleId === 'SND-1' && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) { const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const ev = { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' }; const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources: [{ system: 'سند — قضايا', field: 'رقم الأمر', value: q ? q.enforceNum : 'رابط مؤكد' }], rawValue: null, reviewStatus: 'approved', reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started' }; rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e; }
+  // reasons that apply without a stored record: R2 (the customer is on the list), R7 from the appeal status, and R8 / R9 loaded from an Amanah's file (the upload template)
+  { const have = new Set(rec.exclusions.map((e) => e.ruleId)); const fo = ctx.ov.get(i)?.files || {};
+    RULE_IDS.forEach((ruleId, b) => {
+      if (!(D.mask & (1 << b)) || have.has(ruleId) || ruleId === 'SND-1' || !TEMPLATES[ruleId]) return;
+      const tpl = TEMPLATES[ruleId]; const f = fo[ruleId] || null;
+      const sources = f ? [{ system: 'ملف الأمانة (رفع يدوي)', field: 'اسم الملف', value: f.file }] : ruleId === 'OBJ-1' ? [{ system: 'ممتثل', field: 'حالة الاستئناف', value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
+      const e = { category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: tpl.evidence, sources, rawValue: null, reviewStatus: 'approved', reviewer: f ? { en: f.by, ar: f.by } : null, reviewDate: f ? String(f.at).slice(0, 10) : null, effectiveFrom: f ? String(f.at).slice(0, 10) : isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started', file: f ? { name: f.file, at: f.at, by: f.by } : null };
+      rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e;
+    }); }
   return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
 void RULE_BIT;

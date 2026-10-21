@@ -21,7 +21,6 @@ export const CODE_LABEL = {
   source_cancelled: { en: 'Source says cancelled', ar: 'المصدر يفيد بالإلغاء' },
   risk_duplicate: { en: 'Possible duplicate', ar: 'تكرار محتمل' },
   risk_struck_off_registry: { en: 'Struck-off registry flag', ar: 'تنبيه سجل مشطوب' },
-  risk_deceased_person: { en: 'Deceased-debtor flag', ar: 'تنبيه مدين متوفى' },
   risk_value_anomaly: { en: 'Value anomaly vs Amanah baseline', ar: 'انحراف القيمة عن معدل الأمانة' }
 };
 

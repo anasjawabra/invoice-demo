@@ -740,13 +740,7 @@ export const INVOICES = [
     entity: 'Abha 高地开发商', entityEn: 'Abha Highland Developers', entityAr: 'مطورو أبها للمرتفعات',
     amanah: '阿西尔', amanahEn: 'Asir Amanah', amanahAr: 'أمانة منطقة عسير', beneficiaryId: '1066554404',
     amount: 891000, currency: 'SAR', source: 'Baladi', co: 'CO-88361', vat: '3006655440400019',
-    date: '2025-11-30', status: 'review', risk: 41, confidence: 0.7, tag: 'taxfail',
-    // Exclusion category: struck-off commercial registry / deceased debtor —
-    // excluded from net-invoiced entirely, never counted as collected. A sole
-    // establishment (مؤسسة فردية) is legally tied to one individual owner, so
-    // this one is flagged for the debtor's death, not a registry lapse.
-    debtorInvalid: true,
-    debtorInvalidReason: 'deceased_person'
+    date: '2025-11-30', status: 'review', risk: 41, confidence: 0.7, tag: 'taxfail'
   },
   {
     id: '305-882608050000', billerId: '305', sadadNo: '882608050000', payType: 'prepaid', centralSource: false,

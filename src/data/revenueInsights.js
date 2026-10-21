@@ -203,7 +203,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       title: bi('Exclusion candidates awaiting review', 'مرشحو استبعاد بانتظار المراجعة'),
       gap: bi(`${money(amount)} is flagged for possible exclusion but remains in net billed until a reviewer approves it.`, `${mAr(amount)} مُعلَّم لاستبعاد محتمل ويبقى ضمن صافي المفوتر حتى يعتمده مراجع.`),
       evidence: bi('Evidence attached to each candidate; none is approved yet.', 'الدليل مرفق بكل مرشح؛ ولم يُعتمد أيٌّ منها بعد.'),
-      cause: { status: 'hypothesis', text: bi('Hypothesis: debtor is deceased. Estate/heir position is not established; exclusion does not mean uncollectible.', 'فرضية: المدين متوفى. وضع التركة/الورثة غير مثبت؛ والاستبعاد لا يعني عدم القابلية للتحصيل.') },
+      cause: { status: 'hypothesis', text: bi('Hypothesis: the reason behind the candidate is not yet verified against its source. An exclusion does not mean uncollectible.', 'فرضية: لم يُتحقق بعد من سبب المرشح مقابل مصدره. والاستبعاد لا يعني عدم القابلية للتحصيل.') },
       action: bi('Review the evidence and approve, reject or defer each candidate.', 'مراجعة الدليل واعتماد أو رفض أو تأجيل كل مرشح.'),
       responsible: bi('Revenue data steward (proposed)', 'أمين بيانات الإيرادات (مقترح)'),
       timeframe: bi('Next monthly KPI cut (proposed)', 'قبل قطع المؤشرات الشهري القادم (مقترح)'),
@@ -335,7 +335,7 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
 
   // Hypotheses (never presented as findings)
   if (nc.overdue.count + nc.partial.count) out.hypotheses.push({ kind: 'hypothesis', text: bi('Overdue balances may reflect payer cash-flow or administrative delay; the data records no reason for non-payment, so this needs verification during follow-up.', 'قد تعكس الأرصدة المتأخرة ضعف سيولة لدى الدافع أو تأخراً إدارياً؛ لا تسجل البيانات سبب عدم السداد لذا يلزم التحقق أثناء المتابعة.') });
-  if (qn.pending) out.hypotheses.push({ kind: 'hypothesis', text: bi(`${qn.pending.toLocaleString('en-US')} pending exclusion candidate(s) rest on a hypothesis (e.g. deceased debtor) that has not been reviewed.`, `${qn.pending} مرشح استبعاد معلق يستند إلى فرضية (مثل وفاة المدين) لم تُراجَع بعد.`) });
+  if (qn.pending) out.hypotheses.push({ kind: 'hypothesis', text: bi(`${qn.pending.toLocaleString('en-US')} pending exclusion candidate(s) rest on a hypothesis that has not been reviewed.`, `${qn.pending} مرشح استبعاد معلق يستند إلى فرضية لم تُراجَع بعد.`) });
 
   // Missing data & conflicts
   if (qn.conflicts) out.missing.push({ kind: 'fact', text: bi(`${qn.conflicts.toLocaleString('en-US')} invoice(s) have header amounts that conflict with line items (${sample(q.amountConflicts, qn.conflicts)}); the correct amount is unresolved and is NOT adjusted in these figures.`, `${qn.conflicts.toLocaleString('en-US')} فاتورة يتعارض مبلغها مع بنودها (${sampleAr(q.amountConflicts, qn.conflicts)})؛ المبلغ الصحيح غير محسوم ولم يُعدَّل في هذه الأرقام.`), invoices: q.amountConflicts });

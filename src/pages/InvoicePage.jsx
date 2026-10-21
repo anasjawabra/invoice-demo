@@ -77,8 +77,7 @@ export default function InvoicePage() {
   // risk flags that are still OPEN (the same rule as the Risks & Deviations page): a flag whose exclusion is already approved is a settled decision, shown under «التحليل والمراجعة», not here
   const RISK_FINDING = {
     duplicate: { en: ['Possible duplicate', 'The source marks this invoice as a duplicate, and no exclusion has been approved for it.'], ar: ['تكرار محتمل', 'يشير المصدر إلى أن هذه الفاتورة مكررة، ولم يُعتمد استبعاد لها.'] },
-    struck_off_registry: { en: ['Struck-off commercial registry', 'The payer’s commercial registration is reported struck off, and no exclusion has been approved for it.'], ar: ['سجل تجاري مشطوب', 'السجل التجاري للدافع مبلغ عنه مشطوباً، ولم يُعتمد استبعاد لها.'] },
-    deceased_person: { en: ['Deceased debtor', 'The debtor is reported deceased, and no exclusion has been approved for it.'], ar: ['مدين متوفى', 'المدين مبلغ عنه متوفى، ولم يُعتمد استبعاد لها.'] }
+    struck_off_registry: { en: ['Struck-off commercial registry', 'The payer’s commercial registration is reported struck off, and no exclusion has been approved for it.'], ar: ['سجل تجاري مشطوب', 'السجل التجاري للدافع مبلغ عنه مشطوباً، ولم يُعتمد استبعاد لها.'] }
   };
   for (const [cat, state] of Object.entries(det.riskFlags || {})) if (state === 'open' && RISK_FINDING[cat]) findings.push({ k: `risk-${cat}`, tone: 'warn', title: L(RISK_FINDING[cat].en[0], RISK_FINDING[cat].ar[0]), why: L(RISK_FINDING[cat].en[1], RISK_FINDING[cat].ar[1]), evidence: null, action: null });
   for (const ex of pendingEx) findings.push({ k: `ex-${ex.ruleId}`, tone: 'warn', title: L('An exclusion is waiting for review', 'استبعاد بانتظار المراجعة'), why: L(`Rule ${ex.ruleId} flagged this invoice; until approved it stays inside the invoice value.`, `القاعدة ${ex.ruleId} أشارت إلى هذه الفاتورة؛ وتبقى ضمن قيمة الفاتورة حتى يُعتمد الاستبعاد.`), evidence: B(ex.evidence), action: ['ex', ex] });

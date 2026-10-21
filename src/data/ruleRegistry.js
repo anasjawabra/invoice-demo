@@ -18,46 +18,60 @@ export const RULE_APPROVAL_LABEL = {
 };
 
 export const RULE_DETAILS = {
-  'DUP-1': {
-    definition: BI('الفاتورة تكرار لفاتورة مسجلة (نفس العقد/الدافع/المبلغ/الفترة) وتأكد التكرار بمراجعة.', 'The invoice duplicates a registered one (same contract/payer/amount/period) and the duplicate was confirmed by review.'),
-    sources: [BI('تحصيل — تفاصيل الفواتير', 'Tahseel — invoice details')], fields: ['رقم الفاتورة', 'رقم العقد', 'الدافع', 'المبلغ', 'تاريخ الإصدار'],
-    scope: BI('كل مصادر الإيراد', 'All revenue sources'), evidence: BI('بنود الفاتورتين المتطابقة + قرار المراجع', 'Matching line items of both invoices + reviewer decision')
-  },
-  'CR-1': {
-    definition: BI('سجل تجاري حالته الخام ضمن «معامل الحالات المؤهلة» (افتراضياً Deleted/Cancelled) مع اعتماد مراجع. تبقى الحالة الخام كما وردت.', 'Commercial registration whose RAW status is in the rule parameter (default Deleted / Cancelled), with reviewer approval. The raw status is kept as received.'),
-    sources: [BI('سند — تفاصيل الفواتير/المستندات', 'Sanad — invoice / document details'), BI('CR View', 'CR View')], fields: ['CrNo (نص)', 'Crstatus (خام)', 'طريقة الاستخراج', 'البند/المستند'],
-    scope: BI('الفواتير المرتبطة بسجل تجاري واحد مؤكد', 'Invoices tied to ONE confirmed registration'), evidence: BI('رقم السجل + البند المستخرج منه + الحالة الخام', 'CR number + the item it was extracted from + raw status'),
-    parameter: 'crStatuses'
-  },
-  'DEC-1': {
-    definition: BI('إشارة وفاة المدين من السجل المدني مع دليل مراجَع. فئة مقترحة.', 'Civil-registry flag that the debtor is deceased, with reviewed evidence. Proposed category.'),
-    sources: [BI('السجل المدني (غير متصل)', 'Civil registry (not connected)')], fields: ['هوية المدين', 'حالة الوفاة'],
-    scope: BI('فواتير الأفراد', 'Individual debtors'), evidence: BI('وثيقة/استعلام + مراجعة بشرية', 'Document/lookup + human review')
-  },
-  'NOC-1': {
-    definition: BI('فاتورة استثمارية تؤكد فرص عدم وجود عقد لها. «عقد غير مطابق» ليس «بدون عقد» ولا يُستبعد.', 'Investment invoice for which Furas confirms no contract exists. An UNMATCHED contract is not "no contract" and is never excluded.'),
-    sources: [BI('فرص — العقود', 'Furas — contracts')], fields: ['رقم العقد', 'حالة المطابقة'],
-    scope: BI('الاستثمار', 'Investment'), evidence: BI('تأكيد مكتوب من فرص', 'Written confirmation from Furas')
-  },
-  'INC-1': {
-    definition: BI('المخالفة واردة في تقرير «غير المكتمل» لإيفاء؛ ولا تتحول اسم التقرير وحده إلى قاعدة آلية.', 'The violation appears in the Efaa "incomplete" report; the report name alone does not become an automatic rule.'),
-    sources: [BI('إيفاء — تقرير غير المكتمل', 'Efaa — incomplete report')], fields: ['رقم المخالفة', 'الحقل الناقص'],
-    scope: BI('الغرامات', 'Fines'), evidence: BI('سطر التقرير + الحقل الناقص', 'Report row + the missing field')
+  'SND-1': {
+    definition: BI('أي فاتورة في سند لها رقم تنفيذ تُستبعد مهما كانت حالة الأمر. تنطبق على غير المحصّلة فقط.', 'Any invoice in Sanad with an execution number is excluded, whatever the order status. Uncollected invoices only.'),
+    sources: [BI('سند — أوامر التنفيذ', 'Sanad — enforcement orders')], fields: ['رقم التنفيذ', 'رقم الفاتورة'],
+    scope: BI('كل المصادر', 'All sources'), evidence: BI('رابط تنفيذ مؤكد', 'Confirmed enforcement link')
   },
   'EXE-1': {
-    definition: BI('المدين وارد في تقرير «المنفذ ضده» وفق ضوابط القسم. لا يعني انتهاء المبلغ.', 'Debtor appears in the "executed-against" report under the department\'s controls. It does not mean the amount has ended.'),
-    sources: [BI('إيفاء — تقرير المنفذ ضده', 'Efaa — executed-against report')], fields: ['رقم المخالفة', 'حالة التنفيذ'],
+    definition: BI('كل مخالفة في تقرير «المنفذ ضده» (رقم التنفيذ ورقم المخالفة) تُربط بفاتورتها وتُستبعد. الاكتمال لا يؤخذ من هذا التقرير.', 'Every violation in the «executed-against» report (execution and violation numbers) is linked to its invoice and excluded. Completeness is not taken from this report.'),
+    sources: [BI('إيفاء — تقرير المنفذ ضده', 'Efaa — executed-against report')], fields: ['رقم التنفيذ', 'رقم المخالفة'],
+    scope: BI('الغرامات', 'Fines'), evidence: BI('سطر التقرير', 'Report row')
+  },
+  'OBJ-1': {
+    definition: BI('المصدر ممتثل (حالة الاستئناف). تُستبعد: بانتظار توجيه العضو، بانتظار مراجعة اللجنة، مقبول جزئيًا، مكتمل مقبول. تبقى: مكتمل مرفوض.', 'Source: Mumtathil (appeal status). Excluded: awaiting the member, awaiting the committee, partly accepted, complete – accepted. Kept: complete – rejected.'),
+    sources: [BI('ممتثل — حالة الاستئناف', 'Mumtathil — appeal status')], fields: ['رقم الاعتراض', 'حالة الاستئناف'],
+    scope: BI('الغرامات', 'Fines'), evidence: BI('سجل الاعتراض وحالته', 'Objection record and its status')
+  },
+  'INC-1': {
+    definition: BI('تقرير «إشعار المطالبة بالأداء» في إيفاء: الحالة «غير مكتمل» → يؤخذ رقم المخالفة ويُربط برقم الفاتورة وتُستبعد.', 'Efaa «payment-claim notice» report: status «incomplete» → the violation number is linked to the invoice number and the invoice is excluded.'),
+    sources: [BI('إيفاء — تقرير إشعار المطالبة بالأداء', 'Efaa — payment-claim notice report')], fields: ['رقم المخالفة', 'الحالة'],
     scope: BI('الغرامات', 'Fines'), evidence: BI('سطر التقرير', 'Report row')
   },
   'EFA-1': {
-    definition: BI('المخالفة غير موجودة في إيفاء (النظام المرجعي) وفق التعريف المعتمد. حالتا تحصيل وإيفاء تبقيان منفصلتين.', 'The violation is not found in Efaa (system of record) under the approved definition. Tahseel and Efaa statuses stay separate.'),
-    sources: [BI('تحصيل — إيفاء v2', 'Tahseel — Efaa v2'), BI('إيفاء — تقرير المخالفات العام', 'Efaa — general violations report')], fields: ['رقم المخالفة', 'الحالة في تحصيل', 'الحالة في إيفاء'],
-    scope: BI('الغرامات', 'Fines'), evidence: BI('نتيجة المطابقة + سبب عدم المطابقة', 'Match result + mismatch reason')
+    definition: BI('الجزاءات (الفئة الرئيسية الجزاءات والغرامات) ضمن غير المحصّلة التي لا تظهر في إيفاء؛ يُربط رقم إيفاء برقم الفاتورة.', 'Penalties (main class: fines and penalties) within the uncollected invoices that do not appear in Efaa; the Efaa number is linked to the invoice number.'),
+    sources: [BI('المديونيات (تحصيل) مقابل قائمة إيفاء', 'Uncollected debt (Tahseel) vs the Efaa list')], fields: ['رقم المخالفة', 'الحالة في إيفاء'],
+    scope: BI('الغرامات', 'Fines'), evidence: BI('نتيجة المطابقة', 'Match result')
   },
-  'OBJ-1': {
-    definition: BI('اعتراض مفتوح على الفاتورة. حالة متابعة وليست استبعاداً ما لم تُعتمد القاعدة.', 'Open objection on the invoice. A follow-up state, not an exclusion unless the rule is approved.'),
-    sources: [BI('ممتثل / نظام الاعتراضات', 'Mumtathil / objections system')], fields: ['رقم الاعتراض', 'حالته'],
-    scope: BI('الغرامات', 'Fines'), evidence: BI('سجل الاعتراض', 'Objection record')
+  'STY-1': {
+    definition: BI('العميل ضمن قائمة قابلة للضبط (شركة المياه الوطنية والشركات الخدمية) تحت أمر عالٍ بإيقاف التنفيذ بانتظار لجنة. تسبق قاعدة «فواتير لا تستند على عقود». التسمية مؤقتة.', 'The customer is on a configurable list (the National Water Company and service companies) under a high-order stay of execution pending a committee. Takes precedence over «invoices not based on contracts». Working label.'),
+    sources: [BI('قائمة الوزارة', 'Ministry list')], fields: ['العميل'],
+    scope: BI('كل المصادر', 'All sources'), evidence: BI('القائمة المعتمدة', 'The approved list')
+  },
+  'NOC-1': {
+    definition: BI('أي فاتورة، من أي أمانة أو جهة (مركزية أو داخلية)، بحساب إيراد استثماري ولا عقد لها في فرص. «عقد غير مطابق» ليس «بدون عقد».', 'Any invoice, from any Amanah or entity (central or internal), with an investment revenue account and no contract in Furas. An UNMATCHED contract is not «no contract».'),
+    sources: [BI('فرص — العقود', 'Furas — contracts')], fields: ['رقم العقد', 'حالة المطابقة'],
+    scope: BI('الاستثمار', 'Investment'), evidence: BI('غياب العقد في فرص', 'No contract in Furas')
+  },
+  'CR-1': {
+    definition: BI('فاتورة بلدي مرتبطة بعرض السجل التجاري: الحالة محذوف أو ملغى → تُستبعد. تبقى الحالة الخام كما وردت.', 'Balady invoice joined with the commercial-registration view: status Deleted or Cancelled → excluded. The raw status is kept as received.'),
+    sources: [BI('بلدي', 'Balady'), BI('عرض السجل التجاري', 'CR view')], fields: ['CrNo (نص)', 'Crstatus (خام)'],
+    scope: BI('الفواتير المرتبطة بسجل تجاري', 'Invoices tied to a registration'), evidence: BI('رقم السجل + الحالة الخام', 'CR number + raw status')
+  },
+  'ENC-1': {
+    definition: BI('فواتير استثمار (خارج فرص وقد تكون داخلية) تفيد بها الأمانة بمحضر تعدٍّ. تُحمَّل بقالب الرفع فقط.', 'Investment invoices (outside Furas, may be internal) reported by the Amanah with an encroachment report. Loaded through the upload template only.'),
+    sources: [BI('ملف الأمانة (رفع يدوي)', 'Amanah file (manual upload)')], fields: ['رقم الفاتورة', 'الأمانة', 'سبب الاستبعاد'],
+    scope: BI('الاستثمار', 'Investment'), evidence: BI('الملف المرفوع', 'The uploaded file')
+  },
+  'ATT-1': {
+    definition: BI('إفادة الأمانة بأن الفاتورة غير قابلة للتحصيل. القناة والقالب نفسهما للتعديات.', 'The Amanah states that the invoice is not collectible. Same channel and template as encroachments.'),
+    sources: [BI('ملف الأمانة (رفع يدوي)', 'Amanah file (manual upload)')], fields: ['رقم الفاتورة', 'الأمانة', 'سبب الاستبعاد'],
+    scope: BI('كل المصادر', 'All sources'), evidence: BI('الملف المرفوع', 'The uploaded file')
+  },
+  'DUP-1': {
+    definition: BI('نفس العميل والمبلغ والمنتج وحساب الإيراد وتاريخ الإصدار برقم فاتورة مختلف؛ تبقى الأقدم رقمًا. تكرار السنة التالية ليس تكرارًا.', 'Same customer, amount, product, revenue account and issue date with a different invoice number; the earliest-numbered stays. A repeat in another year is not a duplicate.'),
+    sources: [BI('الكشف بالذكاء الاصطناعي', 'AI duplicate detection')], fields: ['العميل', 'المبلغ', 'المنتج', 'حساب الإيراد', 'تاريخ الإصدار'],
+    scope: BI('كل مصادر الإيراد', 'All revenue sources'), evidence: BI('الفاتورتان المتطابقتان', 'The two matching invoices')
   },
   'ENF-1': {
     definition: BI('محال للتنفيذ: بُعد منفصل وليس استبعاداً. القاعدة التي تعدّ الفاتورة الملغاة في المصدر والمحالة غير محصّلة غير مطبّقة: شروطها وجهة اعتمادها غير مؤكدة، وتبقى الفاتورة ملغاة مع تعليم التعارض.', 'Referred to enforcement: a separate dimension, not an exclusion. The rule that would count a source-cancelled, referred invoice as uncollected is NOT applied: its conditions and approver are unconfirmed; the invoice stays cancelled and the disagreement is flagged.'),

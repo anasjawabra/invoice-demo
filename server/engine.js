@@ -8,15 +8,19 @@ import { ENTITIES, ENT_UNASSIGNED, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNE
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
 import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
 import { HOUSING_PAYER_BASE } from './world.js';
-import { EXCLUSIONS_AUTO_APPLY, REFERRED_CANCELLED_STAYS_BILLED, parseInvoiceKey, PRODUCT_KEYS, productIdxOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX } from '../src/data/iim.js';
+import { EXCLUSIONS_AUTO_APPLY, REFERRED_CANCELLED_STAYS_BILLED, parseInvoiceKey, PRODUCT_KEYS, productIdxOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX, isServiceCompanyPayer, OBJECTION_STATUS_OF, OBJECTION_STATUSES } from '../src/data/iim.js';
 
 export const CLASSES = ['collected', 'cancelled', 'excluded', 'objection', 'enforcement', 'linkage_unresolved', 'ineligible_referral', 'partial', 'overdue', 'not_due'];
 const C = Object.fromEntries(CLASSES.map((c, i) => [c, i]));
 export const CLASS_INDEX = C;
 
+/* R7 — the Mumtathil appeal status of an invoice that carries an objection: a stored column (`objSt`, 1…5 = OBJECTION_STATUSES) for every invoice, generated or hand-anchored */
+export function objectionStatusKey(st, i) { const k = st.objSt[i]; return (OBJECTION_STATUSES[k - 1] || OBJECTION_STATUSES[0]).key; }
+export const objectionExcludes = (st, i) => OBJECTION_STATUS_OF[objectionStatusKey(st, i)].exclude;
+
 const RULES = EXCLUSION_RULES.map((r, i) => ({ id: r.id, bit: 1 << i, priority: r.priority, approved: r.approval === 'approved', category: r.category, locked: r.locked }));
 if (RULES.some((r, i) => r.id !== RULE_IDS[i])) throw new Error('rule order mismatch between catalog and revenueMetrics');
-const OBJ_BIT = RULE_BIT['OBJ-1']; const SND_BIT = RULE_BIT['SND-1']; const CR_BIT = RULE_BIT['CR-1']; const DUP_BIT = RULE_BIT['DUP-1']; const DEC_BIT = RULE_BIT['DEC-1'];
+const OBJ_BIT = RULE_BIT['OBJ-1']; const SND_BIT = RULE_BIT['SND-1']; const CR_BIT = RULE_BIT['CR-1']; const DUP_BIT = RULE_BIT['DUP-1']; const STY_BIT = RULE_BIT['STY-1'];
 const BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 const NBITS = RULES.length;
 
@@ -92,14 +96,15 @@ export function makeCtx(st, req = {}) {
   const cutoffN = dayNum(cfg.cutoff);
   const ctx = { st, cfg, cutoffN, owner: Number(req.owner) || 0, graceDays: cfg.graceDays || 0, periodEndMode: cfg.collectionsAsOf === 'periodEnd' };
   let enabled = 0; RULES.forEach((r) => { if (cfg.rules[r.id] && !r.locked) enabled |= r.bit; });
-  ctx.enabled = enabled; ctx.objOn = !!cfg.rules['OBJ-1']; ctx.sndOn = !!cfg.rules['SND-1']; ctx.autoApply = EXCLUSIONS_AUTO_APPLY;
+  ctx.enabled = enabled; ctx.objOn = !!cfg.rules['OBJ-1']; ctx.sndOn = !!cfg.rules['SND-1']; ctx.styOn = !!cfg.rules['STY-1']; ctx.autoApply = EXCLUSIONS_AUTO_APPLY;
   ctx.crOk = [true, true, false, false, false]; // 0 none (legacy: always qualifies), 1 Active (never), then by cfg
   const names = ['', 'Active', 'Deleted', 'Suspended', 'Cancelled'];
   ctx.crOk = names.map((n, k) => (k === 0 ? true : (cfg.crStatuses || []).includes(n)));
   // overlay: review decisions + enforcement links held by the client
   ctx.mark = null; ctx.ov = new Map();
   const dec = req.decisions || {}; const links = req.links || {};
-  const need = Object.keys(dec).length + Object.keys(links).length;
+  const fileEx = req.fileExclusions || {};
+  const need = Object.keys(dec).length + Object.keys(links).length + Object.keys(fileEx).length;
   if (need) {
     ctx.mark = new Uint8Array(st.n);
     for (const [id, d] of Object.entries(dec)) {
@@ -112,6 +117,10 @@ export function makeCtx(st, req = {}) {
         if (rs === 'approved') { o.set |= bit; o.clr &= ~bit; o.rej &= ~bit; } else if (rs === 'rejected') { o.clr |= bit; o.set &= ~bit; o.rej |= bit; } else { o.clr |= bit; o.set &= ~bit; o.rej &= ~bit; }
       }
       ctx.ov.set(i, o); ctx.mark[i] = 1;
+    }
+    for (const [id, f] of Object.entries(fileEx)) { // an Amanah's file (the upload template): R8 / R9 on an uncollected invoice
+      const i = lookupId(st, id); const bit = RULE_BIT[f && f.ruleId]; if (i < 0 || !bit || (bit !== RULE_BIT['ENC-1'] && bit !== RULE_BIT['ATT-1'])) continue;
+      const o = ctx.ov.get(i) || { set: 0, clr: 0, rej: 0, link: 0 }; o.add = (o.add || 0) | bit; o.files = { ...(o.files || {}), [f.ruleId]: { file: String(f.file || ''), at: f.at || null, by: f.by || null } }; ctx.ov.set(i, o); ctx.mark[i] = 1;
     }
     for (const [id, status] of Object.entries(links)) {
       const i = lookupId(st, id); if (i < 0) continue;
@@ -127,8 +136,8 @@ function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit)
 const popcount = (x) => { let n = 0; while (x) { n += x & 1; x >>>= 1; } return n; };
 
 /* ------------------------------------------------------------------ derive one row (no allocation) */
-// RISK FLAGS (duplicate · struck-off registry · deceased debtor) — ONE rule for the Risks & Deviations page and the invoice page, so they cannot disagree.
-// A flag is a reason to look. It is OPEN only while nobody has decided: when the matching exclusion rule (DUP-1 · CR-1 · DEC-1) is already APPROVED and applied, the flag is SETTLED —
+// RISK FLAGS (duplicate · struck-off registry; «deceased debtor» is deferred — see DECEASED_DEFERRED in data/iim.js) — ONE rule for the Risks & Deviations page and the invoice page, so they cannot disagree.
+// A flag is a reason to look. It is OPEN only while nobody has decided: when the matching exclusion rule (DUP-1 · CR-1) is already APPROVED and applied, the flag is SETTLED —
 // the invoice is excluded on that ground, and the decision is shown on the invoice — so it is not listed as a live risk. Returns { category: 'open' | 'settled' } for the flags present.
 export function recordRiskFlags(st, ctx, i) {
   const out = {}; const f = st.flags[i]; const fx = i >= st.nGen ? st.fixtures.get(i) : null;
@@ -136,7 +145,7 @@ export function recordRiskFlags(st, ctx, i) {
   if (!(f & F.DUPLICATE_WF) && !invalid && !crBad) return out; // cheap exit: nearly every invoice
   const D = derive(ctx, i, ctx.cutoffN) || ctx.D; const applied = (bit) => (D.mask & bit) !== 0;
   if (f & F.DUPLICATE_WF) out.duplicate = applied(DUP_BIT) ? 'settled' : 'open';
-  if (invalid) { const c = fx.debtorInvalidReason === 'deceased_person' ? 'deceased_person' : 'struck_off_registry'; out[c] = applied(c === 'deceased_person' ? DEC_BIT : CR_BIT) ? 'settled' : 'open'; }
+  if (invalid) out.struck_off_registry = applied(CR_BIT) ? 'settled' : 'open';
   else if (crBad && D.outstanding > 0) out.struck_off_registry = 'open';
   return out;
 }
@@ -146,10 +155,15 @@ export function derive(ctx, i, asOfN) {
   const billed = st.gross[i] + adj; // gross billed = invoice value before exclusions (approved adjustments included)
   let appr = st.exAppr[i]; let link = 0; let pending;
   if (ctx.mark && ctx.mark[i]) { const o = ctx.ov.get(i); appr = (appr & ~o.clr) | o.set; link = o.link; pending = st.exMask[i] & ~appr & ~o.rej; } else pending = st.exMask[i] & ~appr;
-  if (ctx.autoApply) { appr = st.exMask[i] & ~(ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0); pending = 0; } // S6: every candidate reason applies automatically unless a reviewer rejected it
-  let m = st.exMask[i] & appr & ctx.enabled;
+  const fileAdd = ctx.mark && ctx.mark[i] ? ctx.ov.get(i).add || 0 : 0; // R8 / R9 applied from an Amanah's uploaded file (the template)
+  if (ctx.autoApply) { appr = (st.exMask[i] | fileAdd) & ~(ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0); pending = 0; } // S6: every candidate reason applies automatically unless a reviewer rejected it
+  let m = (st.exMask[i] | fileAdd) & appr & ctx.enabled;
   if (m & CR_BIT) { const cs = st.crSt[i]; if (!ctx.crOk[cs]) m &= ~CR_BIT; }
-  if (ctx.objOn && (flags & F.OBJECTION) && !(m & OBJ_BIT)) m |= OBJ_BIT;
+  // R7: an open objection excludes the invoice only while its Mumtathil status is one of the excluded ones; «مكتمل مرفوض» stays collectable
+  const objOpen = (flags & F.OBJECTION) !== 0 && objectionExcludes(st, i);
+  if ((flags & F.OBJECTION) && !objOpen) m &= ~OBJ_BIT; else if (ctx.objOn && objOpen && !(m & OBJ_BIT)) m |= OBJ_BIT;
+  // R2: the customer is on the service-company list (stay of execution); generated invoices only — hand-anchored fixtures carry no customer index
+  if (ctx.styOn && i < st.nGen && st.payCount[i] === 0 && isServiceCompanyPayer(st.payer[i])) m |= STY_BIT; // an invoice with a payment is not taken out whole (receipts on excluded invoices are kept apart in this model)
   if (ctx.sndOn && (st.exec[i] >= 0 || (link >= 2 && link <= 4))) m |= SND_BIT; // D12: an uncollected invoice found in Sanad is excluded whatever its Sanad status
   let primaryBit = 0; let primaryApproved = false;
   if (m) for (const r of BY_PRIORITY) if (m & r.bit) { primaryBit = r.bit; primaryApproved = r.approved; break; }
@@ -190,7 +204,7 @@ export function derive(ctx, i, asOfN) {
   else if (outstanding <= 0) cls = C.collected;
   else {
     const isPartial = received > 0 && outstanding > 0; const isOverdue = daysOverdue > 0; const cs = st.cstat[i];
-    if (flags & F.OBJECTION) cls = C.objection;
+    if (objOpen) cls = C.objection;
     // the category follows the FINANCIAL / payment state only: an enforcement link (open, suspended or closed) never moves an invoice between uncollected categories
     else if ((flags & F.LEGACY_CANCELLED) || (st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue)) cls = C.linkage_unresolved;
     else if (isOverdue && (flags & F.MISSING_ID)) cls = C.ineligible_referral;

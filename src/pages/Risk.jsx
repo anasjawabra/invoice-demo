@@ -10,7 +10,7 @@ const ANOMALY = DEVIATION_CODES;
 const RADAR = [...RISK_FLAG_CATEGORIES, ...DEVIATION_RISK_CATEGORIES];
 
 // «المخاطر والانحرافات» — a daily operational page: findings that need a BUSINESS look or decision.
-//  Risks: a possible duplicate, a struck-off registry, a deceased debtor.  Deviations: a value far from the Amanah baseline, an amount that differs from its line items, a payment on an excluded invoice.
+//  Risks: a possible duplicate, a struck-off registry.  Deviations: a value far from the Amanah baseline, an amount that differs from its line items, a payment on an excluded invoice.
 // Record completeness and matching (missing fields, unlinked contracts…) is DATA QUALITY and lives under system settings. This page is also not the collection worklist.
 export default function Risk() {
   const { L, ar } = useL();
@@ -20,7 +20,7 @@ export default function Risk() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Risks & deviations', 'المخاطر والانحرافات')}</h1>
-          <div className="page-sub">{L('Invoices that need a business look before figures or actions rely on them: risks (a possible duplicate, a struck-off registry, a deceased debtor) and deviations (a value far from the Amanah baseline, an amount that differs from its line items, a payment on an excluded invoice). Not a collection list: collected invoices may appear here but are labelled.', 'فواتير تحتاج نظراً من الأعمال قبل الاعتماد عليها في الأرقام أو الإجراءات: مخاطر (تكرار محتمل، سجل مشطوب، مدين متوفى) وانحرافات (قيمة بعيدة عن معدل الأمانة، مبلغ يختلف عن بنوده، دفعة على فاتورة مستبعدة). ليست قائمة تحصيل: قد تظهر فواتير محصّلة لكنها موسومة.')}</div>
+          <div className="page-sub">{L('Invoices that need a business look before figures or actions rely on them: risks (a possible duplicate, a struck-off registry) and deviations (a value far from the Amanah baseline, an amount that differs from its line items, a payment on an excluded invoice). Not a collection list: collected invoices may appear here but are labelled.', 'فواتير تحتاج نظراً من الأعمال قبل الاعتماد عليها في الأرقام أو الإجراءات: مخاطر (تكرار محتمل، سجل مشطوب) وانحرافات (قيمة بعيدة عن معدل الأمانة، مبلغ يختلف عن بنوده، دفعة على فاتورة مستبعدة). ليست قائمة تحصيل: قد تظهر فواتير محصّلة لكنها موسومة.')}</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link className="btn btn-sm" to="/collection">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</Link>

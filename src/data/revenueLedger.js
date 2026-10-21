@@ -109,8 +109,6 @@ const OVERLAY = {
   // An exclusion recorded on an invoice that was LATER fully collected: exclusions come only from uncollected invoices (D10), so the metric layer ignores it and counts it as a data warning.
   '177-882606200000': { exclusion: { category: 'incomplete_data', ruleId: 'INC-1', evidence: { en: 'Listed in the Efaa incomplete-violations report, then paid in full.', ar: 'ورد في تقرير إيفاء للمخالفات غير المكتملة ثم سُدّدت بالكامل.' }, reviewStatus: 'approved', reviewDate: '2026-03-12' } },
   '177-882605450000': { exclusion: { category: 'struck_off_registry', ruleId: 'CR-1', evidence: { en: 'Commercial registration reported struck-off by the commerce registry check.', ar: 'السجل التجاري مشطوب وفق فحص سجل التجارة.' }, reviewStatus: 'approved', reviewDate: '2026-03-10' } },
-  // Candidate exclusion that is NOT yet approved -> stays in net billed.
-  '177-882608040000': { exclusion: { category: 'deceased_debtor', ruleId: 'DEC-1', evidence: { en: 'Civil-registry flag suggests the debtor is deceased; heir/estate position not established.', ar: 'إشارة السجل المدني تفيد بوفاة المدين؛ وضع الورثة/التركة غير مثبت.' }, reviewStatus: 'pending', reviewDate: null } }
 };
 
 /* ---------- Enforcement cases (Sanad / Efaa) ----------
@@ -272,7 +270,7 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
       statusRawTahseel: null,
       statusRawEfaa: null,
       workflowStatus: inv.status,
-      objection: inv.hasOpenObjection ? { open: true, ref: `OBJ-${inv.id.slice(-4)}`, system: 'momtathil' } : null,
+      objection: inv.hasOpenObjection ? { open: true, ref: `OBJ-${inv.id.slice(-4)}`, system: 'momtathil', status: inv.objectionStatus || 'awaiting_committee' } : null,
       enforcementLinks: linkByInvoice.get(inv.id) || [],
       contract: contractLinkOf(inv),
       exclusion: ex,

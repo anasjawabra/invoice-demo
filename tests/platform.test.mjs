@@ -204,7 +204,7 @@ await test('filters recompute everything from the matching records: source, cent
   const mAm = ytd.byAmanah.find((g) => g.key !== 'Unassigned');
 });
 await test('an invoice with several exclusion reasons (or cancelled + a reason) leaves gross exactly once; a collected invoice is never excluded and a part-collected one only loses its uncollected remainder (D10)', () => {
-  const whatIfCfg = { cutoff: TODAY, rules: Object.fromEntries(['DUP-1', 'CR-1', 'DEC-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1'].map((id) => [id, true])) }; // the mechanism is tested with every rule on (unapproved rules are off by default)
+  const whatIfCfg = { cutoff: TODAY, rules: Object.fromEntries(['DUP-1', 'CR-1', 'STY-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1'].map((id) => [id, true])) }; // the mechanism is tested with every rule on (unapproved rules are off by default)
   const ctx = makeCtx(st, { cfg: whatIfCfg }); let multi = 0; let overlap = 0; let badOnce = 0; let paidExcluded = 0;
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
@@ -318,11 +318,11 @@ await test('risk flags: the Risks page and the invoice page use one rule — a f
     assert.ok(!r.categories.duplicate.rows.some((x) => x.id === id), `${id}: a settled duplicate is not listed as a risk`);
   }
   // every invoice listed under a record-level risk category is OPEN on its own page (nothing listed on one page is missing from the other)
-  for (const cat of ['duplicate', 'struck_off_registry', 'deceased_person']) for (const row of r.categories[cat].rows) assert.equal(detail(st, lookupId(st, row.id), ctx).riskFlags[cat], 'open', `${row.id} ${cat}`);
+  for (const cat of ['duplicate', 'struck_off_registry']) for (const row of r.categories[cat].rows) assert.equal(detail(st, lookupId(st, row.id), ctx).riskFlags[cat], 'open', `${row.id} ${cat}`);
   // with the duplicate rule switched off nothing is settled: the same two invoices become OPEN duplicates, listed on the Risks page AND carried by the invoice page
   const off = { cutoff: TODAY, rules: { 'DUP-1': false } }; const r2 = risk(st, { scope: YTD, cfg: off, limit: 200 }); const ctx2 = makeCtx(st, { scope: YTD, cfg: off });
   for (const id of ['177-882607280000', '177-882608080000']) { assert.ok(r2.categories.duplicate.rows.some((x) => x.id === id), `${id}: listed when open`); assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open'); }
-  assert.equal(r2.categories.duplicate.count, r.categories.duplicate.count + 2);
+  assert.ok(r2.categories.duplicate.count >= r.categories.duplicate.count + 2, 'every settled duplicate (the two anchored ones and the same-day twins of the seed) becomes an open risk when the rule is off');
 });
 await test('export streams in chunks, keeps exact SAR and a separately named abbreviated column', () => {
   const it = exportChunks(st, { scope: { ...YTD, source: 'white_lands' }, cfg, filters: {} }, 1000);
@@ -1414,7 +1414,7 @@ await test('goal data: payments by month (payment date) equal the snapshot recei
   assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice');
 });
 await test('adjusted total = net billed everywhere: the DEFAULT configuration applies the exclusion reasons confirmed in the 18 Oct meeting (S6, automatic); switching them off is an explicit what-if that raises net billed', () => {
-  const REASONS = ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1'];
+  const REASONS = ['CR-1', 'STY-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1'];
   assert.ok(REASONS.every((id) => RULES_G.find((r) => r.id === id && r.approval === 'approved' && r.defaultEnabled)), 'every reason named in the meeting is on by default');
   assert.ok(RULES_G.filter((r) => r.approval !== 'approved').every((r) => !r.defaultEnabled), 'no unapproved rule is on by default');
   const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
@@ -1579,9 +1579,9 @@ await test('IIM-01/02 · the invoice id is biller-sadad; only biller 177 is cent
   assert.ok(s.rows.length >= 2 && new Set(s.rows.map((r) => r.billerId)).size >= 2, 'a search by Sadad number returns every biller that carries it');
 });
 await test('IIM-04 · every exclusion reason of the meeting is named, and is used on at least one uncollected invoice', () => {
-  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ruleId).filter((x) => x !== 'DUP-1'), ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1', 'ATT-1', 'ENC-1']);
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ruleId), ['NOC-1', 'STY-1', 'SND-1', 'INC-1', 'EFA-1', 'EXE-1', 'OBJ-1', 'ENC-1', 'ATT-1', 'CR-1', 'DUP-1']); // R1 … R11 (meeting of 21 Oct)
   const sn = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
-  for (const id of ['CR-1', 'DEC-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1', 'ATT-1', 'ENC-1']) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
+  for (const id of EXCLUSION_REASONS.map((r) => r.ruleId)) assert.ok(sn.ruleStats[id].primaryCount > 0, `${id} is used by at least one excluded invoice`);
 });
 
 await test('IIM-03 · an invoice whose revenue account is not in the classification file is «غير مصنف» and is counted (never dropped)', () => {
@@ -1668,5 +1668,91 @@ await test('IIM-15 · forecast: a low target gives a high probability and «reas
   const f = focusRanking([{ amanah: 'A', source: 'x', net: 100, collected: 20, outstanding: 80 }, { amanah: 'B', source: 'y', net: 100, collected: 95, outstanding: 5 }, { amanah: 'C', source: 'z', net: 10, collected: 10, outstanding: 0 }], 0.6, 5);
   assert.deepEqual(f.map((x) => x.amanah), ['A', 'B'], 'ranked by what is owed × the shortfall; nothing-owed cells are left out');
 });
+// ---- IIM-28 (v3) ----
+await test('IIM-28 · overall targets: coverage 66 % and collection 68 % by default, INDEPENDENT; required billing = target ÷ collection; per-Amanah values are an override that is OFF by default', async () => {
+  const P = await import('../src/data/planTargets.js'); const { appropriationOf, appropriationKeys, appropriationTotal } = await import('../src/data/appropriations.js');
+  const items = appropriationKeys().map((k) => ({ key: k, a: appropriationOf(k, 2026) })); const totalBudget = appropriationTotal(appropriationKeys(), 2026).expAdjusted;
+  const st0 = P.emptyTargetStore(); const ov0 = P.overallOf(st0, 2026); assert.equal(ov0.coverage, 0.66); assert.equal(ov0.collectionRate, 0.68); assert.equal(ov0.billing, null); assert.equal(P.overrideOn(st0, 2026), false);
+  const rows0 = P.entityTargets(st0, 2026, items); const tot0 = P.totalTargets(rows0);
+  assert.ok(Math.abs(tot0.revenueTarget - 0.66 * totalBudget) < 1, 'the Ministry target = overall coverage × the communicated budget'); assert.ok(Math.abs(tot0.coverage - 0.66) < 1e-9);
+  assert.ok(rows0.every((r) => r.collectionRate === 0.68), 'the overall collection rate applies to every entity'); assert.ok(Math.abs(tot0.requiredBilling - tot0.revenueTarget / 0.68) < 1, 'required billing = revenue target ÷ collection rate');
+  assert.equal(rows0.find((r) => r.key === '__HQ__').revenueTarget, 0, 'headquarters collects no revenue: it keeps zero');
+  // the two percentages are independent: only the collection rate changes → the required billing moves, the revenue target does not
+  const st1 = P.setOverall(st0, 2026, { collectionRate: 0.5 }); const tot1 = P.totalTargets(P.entityTargets(st1, 2026, items));
+  assert.ok(Math.abs(tot1.revenueTarget - tot0.revenueTarget) < 1e-6, 'the revenue target does not move'); assert.ok(Math.abs(tot1.requiredBilling - tot0.revenueTarget / 0.5) < 1, 'the required billing does');
+  const st2 = P.setOverall(st0, 2026, { coverage: 0.7 }); const tot2 = P.totalTargets(P.entityTargets(st2, 2026, items)); assert.ok(Math.abs(tot2.revenueTarget - 0.7 * totalBudget) < 1 && P.overallOf(st2, 2026).collectionRate === 0.68, '70 % → 0.7 × the budget; the collection rate is untouched');
+  // per-Amanah override: OFF → a typed per-entity value is ignored (kept); ON → it wins for that entity only
+  const typed = P.setTargets(P.setOverride(st0, 2026, false), 2026, 'Riyadh Amanah', { coverage: 0.9, collectionRate: 0.4 });
+  const off = P.entityTargets(typed, 2026, items).find((r) => r.key === 'Riyadh Amanah'); assert.equal(off.collectionRate, 0.68); assert.ok(Math.abs(off.revenueTarget - rows0.find((r) => r.key === 'Riyadh Amanah').revenueTarget) < 1e-6);
+  const on = P.entityTargets(P.setOverride(typed, 2026, true), 2026, items); const r1 = on.find((r) => r.key === 'Riyadh Amanah');
+  assert.ok(Math.abs(r1.coverage - 0.9) < 1e-9 && r1.collectionRate === 0.4 && r1.source === 'saved'); assert.equal(on.find((r) => r.key === 'Jeddah Amanah').collectionRate, 0.68, 'the other entities keep the overall values');
+  // back-compat: a v2 store that already holds typed per-entity targets keeps them (override inferred ON); weights alone do not switch it on
+  assert.equal(P.overrideOn(P.setTargets(st0, 2026, 'X', { coverage: 0.5 }), 2026), true); assert.equal(P.overrideOn(P.setTargets(st0, 2026, 'X', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2] }), 2026), false);
+  assert.equal(P.overrideOn(P.setOverride(P.setTargets(st0, 2026, 'X', { coverage: 0.5 }), 2026, false), 2026), false, 'an explicit choice wins');
+  // the billing target check
+  assert.equal(P.billingCheck(null, 10e9), null); assert.equal(P.billingCheck(20e9, 22.9e9).below, true); assert.equal(P.billingCheck(30e9, 22.9e9).below, false); assert.equal(P.billingError(-1), 'billing'); assert.equal(P.billingError(null), null);
+  // the monthly split survives and adds up to the entity's target
+  const w = P.entityTargets(P.setTargets(st0, 2026, 'Jeddah Amanah', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9] }), 2026, items).find((r) => r.key === 'Jeddah Amanah'); assert.ok(Math.abs(w.cumulative[11] - w.revenueTarget) < 1 && w.monthly[11] > w.monthly[0]);
+});
 
+// ---- IIM-32 (v3) ----
+import { SHOW_INTERNAL_NOTES as SHOW_NOTES_I32 } from '../src/data/uiFlags.js';
+test('IIM-32 · the internal explanatory panels are behind one flag that is OFF for stakeholder use', () => {
+  assert.equal(SHOW_NOTES_I32, false, 'SHOW_INTERNAL_NOTES must be false before stakeholder use');
+});
+
+// ---- Exclusion model R1–R11 (meeting of 21 Oct, v3) ----
+import { EXCLUSION_RULES as RULES_V3, EXCLUSION_RULE_SET_VERSION as RSV_V3 } from '../src/data/revenueMetrics.js';
+import { EXCLUSION_SOURCE_OF_RULE as EXCLUSION_SOURCE_OF_RULE_V3 } from '../src/data/iim.js';
+import { CLASSES as CLASSES_V3 } from '../server/engine.js';
+import { RULE_IDS as RULE_IDS_V3, RULE_BIT as RULE_BIT_V3, F as F_V3 } from '../src/data/catalog.js';
+import { OBJECTION_STATUSES as OBJ_ST_V3, SERVICE_COMPANY_LIST as SVC_V3, findDuplicates as findDup_V3, DECEASED_DEFERRED as DEC_DEFERRED_V3 } from '../src/data/iim.js';
+import { objectionStatusKey as objKey_V3 } from '../server/engine.js';
+await test('v3 · R1–R11: the labels, codes and sources are exactly those of the meeting; one precedence R3 > R6 > R7 > R4 > R5 > R2 > R1 > R10 > R8 > R9 > R11; «متوفى» is gone', () => {
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => `R${r.n}`), ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11']);
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.code), ['NO_CONTRACT', 'SERVICE_CO_STAY', 'SANAD_EXECUTED', 'EEFAA_INCOMPLETE', 'OUTSIDE_EEFAA', 'EEFAA_EXECUTED', 'OPEN_OBJECTION', 'ENCROACHMENT', 'AMANAH_STATEMENT', 'STRUCK_OFF_CR', 'DUPLICATE']);
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ar), ['فواتير لا تستند على عقود', 'إيقاف التنفيذ – الشركات الخدمية', 'منفذ ضده – قضايا (سند)', 'غير مكتمل', 'خارج إيفاء', 'منفذ ضده – إيفاء', 'اعتراضات قائمة', 'التعديات واستغلال المواقع (محضر التعدي)', 'إفادات الأمانات', 'سجلات مشطوبة', 'فاتورة مكررة']);
+  const byPriority = RULES_V3.filter((r) => r.priority < 99).sort((a, b) => a.priority - b.priority).map((r) => EXCLUSION_REASONS.find((x) => x.ruleId === r.id).n);
+  assert.deepEqual(byPriority, [3, 6, 7, 4, 5, 2, 1, 10, 8, 9, 11]);
+  assert.ok(RSV_V3.includes('21 Oct')); assert.ok(!RULE_IDS_V3.includes('DEC-1') && !RULES_V3.some((r) => r.id === 'DEC-1') && DEC_DEFERRED_V3 === true);
+  const src = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, EXCLUSION_SOURCE_OF_RULE_V3[r.ruleId].ar]));
+  assert.equal(src['OBJ-1'], 'ممتثل (حالة الاستئناف)'); assert.equal(src['ENC-1'], 'ملف الأمانة (رفع يدوي)'); assert.equal(src['ATT-1'], 'ملف الأمانة (رفع يدوي)'); assert.ok(!JSON.stringify(EXCLUSION_REASONS).includes('بايفاء') && !JSON.stringify(EXCLUSION_REASONS).includes('متوفى'));
+  assert.ok(!RISK_CATEGORIES.includes('deceased_person') && !RISK_FLAG_CATEGORIES.includes('deceased_person'), 'the deceased category is out of the risk radar too (deferred)');
+});
+await test('v3 · every reason R1–R11 is the PRIMARY reason of at least three uncollected invoices; the reasons add up exactly to the excluded amount', () => {
+  const sn = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });
+  for (const r of EXCLUSION_REASONS) assert.ok(sn.ruleStats[r.ruleId].primaryCount >= 3, `R${r.n} ${r.code}: ${sn.ruleStats[r.ruleId].primaryCount} primary invoices`);
+  const sum = EXCLUSION_REASONS.reduce((t, r) => t + sn.ruleStats[r.ruleId].primaryAmount, 0);
+  assert.ok(Math.abs(sum - sn.totals.exclusionsRules) < 1, 'reason totals = the exclusion figure'); assert.ok(Math.abs(sn.totals.gross - sn.totals.cancelled - sn.totals.exclusionsRules - sn.totals.net) < 1, 'gross − exclusions = net');
+});
+await test('v3 · exclusions apply only to uncollected invoices: an excluded invoice has no collected remainder, a collected invoice is never excluded, and no invoice is excluded twice', () => {
+  const ctx = makeCtx(st, { cfg }); let excluded = 0;
+  for (let i = 0; i < st.n; i += 1) { if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
+    if (D.excluded) { excluded += 1; assert.ok(D.received < D.billed, 'excluded → not fully collected'); assert.ok(Math.abs(D.billed - D.net - D.exclTotal) < 1e-6); }
+    if (D.received >= D.billed && D.billed > 0 && !D.cancelled) assert.equal(D.excluded, false, 'a collected invoice is not excluded'); }
+  assert.ok(excluded > 50);
+});
+await test('v3 · R7: the Mumtathil appeal status decides — four statuses exclude, «مكتمل مرفوض» stays collectable (and is not an objection case); all five occur', () => {
+  assert.deepEqual(OBJ_ST_V3.map((x) => x.ar), ['بانتظار توجيه العضو', 'بانتظار مراجعة اللجنة', 'مقبول جزئيًا', 'مكتمل مقبول', 'مكتمل مرفوض']); assert.deepEqual(OBJ_ST_V3.map((x) => x.exclude), [true, true, true, true, false]);
+  const ctx = makeCtx(st, { cfg }); const seen = new Set(); let keptCollectable = 0;
+  for (let i = 0; i < st.n; i += 1) { if (!(st.flags[i] & F_V3.OBJECTION) || st.issue[i] > ctx.cutoffN) continue; const k = objKey_V3(st, i); const D = derive(ctx, i, ctx.cutoffN); if (D.received >= D.billed || D.cancelled) continue; seen.add(k);
+    if (k === 'complete_rejected') { assert.equal(D.mask & RULE_BIT_V3['OBJ-1'], 0, `${idOf(st, i)}: a rejected appeal is not R7`); assert.notEqual(CLASSES_V3[D.cls], 'objection'); assert.ok(D.outstanding > 0 || D.excluded); if (!D.excluded) keptCollectable += 1; }
+    else { assert.ok(D.excluded && (D.mask & RULE_BIT_V3['OBJ-1']), `${idOf(st, i)} (${k}) is excluded as R7`); } }
+  assert.equal(seen.size, 5, 'every status occurs'); assert.ok(keptCollectable >= 1);
+});
+await test('v3 · R2 takes precedence over R1: the service-company invoices carry both reasons and are counted under R2 only', () => {
+  const ctx = makeCtx(st, { cfg }); let both = 0; let r2 = 0;
+  for (let i = 0; i < st.nGen; i += 1) { if (st.issue[i] > ctx.cutoffN || st.payCount[i] !== 0 || st.payer[i] >= 2) continue; const D = derive(ctx, i, ctx.cutoffN); if (!D.excluded) continue; r2 += 1; if (D.mask & RULE_BIT_V3['NOC-1']) { const higher = D.mask & (RULE_BIT_V3['SND-1'] | RULE_BIT_V3['EXE-1'] | RULE_BIT_V3['OBJ-1'] | RULE_BIT_V3['INC-1'] | RULE_BIT_V3['EFA-1']); if (!higher) { both += 1; assert.equal(D.primaryBit, RULE_BIT_V3['STY-1'], 'R2 wins over R1'); } } }
+  assert.ok(r2 >= 3 && both >= 1, `R2 invoices ${r2}, of which also R1 ${both}`); assert.deepEqual(SVC_V3.map((c) => c.ar), ['شركة المياه الوطنية', 'شركة مرافق الخدمات المتكاملة']);
+  const off = makeCtx(st, { cfg: { cutoff: TODAY, rules: { 'STY-1': false } } }); let back = 0; for (let i = 0; i < st.nGen; i += 1) if (st.payCount[i] === 0 && st.payer[i] < 2 && st.issue[i] <= off.cutoffN) { const D = derive(off, i, off.cutoffN); if ((D.mask & RULE_BIT_V3['NOC-1']) && !(D.mask & (RULE_BIT_V3['SND-1'] | RULE_BIT_V3['EXE-1'] | RULE_BIT_V3['OBJ-1'] | RULE_BIT_V3['INC-1'] | RULE_BIT_V3['EFA-1']))) { assert.equal(D.primaryBit, RULE_BIT_V3['NOC-1'], 'with R2 off the invoice falls back to R1'); back += 1; } } assert.ok(back >= 1);
+});
+await test('v3 · R11: same customer, amount, product, revenue account and issue DATE under another number are duplicates (earliest kept); the same values a year later are not', () => {
+  const row = (id, extra = {}) => ({ id, sadadNo: id, customerId: 'C1', amount: 5000, productKey: 'baladi', gfsCode: '1438', issueDate: '2026-03-04', ...extra });
+  const d = findDup_V3([row('882600000010'), row('882600000011'), row('882600000012', { issueDate: '2027-03-04' }), row('882600000013', { amount: 5001 })]);
+  assert.equal(d.length, 1); assert.equal(d[0].duplicate.id, '882600000011'); assert.equal(d[0].keeps.id, '882600000010', 'the earliest number is kept');
+  assert.equal(findDup_V3([row('1'), row('2', { issueDate: '2027-03-04' })]).length, 0, 'a yearly repeat is not a duplicate');
+  const ctx = makeCtx(st, { cfg }); let twins = 0; let repeats = 0;
+  for (let i = 0; i < st.nGen; i += 1) { if (st.idKey[i] % 1e8 <= 9_900_000) continue; const D = derive(ctx, i, ctx.cutoffN); if (st.flags[i] & F_V3.DUPLICATE_WF) { twins += 1; assert.equal(D.primaryBit, RULE_BIT_V3['DUP-1']); } else { repeats += 1; assert.equal(D.mask & RULE_BIT_V3['DUP-1'], 0, 'a yearly repeat is not a duplicate'); } }
+  assert.ok(twins >= 3 && repeats >= 1, `${twins} twins, ${repeats} yearly repeats`);
+});
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

@@ -59,7 +59,7 @@ const COLS = {
   ent: Uint8Array, muni: Uint8Array, scope: Uint8Array, src: Uint8Array, item: Uint8Array, lines: Uint8Array,
   payStart: Int32Array, payCount: Uint8Array, cancelDay: Int32Array, exMask: Uint16Array, exAppr: Uint16Array, exRev: Uint8Array,
   flags: Uint16Array, contract: Int32Array, inst: Uint16Array, cstat: Uint8Array, crSt: Uint8Array, exec: Int16Array,
-  efaa: Uint8Array, alink: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array
+  efaa: Uint8Array, alink: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array, objSt: Uint8Array // objSt: Mumtathil appeal status of an invoice with an objection (1…5 = OBJECTION_STATUSES, 0 none)
 };
 const PCOLS = { pInv: Int32Array, pDay: Int32Array, pAmt: Float64Array, pCh: Uint8Array };
 
@@ -485,7 +485,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
         idKey: y * 1e8 + serial, issue: issueN, due: d.due, gross: d.amount, ent: ct.ent, muni: ct.muni, scope: 0, src: SOURCE_INDEX.investment, item: ct.item,
         lines: linesFor(ri) > 2 ? 2 : linesFor(ri), pay: pl, exMask: ex.mask, exAppr: ex.appr, exRev: ex.rev,
         flags: F.CONTRACT_INV | (ri.next() < 0.004 ? F.AMT_CONFLICT : 0), contract: linked ? c : -1, inst: d.no,
-        cstat: ex.noContract ? 3 : unmatched ? 2 : 1, payer: ct.payer, alink: ri.next() < 0.04 ? 2 : 1
+        cstat: ex.noContract ? 3 : unmatched ? 2 : 1, payer: ex.noContract && mix(22, c, d.no) % 100 < 22 ? mix(23, c, d.no) % 2 : ct.payer, alink: ri.next() < 0.04 ? 2 : 1 /* R2: about a fifth of the no-contract invoices belong to the service companies under the stay of execution (customer index 0 / 1 = SERVICE_COMPANY_LIST) */
       });
       if (st.alink[i] === 2) st.ent[i] = ENT_UNASSIGNED;
       if (linked) { d.inv = i; ct.invs.push(i); }
@@ -505,6 +505,15 @@ export function generateWorld(today, { scale = 1 } = {}) {
   }
   // contracts that are not signed yet took part in the loop above ONLY so that invoice serials never depend on `today`; they are invisible
   for (let c = 0; c < contracts.length; c += 1) if (contracts[c]?.future) contracts[c] = null;
+  // 21 Oct meeting, R11 · duplicates: the same customer, amount, product, revenue account and issue DATE under another number (a reserved serial range at the end of the year, so no stable id moves and the generated region stays id-sorted);
+  // the earliest number stays and the twin is excluded. Plus a repeat issued a year later with the same values — NOT a duplicate.
+  { const FN = SOURCE_INDEX.fines; const MFS = SOURCE_INDEX.municipal_fees; const DUPB = RULE_BIT['DUP-1']; let made = 0; let serial = 9_900_000; const open = (i) => st.payCount[i] === 0 && !st.cancelDay[i] && !st.exMask[i] && (st.src[i] === FN || st.src[i] === MFS) && st.payer[i] >= 2 && st.payer[i] < HOUSING_PAYER_BASE && st.due[i] < todayN;
+    const twin = (i, issue, flagged) => { const due = issue + (st.due[i] - st.issue[i]); serial += 1;
+      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i], alink: st.alink[i] });
+      st.gfs[j] = st.gfs[i]; return j; };
+    const n0 = st.n; const j26 = dayNum('2026-01-05'); const j25a = dayNum('2025-03-01'); const j25b = dayNum('2025-12-31');
+    for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) { twin(i, st.issue[i], true); made += 1; }
+    let rep = 0; for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) { twin(i, st.issue[i] + 365, false); rep += 1; } }
   st.nGen = st.n;
 
   /* ===================== D. Sanad execution requests (contract level) + CR extraction ===================== */
@@ -662,14 +671,35 @@ export function generateWorld(today, { scale = 1 } = {}) {
   // no stable demo id / order coverage moves; an invoice an order covers keeps its own history.
   { const LIC = SOURCE_INDEX.licenses; for (let i = 0; i < st.nGen; i += 1) { if (st.src[i] !== LIC || st.exec[i] >= 0) continue; const p = st.addPayment(i, st.issue[i], st.gross[i], 0); st.payStart[i] = p; st.payCount[i] = 1; st.cancelDay[i] = 0; st.exMask[i] = 0; st.exAppr[i] = 0; st.flags[i] &= ~F.OBJECTION; } }
   // 19 Oct meeting: two more exclusion types on UNCOLLECTED invoices — «إفادات الأمانات» (municipal fees) and «التعديات / استغلال المواقع» (investment). Assigned after everything else so no stable id moves.
-  { const MF = SOURCE_INDEX.municipal_fees; const INV = SOURCE_INDEX.investment; const FN = SOURCE_INDEX.fines; const D = RULE_BIT['DEC-1']; const A = RULE_BIT['ATT-1']; const E = RULE_BIT['ENC-1'];
+  { const MF = SOURCE_INDEX.municipal_fees; const INV = SOURCE_INDEX.investment; const A = RULE_BIT['ATT-1']; const E = RULE_BIT['ENC-1']; // «متوفى» was removed in the 21 Oct meeting (deferred): no invoice carries it
     for (let i = 0; i < st.nGen; i += 1) {
       if (st.payCount[i] > 0 || st.cancelDay[i] || st.exMask[i] || st.exec[i] >= 0 || st.issue[i] > todayN) continue;
       const h = mix(19, st.idKey[i] % 1000003) % 100;
-      if (st.src[i] === MF && h < 6) { st.exMask[i] = A; st.exAppr[i] = A; st.exRev[i] = 15 + (h % 30); }
-      else if (st.src[i] === FN && h < 2) { st.exMask[i] = D; st.exAppr[i] = D; st.exRev[i] = 15 + (h % 30); }
-      else if (st.src[i] === INV && h < 9) { st.exMask[i] = E; st.exAppr[i] = E; st.exRev[i] = 15 + (h % 30); }
+      if (st.src[i] === MF && h < 8) { st.exMask[i] = A; st.exAppr[i] = A; st.exRev[i] = 15 + (h % 30); }
+      else if (st.src[i] === INV && h < 12) { st.exMask[i] = E; st.exAppr[i] = E; st.exRev[i] = 15 + (h % 30); }
     } }
+  /* ---- 21 Oct meeting (v3): seed data that every reason R1–R11 needs, assigned after everything else so no stable id moves ---- */
+  { const uncollected = (i) => i < st.nGen && st.payCount[i] === 0 && !st.cancelDay[i] && st.exec[i] < 0 && st.issue[i] <= todayN;
+    const NOC = RULE_BIT['NOC-1']; const CRB = RULE_BIT['CR-1']; const DUPB = RULE_BIT['DUP-1'];
+    // R2 · stay of execution – service companies: invoices of the list's customers, taken from the no-contract reason (R1) first; at least 4 in all
+    const svc = () => { let n = 0; for (let i = 0; i < st.nGen; i += 1) if (uncollected(i) && st.payer[i] < 2) n += 1; return n; };
+    for (let i = 0, k = svc(); i < st.nGen && k < 4; i += 1) if (uncollected(i) && st.payer[i] >= 2 && (st.exMask[i] & NOC)) { st.payer[i] = k % 2; k += 1; }
+    // R10 · struck-off CR: at least 3 invoices whose contract registration is Deleted / Cancelled — the smallest unpaid invoices of two more contracts, so the CR view and the invoices agree without moving the totals much
+    { let have = 0; for (let i = 0; i < st.nGen; i += 1) if ((st.exMask[i] & CRB) && uncollected(i)) have += 1;
+      const byContract = new Map(); for (let i = 0; i < st.nGen; i += 1) if (st.contract[i] >= 0 && uncollected(i) && !st.exMask[i] && ![2, 4].includes(st.crSt[i])) { if (!byContract.has(st.contract[i])) byContract.set(st.contract[i], []); byContract.get(st.contract[i]).push(i); }
+      let c2 = 0; for (const [c, list] of byContract) { if (have >= 3) break; const ct = st.contracts[c]; if (!ct) continue; list.sort((x, y) => st.gross[x] - st.gross[y]);
+        ct.crSt = c2 % 2 === 0 ? 2 : 4; c2 += 1; st.crView.set(ct.crNo, { crNo: ct.crNo, status: ct.crSt, name: ct.payer });
+        for (let q = 0; q < list.length; q += 1) { const i = list[q]; st.crSt[i] = ct.crSt; if (q < 2) { st.exMask[i] |= CRB; st.exAppr[i] |= CRB; have += 1; } } } }
+    // R1 · no contract, internal origin too: invoices of an Amanah's own billing (scope internal) with an investment account and no contract in Furas — at least 3
+    { let k = 0; for (let i = 0; i < st.nGen; i += 1) if (st.scope[i] === 1 && st.src[i] !== SOURCE_INDEX.investment && uncollected(i) && !st.exMask[i]) { if (k >= 3) break;
+        st.exMask[i] = NOC; st.exAppr[i] = NOC; st.exRev[i] = 15 + (i % 30); st.src[i] = SOURCE_INDEX.investment; st.item[i] = ITEM_INDEX.ad_boards_amanah; st.gfs[i] = gfsIndexOf('11100-11105'); st.cstat[i] = 3; k += 1; } }
+    // R8 / R9 · loaded from an Amanah's file: at least 4 invoices of each already applied (investment: encroachments; municipal fees: statements)
+    for (const [bit, srcIdx] of [[RULE_BIT['ENC-1'], SOURCE_INDEX.investment], [RULE_BIT['ATT-1'], SOURCE_INDEX.municipal_fees]]) {
+      let have = 0; for (let i = 0; i < st.nGen; i += 1) if ((st.exMask[i] & bit) && uncollected(i)) have += 1;
+      for (let i = 0; i < st.nGen && have < 4; i += 1) if (st.src[i] === srcIdx && uncollected(i) && !st.exMask[i]) { st.exMask[i] = bit; st.exAppr[i] = bit; st.exRev[i] = 15 + (i % 30); have += 1; } }
+  }
+  // R7 · every invoice with an objection carries a Mumtathil appeal status; the five statuses are dealt out in turn so each one occurs
+  { let k = 0; for (let i = 0; i < st.nGen; i += 1) if (st.flags[i] & F.OBJECTION) { st.objSt[i] = (k % 5) + 1; k += 1; } }
   st.trim();
   st.meta = { today, scale, generatedFrom: GEN_START, seed: SEED, ms: Date.now() - t0, contracts: contracts.filter(Boolean).length, requests: reqCount };
   worldCache.set(key, st);

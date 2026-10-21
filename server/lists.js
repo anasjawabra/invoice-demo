@@ -270,10 +270,10 @@ export function risk(st, req) {
   // peer baseline: mean gross per (entity, source) over the scope
   const sum = new Float64Array(ENTITIES.length * SOURCES.length); const cnt = new Float64Array(ENTITIES.length * SOURCES.length);
   for (let i = 0; i < st.n; i += 1) { if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue; const g = st.ent[i] * SOURCES.length + st.src[i]; sum[g] += st.gross[i]; cnt[g] += 1; }
-  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, deceased_person: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
+  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    // duplicate / struck-off / deceased: listed only while OPEN (not already settled by an approved exclusion) — the same rule the invoice page uses
+    // duplicate / struck-off: listed only while OPEN (not already settled by an approved exclusion) — the same rule the invoice page uses
     const rf = recordRiskFlags(st, ctx, i);
     for (const [c, state] of Object.entries(rf)) if (state === 'open') { cat[c].n += 1; cat[c].amt += st.gross[i]; cat[c].top.push(i, c === 'duplicate' ? 90 : 85); }
     const g = st.ent[i] * SOURCES.length + st.src[i];

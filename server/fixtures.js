@@ -1,6 +1,6 @@
 // Appends full record objects (the hand-anchored fixtures and uploaded rows) to the columnar store, so they are
 // scanned, scoped and aggregated by exactly the same engine as the generated invoices.
-import { gfsCodeOf, gfsIndexOf } from '../src/data/iim.js';
+import { gfsCodeOf, gfsIndexOf, objectionStatusIndex } from '../src/data/iim.js';
 import { ITEMS, ENTITY_INDEX, ENT_UNASSIGNED, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
 
 export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
@@ -24,7 +24,7 @@ export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   for (const x of ex) { const bit = RULE_BIT[x.ruleId]; if (!bit) continue; mask |= bit; if (x.reviewStatus === 'approved') appr |= bit; }
   st.exMask[i] = mask; st.exAppr[i] = appr; st.exRev[i] = 0;
   let flags = kind === 'upload' ? F.UPLOADED : F.FIXTURE;
-  if (rec.objection?.open) flags |= F.OBJECTION;
+  if (rec.objection?.open) { flags |= F.OBJECTION; st.objSt[i] = objectionStatusIndex(rec.objection.status || 'awaiting_member'); } else st.objSt[i] = 0;
   if ((rec.missingFields || []).length) flags |= F.MISSING_ID;
   if (rec.amountCheck?.status === 'conflict') flags |= F.AMT_CONFLICT;
   if (rec.amountCheck?.status === 'not_checkable') flags |= F.NOT_CHECKABLE;
