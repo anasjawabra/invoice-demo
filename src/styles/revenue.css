@@ -880,3 +880,10 @@
 .dd-list { margin: 6px 0; padding-inline-start: 22px; display: grid; gap: 4px; line-height: 1.7; }
 .dd-table td { vertical-align: top; }
 .dd-table td .dd-code { min-width: 240px; }
+
+/* product management: catalogue sections and supporting-data cards */
+.prod-section { margin: 18px 0 8px; }
+.prod-card__desc { margin: 0; font-size: 13px; color: var(--txt-mute); }
+.prod-card__status { margin: 0; font-size: 13px; display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap; }
+.prod-card--static:hover { border-color: inherit; }
+.prod-card { align-content: start; }

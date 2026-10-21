@@ -8,24 +8,26 @@ import { useL } from '../utils/bi';
 import { ScopeBar, MetricTile } from '../components/revenue/RevenueUI';
 import { PctBadge } from '../components/strategic/EntityMap';
 import { EXCLUSION_REASONS, ORIGIN_AR, ORIGIN_EN } from '../data/iim';
-import { groupByKey, groupName, groupTotals, mainChallenge } from '../data/productInsights';
+import { groupByKey, groupName, groupTotals, mainChallenge, catalogTotals } from '../data/productInsights';
+import { catalogById } from '../data/productCatalog';
 
 // صفحة المنتج: its KPIs, its challenges (التحديات — a SECTION of the product, not a page of its own), its invoices. The Furas product adds contracts, receivables, expected
 // collection, contracting growth and the link to asset values — the last one a placeholder: no asset valuation exists in the demo and none is invented.
 export default function ProductPage() {
-  const { key } = useParams(); const keys = groupByKey(key);
+  const { key } = useParams(); const item = catalogById(key); const keys = useMemo(() => (item ? (item.filter?.product || []) : groupByKey(key)), [key]);
+  const srcFilter = item?.filter?.source || null; const valid = item ? !!item.filter : !!keys;
   const rev = useRevenue(); const nav = useNavigate();
   const { L, ar, lang, short, count, sar } = useL();
   const e = rev.scopeEff; const targetRate = rev.targets?.collectionRate?.value ?? 0.6;
-  const scope = useMemo(() => ({ from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType, muni: e.muni, status: e.status, mainClass: e.mainClass, product: keys || [] }), [e, keys]);
-  const { data: snap } = useAsync(() => (keys ? rev.data.snapshot(scope) : Promise.resolve(null)), [rev.data, scope, keys]);
-  const { data: lst } = useAsync(() => (keys ? rev.data.list(scope, { filters: { state: 'noncollected' }, page: 0, pageSize: 12, sort: { key: 'outstanding', dir: 'desc' } }) : Promise.resolve(null)), [rev.data, scope, keys]);
-  const { data: noContract } = useAsync(() => (keys && keys.includes('foras') ? rev.data.anomalies(scope, 1, { codes: ['investment_no_contract'] }) : Promise.resolve(null)), [rev.data, scope, keys]);
+  const scope = useMemo(() => ({ from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType, muni: e.muni, status: e.status, mainClass: e.mainClass, product: keys || [], ...(srcFilter ? { source: srcFilter } : {}) }), [e, keys, srcFilter]);
+  const { data: snap } = useAsync(() => (valid ? rev.data.snapshot(scope) : Promise.resolve(null)), [rev.data, scope, valid]);
+  const { data: lst } = useAsync(() => (valid ? rev.data.list(scope, { filters: { state: 'noncollected' }, page: 0, pageSize: 12, sort: { key: 'outstanding', dir: 'desc' } }) : Promise.resolve(null)), [rev.data, scope, valid]);
+  const { data: noContract } = useAsync(() => (keys && keys.includes('foras') ? rev.data.anomalies(scope, 1, { codes: ['investment_no_contract'] }) : Promise.resolve(null)), [rev.data, scope, valid]);
   const isFuras = !!keys && keys.includes('foras');
   const { data: cd } = useAsync(() => (isFuras ? rev.data.contracts({ amanah: e.amanah, source: 'investment', from: '2000-01-01', to: rev.cfg.cutoff }) : Promise.resolve(null)), [rev.data, isFuras, e.amanah, rev.cfg.cutoff]);
-  if (!keys) return <Navigate to="/products" replace />;
+  if (!valid) return <Navigate to="/products" replace />;
 
-  const T = snap ? groupTotals(snap.byProduct, keys) : null; const name = groupName(keys, lang);
+  const T = snap ? (item ? catalogTotals(snap, item) : groupTotals(snap.byProduct, keys)) : null; const name = item ? (ar ? item.name.ar : item.name.en) : groupName(keys, lang);
   // challenges: each one is computed from the product's own figures
   const challenges = [];
   if (T && T.count > 0) {
@@ -49,7 +51,7 @@ export default function ProductPage() {
           <h1 className="page-title">{name}</h1>
           <div className="page-sub"><Link to="/products">{L('Product management', 'إدارة المنتجات')}</Link> · {L('KPIs, challenges and invoices of this product', 'مؤشرات هذا المنتج وتحدياته وفواتيره')}</div>
         </div>
-        <button type="button" className="btn btn-sm" onClick={() => { rev.setProduct(keys); nav('/invoices'); }}>{L('Open the invoices list for this product', 'فتح قائمة الفواتير لهذا المنتج')}</button>
+        <button type="button" className="btn btn-sm" onClick={() => { if (srcFilter) { rev.setSource(srcFilter); rev.setProduct([]); } else rev.setProduct(keys); nav('/invoices'); }}>{L('Open the invoices list for this product', 'فتح قائمة الفواتير لهذا المنتج')}</button>
       </div>
       <ScopeBar hideStatus />
       {!T ? <div className="muted" role="status">{L('Calculating…', 'جارٍ الحساب…')}</div> : (

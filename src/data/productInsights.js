@@ -27,3 +27,14 @@ export function mainChallenge(t, { targetRate = 0.6, L }) {
   return L('Within the expected range.', 'ضمن المعتاد.');
 }
 void ratio;
+
+/** the totals of a catalogue card: a revenue SOURCE (Balady products) or a product GROUP; the rest of the snapshot is the part no card covers (housing sales, internal investment) */
+export function catalogTotals(snapshot, item) {
+  if (!item?.filter) return null;
+  return item.filter.source ? groupTotals(snapshot.bySource, [item.filter.source]) : groupTotals(snapshot.byProduct, item.filter.product);
+}
+export function remainderTotals(snapshot, items) {
+  const all = groupTotals([{ key: 'all', ...snapshot.totals }], ['all']); const listed = items.filter((i) => i.filter).map((i) => catalogTotals(snapshot, i));
+  const rest = { ...all }; for (const k of sumKeys) rest[k] = Math.max(0, all[k] - listed.reduce((t, x) => t + (x[k] || 0), 0));
+  rest.uncollectedTotal = rest.outstanding + rest.exclusionsRules; rest.rate = rest.net > 0 ? rest.collected / rest.net : null; return rest;
+}
