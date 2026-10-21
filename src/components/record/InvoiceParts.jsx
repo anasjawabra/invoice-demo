@@ -75,7 +75,7 @@ export function PaymentPanel({ pf, rec, today, ar, sar, L }) {
 export function InfoGroups({ groups }) {
   return (
     <div className="ip-groups">
-      {groups.map((g) => (
+      {groups.filter((g) => g && g.items.some(Boolean)).map((g) => (
         <section key={g.title} className="ip-card ip-group" aria-label={g.title}>
           <h2 className="ip-h">{g.title}</h2>
           <dl className="ip-dl">{g.items.filter(Boolean).map((x, i) => <div key={i}><dt>{x.k}</dt><dd dir={x.ltr ? 'ltr' : 'auto'}>{x.v}</dd></div>)}</dl>

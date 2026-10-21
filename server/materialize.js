@@ -111,6 +111,7 @@ export function detail(st, i, ctx) {
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
   const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry: 'open' | 'settled' } — the same rule as the Risks & Deviations page
   rec.iim = iimDetail(st, i, rec, D);
+  if (st.dupOf?.has(i)) rec.iim.duplicateOf = idOf(st, st.dupOf.get(i)); // R11: the earliest-numbered invoice this one repeats
   // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from
   if (D.excluded && rec.iim.exclusion?.ruleId === 'SND-1' && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) { const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const ev = { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' }; const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources: [{ system: 'سند — قضايا', field: 'رقم الأمر', value: q ? q.enforceNum : 'رابط مؤكد' }], rawValue: null, reviewStatus: 'approved', reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started' }; rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e; }
   // reasons that apply without a stored record: R2 (the customer is on the list), R7 from the appeal status, and R8 / R9 loaded from an Amanah's file (the upload template)

@@ -91,3 +91,28 @@ User roles, live integrations, automatic exclusion of anything not listed, chang
 
 ## 8. Acceptance
 Unit tests + `npm run build`; in the running app: no «متوفى», no «اعتراضات قائمة بإيفاء», no «المصروفات» on planning; reason totals = the dashboard exclusion card; gross − exclusions = net everywhere; the sample upload gives the expected accepted / rejected rows and the rejected file downloads; coverage and collection targets move independently (70 % → low probability, 30 % → high); no internal panel with the flag off; RTL, no console errors, no truncated labels at laptop width.
+
+## 9. Status (implemented on `feat/iim-oct21-review`, local; nothing pushed, merged or deployed)
+
+| ID | Status | Where |
+|---|---|---|
+| Exclusion model R1–R11 (D10 / IIM-04) | **Done.** One list (`EXCLUSION_REASONS` in `iim.js`) with number, code, label, source and a one-line rule; precedence = rule priority in `revenueMetrics.js`; rule-set version `EXCL-RULES v4`. «متوفى» is removed everywhere (model, filters, seed, charts, risk radar, invoice flag); `DECEASED_DEFERRED = true` marks it deferred. | `src/data/iim.js`, `revenueMetrics.js`, `catalog.js`, `ruleRegistry.js`, `server/engine.js` |
+| R2 · IIM-31 | **Done.** New rule `STY-1`; customer list `SERVICE_COMPANY_LIST`; wins over R1; about a fifth of the seeded no-contract invoices were moved to it. Applies to unpaid invoices only. | `iim.js`, `engine.js`, `world.js` |
+| R7 · IIM-29 | **Done.** Mumtathil appeal status stored per objection (`objSt`); four statuses exclude, «مكتمل مرفوض» stays collectable and is no longer an objection case; status shown on the invoice and on the exclusions rows. Map in one place: `OBJECTION_STATUSES`. | `iim.js`, `engine.js`, `world.js`, `materialize.js`, `InvoicePage.jsx` |
+| R11 | **Done.** `findDuplicates()` (same customer / amount / product / account / issue date; earliest number kept). Seed: three same-day twins (reserved serial range, so no stable id moves) + one yearly repeat that is not a duplicate; the twin row links to the invoice it repeats. | `iim.js`, `world.js`, `Exclusions.jsx` |
+| Exclusions screen (IIM-23) | **Done.** Cards, R1–R11 table with source and one-line rule, filters, rows with the full column list, R7 status, R11 link, collapsed «قواعد الاستبعاد» panel. | `src/pages/Exclusions.jsx` |
+| Upload template (IIM-30) | **Done.** `.xlsx` template with two drop-down lists (added to the sheet XML after writing, since the library cannot), upload `.xlsx/.csv`, per-row validation by the data service (`/api/exclusion-check`), preview, confirm, rejected-rows file, applied files logged with name / date / user, state on this device. Sample: `public/samples/exclusion-upload-sample.xlsx` (140 rows: 54 accepted, 86 rejected for every reason code; regenerate with `npm run sample:exclusion`). | `src/data/exclusionUpload.js`, `server/exclusionUpload.js`, `ExclusionUpload.jsx`, `RevenueContext.jsx` |
+| Planning (IIM-28) | **Done** (fork). Overall coverage 66 % and collection 68 % as independent inputs, optional overall billing target, required billing, per-Amanah override collapsed and off. | `PlanningArea.jsx`, `TargetsPanel.jsx`, `planTargets.js` |
+| Execution (IIM-32) | **Done** (fork). `SHOW_INTERNAL_NOTES = false` hides the explanatory panels; order detail fields in one config list. | `src/data/uiFlags.js`, `EnforcementOrderPage.jsx` and the other enforcement files |
+| Invoice detail (IIM-33) | **Done.** Source blocks only when data exists: Furas, violation (Efaa / Mumtathil), objection, commercial registration, exclusion (reason, source, file name / date / user). | `InvoicePage.jsx`, `InvoiceParts.jsx` |
+| Seed data (IIM-27) | **Done.** Every reason has ≥ 3 primary invoices in the compact demo (tested); five objection statuses; CR Active / Deleted / Cancelled; Eefaa incomplete / executed / missing; no deceased; budget 32.7 bn, collections to date ≈ 8.5 bn (illustrative). | `server/world.js` |
+
+Tests: 161 platform + 12 chat + 9 decision-room; `npm run build` passes.
+
+## 10. Things to know / confirm
+- **Per-Amanah coverage when the override is off.** The Ministry target is 66 % × the whole communicated budget (32.7 bn, headquarters included), which is what v3's 70 % → 22.9 bn scenario needs. Headquarters collects nothing, so its share is spread over the Amanahs by their revenue appropriation and an Amanah's own coverage shows above 66 %. Applying 66 % to each Amanah's own budget would give about 18.4 bn.
+- **Pace in the scenario.** With this data the 70 % case shows a ceiling near 20.3 bn (v3 heard about 19 bn) and 8.54 bn collected (v3: about 8.5 bn).
+- R2 invoices that already have a payment are not taken out whole (receipts on excluded invoices are kept apart in this model).
+- The compact demo has about 95 uncollected invoices, so applying the sample file excludes a large share of them; the figures are illustrative.
+- The R-numbers are the team's shorthand: the screens show the business labels only.
+- Still open from v3: Q1–Q15 above (defaults used); M3 transcript not available; products management (v2 IIM-24) untouched.

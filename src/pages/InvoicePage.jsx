@@ -10,7 +10,7 @@ import { MoneyPanel, PaymentPanel, InfoGroups, SectionNav } from '../components/
 import { paymentFacts } from '../data/invoicePayments';
 import { PayStatusChip, OrderStatusChip, Chip, EnforcementChips, LINK_STATUS_LABEL, CONFLICT_LABEL, SOURCE_LABEL, Enf1Explainer } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
-import { orderPath, contractPath } from '../utils/paths';
+import { orderPath, contractPath, invoicePath } from '../utils/paths';
 import { enforcementOf, evidenceForInvoice, CLOSE_REASON_LABEL } from '../data/relations';
 import { exclusionRecordsOf, ruleById, CATEGORY_LABELS } from '../data/revenueMetrics';
 import { RULE_APPROVAL_LABEL } from '../data/ruleRegistry';
@@ -18,7 +18,7 @@ import { RULE_IDS } from '../data/catalog';
 import { REVENUE_SOURCES } from '../data/revenueLedger';
 import { ORIGIN_LABEL, unresolvedConflicts } from '../data/orderMatching';
 import { fmtRiyadh, fmtDateText } from '../data/clock';
-import { MAIN_EN, EXCLUSIONS_AUTO_APPLY } from '../data/iim';
+import { MAIN, MAIN_EN, EXCLUSIONS_AUTO_APPLY } from '../data/iim';
 import { locLabel } from '../data/docxText';
 
 const CHANNEL = { sadad: { en: 'SADAD', ar: 'سداد' }, voluntary: { en: 'Voluntary', ar: 'طوعي' }, enforcement: { en: 'Enforcement', ar: 'تنفيذ' }, transfer: { en: 'Transfer', ar: 'تحويل' }, card: { en: 'Card', ar: 'بطاقة' }, wallet: { en: 'Wallet', ar: 'محفظة' } };
@@ -39,6 +39,8 @@ const ERR = {
 
 // ONE full page per invoice: essential summary first, findings that need action, then a few sections. Statuses are kept apart on purpose:
 // PAYMENT (what was paid) · ENFORCEMENT (current / historical, from confirmed order links) · REVIEW (this analysis) — reviewing or confirming never implies payment or legal approval.
+const CONTRACT_STATE = { linked: { en: 'Linked', ar: 'مرتبط' }, unmatched: { en: 'Not matched', ar: 'غير مطابق' }, confirmed_none: { en: 'No contract (confirmed)', ar: 'لا يوجد عقد (مؤكد)' }, unlinked: { en: 'Not linked', ar: 'غير مرتبط' }, unverified: { en: 'Not verified', ar: 'لم يُتحقق منه' } };
+
 export default function InvoicePage() {
   const { id: rawId } = useParams(); const id = decodeURIComponent(rawId || '');
   const rev = useRevenue();
@@ -96,6 +98,7 @@ export default function InvoicePage() {
     evidence: L(`Cancelled in the source${rec.cancelled?.date ? ` on ${rec.cancelled.date}` : ''} · orders: ${orderList}. The established treatment is kept: the invoice stays cancelled in every total. The rule that would count such invoices as uncollected is not applied — its conditions and approver are not confirmed. No review action changes an amount.${enf1Dec ? ' A decision recorded earlier is kept in the history only and has no effect.' : ''}`, `أُلغيت في المصدر${rec.cancelled?.date ? ` بتاريخ ${rec.cancelled.date}` : ''} · الأوامر: ${orderList}. المعالجة المقررة محفوظة: تبقى الفاتورة ملغاة في كل الإجماليات. والقاعدة التي تعدّ مثل هذه الفواتير غير محصّلة غير مطبّقة — فشروطها وجهة اعتمادها غير مؤكدة. ولا يغيّر أي إجراء مراجعة أي مبلغ.${enf1Dec ? ' وقرار سُجّل سابقاً محفوظ في السجل فقط ولا أثر له.' : ''}`), action: null });
 
   const myPay = card?.schedule?.find((p) => p.invoiceNo === id);
+  const uploadedEx = (det?.rec?.exclusions || []).find((e) => e.file && e.ruleId === det?.rec?.iim?.exclusion?.ruleId) || null; // R8 / R9: the file the exclusion came from
   const timeline = [
     { d: rec.issueDate, t: L('Invoice issued', 'صدرت الفاتورة') }, { d: rec.dueDate, t: L('Due date', 'تاريخ الاستحقاق') },
     ...rec.payments.map((p) => ({ d: p.date, t: `${L('Payment', 'دفعة')} ${sar(p.amount)} · ${B(CHANNEL[p.channel] || { en: p.channel, ar: p.channel })}` })),
@@ -132,7 +135,7 @@ export default function InvoicePage() {
           { k: L('SADAD no.', 'رقم السداد'), v: im.sadadNo, ltr: true },
           { k: L('Biller', 'المفوتر'), v: <span><span dir="ltr">{im.billerId}</span> / {ar ? im.billerAr : im.billerEn}</span> },
           { k: L('Product', 'اسم المنتج'), v: ar ? im.productAr : im.productEn },
-          rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true }
+          rec.violationNumber && rec.revenueSource !== 'fines' && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true }
         ] },
         { title: L('Location and revenue classification', 'الموقع وتصنيف الإيراد'), items: [
           { k: L('Amanah / entity', 'الأمانة / الجهة'), v: `${ar ? rec.amanahAr : rec.amanahEn}${im.entityType === 'entity' ? ` (${ar ? im.entityTypeAr : 'entity'})` : ''}` },
@@ -158,6 +161,37 @@ export default function InvoicePage() {
           { k: L('Invoice amount', 'مبلغ الفاتورة'), v: sar(rec.grossAmount), ltr: true },
           im.revenueAmount > 0 && { k: L('Revenue amount', 'مبلغ الإيراد'), v: sar(im.revenueAmount), ltr: true },
           im.exclusion && { k: L('Exclusion reason', 'سبب الاستبعاد'), v: <span>{ar ? im.exclusion.reasonAr : im.exclusion.reasonEn}{im.exclusion.sourceAr && <small className="muted"> — {ar ? im.exclusion.sourceAr : im.exclusion.sourceEn}</small>}</span> }
+        ] },
+        // IIM-33 — one block per source system, shown only when the invoice has data from it (empty fields are hidden)
+        (rec.revenueSource === 'investment' || im.mainClass === MAIN.investment) && { title: L('Furas data', 'بيانات فرص'), items: [
+          rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
+          rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
+          !rec.co && rec.contract?.status && rec.contract.status !== 'not_applicable' && { k: L('Contract in Furas', 'العقد في فرص'), v: L(CONTRACT_STATE[rec.contract.status]?.en || rec.contract.status, CONTRACT_STATE[rec.contract.status]?.ar || rec.contract.status) },
+          rec.co && myPay && card && { k: L('Instalment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Instalment ${myPay.no} of ${card.schedule.length}` },
+          rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true },
+          { k: L('Asset / site', 'الأصل / الموقع'), v: `${B(rec.revenueItem)}${rec.municipalityAr ? ` — ${ar ? rec.municipalityAr : rec.municipalityEn}` : ''}` }
+        ] },
+        rec.revenueSource === 'fines' && { title: L('Violation data (Efaa / Mumtathil)', 'بيانات المخالفة (إيفاء / ممتثل)'), items: [
+          rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true },
+          rec.statusRawEfaa && { k: L('Efaa status', 'حالة إيفاء'), v: rec.statusRawEfaa === 'غير مكتملة' ? L('Incomplete', 'غير مكتمل') : L('Complete', 'مكتمل') },
+          rec.statusRawEfaa && { k: L('Executed against (Efaa)', 'منفذ ضده (إيفاء)'), v: rec.statusRawEfaa === 'منفذ ضده' ? L('Yes', 'نعم') : L('No', 'لا') },
+          rec.objection?.statusAr && { k: L('Objection status (Mumtathil)', 'حالة الاعتراض (ممتثل)'), v: ar ? rec.objection.statusAr : rec.objection.statusEn },
+          rec.objection?.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
+        ] },
+        rec.revenueSource !== 'fines' && rec.objection?.statusAr && { title: L('Objection data (Mumtathil)', 'بيانات الاعتراض (ممتثل)'), items: [
+          { k: L('Objection status', 'حالة الاعتراض'), v: ar ? rec.objection.statusAr : rec.objection.statusEn }, rec.objection.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
+        ] },
+        (rec.crNo || rec.crStatusRaw) && { title: L('Commercial registration', 'بيانات السجل التجاري'), items: [
+          rec.crNo && { k: L('CR number', 'رقم السجل التجاري'), v: rec.crNo, ltr: true },
+          rec.crStatusRaw && { k: L('CR status', 'حالة السجل التجاري'), v: rec.crStatusRaw, ltr: true }
+        ] },
+        im.exclusion && { title: L('Exclusion data', 'بيانات الاستبعاد'), items: [
+          { k: L('Exclusion reason', 'سبب الاستبعاد'), v: ar ? im.exclusion.reasonAr : im.exclusion.reasonEn },
+          im.exclusion.sourceAr && { k: L('Exclusion source', 'مصدر الاستبعاد'), v: ar ? im.exclusion.sourceAr : im.exclusion.sourceEn },
+          uploadedEx?.file && { k: L('File', 'اسم الملف'), v: uploadedEx.file.name, ltr: true },
+          uploadedEx?.file && { k: L('Upload date', 'تاريخ الرفع'), v: fmtDateText(String(uploadedEx.file.at).slice(0, 10), ar ? 'ar' : 'en') },
+          uploadedEx?.file && uploadedEx.file.by && { k: L('Uploaded by', 'رُفع بواسطة'), v: uploadedEx.file.by },
+          im.exclusion.ruleId === 'DUP-1' && im.duplicateOf && { k: L('Repeats the invoice', 'تكرار للفاتورة'), v: <RecordLink to={invoicePath(im.duplicateOf)} dir="ltr">{im.duplicateOf}</RecordLink> }
         ] },
         { title: L('Status in the source systems', 'الحالة في أنظمة المصدر'), items: [
           { k: L('Source status (Tahseel)', 'حالة المصدر (تحصيل)'), v: rec.statusRawTahseel || '—' }, rec.statusRawEfaa && { k: L('Source status (Efaa)', 'حالة المصدر (إيفاء)'), v: rec.statusRawEfaa },

@@ -740,13 +740,7 @@ var INVOICES = [
     status: "review",
     risk: 41,
     confidence: 0.7,
-    tag: "taxfail",
-    // Exclusion category: struck-off commercial registry / deceased debtor —
-    // excluded from net-invoiced entirely, never counted as collected. A sole
-    // establishment (مؤسسة فردية) is legally tied to one individual owner, so
-    // this one is flagged for the debtor's death, not a registry lapse.
-    debtorInvalid: true,
-    debtorInvalidReason: "deceased_person"
+    tag: "taxfail"
   },
   {
     id: "305-882608050000",
@@ -1032,7 +1026,7 @@ var REVENUE_ITEMS = ITEMS.reduce((m, it) => {
   (m[it.source] = m[it.source] || []).push(it);
   return m;
 }, {});
-var RULE_IDS = ["DUP-1", "CR-1", "DEC-1", "NOC-1", "INC-1", "EXE-1", "EFA-1", "OBJ-1", "ENF-1", "SND-1", "ATT-1", "ENC-1"];
+var RULE_IDS = ["DUP-1", "CR-1", "STY-1", "NOC-1", "INC-1", "EXE-1", "EFA-1", "OBJ-1", "ENF-1", "SND-1", "ATT-1", "ENC-1"];
 var RULE_BIT = Object.fromEntries(RULE_IDS.map((id, i) => [id, 1 << i]));
 var CR_STATUS = [null, "Active", "Deleted", "Suspended", "Cancelled"];
 var EFAA_STATUS = [null, "\u0645\u0633\u062F\u062F\u0629", "\u0642\u0627\u0626\u0645\u0629", "\u062A\u062D\u062A \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636", "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629", "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647"];
@@ -1115,9 +1109,7 @@ var OVERLAY = {
   "177-882608080000": { exclusion: { category: "duplicate", ruleId: "DUP-1", evidence: { en: "Same payer, amount and period as an earlier Jazan invoice.", ar: "\u0646\u0641\u0633 \u0627\u0644\u062F\u0627\u0641\u0639 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0648\u0627\u0644\u0641\u062A\u0631\u0629 \u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0633\u0627\u0628\u0642\u0629 \u0641\u064A \u062C\u0627\u0632\u0627\u0646." }, reviewStatus: "approved", reviewDate: "2026-04-20" } },
   // An exclusion recorded on an invoice that was LATER fully collected: exclusions come only from uncollected invoices (D10), so the metric layer ignores it and counts it as a data warning.
   "177-882606200000": { exclusion: { category: "incomplete_data", ruleId: "INC-1", evidence: { en: "Listed in the Efaa incomplete-violations report, then paid in full.", ar: "\u0648\u0631\u062F \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0625\u064A\u0641\u0627\u0621 \u0644\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u063A\u064A\u0631 \u0627\u0644\u0645\u0643\u062A\u0645\u0644\u0629 \u062B\u0645 \u0633\u064F\u062F\u0651\u062F\u062A \u0628\u0627\u0644\u0643\u0627\u0645\u0644." }, reviewStatus: "approved", reviewDate: "2026-03-12" } },
-  "177-882605450000": { exclusion: { category: "struck_off_registry", ruleId: "CR-1", evidence: { en: "Commercial registration reported struck-off by the commerce registry check.", ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0645\u0634\u0637\u0648\u0628 \u0648\u0641\u0642 \u0641\u062D\u0635 \u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u0629." }, reviewStatus: "approved", reviewDate: "2026-03-10" } },
-  // Candidate exclusion that is NOT yet approved -> stays in net billed.
-  "177-882608040000": { exclusion: { category: "deceased_debtor", ruleId: "DEC-1", evidence: { en: "Civil-registry flag suggests the debtor is deceased; heir/estate position not established.", ar: "\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A \u062A\u0641\u064A\u062F \u0628\u0648\u0641\u0627\u0629 \u0627\u0644\u0645\u062F\u064A\u0646\u061B \u0648\u0636\u0639 \u0627\u0644\u0648\u0631\u062B\u0629/\u0627\u0644\u062A\u0631\u0643\u0629 \u063A\u064A\u0631 \u0645\u062B\u0628\u062A." }, reviewStatus: "pending", reviewDate: null } }
+  "177-882605450000": { exclusion: { category: "struck_off_registry", ruleId: "CR-1", evidence: { en: "Commercial registration reported struck-off by the commerce registry check.", ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0645\u0634\u0637\u0648\u0628 \u0648\u0641\u0642 \u0641\u062D\u0635 \u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u0629." }, reviewStatus: "approved", reviewDate: "2026-03-10" } }
 };
 var CONFIRMED_SEED = [
   { enforceNum: "EN-2301188", system: "sanad", amanahEn: "Jeddah Amanah", amount: 687500, openedDate: "2026-05-28", links: [{ invoiceId: "177-882607220000", allocated: 687500, status: "confirmed", evidence: ["reference_match"], reviewedBy: "Revenue data steward (demo reviewer)", reviewedAt: "2026-06-30" }] },
@@ -1259,7 +1251,7 @@ function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEED, uplo
       statusRawTahseel: null,
       statusRawEfaa: null,
       workflowStatus: inv2.status,
-      objection: inv2.hasOpenObjection ? { open: true, ref: `OBJ-${inv2.id.slice(-4)}`, system: "momtathil" } : null,
+      objection: inv2.hasOpenObjection ? { open: true, ref: `OBJ-${inv2.id.slice(-4)}`, system: "momtathil", status: inv2.objectionStatus || "awaiting_committee" } : null,
       enforcementLinks: linkByInvoice.get(inv2.id) || [],
       contract: contractLinkOf(inv2),
       exclusion: ex,
@@ -1619,21 +1611,136 @@ var classOfRow = (gfsIdx, originIdx) => {
   return gfsIdx === UNKNOWN_IDX ? { code, sub: null, main: UNCLASSIFIED } : classify(code, originIdx === 0 ? "central" : "internal");
 };
 var EXCLUSION_REASONS = [
-  { ruleId: "CR-1", ar: "\u0633\u062C\u0644\u0627\u062A \u0645\u0634\u0637\u0648\u0628\u0629", en: "Struck-off records" },
-  { ruleId: "DEC-1", ar: "\u0645\u062A\u0648\u0641\u0649", en: "Deceased" },
-  { ruleId: "OBJ-1", ar: "\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A \u0642\u0627\u0626\u0645\u0629", en: "Open objections" },
-  { ruleId: "NOC-1", ar: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F", en: "Invoices not based on contracts" },
-  { ruleId: "INC-1", ar: "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644", en: "Incomplete" },
-  { ruleId: "EFA-1", ar: "\u062E\u0627\u0631\u062C \u0625\u064A\u0641\u0627\u0621", en: "Outside Efaa" },
-  { ruleId: "EXE-1", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0625\u064A\u0641\u0627\u0621", en: "Executed against \u2013 Efaa" },
-  { ruleId: "SND-1", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0642\u0636\u0627\u064A\u0627 (\u0633\u0646\u062F)", en: "Executed against \u2013 cases (Sanad)" },
-  { ruleId: "ATT-1", ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A", en: "Amanah statements" },
-  { ruleId: "ENC-1", ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A / \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639", en: "Encroachments / site exploitation" },
-  { ruleId: "DUP-1", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0643\u0631\u0631\u0629", en: "Duplicate invoice" }
-  // not named in the meeting; kept because it is an approved data-quality rule (open question OQ-1)
+  {
+    n: 1,
+    code: "NO_CONTRACT",
+    ruleId: "NOC-1",
+    ar: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F",
+    en: "Invoices not based on contracts",
+    ruleAr: "\u0623\u064A \u0641\u0627\u062A\u0648\u0631\u0629\u060C \u0645\u0646 \u0623\u064A \u0623\u0645\u0627\u0646\u0629 \u0623\u0648 \u062C\u0647\u0629 (\u0645\u0631\u0643\u0632\u064A\u0629 \u0623\u0648 \u062F\u0627\u062E\u0644\u064A\u0629)\u060C \u0628\u062D\u0633\u0627\u0628 \u0625\u064A\u0631\u0627\u062F \u0627\u0633\u062A\u062B\u0645\u0627\u0631\u064A \u0648\u0644\u0627 \u0639\u0642\u062F \u0644\u0647\u0627 \u0641\u064A \u0641\u0631\u0635.",
+    ruleEn: "Any invoice, from any Amanah or entity (central or internal), with an investment revenue account and no contract in Furas."
+  },
+  {
+    n: 2,
+    code: "SERVICE_CO_STAY",
+    ruleId: "STY-1",
+    ar: "\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u2013 \u0627\u0644\u0634\u0631\u0643\u0627\u062A \u0627\u0644\u062E\u062F\u0645\u064A\u0629",
+    en: "Stay of execution \u2013 service companies",
+    workingLabel: true,
+    ruleAr: "\u0627\u0644\u0639\u0645\u064A\u0644 \u0634\u0631\u0643\u0629 \u0627\u0644\u0645\u064A\u0627\u0647 \u0627\u0644\u0648\u0637\u0646\u064A\u0629 \u0623\u0648 \u0634\u0631\u0643\u0629 \u062E\u062F\u0645\u064A\u0629 \u062A\u062D\u062A \u0623\u0645\u0631 \u0639\u0627\u0644\u064D \u0628\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0644\u062C\u0646\u0629. \u062A\u0633\u0628\u0642 \xAB\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F\xBB. \u0627\u0644\u062A\u0633\u0645\u064A\u0629 \u0645\u0624\u0642\u062A\u0629.",
+    ruleEn: "The customer is the National Water Company or a service company under a high-order stay of execution pending a committee. Takes precedence over R1. Working label."
+  },
+  {
+    n: 3,
+    code: "SANAD_EXECUTED",
+    ruleId: "SND-1",
+    ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0642\u0636\u0627\u064A\u0627 (\u0633\u0646\u062F)",
+    en: "Executed against \u2013 cases (Sanad)",
+    ruleAr: "\u0623\u064A \u0641\u0627\u062A\u0648\u0631\u0629 \u0641\u064A \u0633\u0646\u062F \u0644\u0647\u0627 \u0631\u0642\u0645 \u062A\u0646\u0641\u064A\u0630\u060C \u0645\u0647\u0645\u0627 \u0643\u0627\u0646\u062A \u062D\u0627\u0644\u0629 \u0627\u0644\u0623\u0645\u0631.",
+    ruleEn: "Any invoice in Sanad with an execution number, whatever the status of the order."
+  },
+  {
+    n: 4,
+    code: "EEFAA_INCOMPLETE",
+    ruleId: "INC-1",
+    ar: "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644",
+    en: "Incomplete",
+    ruleAr: "\u0627\u0644\u062D\u0627\u0644\u0629 \xAB\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\xBB \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621: \u064A\u0624\u062E\u0630 \u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u0648\u064A\u064F\u0631\u0628\u0637 \u0628\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629.",
+    ruleEn: "Status \xABincomplete\xBB in the payment-claim notice report: the violation number is linked to the invoice number."
+  },
+  {
+    n: 5,
+    code: "OUTSIDE_EEFAA",
+    ruleId: "EFA-1",
+    ar: "\u062E\u0627\u0631\u062C \u0625\u064A\u0641\u0627\u0621",
+    en: "Outside Efaa",
+    ruleAr: "\u0627\u0644\u062C\u0632\u0627\u0621\u0627\u062A \u0636\u0645\u0646 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0627\u0644\u062A\u064A \u0644\u0627 \u062A\u0638\u0647\u0631 \u0641\u064A \u0625\u064A\u0641\u0627\u0621\u061B \u064A\u064F\u0631\u0628\u0637 \u0631\u0642\u0645 \u0625\u064A\u0641\u0627\u0621 \u0628\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629.",
+    ruleEn: "Penalties within the uncollected invoices that do not appear in Efaa; the Efaa number is linked to the invoice number."
+  },
+  {
+    n: 6,
+    code: "EEFAA_EXECUTED",
+    ruleId: "EXE-1",
+    ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0625\u064A\u0641\u0627\u0621",
+    en: "Executed against \u2013 Efaa",
+    ruleAr: "\u0643\u0644 \u0645\u062E\u0627\u0644\u0641\u0629 \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 (\u0631\u0642\u0645 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629) \u062A\u064F\u0631\u0628\u0637 \u0628\u0641\u0627\u062A\u0648\u0631\u062A\u0647\u0627 \u0648\u062A\u064F\u0633\u062A\u0628\u0639\u062F.",
+    ruleEn: "Every violation in the executed-against report (execution and violation numbers) is linked to its invoice and excluded."
+  },
+  {
+    n: 7,
+    code: "OPEN_OBJECTION",
+    ruleId: "OBJ-1",
+    ar: "\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A \u0642\u0627\u0626\u0645\u0629",
+    en: "Open objections",
+    ruleAr: "\u062A\u064F\u0633\u062A\u0628\u0639\u062F: \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0648\u062C\u064A\u0647 \u0627\u0644\u0639\u0636\u0648\u060C \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0644\u062C\u0646\u0629\u060C \u0645\u0642\u0628\u0648\u0644 \u062C\u0632\u0626\u064A\u064B\u0627\u060C \u0645\u0643\u062A\u0645\u0644 \u0645\u0642\u0628\u0648\u0644. \u062A\u0628\u0642\u0649: \u0645\u0643\u062A\u0645\u0644 \u0645\u0631\u0641\u0648\u0636.",
+    ruleEn: "Excluded: awaiting the member, awaiting the committee, partly accepted, complete \u2013 accepted. Kept: complete \u2013 rejected."
+  },
+  {
+    n: 8,
+    code: "ENCROACHMENT",
+    ruleId: "ENC-1",
+    ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A \u0648\u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639 (\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A)",
+    en: "Encroachments and site exploitation (encroachment report)",
+    ruleAr: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0633\u062A\u062B\u0645\u0627\u0631 (\u062E\u0627\u0631\u062C \u0641\u0631\u0635 \u0648\u0642\u062F \u062A\u0643\u0648\u0646 \u062F\u0627\u062E\u0644\u064A\u0629) \u062A\u0641\u064A\u062F \u0628\u0647\u0627 \u0627\u0644\u0623\u0645\u0627\u0646\u0629\u060C \u0648\u062A\u064F\u062D\u0645\u064E\u0651\u0644 \u0628\u0642\u0627\u0644\u0628 \u0627\u0644\u0631\u0641\u0639.",
+    ruleEn: "Investment invoices (outside Furas, may be internal) reported by the Amanah, loaded through the upload template."
+  },
+  {
+    n: 9,
+    code: "AMANAH_STATEMENT",
+    ruleId: "ATT-1",
+    ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A",
+    en: "Amanah statements",
+    ruleAr: "\u0627\u0644\u0642\u0646\u0627\u0629 \u0648\u0627\u0644\u0642\u0627\u0644\u0628 \u0646\u0641\u0633\u0647\u0645\u0627 \u0644\u0644\u062A\u0639\u062F\u064A\u0627\u062A\u061B \u062A\u064F\u062D\u0645\u064E\u0651\u0644 \u0628\u0642\u0627\u0644\u0628 \u0627\u0644\u0631\u0641\u0639 \u0641\u0642\u0637.",
+    ruleEn: "Same channel and template as encroachments; loaded through the upload template only."
+  },
+  {
+    n: 10,
+    code: "STRUCK_OFF_CR",
+    ruleId: "CR-1",
+    ar: "\u0633\u062C\u0644\u0627\u062A \u0645\u0634\u0637\u0648\u0628\u0629",
+    en: "Struck-off records",
+    ruleAr: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0645\u062D\u0630\u0648\u0641 \u0623\u0648 \u0645\u0644\u063A\u0649 (\u0628\u0644\u062F\u064A + \u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A).",
+    ruleEn: "Commercial-registration status Deleted or Cancelled (Balady + the CR view)."
+  },
+  {
+    n: 11,
+    code: "DUPLICATE",
+    ruleId: "DUP-1",
+    ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0643\u0631\u0631\u0629",
+    en: "Duplicate invoice",
+    ruleAr: "\u0646\u0641\u0633 \u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0648\u0627\u0644\u0645\u0646\u062A\u062C \u0648\u062D\u0633\u0627\u0628 \u0627\u0644\u0625\u064A\u0631\u0627\u062F \u0648\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0635\u062F\u0627\u0631 \u0628\u0631\u0642\u0645 \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u062E\u062A\u0644\u0641\u061B \u062A\u0628\u0642\u0649 \u0627\u0644\u0623\u0642\u062F\u0645 \u0631\u0642\u0645\u064B\u0627. \u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0633\u0646\u0629 \u0627\u0644\u062A\u0627\u0644\u064A\u0629 \u0644\u064A\u0633 \u062A\u0643\u0631\u0627\u0631\u064B\u0627.",
+    ruleEn: "Same customer, amount, product, revenue account and issue date with a different invoice number; the earliest-numbered is kept. A repeat in another year is not a duplicate."
+  }
 ];
 var EXCLUSION_REASON_OF_RULE = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, r]));
-var EXCLUSION_SOURCE_OF_RULE = { "CR-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A", en: "Commercial registry" }, "DEC-1": { ar: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A", en: "Civil registry" }, "OBJ-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A", en: "Efaa \u2014 objections" }, "NOC-1": { ar: "\u0641\u0631\u0635", en: "Furas" }, "INC-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644", en: "Efaa \u2014 incomplete" }, "EFA-1": { ar: "\u0625\u064A\u0641\u0627\u0621", en: "Efaa" }, "EXE-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u0645\u0646\u0641\u0630 \u0636\u062F\u0647", en: "Efaa \u2014 executed against" }, "SND-1": { ar: "\u0633\u0646\u062F \u2013 \u0642\u0636\u0627\u064A\u0627", en: "Sanad \u2013 cases" }, "DUP-1": { ar: "\u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631", en: "Duplicate detection" }, "ATT-1": { ar: "\u0625\u0641\u0627\u062F\u0629 \u0627\u0644\u0623\u0645\u0627\u0646\u0629", en: "Amanah statement" }, "ENC-1": { ar: "\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A", en: "Encroachment record" } };
+var EXCLUSION_SOURCE_OF_RULE = {
+  "NOC-1": { ar: "\u0641\u0631\u0635", en: "Furas" },
+  "STY-1": { ar: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0648\u0632\u0627\u0631\u0629", en: "Ministry list" },
+  "SND-1": { ar: "\u0633\u0646\u062F", en: "Sanad" },
+  "INC-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2013 \u062A\u0642\u0631\u064A\u0631 \u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621", en: "Efaa \u2013 payment-claim notice report" },
+  "EFA-1": { ar: "\u0627\u0644\u0645\u062F\u064A\u0648\u0646\u064A\u0627\u062A \u0645\u0642\u0627\u0628\u0644 \u0642\u0627\u0626\u0645\u0629 \u0625\u064A\u0641\u0627\u0621", en: "Uncollected debt vs the Efaa list" },
+  "EXE-1": { ar: "\u0625\u064A\u0641\u0627\u0621 \u2013 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647", en: "Efaa \u2013 executed-against report" },
+  "OBJ-1": { ar: "\u0645\u0645\u062A\u062B\u0644 (\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641)", en: "Mumtathil (appeal status)" },
+  "ENC-1": { ar: "\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0631\u0641\u0639 \u064A\u062F\u0648\u064A)", en: "Amanah file (manual upload)" },
+  "ATT-1": { ar: "\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0631\u0641\u0639 \u064A\u062F\u0648\u064A)", en: "Amanah file (manual upload)" },
+  "CR-1": { ar: "\u0628\u0644\u062F\u064A + \u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A", en: "Balady + the CR view" },
+  "DUP-1": { ar: "\u0627\u0644\u0643\u0634\u0641 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A", en: "AI duplicate detection" }
+};
+var OBJECTION_STATUSES = [
+  { key: "awaiting_member", ar: "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0648\u062C\u064A\u0647 \u0627\u0644\u0639\u0636\u0648", en: "Awaiting the member\u2019s direction", exclude: true },
+  { key: "awaiting_committee", ar: "\u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0644\u062C\u0646\u0629", en: "Awaiting committee review", exclude: true },
+  { key: "partly_accepted", ar: "\u0645\u0642\u0628\u0648\u0644 \u062C\u0632\u0626\u064A\u064B\u0627", en: "Partly accepted", exclude: true },
+  // the whole invoice is excluded (Q6 default)
+  { key: "complete_accepted", ar: "\u0645\u0643\u062A\u0645\u0644 \u0645\u0642\u0628\u0648\u0644", en: "Complete \u2013 accepted", exclude: true },
+  { key: "complete_rejected", ar: "\u0645\u0643\u062A\u0645\u0644 \u0645\u0631\u0641\u0648\u0636", en: "Complete \u2013 rejected", exclude: false }
+];
+var OBJECTION_STATUS_OF = Object.fromEntries(OBJECTION_STATUSES.map((x) => [x.key, x]));
+var objectionStatusIndex = (key) => Math.max(0, OBJECTION_STATUSES.findIndex((x) => x.key === key)) + 1;
+var SERVICE_COMPANY_LIST = [
+  { payerIdx: 0, ar: "\u0634\u0631\u0643\u0629 \u0627\u0644\u0645\u064A\u0627\u0647 \u0627\u0644\u0648\u0637\u0646\u064A\u0629", en: "National Water Company" },
+  { payerIdx: 1, ar: "\u0634\u0631\u0643\u0629 \u0645\u0631\u0627\u0641\u0642 \u0627\u0644\u062E\u062F\u0645\u0627\u062A \u0627\u0644\u0645\u062A\u0643\u0627\u0645\u0644\u0629", en: "Integrated Utilities Services Company" }
+];
+var isServiceCompanyPayer = (idx) => SERVICE_COMPANY_LIST.some((c) => c.payerIdx === idx);
 
 // server/names.js
 var M12 = 1000000000000n;
@@ -1867,7 +1974,9 @@ var COLS = {
   alink: Uint8Array,
   payer: Uint16Array,
   owner: Uint16Array,
-  gfs: Uint8Array
+  gfs: Uint8Array,
+  objSt: Uint8Array
+  // objSt: Mumtathil appeal status of an invoice with an objection (1…5 = OBJECTION_STATUSES, 0 none)
 };
 var PCOLS = { pInv: Int32Array, pDay: Int32Array, pAmt: Float64Array, pCh: Uint8Array };
 var Store = class {
@@ -1885,6 +1994,7 @@ var Store = class {
     this.requests = [];
     this.crView = /* @__PURE__ */ new Map();
     this.meta = {};
+    this.dupOf = /* @__PURE__ */ new Map();
   }
   grow() {
     const nc = this.cap * 2;
@@ -2492,8 +2602,9 @@ function generateWorld(today, { scale = 1 } = {}) {
         contract: linked ? c : -1,
         inst: d.no,
         cstat: ex.noContract ? 3 : unmatched ? 2 : 1,
-        payer: ct.payer,
+        payer: ex.noContract && mix(22, c, d.no) % 100 < 22 ? mix(23, c, d.no) % 2 : ct.payer,
         alink: ri.next() < 0.04 ? 2 : 1
+        /* R2: about a fifth of the no-contract invoices belong to the service companies under the stay of execution (customer index 0 / 1 = SERVICE_COMPANY_LIST) */
       });
       if (st.alink[i] === 2) st.ent[i] = ENT_UNASSIGNED;
       if (linked) {
@@ -2514,6 +2625,35 @@ function generateWorld(today, { scale = 1 } = {}) {
     });
   }
   for (let c = 0; c < contracts.length; c += 1) if (contracts[c]?.future) contracts[c] = null;
+  {
+    const FN = SOURCE_INDEX.fines;
+    const MFS = SOURCE_INDEX.municipal_fees;
+    const DUPB = RULE_BIT["DUP-1"];
+    let made = 0;
+    let serial = 99e5;
+    const open = (i) => st.payCount[i] === 0 && !st.cancelDay[i] && !st.exMask[i] && (st.src[i] === FN || st.src[i] === MFS) && st.payer[i] >= 2 && st.payer[i] < HOUSING_PAYER_BASE && st.due[i] < todayN;
+    const twin = (i, issue, flagged) => {
+      const due = issue + (st.due[i] - st.issue[i]);
+      serial += 1;
+      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i], alink: st.alink[i] });
+      st.gfs[j] = st.gfs[i];
+      if (flagged) st.dupOf.set(j, i);
+      return j;
+    };
+    const n0 = st.n;
+    const j26 = dayNum("2026-01-05");
+    const j25a = dayNum("2025-03-01");
+    const j25b = dayNum("2025-12-31");
+    for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) {
+      twin(i, st.issue[i], true);
+      made += 1;
+    }
+    let rep = 0;
+    for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) {
+      twin(i, st.issue[i] + 365, false);
+      rep += 1;
+    }
+  }
   st.nGen = st.n;
   let reqCount = 0;
   for (const ct of contracts) {
@@ -2806,26 +2946,94 @@ function generateWorld(today, { scale = 1 } = {}) {
   {
     const MF = SOURCE_INDEX.municipal_fees;
     const INV = SOURCE_INDEX.investment;
-    const FN = SOURCE_INDEX.fines;
-    const D = RULE_BIT["DEC-1"];
     const A = RULE_BIT["ATT-1"];
     const E = RULE_BIT["ENC-1"];
     for (let i = 0; i < st.nGen; i += 1) {
       if (st.payCount[i] > 0 || st.cancelDay[i] || st.exMask[i] || st.exec[i] >= 0 || st.issue[i] > todayN) continue;
       const h = mix(19, st.idKey[i] % 1000003) % 100;
-      if (st.src[i] === MF && h < 6) {
+      if (st.src[i] === MF && h < 8) {
         st.exMask[i] = A;
         st.exAppr[i] = A;
         st.exRev[i] = 15 + h % 30;
-      } else if (st.src[i] === FN && h < 2) {
-        st.exMask[i] = D;
-        st.exAppr[i] = D;
-        st.exRev[i] = 15 + h % 30;
-      } else if (st.src[i] === INV && h < 9) {
+      } else if (st.src[i] === INV && h < 12) {
         st.exMask[i] = E;
         st.exAppr[i] = E;
         st.exRev[i] = 15 + h % 30;
       }
+    }
+  }
+  {
+    const uncollected = (i) => i < st.nGen && st.payCount[i] === 0 && !st.cancelDay[i] && st.exec[i] < 0 && st.issue[i] <= todayN;
+    const NOC = RULE_BIT["NOC-1"];
+    const CRB = RULE_BIT["CR-1"];
+    const DUPB = RULE_BIT["DUP-1"];
+    const svc = () => {
+      let n = 0;
+      for (let i = 0; i < st.nGen; i += 1) if (uncollected(i) && st.payer[i] < 2) n += 1;
+      return n;
+    };
+    for (let i = 0, k = svc(); i < st.nGen && k < 4; i += 1) if (uncollected(i) && st.payer[i] >= 2 && st.exMask[i] & NOC) {
+      st.payer[i] = k % 2;
+      k += 1;
+    }
+    {
+      let have = 0;
+      for (let i = 0; i < st.nGen; i += 1) if (st.exMask[i] & CRB && uncollected(i)) have += 1;
+      const byContract = /* @__PURE__ */ new Map();
+      for (let i = 0; i < st.nGen; i += 1) if (st.contract[i] >= 0 && uncollected(i) && !st.exMask[i] && ![2, 4].includes(st.crSt[i])) {
+        if (!byContract.has(st.contract[i])) byContract.set(st.contract[i], []);
+        byContract.get(st.contract[i]).push(i);
+      }
+      let c2 = 0;
+      for (const [c, list2] of byContract) {
+        if (have >= 3) break;
+        const ct = st.contracts[c];
+        if (!ct) continue;
+        list2.sort((x, y) => st.gross[x] - st.gross[y]);
+        ct.crSt = c2 % 2 === 0 ? 2 : 4;
+        c2 += 1;
+        st.crView.set(ct.crNo, { crNo: ct.crNo, status: ct.crSt, name: ct.payer });
+        for (let q2 = 0; q2 < list2.length; q2 += 1) {
+          const i = list2[q2];
+          st.crSt[i] = ct.crSt;
+          if (q2 < 2) {
+            st.exMask[i] |= CRB;
+            st.exAppr[i] |= CRB;
+            have += 1;
+          }
+        }
+      }
+    }
+    {
+      let k = 0;
+      for (let i = 0; i < st.nGen; i += 1) if (st.scope[i] === 1 && st.src[i] !== SOURCE_INDEX.investment && uncollected(i) && !st.exMask[i]) {
+        if (k >= 3) break;
+        st.exMask[i] = NOC;
+        st.exAppr[i] = NOC;
+        st.exRev[i] = 15 + i % 30;
+        st.src[i] = SOURCE_INDEX.investment;
+        st.item[i] = ITEM_INDEX.ad_boards_amanah;
+        st.gfs[i] = gfsIndexOf("11100-11105");
+        st.cstat[i] = 3;
+        k += 1;
+      }
+    }
+    for (const [bit, srcIdx] of [[RULE_BIT["ENC-1"], SOURCE_INDEX.investment], [RULE_BIT["ATT-1"], SOURCE_INDEX.municipal_fees]]) {
+      let have = 0;
+      for (let i = 0; i < st.nGen; i += 1) if (st.exMask[i] & bit && uncollected(i)) have += 1;
+      for (let i = 0; i < st.nGen && have < 4; i += 1) if (st.src[i] === srcIdx && uncollected(i) && !st.exMask[i]) {
+        st.exMask[i] = bit;
+        st.exAppr[i] = bit;
+        st.exRev[i] = 15 + i % 30;
+        have += 1;
+      }
+    }
+  }
+  {
+    let k = 0;
+    for (let i = 0; i < st.nGen; i += 1) if (st.flags[i] & F.OBJECTION) {
+      st.objSt[i] = k % 5 + 1;
+      k += 1;
     }
   }
   st.trim();
@@ -2875,7 +3083,10 @@ function appendRecord(st, rec, { owner = 0, kind = "fixture" } = {}) {
   st.exAppr[i] = appr;
   st.exRev[i] = 0;
   let flags = kind === "upload" ? F.UPLOADED : F.FIXTURE;
-  if (rec.objection?.open) flags |= F.OBJECTION;
+  if (rec.objection?.open) {
+    flags |= F.OBJECTION;
+    st.objSt[i] = objectionStatusIndex(rec.objection.status || "awaiting_member");
+  } else st.objSt[i] = 0;
   if ((rec.missingFields || []).length) flags |= F.MISSING_ID;
   if (rec.amountCheck?.status === "conflict") flags |= F.AMT_CONFLICT;
   if (rec.amountCheck?.status === "not_checkable") flags |= F.NOT_CHECKABLE;
@@ -2976,95 +3187,53 @@ function ppChange(curr, prev) {
   if (!curr?.calculable || !prev?.calculable) return { calculable: false, value: null };
   return { calculable: true, value: Math.round((curr.value - prev.value) * 1e3) / 10 };
 }
-var EXCLUSION_RULE_SET_VERSION = "EXCL-RULES v3 (meeting 18 Oct \u2014 demo configuration)";
+var EXCLUSION_RULE_SET_VERSION = "EXCL-RULES v4 (meeting 21 Oct \u2014 demo configuration)";
 var EXCLUSION_RULES = [
   {
     id: "DUP-1",
     category: "duplicate",
     version: 1,
-    priority: 1,
+    priority: 11,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
     effectiveFrom: "2026-07-01",
     owner: { en: "Revenue data steward", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A" },
-    label: { en: "Duplicate / erroneous invoice", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0643\u0631\u0631\u0629 / \u062E\u0627\u0637\u0626\u0629" },
-    note: { en: "Amanah exclusion lists cite invoices with errors; duplicate detection is in HLSD V0.4 scope. Formal approval authority unresolved.", ar: "\u0642\u0648\u0627\u0626\u0645 \u0627\u0644\u0627\u0633\u062A\u0628\u0639\u0627\u062F \u0645\u0646 \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A \u062A\u0630\u0643\u0631 \u0641\u0648\u0627\u062A\u064A\u0631 \u0628\u0647\u0627 \u0623\u062E\u0637\u0627\u0621\u061B \u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0636\u0645\u0646 \u0646\u0637\u0627\u0642 \u0648\u062B\u064A\u0642\u0629 \u0627\u0644\u062A\u0635\u0645\u064A\u0645. \u062C\u0647\u0629 \u0627\u0644\u0627\u0639\u062A\u0645\u0627\u062F \u0627\u0644\u0631\u0633\u0645\u064A\u0629 \u063A\u064A\u0631 \u0645\u062D\u0633\u0648\u0645\u0629." }
+    label: { en: "Duplicate invoice (R11)", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0643\u0631\u0631\u0629" },
+    note: { en: "Same customer, amount, product, revenue account and issue DATE with a different invoice number (AI duplicate detection). The earliest-numbered invoice is kept and the others are excluded. The same values in different years are NOT duplicates.", ar: "\u0646\u0641\u0633 \u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0648\u0627\u0644\u0645\u0646\u062A\u062C \u0648\u062D\u0633\u0627\u0628 \u0627\u0644\u0625\u064A\u0631\u0627\u062F \u0648\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0635\u062F\u0627\u0631 \u0628\u0631\u0642\u0645 \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u062E\u062A\u0644\u0641 (\u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A). \u062A\u0628\u0642\u0649 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0623\u0642\u062F\u0645 \u0631\u0642\u0645\u0627\u064B \u0648\u062A\u064F\u0633\u062A\u0628\u0639\u062F \u0627\u0644\u0628\u0642\u064A\u0629. \u062A\u0643\u0631\u0627\u0631 \u0627\u0644\u0642\u064A\u0645 \u0641\u064A \u0633\u0646\u0648\u0627\u062A \u0645\u062E\u062A\u0644\u0641\u0629 \u0644\u064A\u0633 \u062A\u0643\u0631\u0627\u0631\u0627\u064B." }
   },
   {
     id: "CR-1",
     category: "struck_off_registry",
     version: 1,
-    priority: 2,
+    priority: 8,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
     effectiveFrom: "2026-07-01",
     owner: { en: "Revenue data steward", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A" },
-    label: { en: "Struck-off commercial registration", ar: "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A \u0645\u0634\u0637\u0648\u0628" },
-    note: { en: "Meeting: all invoices of a struck-off registration are ready for exclusion without judgement. The raw CR status is kept as-is; only statuses listed in the rule parameter qualify, and only after human review.", ar: "\u0627\u0644\u0627\u062C\u062A\u0645\u0627\u0639: \u062C\u0645\u064A\u0639 \u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A \u0627\u0644\u0645\u0634\u0637\u0648\u0628 \u062C\u0627\u0647\u0632\u0629 \u0644\u0644\u0627\u0633\u062A\u0628\u0639\u0627\u062F \u062F\u0648\u0646 \u062A\u0642\u062F\u064A\u0631. \u062A\u064F\u062D\u0641\u0638 \u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062E\u0627\u0645 \u0643\u0645\u0627 \u0647\u064A\u061B \u0648\u0627\u0644\u062D\u0627\u0644\u0627\u062A \u0627\u0644\u0645\u062F\u0631\u062C\u0629 \u0641\u064A \u0645\u0639\u0627\u0645\u0644 \u0627\u0644\u0642\u0627\u0639\u062F\u0629 \u0641\u0642\u0637 \u0647\u064A \u0627\u0644\u0645\u0624\u0647\u0644\u0629\u060C \u0648\u0628\u0639\u062F \u0627\u0644\u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0628\u0634\u0631\u064A\u0629." }
+    label: { en: "Struck-off commercial registration (R10)", ar: "\u0633\u062C\u0644\u0627\u062A \u0645\u0634\u0637\u0648\u0628\u0629" },
+    note: { en: "Balady invoice joined with the commercial-registration view: status Deleted or Cancelled \u2192 excluded. The raw status is kept as received; Suspended is not listed.", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0628\u0644\u062F\u064A \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A: \u0627\u0644\u062D\u0627\u0644\u0629 \u0645\u062D\u0630\u0648\u0641 \u0623\u0648 \u0645\u0644\u063A\u0649 \u2192 \u062A\u064F\u0633\u062A\u0628\u0639\u062F. \u062A\u064F\u062D\u0641\u0638 \u0627\u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u062E\u0627\u0645 \u0643\u0645\u0627 \u0648\u0631\u062F\u062A\u061B \u0648\u0644\u0627 \u062A\u064F\u062F\u0631\u062C \xAB\u0645\u0639\u0644\u0651\u0642\xBB." }
   },
   {
-    id: "DEC-1",
-    category: "deceased_debtor",
-    version: 1,
-    priority: 3,
-    defaultEnabled: true,
-    locked: false,
-    basis: "stated_in_meeting",
-    approval: "approved",
-    effectiveFrom: "2026-10-18",
-    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Deceased debtor (evidence required)", ar: "\u0645\u062F\u064A\u0646 \u0645\u062A\u0648\u0641\u0649 (\u064A\u062A\u0637\u0644\u0628 \u062F\u0644\u064A\u0644\u0627\u064B)" },
-    note: { en: "Proposed category; requires human review of evidence before it affects net billed.", ar: "\u0641\u0626\u0629 \u0645\u0642\u062A\u0631\u062D\u0629\u061B \u062A\u062A\u0637\u0644\u0628 \u0645\u0631\u0627\u062C\u0639\u0629 \u0628\u0634\u0631\u064A\u0629 \u0644\u0644\u062F\u0644\u064A\u0644 \u0642\u0628\u0644 \u0623\u0646 \u062A\u0624\u062B\u0631 \u0639\u0644\u0649 \u0635\u0627\u0641\u064A \u0627\u0644\u0645\u0641\u0648\u062A\u0631." }
-  },
-  {
-    id: "NOC-1",
-    category: "no_contract",
-    version: 1,
-    priority: 4,
-    defaultEnabled: true,
-    locked: false,
-    basis: "stated_in_meeting",
-    approval: "approved",
-    effectiveFrom: "2026-10-18",
-    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Investment invoice with no contract (confirmed by Furas)", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0633\u062A\u062B\u0645\u0627\u0631 \u0628\u0644\u0627 \u0639\u0642\u062F (\u0645\u0624\u0643\u062F \u0645\u0646 \u0641\u0631\u0635)" },
-    note: { en: "Applies only when Furas confirms no contract exists. An UNMATCHED contract (not found) is never excluded \u2014 it stays in net billed and is flagged.", ar: "\u062A\u0646\u0637\u0628\u0642 \u0641\u0642\u0637 \u0639\u0646\u062F \u062A\u0623\u0643\u064A\u062F \u0641\u0631\u0635 \u0639\u062F\u0645 \u0648\u062C\u0648\u062F \u0639\u0642\u062F. \u0627\u0644\u0639\u0642\u062F \u063A\u064A\u0631 \u0627\u0644\u0645\u0637\u0627\u0628\u0642 (\u0644\u0645 \u064A\u064F\u0639\u062B\u0631 \u0639\u0644\u064A\u0647) \u0644\u0627 \u064A\u064F\u0633\u062A\u0628\u0639\u062F \u0623\u0628\u062F\u0627\u064B \u2014 \u064A\u0628\u0642\u0649 \u0641\u064A \u0635\u0627\u0641\u064A \u0627\u0644\u0645\u0641\u0648\u062A\u0631 \u0648\u064A\u064F\u0639\u0644\u064E\u0651\u0645." }
-  },
-  {
-    id: "INC-1",
-    category: "incomplete_data",
-    version: 1,
-    priority: 5,
-    defaultEnabled: true,
-    locked: false,
-    basis: "stated_in_meeting",
-    approval: "approved",
-    effectiveFrom: "2026-10-18",
-    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Incomplete data (Efaa incomplete-violations report)", ar: "\u0628\u064A\u0627\u0646\u0627\u062A \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629 (\u062A\u0642\u0631\u064A\u0631 \u0625\u064A\u0641\u0627\u0621 \u0644\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u063A\u064A\u0631 \u0627\u0644\u0645\u0643\u062A\u0645\u0644\u0629)" },
-    note: { en: "Candidate rule from the Efaa incomplete report. Not confirmed by the business; configurable.", ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u062D\u0629 \u0645\u0646 \u062A\u0642\u0631\u064A\u0631 \u0625\u064A\u0641\u0627\u0621 \u063A\u064A\u0631 \u0627\u0644\u0645\u0643\u062A\u0645\u0644. \u063A\u064A\u0631 \u0645\u0624\u0643\u062F\u0629 \u0645\u0646 \u0627\u0644\u062C\u0647\u0629\u061B \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u0636\u0628\u0637." }
-  },
-  {
-    id: "EXE-1",
-    category: "executed_against",
+    id: "STY-1",
+    category: "service_company_stay",
     version: 1,
     priority: 6,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
-    effectiveFrom: "2026-10-18",
-    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Executed-against list (Efaa)", ar: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 (\u0625\u064A\u0641\u0627\u0621)" },
-    note: { en: "Candidate rule. Being executed against does not mean the amount ended; treated as a configurable, unapproved exclusion.", ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u062D\u0629. \u0643\u0648\u0646 \u0627\u0644\u0645\u062F\u064A\u0646 \u0645\u0646\u0641\u0630\u0627\u064B \u0636\u062F\u0647 \u0644\u0627 \u064A\u0639\u0646\u064A \u0627\u0646\u062A\u0647\u0627\u0621 \u0627\u0644\u0645\u0628\u0644\u063A\u061B \u062A\u064F\u0639\u0627\u0645\u0644 \u0643\u0627\u0633\u062A\u0628\u0639\u0627\u062F \u0642\u0627\u0628\u0644 \u0644\u0644\u0636\u0628\u0637 \u0648\u063A\u064A\u0631 \u0645\u0639\u062A\u0645\u062F." }
+    effectiveFrom: "2026-10-21",
+    owner: { en: "Revenue management (meeting 21 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 21 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Stay of execution \u2013 service companies (working label)", ar: "\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u2013 \u0627\u0644\u0634\u0631\u0643\u0627\u062A \u0627\u0644\u062E\u062F\u0645\u064A\u0629" },
+    note: { en: "Added in the 21 Oct meeting: invoices of the National Water Company and service companies under a high-order stay of execution pending a committee. Customer on a configurable list (SERVICE_COMPANY_LIST). Takes precedence over R1. The label is a working label to confirm.", ar: "\u0623\u064F\u0636\u064A\u0641 \u0641\u064A \u0627\u062C\u062A\u0645\u0627\u0639 21 \u0623\u0643\u062A\u0648\u0628\u0631: \u0641\u0648\u0627\u062A\u064A\u0631 \u0634\u0631\u0643\u0629 \u0627\u0644\u0645\u064A\u0627\u0647 \u0627\u0644\u0648\u0637\u0646\u064A\u0629 \u0648\u0627\u0644\u0634\u0631\u0643\u0627\u062A \u0627\u0644\u062E\u062F\u0645\u064A\u0629 \u0627\u0644\u0648\u0627\u0642\u0639\u0629 \u062A\u062D\u062A \u0623\u0645\u0631 \u0639\u0627\u0644\u064D \u0628\u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0644\u062C\u0646\u0629. \u0627\u0644\u0639\u0645\u064A\u0644 \u0636\u0645\u0646 \u0642\u0627\u0626\u0645\u0629 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u0636\u0628\u0637. \u062A\u0633\u0628\u0642 \xAB\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F\xBB. \u0627\u0644\u062A\u0633\u0645\u064A\u0629 \u0645\u0624\u0642\u062A\u0629 \u0644\u0644\u062A\u0623\u0643\u064A\u062F." }
   },
   {
-    id: "EFA-1",
-    category: "outside_efaa",
+    id: "NOC-1",
+    category: "no_contract",
     version: 1,
     priority: 7,
     defaultEnabled: true,
@@ -3073,22 +3242,64 @@ var EXCLUSION_RULES = [
     approval: "approved",
     effectiveFrom: "2026-10-18",
     owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Violation not present in Efaa (system of record)", ar: "\u0645\u062E\u0627\u0644\u0641\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u0625\u064A\u0641\u0627\u0621 (\u0627\u0644\u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u0631\u062C\u0639\u064A)" },
-    note: { en: "Candidate rule. Tahseel and Efaa statuses are kept separate; a missing Efaa match is evidence for review, not proof.", ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u062D\u0629. \u062A\u064F\u062D\u0641\u0638 \u062D\u0627\u0644\u062A\u0627 \u062A\u062D\u0635\u064A\u0644 \u0648\u0625\u064A\u0641\u0627\u0621 \u0645\u0646\u0641\u0635\u0644\u062A\u064A\u0646\u061B \u063A\u064A\u0627\u0628 \u0627\u0644\u0645\u0637\u0627\u0628\u0642\u0629 \u0641\u064A \u0625\u064A\u0641\u0627\u0621 \u062F\u0644\u064A\u0644 \u0644\u0644\u0645\u0631\u0627\u062C\u0639\u0629 \u0648\u0644\u064A\u0633 \u0625\u062B\u0628\u0627\u062A\u0627\u064B." }
+    label: { en: "Invoices not based on contracts (R1)", ar: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F" },
+    note: { en: "Any invoice, from any Amanah or entity (central or internal), with an investment revenue account and no contract in Furas. The invoice is excluded as uncollected.", ar: "\u0623\u064A \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0646 \u0623\u064A \u0623\u0645\u0627\u0646\u0629 \u0623\u0648 \u062C\u0647\u0629 (\u0645\u0631\u0643\u0632\u064A\u0629 \u0623\u0648 \u062F\u0627\u062E\u0644\u064A\u0629) \u0628\u062D\u0633\u0627\u0628 \u0625\u064A\u0631\u0627\u062F \u0627\u0633\u062A\u062B\u0645\u0627\u0631\u064A \u0648\u0644\u0627 \u0639\u0642\u062F \u0644\u0647\u0627 \u0641\u064A \u0641\u0631\u0635. \u062A\u064F\u0633\u062A\u0628\u0639\u062F \u0643\u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629." }
   },
   {
-    id: "OBJ-1",
-    category: "objection",
+    id: "INC-1",
+    category: "incomplete_data",
     version: 1,
-    priority: 8,
+    priority: 4,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
     effectiveFrom: "2026-10-18",
     owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Open objection / appeal", ar: "\u0627\u0639\u062A\u0631\u0627\u0636 / \u0627\u0633\u062A\u0626\u0646\u0627\u0641 \u0645\u0641\u062A\u0648\u062D" },
-    note: { en: "Not confirmed in the latest meeting. Default OFF: an objection is a follow-up state, not an exclusion. Configurable.", ar: "\u063A\u064A\u0631 \u0645\u0624\u0643\u062F \u0641\u064A \u0622\u062E\u0631 \u0627\u062C\u062A\u0645\u0627\u0639. \u0627\u0644\u0627\u0641\u062A\u0631\u0627\u0636\u064A: \u0645\u0639\u0637\u0651\u0644\u061B \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636 \u062D\u0627\u0644\u0629 \u0645\u062A\u0627\u0628\u0639\u0629 \u0648\u0644\u064A\u0633 \u0627\u0633\u062A\u0628\u0639\u0627\u062F\u0627\u064B. \u0642\u0627\u0628\u0644 \u0644\u0644\u0636\u0628\u0637." }
+    label: { en: "Incomplete (R4)", ar: "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644" },
+    note: { en: "Efaa \xAB\u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621\xBB report: status \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644 \u2192 take the violation number, link it to the invoice number, exclude.", ar: "\u062A\u0642\u0631\u064A\u0631 \u0625\u064A\u0641\u0627\u0621 \xAB\u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621\xBB: \u0627\u0644\u062D\u0627\u0644\u0629 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644 \u2192 \u064A\u0624\u062E\u0630 \u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u0648\u064A\u064F\u0631\u0628\u0637 \u0628\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0648\u062A\u064F\u0633\u062A\u0628\u0639\u062F." }
+  },
+  {
+    id: "EXE-1",
+    category: "executed_against",
+    version: 1,
+    priority: 2,
+    defaultEnabled: true,
+    locked: false,
+    basis: "stated_in_meeting",
+    approval: "approved",
+    effectiveFrom: "2026-10-18",
+    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Executed against \u2013 Efaa (R6)", ar: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u2013 \u0625\u064A\u0641\u0627\u0621" },
+    note: { en: "Efaa \xAB\u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647\xBB report: every violation in the report (execution and violation numbers) is linked to its invoice and excluded. Complete / incomplete does not come from this report.", ar: "\u062A\u0642\u0631\u064A\u0631 \u0625\u064A\u0641\u0627\u0621 \xAB\u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647\xBB: \u0643\u0644 \u0645\u062E\u0627\u0644\u0641\u0629 \u0641\u064A \u0627\u0644\u062A\u0642\u0631\u064A\u0631 (\u0631\u0642\u0645 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0648\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629) \u062A\u064F\u0631\u0628\u0637 \u0628\u0641\u0627\u062A\u0648\u0631\u062A\u0647\u0627 \u0648\u062A\u064F\u0633\u062A\u0628\u0639\u062F. \u0648\u0644\u0627 \u064A\u0624\u062E\u0630 \u0645\u0646\u0647 \u0627\u0644\u0627\u0643\u062A\u0645\u0627\u0644/\u0639\u062F\u0645\u0647." }
+  },
+  {
+    id: "EFA-1",
+    category: "outside_efaa",
+    version: 1,
+    priority: 5,
+    defaultEnabled: true,
+    locked: false,
+    basis: "stated_in_meeting",
+    approval: "approved",
+    effectiveFrom: "2026-10-18",
+    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Outside Efaa (R5)", ar: "\u062E\u0627\u0631\u062C \u0625\u064A\u0641\u0627\u0621" },
+    note: { en: "Penalties (main class \u0627\u0644\u062C\u0632\u0627\u0621\u0627\u062A \u0648\u0627\u0644\u063A\u0631\u0627\u0645\u0627\u062A) within the uncollected invoices that do not appear in Efaa. The Efaa number is linked to the invoice number. Written against Tahseel uncollected data.", ar: "\u0627\u0644\u062C\u0632\u0627\u0621\u0627\u062A \u0636\u0645\u0646 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0627\u0644\u062A\u064A \u0644\u0627 \u062A\u0638\u0647\u0631 \u0641\u064A \u0625\u064A\u0641\u0627\u0621. \u064A\u064F\u0631\u0628\u0637 \u0631\u0642\u0645 \u0625\u064A\u0641\u0627\u0621 \u0628\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629. \u0627\u0644\u0642\u0627\u0639\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629 \u0639\u0644\u0649 \u0628\u064A\u0627\u0646\u0627\u062A \u062A\u062D\u0635\u064A\u0644 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629." }
+  },
+  {
+    id: "OBJ-1",
+    category: "objection",
+    version: 1,
+    priority: 3,
+    defaultEnabled: true,
+    locked: false,
+    basis: "stated_in_meeting",
+    approval: "approved",
+    effectiveFrom: "2026-10-18",
+    owner: { en: "Revenue management (meeting 18 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 18 \u0623\u0643\u062A\u0648\u0628\u0631)" },
+    label: { en: "Open objections (R7)", ar: "\u0627\u0639\u062A\u0631\u0627\u0636\u0627\u062A \u0642\u0627\u0626\u0645\u0629" },
+    note: { en: "Source: Mumtathil (appeal status column). Excluded: \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0648\u062C\u064A\u0647 \u0627\u0644\u0639\u0636\u0648 \xB7 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0644\u062C\u0646\u0629 \xB7 \u0645\u0642\u0628\u0648\u0644 \u062C\u0632\u0626\u064A\u064B\u0627 \xB7 \u0645\u0643\u062A\u0645\u0644 \u0645\u0642\u0628\u0648\u0644. Kept collectable: \u0645\u0643\u062A\u0645\u0644 \u0645\u0631\u0641\u0648\u0636. The status is shown on the invoice.", ar: "\u0627\u0644\u0645\u0635\u062F\u0631: \u0645\u0645\u062A\u062B\u0644 (\u0639\u0645\u0648\u062F \u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641). \u062A\u064F\u0633\u062A\u0628\u0639\u062F: \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u062A\u0648\u062C\u064A\u0647 \u0627\u0644\u0639\u0636\u0648 \xB7 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0645\u0631\u0627\u062C\u0639\u0629 \u0627\u0644\u0644\u062C\u0646\u0629 \xB7 \u0645\u0642\u0628\u0648\u0644 \u062C\u0632\u0626\u064A\u064B\u0627 \xB7 \u0645\u0643\u062A\u0645\u0644 \u0645\u0642\u0628\u0648\u0644. \u062A\u0628\u0642\u0649 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644: \u0645\u0643\u062A\u0645\u0644 \u0645\u0631\u0641\u0648\u0636. \u0648\u062A\u0638\u0647\u0631 \u0627\u0644\u062D\u0627\u0644\u0629 \u0639\u0644\u0649 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629." }
   },
   {
     id: "ENF-1",
@@ -3108,7 +3319,7 @@ var EXCLUSION_RULES = [
     id: "SND-1",
     category: "executed_against_sanad",
     version: 1,
-    priority: 6.5,
+    priority: 1,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
@@ -3122,29 +3333,29 @@ var EXCLUSION_RULES = [
     id: "ATT-1",
     category: "amanah_statements",
     version: 1,
-    priority: 4.5,
+    priority: 10,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
     effectiveFrom: "2026-10-19",
     owner: { en: "Revenue management (meeting 19 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Amanah statements", ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A" },
-    note: { en: "Added in the 19 Oct meeting: invoices an Amanah has stated (by a written statement) are not collectible. Applies only to uncollected invoices. Whether this is a separate reason or a sub-type of \xABinvoices not based on contracts\xBB is still to be confirmed.", ar: "\u0623\u064F\u0636\u064A\u0641 \u0641\u064A \u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631: \u0641\u0648\u0627\u062A\u064A\u0631 \u0623\u0641\u0627\u062F\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0628\u0625\u0641\u0627\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629) \u0628\u0623\u0646\u0647\u0627 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644. \u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637. \u0648\u0645\u0627 \u0632\u0627\u0644 \u0627\u0644\u062A\u0623\u0643\u062F \u0642\u0627\u0626\u0645\u064B\u0627: \u0647\u0644 \u0647\u064A \u0633\u0628\u0628 \u0645\u0633\u062A\u0642\u0644 \u0623\u0645 \u0646\u0648\u0639 \u0641\u0631\u0639\u064A \u0645\u0646 \xAB\u0641\u0648\u0627\u062A\u064A\u0631 \u0644\u0627 \u062A\u0633\u062A\u0646\u062F \u0639\u0644\u0649 \u0639\u0642\u0648\u062F\xBB." }
+    label: { en: "Amanah statements (R9)", ar: "\u0625\u0641\u0627\u062F\u0627\u062A \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A" },
+    note: { en: "Loaded only through the exclusion upload template (the Amanah's file). Applies only to uncollected invoices.", ar: "\u062A\u064F\u062D\u0645\u064E\u0651\u0644 \u0641\u0642\u0637 \u0639\u0628\u0631 \u0642\u0627\u0644\u0628 \u0631\u0641\u0639 \u0627\u0644\u0627\u0633\u062A\u0628\u0639\u0627\u062F\u0627\u062A (\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629). \u0648\u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637." }
   },
   {
     id: "ENC-1",
     category: "site_encroachment",
     version: 1,
-    priority: 4.6,
+    priority: 9,
     defaultEnabled: true,
     locked: false,
     basis: "stated_in_meeting",
     approval: "approved",
     effectiveFrom: "2026-10-19",
     owner: { en: "Revenue management (meeting 19 Oct)", ar: "\u0625\u062F\u0627\u0631\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631)" },
-    label: { en: "Encroachments / site exploitation", ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A / \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639" },
-    note: { en: "Added in the 19 Oct meeting: invoices raised for the exploitation of a site without a contract (an encroachment). Applies only to uncollected invoices.", ar: "\u0623\u064F\u0636\u064A\u0641 \u0641\u064A \u0627\u062C\u062A\u0645\u0627\u0639 19 \u0623\u0643\u062A\u0648\u0628\u0631: \u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0645\u0648\u0642\u0639 \u062F\u0648\u0646 \u0639\u0642\u062F (\u062A\u0639\u062F\u064D\u0651). \u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637." }
+    label: { en: "Encroachments and site exploitation (R8)", ar: "\u0627\u0644\u062A\u0639\u062F\u064A\u0627\u062A \u0648\u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0627\u0644\u0645\u0648\u0627\u0642\u0639 (\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A)" },
+    note: { en: "Investment invoices (outside Furas, may be internal) reported by the Amanah, loaded through the exclusion upload template. Applies only to uncollected invoices.", ar: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0633\u062A\u062B\u0645\u0627\u0631 (\u062E\u0627\u0631\u062C \u0641\u0631\u0635 \u0648\u0642\u062F \u062A\u0643\u0648\u0646 \u062F\u0627\u062E\u0644\u064A\u0629) \u062A\u0641\u064A\u062F \u0628\u0647\u0627 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \u0648\u062A\u064F\u062D\u0645\u064E\u0651\u0644 \u0639\u0628\u0631 \u0642\u0627\u0644\u0628 \u0631\u0641\u0639 \u0627\u0644\u0627\u0633\u062A\u0628\u0639\u0627\u062F\u0627\u062A. \u0648\u062A\u0646\u0637\u0628\u0642 \u0639\u0644\u0649 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0641\u0642\u0637." }
   }
 ];
 var EXCLUSION_CATEGORIES = EXCLUSION_RULES.map((r) => r.category);
@@ -3194,13 +3405,18 @@ var DEFAULT_TARGETS = {
 var CLASSES = ["collected", "cancelled", "excluded", "objection", "enforcement", "linkage_unresolved", "ineligible_referral", "partial", "overdue", "not_due"];
 var C = Object.fromEntries(CLASSES.map((c, i) => [c, i]));
 var CLASS_INDEX = C;
+function objectionStatusKey(st, i) {
+  const k = st.objSt[i];
+  return (OBJECTION_STATUSES[k - 1] || OBJECTION_STATUSES[0]).key;
+}
+var objectionExcludes = (st, i) => OBJECTION_STATUS_OF[objectionStatusKey(st, i)].exclude;
 var RULES = EXCLUSION_RULES.map((r, i) => ({ id: r.id, bit: 1 << i, priority: r.priority, approved: r.approval === "approved", category: r.category, locked: r.locked }));
 if (RULES.some((r, i) => r.id !== RULE_IDS[i])) throw new Error("rule order mismatch between catalog and revenueMetrics");
 var OBJ_BIT = RULE_BIT["OBJ-1"];
 var SND_BIT = RULE_BIT["SND-1"];
 var CR_BIT = RULE_BIT["CR-1"];
 var DUP_BIT = RULE_BIT["DUP-1"];
-var DEC_BIT = RULE_BIT["DEC-1"];
+var STY_BIT = RULE_BIT["STY-1"];
 var BY_PRIORITY = [...RULES].sort((a, b) => a.priority - b.priority);
 var NBITS = RULES.length;
 var K = 23;
@@ -3336,6 +3552,7 @@ function makeCtx(st, req = {}) {
   ctx.enabled = enabled;
   ctx.objOn = !!cfg.rules["OBJ-1"];
   ctx.sndOn = !!cfg.rules["SND-1"];
+  ctx.styOn = !!cfg.rules["STY-1"];
   ctx.autoApply = EXCLUSIONS_AUTO_APPLY;
   ctx.crOk = [true, true, false, false, false];
   const names = ["", "Active", "Deleted", "Suspended", "Cancelled"];
@@ -3344,7 +3561,8 @@ function makeCtx(st, req = {}) {
   ctx.ov = /* @__PURE__ */ new Map();
   const dec = req.decisions || {};
   const links = req.links || {};
-  const need = Object.keys(dec).length + Object.keys(links).length;
+  const fileEx = req.fileExclusions || {};
+  const need = Object.keys(dec).length + Object.keys(links).length + Object.keys(fileEx).length;
   if (need) {
     ctx.mark = new Uint8Array(st.n);
     for (const [id, d] of Object.entries(dec)) {
@@ -3371,6 +3589,16 @@ function makeCtx(st, req = {}) {
           o.rej &= ~bit;
         }
       }
+      ctx.ov.set(i, o);
+      ctx.mark[i] = 1;
+    }
+    for (const [id, f] of Object.entries(fileEx)) {
+      const i = lookupId(st, id);
+      const bit = RULE_BIT[f && f.ruleId];
+      if (i < 0 || !bit || bit !== RULE_BIT["ENC-1"] && bit !== RULE_BIT["ATT-1"]) continue;
+      const o = ctx.ov.get(i) || { set: 0, clr: 0, rej: 0, link: 0 };
+      o.add = (o.add || 0) | bit;
+      o.files = { ...o.files || {}, [f.ruleId]: { file: String(f.file || ""), at: f.at || null, by: f.by || null } };
       ctx.ov.set(i, o);
       ctx.mark[i] = 1;
     }
@@ -3408,10 +3636,8 @@ function recordRiskFlags(st, ctx, i) {
   const D = derive(ctx, i, ctx.cutoffN) || ctx.D;
   const applied = (bit) => (D.mask & bit) !== 0;
   if (f & F.DUPLICATE_WF) out.duplicate = applied(DUP_BIT) ? "settled" : "open";
-  if (invalid) {
-    const c = fx.debtorInvalidReason === "deceased_person" ? "deceased_person" : "struck_off_registry";
-    out[c] = applied(c === "deceased_person" ? DEC_BIT : CR_BIT) ? "settled" : "open";
-  } else if (crBad && D.outstanding > 0) out.struck_off_registry = "open";
+  if (invalid) out.struck_off_registry = applied(CR_BIT) ? "settled" : "open";
+  else if (crBad && D.outstanding > 0) out.struck_off_registry = "open";
   return out;
 }
 function derive(ctx, i, asOfN) {
@@ -3429,16 +3655,21 @@ function derive(ctx, i, asOfN) {
     link = o.link;
     pending = st.exMask[i] & ~appr & ~o.rej;
   } else pending = st.exMask[i] & ~appr;
+  const fileAdd = ctx.mark && ctx.mark[i] ? ctx.ov.get(i).add || 0 : 0;
   if (ctx.autoApply) {
-    appr = st.exMask[i] & ~(ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0);
+    appr = (st.exMask[i] | fileAdd) & ~(ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0);
     pending = 0;
   }
-  let m = st.exMask[i] & appr & ctx.enabled;
+  let m = (st.exMask[i] | fileAdd) & appr & ctx.enabled;
   if (m & CR_BIT) {
     const cs = st.crSt[i];
     if (!ctx.crOk[cs]) m &= ~CR_BIT;
   }
-  if (ctx.objOn && flags & F.OBJECTION && !(m & OBJ_BIT)) m |= OBJ_BIT;
+  const objOpen = (flags & F.OBJECTION) !== 0 && objectionExcludes(st, i);
+  if (flags & F.OBJECTION && !objOpen) m &= ~OBJ_BIT;
+  else if (ctx.objOn && objOpen && !(m & OBJ_BIT) && !(ctx.mark && ctx.mark[i] && ctx.ov.get(i).rej & OBJ_BIT)) m |= OBJ_BIT;
+  const rejBits = ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0;
+  if (ctx.styOn && i < st.nGen && st.payCount[i] === 0 && !(rejBits & STY_BIT) && isServiceCompanyPayer(st.payer[i])) m |= STY_BIT;
   if (ctx.sndOn && (st.exec[i] >= 0 || link >= 2 && link <= 4)) m |= SND_BIT;
   let primaryBit = 0;
   let primaryApproved = false;
@@ -3508,7 +3739,7 @@ function derive(ctx, i, asOfN) {
     const isPartial = received > 0 && outstanding > 0;
     const isOverdue = daysOverdue > 0;
     const cs = st.cstat[i];
-    if (flags & F.OBJECTION) cls = C.objection;
+    if (objOpen) cls = C.objection;
     else if (flags & F.LEGACY_CANCELLED || st.src[i] === 0 && (cs === 2 || cs === 4) && isOverdue) cls = C.linkage_unresolved;
     else if (isOverdue && flags & F.MISSING_ID) cls = C.ineligible_referral;
     else if (isPartial) cls = C.partial;
@@ -4222,7 +4453,7 @@ function exclusionOf(D) {
   const ruleId = RULE_IDS[Math.round(Math.log2(D.primaryBit))];
   const r = EXCLUSION_REASON_OF_RULE[ruleId];
   const s = EXCLUSION_SOURCE_OF_RULE[ruleId];
-  return r ? { ruleId, reasonAr: r.ar, reasonEn: r.en, sourceAr: s?.ar || null, sourceEn: s?.en || null } : null;
+  return r ? { ruleId, n: r.n, code: r.code, reasonAr: r.ar, reasonEn: r.en, sourceAr: s?.ar || null, sourceEn: s?.en || null } : null;
 }
 var INVESTMENT_NO_CONTRACT_CAUSES = [
   { ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u0634\u0627\u0634\u0629 \u0625\u0644\u0643\u062A\u0631\u0648\u0646\u064A\u0629 \u0635\u0627\u062F\u0631\u0629 \u064A\u062F\u0648\u064A\u064B\u0627", en: "An electronic-screen invoice issued manually" },
@@ -4805,16 +5036,16 @@ function sourceRecord(st, i, rec, D, cutoff) {
 var RULE_BY_ID = Object.fromEntries(EXCLUSION_RULES.map((r) => [r.id, r]));
 var REVIEWER2 = { en: "Revenue data steward (demo reviewer)", ar: "\u0623\u0645\u064A\u0646 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A (\u0645\u0631\u0627\u062C\u0639 \u062A\u062C\u0631\u064A\u0628\u064A)" };
 var TEMPLATES = {
-  "DUP-1": { evidence: { en: "Same payer, amount and period as an earlier invoice (duplicate detection).", ar: "\u0646\u0641\u0633 \u0627\u0644\u062F\u0627\u0641\u0639 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0648\u0627\u0644\u0641\u062A\u0631\u0629 \u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0633\u0627\u0628\u0642\u0629 (\u0643\u0634\u0641 \u0627\u0644\u062A\u0643\u0631\u0627\u0631)." }, sources: [{ system: "\u062A\u062D\u0635\u064A\u0644 \u2014 \u062A\u0641\u0627\u0635\u064A\u0644 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631", field: "\u0628\u0646\u0648\u062F \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", value: "\u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0633\u0627\u0628\u0642\u0629" }] },
-  "CR-1": { evidence: { en: "CR status (raw) linked through Sanad document extraction.", ar: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A (\u062E\u0627\u0645) \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0639\u0628\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0633\u0646\u062F." }, sources: [] },
-  "DEC-1": { evidence: { en: "Civil-registry flag suggests the debtor is deceased; heir/estate position not established.", ar: "\u0625\u0634\u0627\u0631\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A \u062A\u0641\u064A\u062F \u0628\u0648\u0641\u0627\u0629 \u0627\u0644\u0645\u062F\u064A\u0646\u061B \u0648\u0636\u0639 \u0627\u0644\u0648\u0631\u062B\u0629/\u0627\u0644\u062A\u0631\u0643\u0629 \u063A\u064A\u0631 \u0645\u062B\u0628\u062A." }, sources: [{ system: "\u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u062F\u0646\u064A", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0648\u0641\u0627\u0629", value: "\u0645\u062A\u0648\u0641\u0649" }] },
-  "NOC-1": { evidence: { en: "Furas confirms no contract exists for this invoice.", ar: "\u0641\u0631\u0635 \u062A\u0624\u0643\u062F \u0639\u062F\u0645 \u0648\u062C\u0648\u062F \u0639\u0642\u062F \u0644\u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629." }, sources: [{ system: "\u0641\u0631\u0635 \u2014 \u0627\u0644\u0639\u0642\u0648\u062F", field: "\u0631\u0642\u0645 \u0627\u0644\u0639\u0642\u062F", value: "\u0644\u0627 \u064A\u0648\u062C\u062F \u0639\u0642\u062F (\u0645\u0624\u0643\u062F)" }] },
-  "INC-1": { evidence: { en: "Mandatory data incomplete in the source report.", ar: "\u0628\u064A\u0627\u0646\u0627\u062A \u0625\u0644\u0632\u0627\u0645\u064A\u0629 \u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\u0629 \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0635\u062F\u0631." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u063A\u064A\u0631 \u0627\u0644\u0645\u0643\u062A\u0645\u0644", field: "\u0627\u0643\u062A\u0645\u0627\u0644 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A", value: "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644" }] },
-  "EXE-1": { evidence: { en: "Appears in the executed-against report.", ar: "\u0648\u0627\u0631\u062F \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", value: "\u0645\u0646\u0641\u0630 \u0636\u062F\u0647" }] },
-  "EFA-1": { evidence: { en: "Violation is not present in the Efaa system of record.", ar: "\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u0646\u0638\u0627\u0645 \u0625\u064A\u0641\u0627\u0621 \u0627\u0644\u0645\u0631\u062C\u0639\u064A." }, sources: [{ system: "\u062A\u062D\u0635\u064A\u0644 \u2014 \u0625\u064A\u0641\u0627\u0621 v2", field: "\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", value: "\u063A\u064A\u0631 \u0645\u0637\u0627\u0628\u0642 \u0641\u064A \u0625\u064A\u0641\u0627\u0621" }] },
-  "OBJ-1": { evidence: { en: "Open objection in the violations system.", ar: "\u0627\u0639\u062A\u0631\u0627\u0636 \u0645\u0641\u062A\u0648\u062D \u0641\u064A \u0646\u0638\u0627\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u0627\u0644\u0639\u0627\u0645", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0639\u062A\u0631\u0627\u0636", value: "\u0645\u0641\u062A\u0648\u062D" }] },
-  "ATT-1": { evidence: { en: "A written statement of the Amanah that this invoice is not collectible.", ar: "\u0625\u0641\u0627\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629 \u0645\u0646 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \u0628\u0623\u0646 \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644." }, sources: [{ system: "\u0627\u0644\u0623\u0645\u0627\u0646\u0629", field: "\u0627\u0644\u0625\u0641\u0627\u062F\u0629", value: "\u0645\u0631\u0641\u0642\u0629" }] },
-  "ENC-1": { evidence: { en: "Raised for exploiting a site without a contract (encroachment).", ar: "\u0635\u062F\u0631\u062A \u0639\u0646 \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0645\u0648\u0642\u0639 \u062F\u0648\u0646 \u0639\u0642\u062F (\u062A\u0639\u062F\u064D\u0651)." }, sources: [{ system: "\u0641\u0631\u0635 \u2014 \u0627\u0644\u0639\u0642\u0648\u062F", field: "\u0627\u0644\u0639\u0642\u062F", value: "\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F" }] },
+  "DUP-1": { evidence: { en: "Same customer, amount, product, revenue account and issue date as an earlier-numbered invoice (AI duplicate detection).", ar: "\u0646\u0641\u0633 \u0627\u0644\u0639\u0645\u064A\u0644 \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0648\u0627\u0644\u0645\u0646\u062A\u062C \u0648\u062D\u0633\u0627\u0628 \u0627\u0644\u0625\u064A\u0631\u0627\u062F \u0648\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0625\u0635\u062F\u0627\u0631 \u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0623\u0642\u062F\u0645 \u0631\u0642\u0645\u064B\u0627 (\u0627\u0644\u0643\u0634\u0641 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A)." }, sources: [{ system: "\u0627\u0644\u0643\u0634\u0641 \u0628\u0627\u0644\u0630\u0643\u0627\u0621 \u0627\u0644\u0627\u0635\u0637\u0646\u0627\u0639\u064A", field: "\u0645\u0637\u0627\u0628\u0642\u0629 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", value: "\u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0623\u0642\u062F\u0645 \u0631\u0642\u0645\u064B\u0627 \u0641\u064A \u0627\u0644\u064A\u0648\u0645 \u0646\u0641\u0633\u0647" }] },
+  "CR-1": { evidence: { en: "CR status (raw) from the commercial-registration view.", ar: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A (\u062E\u0627\u0645) \u0645\u0646 \u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A." }, sources: [] },
+  "STY-1": { evidence: { en: "The customer is on the list of companies under a stay of execution pending a committee.", ar: "\u0627\u0644\u0639\u0645\u064A\u0644 \u0636\u0645\u0646 \u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0634\u0631\u0643\u0627\u062A \u0627\u0644\u0648\u0627\u0642\u0639\u0629 \u062A\u062D\u062A \u0625\u064A\u0642\u0627\u0641 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0628\u0627\u0646\u062A\u0638\u0627\u0631 \u0644\u062C\u0646\u0629." }, sources: [{ system: "\u0642\u0627\u0626\u0645\u0629 \u0627\u0644\u0648\u0632\u0627\u0631\u0629", field: "\u0627\u0644\u0639\u0645\u064A\u0644", value: "\u0636\u0645\u0646 \u0627\u0644\u0642\u0627\u0626\u0645\u0629" }] },
+  "NOC-1": { evidence: { en: "Furas has no contract for this invoice (investment revenue account).", ar: "\u0644\u0627 \u064A\u0648\u062C\u062F \u0639\u0642\u062F \u0644\u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0641\u064A \u0641\u0631\u0635 (\u062D\u0633\u0627\u0628 \u0625\u064A\u0631\u0627\u062F \u0627\u0633\u062A\u062B\u0645\u0627\u0631\u064A)." }, sources: [{ system: "\u0641\u0631\u0635 \u2014 \u0627\u0644\u0639\u0642\u0648\u062F", field: "\u0631\u0642\u0645 \u0627\u0644\u0639\u0642\u062F", value: "\u0644\u0627 \u064A\u0648\u062C\u062F \u0639\u0642\u062F" }] },
+  "INC-1": { evidence: { en: "Status \xABincomplete\xBB in the payment-claim notice report; the violation number is linked to the invoice.", ar: "\u0627\u0644\u062D\u0627\u0644\u0629 \xAB\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644\xBB \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621\u061B \u0648\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u0645\u0631\u0628\u0648\u0637 \u0628\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0625\u0634\u0639\u0627\u0631 \u0627\u0644\u0645\u0637\u0627\u0644\u0628\u0629 \u0628\u0627\u0644\u0623\u062F\u0627\u0621", field: "\u0627\u0644\u062D\u0627\u0644\u0629", value: "\u063A\u064A\u0631 \u0645\u0643\u062A\u0645\u0644" }] },
+  "EXE-1": { evidence: { en: "The violation appears in the executed-against report and is linked to the invoice.", ar: "\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u0648\u0627\u0631\u062F\u0629 \u0641\u064A \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647 \u0648\u0645\u0631\u0628\u0648\u0637\u0629 \u0628\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629." }, sources: [{ system: "\u0625\u064A\u0641\u0627\u0621 \u2014 \u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u0646\u0641\u0630 \u0636\u062F\u0647", field: "\u0631\u0642\u0645 \u0627\u0644\u062A\u0646\u0641\u064A\u0630", value: "\u0648\u0627\u0631\u062F" }] },
+  "EFA-1": { evidence: { en: "A penalty in the uncollected debt that does not appear in the Efaa list.", ar: "\u062C\u0632\u0627\u0621 \u0636\u0645\u0646 \u0627\u0644\u0645\u062F\u064A\u0648\u0646\u064A\u0627\u062A \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0651\u0644\u0629 \u0644\u0627 \u064A\u0638\u0647\u0631 \u0641\u064A \u0642\u0627\u0626\u0645\u0629 \u0625\u064A\u0641\u0627\u0621." }, sources: [{ system: "\u0627\u0644\u0645\u062F\u064A\u0648\u0646\u064A\u0627\u062A \u0645\u0642\u0627\u0628\u0644 \u0642\u0627\u0626\u0645\u0629 \u0625\u064A\u0641\u0627\u0621", field: "\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", value: "\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F \u0641\u064A \u0625\u064A\u0641\u0627\u0621" }] },
+  "OBJ-1": { evidence: { en: "Open objection in Mumtathil.", ar: "\u0627\u0639\u062A\u0631\u0627\u0636 \u0642\u0627\u0626\u0645 \u0641\u064A \u0645\u0645\u062A\u062B\u0644." }, sources: [{ system: "\u0645\u0645\u062A\u062B\u0644", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641", value: "\u0642\u0627\u0626\u0645" }] },
+  "ATT-1": { evidence: { en: "A written statement of the Amanah that this invoice is not collectible (uploaded file).", ar: "\u0625\u0641\u0627\u062F\u0629 \u0645\u0643\u062A\u0648\u0628\u0629 \u0645\u0646 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \u0628\u0623\u0646 \u0647\u0630\u0647 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0642\u0627\u0628\u0644\u0629 \u0644\u0644\u062A\u062D\u0635\u064A\u0644 (\u0645\u0644\u0641 \u0645\u0631\u0641\u0648\u0639)." }, sources: [{ system: "\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0631\u0641\u0639 \u064A\u062F\u0648\u064A)", field: "\u0627\u0644\u0625\u0641\u0627\u062F\u0629", value: "\u0645\u0631\u0641\u0642\u0629" }] },
+  "ENC-1": { evidence: { en: "Raised for exploiting a site without a contract (encroachment report of the Amanah).", ar: "\u0635\u062F\u0631\u062A \u0639\u0646 \u0627\u0633\u062A\u063A\u0644\u0627\u0644 \u0645\u0648\u0642\u0639 \u062F\u0648\u0646 \u0639\u0642\u062F (\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A \u0645\u0646 \u0627\u0644\u0623\u0645\u0627\u0646\u0629)." }, sources: [{ system: "\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0631\u0641\u0639 \u064A\u062F\u0648\u064A)", field: "\u0645\u062D\u0636\u0631 \u0627\u0644\u062A\u0639\u062F\u064A", value: "\u0645\u0631\u0641\u0642" }] },
   "ENF-1": { evidence: { en: "Referred to enforcement.", ar: "\u0645\u062D\u0627\u0644 \u0625\u0644\u0649 \u0627\u0644\u062A\u0646\u0641\u064A\u0630." }, sources: [] }
 };
 function materialize(st, i, ctx = null) {
@@ -4875,12 +5106,12 @@ function materialize(st, i, ctx = null) {
       else if (o.clr & bit) status = "pending";
     }
     const crRaw = ruleId === "CR-1" ? CR_STATUS[st.crSt[i]] : null;
-    const sources = ruleId === "CR-1" ? [{ system: "CR View", field: "Crstatus", value: crRaw }, { system: "\u0633\u0646\u062F", field: "CrNo (\u0627\u0633\u062A\u062E\u0631\u0627\u062C)", value: ctReq?.method === 1 ? "OCR" : "\u0645\u0646\u0638\u0645" }] : tpl.sources;
+    const sources = ruleId === "CR-1" ? [{ system: "\u0628\u0644\u062F\u064A + \u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A", field: "Crstatus", value: crRaw }] : ruleId === "OBJ-1" ? [{ system: "\u0645\u0645\u062A\u062B\u0644", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641", value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
     exclusions.push({
       category: RULE_BY_ID[ruleId].category,
       ruleId,
       ruleVersion: 1,
-      evidence: ruleId === "CR-1" ? { en: `CR status "${crRaw}" (raw) linked through Sanad document extraction.`, ar: `\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A "${crRaw}" (\u062E\u0627\u0645) \u0627\u0644\u0645\u0631\u062A\u0628\u0637\u0629 \u0639\u0628\u0631 \u0627\u0633\u062A\u062E\u0631\u0627\u062C \u0645\u0633\u062A\u0646\u062F\u0627\u062A \u0633\u0646\u062F.` } : tpl.evidence,
+      evidence: ruleId === "CR-1" ? { en: `CR status "${crRaw}" (raw), from the commercial-registration view.`, ar: `\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A "${crRaw}" (\u062E\u0627\u0645) \u0645\u0646 \u0639\u0631\u0636 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u062C\u0627\u0631\u064A.` } : tpl.evidence,
       sources,
       rawValue: crRaw,
       reviewStatus: status,
@@ -4925,7 +5156,7 @@ function materialize(st, i, ctx = null) {
     statusRawTahseel: tahseel,
     statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null,
     workflowStatus: "normal",
-    objection: flags & F.OBJECTION ? { open: true, ref: `OBJ-${String(idKey % 1e7).padStart(7, "0")}`, system: "momtathil" } : null,
+    objection: flags & F.OBJECTION ? { open: true, ref: `OBJ-${String(idKey % 1e7).padStart(7, "0")}`, system: "momtathil", status: objectionStatusKey(st, i), statusAr: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar, statusEn: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].en } : null,
     enforcementLinks: [],
     contract: { required: src.key === "investment", status: CSTAT[st.cstat[i]], ref: ct && st.cstat[i] === 1 ? ct.contractNo : null },
     contractPaymentNo: st.inst[i] || null,
@@ -4958,12 +5189,26 @@ function detail(st, i, ctx) {
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
   const riskFlags = recordRiskFlags(st, ctx, i);
   rec.iim = iimDetail(st, i, rec, D);
+  if (st.dupOf?.has(i)) rec.iim.duplicateOf = idOf(st, st.dupOf.get(i));
   if (D.excluded && rec.iim.exclusion?.ruleId === "SND-1" && !rec.exclusions.some((e) => e.ruleId === "SND-1")) {
     const q2 = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null;
     const ev = { en: "An uncollected invoice found in Sanad (new cases).", ar: "\u0641\u0627\u062A\u0648\u0631\u0629 \u063A\u064A\u0631 \u0645\u062D\u0635\u0651\u0644\u0629 \u0638\u0647\u0631\u062A \u0641\u064A \u0633\u0646\u062F (\u0642\u0636\u0627\u064A\u0627 \u062C\u062F\u064A\u062F\u0629)." };
     const e = { category: "executed_against_sanad", ruleId: "SND-1", ruleVersion: 1, evidence: ev, sources: [{ system: "\u0633\u0646\u062F \u2014 \u0642\u0636\u0627\u064A\u0627", field: "\u0631\u0642\u0645 \u0627\u0644\u0623\u0645\u0631", value: q2 ? q2.enforceNum : "\u0631\u0627\u0628\u0637 \u0645\u0624\u0643\u062F" }], rawValue: null, reviewStatus: "approved", reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: "not_started" };
     rec.exclusions = [...rec.exclusions, e];
     rec.exclusion = rec.exclusion || e;
+  }
+  {
+    const have = new Set(rec.exclusions.map((e) => e.ruleId));
+    const fo = ctx.ov.get(i)?.files || {};
+    RULE_IDS.forEach((ruleId, b) => {
+      if (!(D.mask & 1 << b) || have.has(ruleId) || ruleId === "SND-1" || !TEMPLATES[ruleId]) return;
+      const tpl = TEMPLATES[ruleId];
+      const f = fo[ruleId] || null;
+      const sources = f ? [{ system: "\u0645\u0644\u0641 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0631\u0641\u0639 \u064A\u062F\u0648\u064A)", field: "\u0627\u0633\u0645 \u0627\u0644\u0645\u0644\u0641", value: f.file }] : ruleId === "OBJ-1" ? [{ system: "\u0645\u0645\u062A\u062B\u0644", field: "\u062D\u0627\u0644\u0629 \u0627\u0644\u0627\u0633\u062A\u0626\u0646\u0627\u0641", value: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar }] : tpl.sources;
+      const e = { category: RULE_BY_ID[ruleId].category, ruleId, ruleVersion: 1, evidence: tpl.evidence, sources, rawValue: null, reviewStatus: "approved", reviewer: f ? { en: f.by, ar: f.by } : null, reviewDate: f ? String(f.at).slice(0, 10) : null, effectiveFrom: f ? String(f.at).slice(0, 10) : isoOf(st.issue[i]), effectiveTo: null, reassessment: "not_started", file: f ? { name: f.file, at: f.at, by: f.by } : null };
+      rec.exclusions = [...rec.exclusions, e];
+      rec.exclusion = rec.exclusion || e;
+    });
   }
   return { rec, derived, cls: CLASSES[D.cls], idStr: idOf(st, i), sourceRecord: sourceRec, riskFlags };
 }
@@ -5150,7 +5395,14 @@ function rowOut(st, ctx, i, D) {
     uploaded: !!(st.flags[i] & F.UPLOADED),
     ...im,
     invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null,
-    exclusionReason: exclusionOf(D)
+    exclusionReason: exclusionOf(D),
+    // R7: the Mumtathil appeal status; R11: the invoice it repeats; R8 / R9: the file the exclusion came from
+    objectionStatus: st.flags[i] & F.OBJECTION ? (() => {
+      const x = OBJECTION_STATUS_OF[objectionStatusKey(st, i)];
+      return { key: x.key, ar: x.ar, en: x.en, excludes: x.exclude };
+    })() : null,
+    duplicateOf: st.dupOf?.has(i) ? idOf(st, st.dupOf.get(i)) : null,
+    exclusionFile: ctx.ov?.get(i)?.files?.[D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : ""] || null
   };
 }
 var SORT_KEYS = { issue: "issue", gross: "gross", outstanding: "outstanding", daysOverdue: "daysOverdue", collected: "collected", id: "id" };
@@ -5443,7 +5695,7 @@ function risk(st, req) {
     sum[g] += st.gross[i];
     cnt[g] += 1;
   }
-  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, deceased_person: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
+  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
     const rf = recordRiskFlags(st, ctx, i);
@@ -5894,6 +6146,116 @@ function sameDebtorInvoices(st, req) {
   return { invoices: out };
 }
 
+// src/data/exclusionUpload.js
+var UPLOAD_RULES = ["ENC-1", "ATT-1"];
+var AR_DIGITS = "\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669";
+var FA_DIGITS = "\u06F0\u06F1\u06F2\u06F3\u06F4\u06F5\u06F6\u06F7\u06F8\u06F9";
+var westernDigits = (v) => String(v ?? "").replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d))).replace(/[۰-۹]/g, (d) => String(FA_DIGITS.indexOf(d)));
+var clean = (v) => westernDigits(v).replace(/[‎‏‪-‮ ]/g, " ").trim();
+var normText = (v) => clean(v).replace(/[ًٌٍَُِّْـ]/g, "").replace(/[أإآ]/g, "\u0627").replace(/ى/g, "\u064A").replace(/ة/g, "\u0647").replace(/\s+/g, " ").toLowerCase();
+function reasonRuleOf(text) {
+  const t = normText(text);
+  if (!t) return null;
+  for (const id of UPLOAD_RULES) {
+    const r = EXCLUSION_REASON_OF_RULE[id];
+    if ([r.ar, r.en, r.code, `r${r.n}`].some((x) => normText(x) === t)) return id;
+  }
+  return null;
+}
+function entityIndexOf(text) {
+  const t = normText(text);
+  if (!t) return -1;
+  return ENTITIES.findIndex((e, i) => i !== ENT_UNASSIGNED && [e.ar, e.en, e.zh].some((x) => normText(x) === t));
+}
+
+// server/exclusionUpload.js
+var AMOUNT_TOLERANCE2 = 1;
+function checkExclusionRows(st, req) {
+  const ctx = makeCtx(st, req);
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const r of req.rows || []) {
+    const res = { row: r.row, ok: false, code: null, invoiceId: null, ruleId: null, amount: null, outstanding: null };
+    const fail = (code) => {
+      res.code = code;
+      out.push(res);
+    };
+    res.ruleId = reasonRuleOf(r.reason);
+    if (!res.ruleId) {
+      fail("reason_invalid");
+      continue;
+    }
+    const no = String(r.invoiceNo || "").trim();
+    if (!no) {
+      fail("invoice_no_missing");
+      continue;
+    }
+    if (!String(r.amanah || "").trim()) {
+      fail("amanah_missing");
+      continue;
+    }
+    const ent = entityIndexOf(r.amanah);
+    if (ent < 0) {
+      fail("amanah_unknown");
+      continue;
+    }
+    let cands = [];
+    if (parseInvoiceKey(no)) {
+      const i2 = lookupId(st, no);
+      if (i2 >= 0) cands = [i2];
+    } else if (/^\d{6,14}$/.test(no)) cands = lookupSadad(st, no);
+    const visible = cands.filter((i2) => st.owner[i2] === 0 || st.owner[i2] === (req.owner || 0));
+    if (!visible.length) {
+      fail("invoice_not_found");
+      continue;
+    }
+    const mine = visible.filter((i2) => st.ent[i2] === ent);
+    if (!mine.length) {
+      fail("other_amanah");
+      continue;
+    }
+    const i = mine[0];
+    res.invoiceId = idOf(st, i);
+    if (seen.has(res.invoiceId)) {
+      fail("duplicate_in_file");
+      continue;
+    }
+    seen.add(res.invoiceId);
+    const D = derive(ctx, i, ctx.cutoffN);
+    res.amount = D.billed;
+    res.outstanding = D.outstanding;
+    if (D.cancelled) {
+      fail("cancelled");
+      continue;
+    }
+    if (D.billed > 0 && D.received >= D.billed) {
+      fail("already_collected");
+      continue;
+    }
+    if (!Number.isFinite(r.amount) || Math.abs(r.amount - D.gross) > AMOUNT_TOLERANCE2) {
+      fail("amount_mismatch");
+      continue;
+    }
+    if (!r.date || r.date !== isoOf(st.issue[i])) {
+      fail("date_mismatch");
+      continue;
+    }
+    const im = iimFields(st, i);
+    if (String(r.account || "").trim() !== String(im.gfsCode || "")) {
+      fail("account_mismatch");
+      continue;
+    }
+    if (res.ruleId === "ENC-1" && im.mainClass !== MAIN.investment) {
+      fail("not_investment");
+      continue;
+    }
+    res.ok = true;
+    res.code = null;
+    out.push(res);
+  }
+  return { rows: out, accepted: out.filter((x) => x.ok).length, rejected: out.filter((x) => !x.ok).length };
+}
+
 // server/api.js
 var memo = /* @__PURE__ */ new Map();
 var MAX_MEMO = 60;
@@ -6023,6 +6385,8 @@ async function handleApi(req, res) {
         if (i < 0 || st.owner[i] !== 0 && st.owner[i] !== owner) return send(res, 404, { error: "invoice_not_found" });
         return send(res, 200, detail(st, i, makeCtx(st, body)));
       }
+      case "/exclusion-check":
+        return send(res, 200, checkExclusionRows(st, body));
       case "/order-match":
         return send(res, 200, resolveReferences(st, body));
       case "/order-debtor-invoices":

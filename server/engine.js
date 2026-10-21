@@ -161,9 +161,10 @@ export function derive(ctx, i, asOfN) {
   if (m & CR_BIT) { const cs = st.crSt[i]; if (!ctx.crOk[cs]) m &= ~CR_BIT; }
   // R7: an open objection excludes the invoice only while its Mumtathil status is one of the excluded ones; «مكتمل مرفوض» stays collectable
   const objOpen = (flags & F.OBJECTION) !== 0 && objectionExcludes(st, i);
-  if ((flags & F.OBJECTION) && !objOpen) m &= ~OBJ_BIT; else if (ctx.objOn && objOpen && !(m & OBJ_BIT)) m |= OBJ_BIT;
+  if ((flags & F.OBJECTION) && !objOpen) m &= ~OBJ_BIT; else if (ctx.objOn && objOpen && !(m & OBJ_BIT) && !(ctx.mark && ctx.mark[i] && (ctx.ov.get(i).rej & OBJ_BIT))) m |= OBJ_BIT;
   // R2: the customer is on the service-company list (stay of execution); generated invoices only — hand-anchored fixtures carry no customer index
-  if (ctx.styOn && i < st.nGen && st.payCount[i] === 0 && isServiceCompanyPayer(st.payer[i])) m |= STY_BIT; // an invoice with a payment is not taken out whole (receipts on excluded invoices are kept apart in this model)
+  const rejBits = ctx.mark && ctx.mark[i] ? ctx.ov.get(i).rej : 0; // a reviewer's rejection of a reason keeps it off this invoice
+  if (ctx.styOn && i < st.nGen && st.payCount[i] === 0 && !(rejBits & STY_BIT) && isServiceCompanyPayer(st.payer[i])) m |= STY_BIT; // an invoice with a payment is not taken out whole (receipts on excluded invoices are kept apart in this model)
   if (ctx.sndOn && (st.exec[i] >= 0 || (link >= 2 && link <= 4))) m |= SND_BIT; // D12: an uncollected invoice found in Sanad is excluded whatever its Sanad status
   let primaryBit = 0; let primaryApproved = false;
   if (m) for (const r of BY_PRIORITY) if (m & r.bit) { primaryBit = r.bit; primaryApproved = r.approved; break; }
