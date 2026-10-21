@@ -10,6 +10,7 @@ import { FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
 import { locLabel } from '../../data/docxText';
 import { METHOD_NOTE } from './OrderDocuments';
 import { useOrderWork } from './useOrderWork';
+import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
 
 // The order's journey in three plain steps — 1 add the document · 2 analyse it · 3 review and confirm the links — with ONE primary action and ONE consolidated review table.
 // References from the structured field, the description, the notes and every document are combined automatically; nothing asks for a separate confirmation per source.
@@ -81,7 +82,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
         {/* D19: the target flow is automatic retrieval from Sanad; until that integration exists the manual upload above stays, and this step is shown only to illustrate the future flow */}
         <div className="oj-row" style={{ alignItems: 'center' }}>
           <button type="button" className="btn oj-primary" disabled title={L('Not available yet — needs the Sanad database link', 'غير متاح بعد — يحتاج الربط مع قاعدة بيانات سند')}>{L('Retrieve the document from Sanad automatically (future)', 'استرجاع المستند من سند تلقائيًا (مستقبلًا)')}</button>
-          <span className="muted" style={{ fontSize: 13 }}>{L('Future flow: the system fetches the order’s document from Sanad, reads it (OCR) and matches the invoice number + Amanah + amount.', 'المسار المستقبلي: تجلب المنظومة مستند الأمر من سند، وتقرؤه (OCR)، وتطابق رقم الفاتورة + الأمانة + المبلغ.')}</span>
+          {SHOW_INTERNAL_NOTES && <span className="muted" style={{ fontSize: 13 }}>{L('Future flow: the system fetches the order’s document from Sanad, reads it (OCR) and matches the invoice number + Amanah + amount.', 'المسار المستقبلي: تجلب المنظومة مستند الأمر من سند، وتقرؤه (OCR)، وتطابق رقم الفاتورة + الأمانة + المبلغ.')}</span>}
         </div>
         <div>
           <div style={{ fontSize: 13, fontWeight: 700, marginBlockEnd: 4 }}>{L('Or choose a prepared demo sample for this order', 'أو اختر عينة معدّة لهذا الأمر')} <span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span></div>
@@ -99,7 +100,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
               <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="177-2200000123" disabled={!canReview} /></label>
             <button type="button" className="btn btn-sm" disabled={!canReview || !manual.trim()} onClick={() => { if (work.addManual(manual)) { setManual(''); setTick((x) => x + 1); } }}>{L('Add the numbers', 'إضافة الأرقام')}</button>
           </div>
-          <div className="rp-limit">{L('Recorded as «typed by a person» — kept apart from any extraction.', 'تُسجَّل «أدخلها شخص» — منفصلة عن أي استخراج.')}</div>
+          {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Recorded as «typed by a person» — kept apart from any extraction.', 'تُسجَّل «أدخلها شخص» — منفصلة عن أي استخراج.')}</div>}
         </details>
         {docs.length > 0 && (
           <ul className="oj-docs" aria-label={L('Added documents', 'المستندات المضافة')}>{docs.map((d) => { const ex = d.extraction; const unreadN = ex ? ex.pages.filter((p) => p.needsOcr && !(d.ocrCovered || []).includes(p.page)).length : 0; return (
@@ -124,7 +125,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
         <h3>{L('2 · Analyse the document', '2 · تحليل المستند')}</h3>
         <div className="oj-row">
           <button type="button" className="btn btn-primary oj-primary" disabled={!canReview || work.busy} onClick={run}>{work.busy ? L('Analysing…', 'جارٍ التحليل…') : L('Analyse and link invoices', 'تحليل وربط الفواتير')}</button>
-          <span className="muted" style={{ fontSize: 13 }}>{L('Combines the references in the fields, the description, the notes and every document, then matches each one.', 'يجمع المراجع من الحقول والوصف والملاحظات وكل مستند، ثم يطابق كل مرجع.')}</span>
+          {SHOW_INTERNAL_NOTES && <span className="muted" style={{ fontSize: 13 }}>{L('Combines the references in the fields, the description, the notes and every document, then matches each one.', 'يجمع المراجع من الحقول والوصف والملاحظات وكل مستند، ثم يطابق كل مرجع.')}</span>}
         </div>
         {work.progress && (
           <div className="oj-progress" role="status" aria-live="polite">
@@ -217,7 +218,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
               <span>{L('Order amount', 'مبلغ الأمر')}: <b dir="ltr">{sar(totals.orderAmount)}</b></span>
               <span className={totals.difference != null && Math.abs(totals.difference) > 1 ? 'rp-warn' : 'rp-ok'}>{L('Difference', 'الفرق')}: <b dir="ltr">{totals.difference == null ? '—' : sar(totals.difference)}</b></span>
             </div>
-            <div className="rp-limit">{L('Amount basis: the invoice gross (before exclusions and payments), each invoice counted once. A difference does not prevent confirming valid links, and equal amounts would not prove every invoice was identified.', 'أساس المبلغ: إجمالي الفاتورة (قبل الاستبعاد والمدفوعات)، وكل فاتورة تُحتسب مرة. والفرق لا يمنع تأكيد الروابط الصحيحة، وتساوي المبلغ لا يثبت أن كل الفواتير حُددت.')} {noLinkNote}</div>
+            {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Amount basis: the invoice gross (before exclusions and payments), each invoice counted once. A difference does not prevent confirming valid links, and equal amounts would not prove every invoice was identified.', 'أساس المبلغ: إجمالي الفاتورة (قبل الاستبعاد والمدفوعات)، وكل فاتورة تُحتسب مرة. والفرق لا يمنع تأكيد الروابط الصحيحة، وتساوي المبلغ لا يثبت أن كل الفواتير حُددت.')} {noLinkNote}</div>}
             <div className="oj-row">
               <button type="button" className="btn btn-primary oj-primary" disabled={!canReview || !selected.length} onClick={confirmSelected}>{L('Confirm the selected invoice links', 'تأكيد ربط الفواتير المحددة')}{selected.length ? ` (${selected.length})` : ''}</button>
               {!canReview && <span className="muted">{L('Read-only role: you can review but not confirm.', 'دور للقراءة فقط: يمكنك المراجعة دون التأكيد.')}</span>}

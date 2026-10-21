@@ -15,6 +15,7 @@ import { amanahName } from './Contracts';
 import OrdersView from './EnforcementOrders';
 import { Section } from '../components/record/RecordPage';
 import { loadPreparedSamples, SIM_LABEL } from '../data/ocrSimulation';
+import { SHOW_INTERNAL_NOTES } from '../data/uiFlags';
 
 const VIEWS = ['orders', 'eligible', 'invoices', 'contracts'];
 const EXC_LABEL = {
@@ -88,8 +89,8 @@ export default function EnforcementHome() {
           {card(inv.ever, L('Referred invoices', 'فواتير محالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('invoices') })}
           {card(eligibleN == null ? '…' : eligibleN, L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('eligible') })}
         </div>
-        <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>
-        <details className="oj-more" style={{ marginBlockStart: 6 }}>
+        {SHOW_INTERNAL_NOTES && <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>}
+        {SHOW_INTERNAL_NOTES && (<details className="oj-more" style={{ marginBlockStart: 6 }}>
           <summary>{L('Breakdown of the counts', 'تفاصيل الأعداد')}</summary>
           <div className="rp-tablewrap" tabIndex={0} style={{ marginBlockStart: 6 }}>
             <table aria-label={L('Counts', 'الأعداد')}>
@@ -105,7 +106,7 @@ export default function EnforcementHome() {
               </tbody>
             </table>
           </div>
-        </details>
+        </details>)}
       </section>
 
       <nav className="rp-tabs" aria-label={L('Enforcement views', 'عروض الإنفاذ')}>
@@ -118,13 +119,13 @@ export default function EnforcementHome() {
       {view === 'invoices' && <ReferredInvoices idx={idx} />}
       {view === 'contracts' && <RelatedContracts items={contracts} />}
 
-      <Section id="samples" secondary title={L('Prepared demo samples', 'عينات العرض المعدّة')} count={samples.length}
+      {SHOW_INTERNAL_NOTES && (<Section id="samples" secondary title={L('Prepared demo samples', 'عينات العرض المعدّة')} count={samples.length}
         note={<div className="rp-limit"><span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span> {L('Each sample is a scanned-style document prepared for one demo request: open it, choose the sample in step 1, then analyse. A labelled simulation — not real OCR.', 'كل عينة مستند ممسوح معدّ لطلب واحد في العرض: افتحه واختر العينة في الخطوة 1 ثم حلّل. محاكاة معلّمة — وليست OCR حقيقياً.')}</div>}>
         <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Prepared samples', 'العينات المعدّة')}>
           <thead><tr><th>{L('Scenario', 'السيناريو')}</th><th>{L('Request', 'الطلب')}</th><th>{L('What it shows', 'ما تُظهره')}</th></tr></thead>
           <tbody>{samples.map((x) => { const c = cases.find((k) => k.enforceNum === x.orderNo); return <tr key={x.id}><td><b>{B(x.title)}</b></td><td><RecordLink to={orderPath(x.orderNo)} dir="ltr">{c?.source?.requestNo || x.orderNo}</RecordLink></td><td style={{ fontSize: 12 }}>{B(x.what)}</td></tr>; })}{!samples.length && <tr><td colSpan={3} className="muted">{L('No prepared samples are available.', 'لا توجد عينات معدّة.')}</td></tr>}</tbody>
         </table></div>
-      </Section>
+      </Section>)}
     </div>
   );
 }
@@ -158,7 +159,7 @@ function EligibleInvoices() {
   useRestoreScroll(rows.length > 0);
   return (
     <section className="rp-section" aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
-      <div className="rp-limit">{L('Overdue, uncollected invoices that are not excluded or cancelled, have complete data and no execution order yet. They can be referred now.', 'فواتير متأخرة وغير محصّلة، غير مستبعدة ولا ملغاة، بياناتها مكتملة، وليس لها أمر تنفيذ بعد. يمكن إحالتها الآن.')}</div>
+      {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Overdue, uncollected invoices that are not excluded or cancelled, have complete data and no execution order yet. They can be referred now.', 'فواتير متأخرة وغير محصّلة، غير مستبعدة ولا ملغاة، بياناتها مكتملة، وليس لها أمر تنفيذ بعد. يمكن إحالتها الآن.')}</div>}
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
         <thead><tr><th>{L('Invoice', 'رقم الفاتورة')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Product', 'اسم المنتج')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th></tr></thead>
         <tbody>{rows.map((r) => (
@@ -183,7 +184,7 @@ function ReferredInvoices({ idx }) {
   useRestoreScroll(view.length > 0);
   return (
     <section className="rp-section" aria-label={L('Referred invoices', 'الفواتير المحالة')}>
-      <div className="rp-limit">{L('Invoices with at least one CONFIRMED order. Payment status and remaining balance are the invoice’s own; the enforcement columns are separate.', 'فواتير عليها أمر مؤكد واحد على الأقل. حالة السداد والمتبقي من الفاتورة نفسها؛ وأعمدة الإنفاذ منفصلة.')}</div>
+      {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Invoices with at least one CONFIRMED order. Payment status and remaining balance are the invoice’s own; the enforcement columns are separate.', 'فواتير عليها أمر مؤكد واحد على الأقل. حالة السداد والمتبقي من الفاتورة نفسها؛ وأعمدة الإنفاذ منفصلة.')}</div>}
       <div className="rv-form" role="search" style={{ margin: '8px 0' }}>
         <label style={{ flex: '1 1 200px' }}>{L('Search invoice number', 'بحث برقم الفاتورة')}<input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} dir="ltr" placeholder="177-2200000123" /></label>
         <label>{L('Enforcement', 'الإنفاذ')}<select className="input" value={f} onChange={(e) => { setF(e.target.value); setPage(0); }}><option value="all">{L('Ever referred', 'سبقت إحالتها')}</option><option value="inexec">{L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{L('All orders closed', 'كل الأوامر مغلقة')}</option></select></label>
@@ -211,7 +212,7 @@ function RelatedContracts({ items }) {
   const view = items.slice(page * 25, (page + 1) * 25);
   return (
     <section className="rp-section" aria-label={L('Related contracts', 'العقود ذات الصلة')}>
-      <div className="rp-limit">{L('Three different facts, never merged: «mentioned» (an order’s text or a document names the contract, unreviewed); «directly referred» (Sanad’s structured field, or a mention a reviewer confirmed from a document); «invoices referred» (the contract’s own invoices that carry a confirmed order). None implies another, and a contract is never linked by an amount or a payer name.', 'ثلاث حقائق مختلفة لا تُدمج: «مذكورة» (نص أمر أو مستند يذكر العقد دون مراجعة)؛ و«محالة مباشرة» (حقل سند المهيكل أو ذكر أكّده مراجع من مستند)؛ و«فواتير محالة» (فواتير العقد نفسه التي عليها أمر مؤكد). لا تدل إحداها على أخرى، ولا يُربط عقد بمبلغ أو اسم دافع.')}</div>
+      {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Three different facts, never merged: «mentioned» (an order’s text or a document names the contract, unreviewed); «directly referred» (Sanad’s structured field, or a mention a reviewer confirmed from a document); «invoices referred» (the contract’s own invoices that carry a confirmed order). None implies another, and a contract is never linked by an amount or a payer name.', 'ثلاث حقائق مختلفة لا تُدمج: «مذكورة» (نص أمر أو مستند يذكر العقد دون مراجعة)؛ و«محالة مباشرة» (حقل سند المهيكل أو ذكر أكّده مراجع من مستند)؛ و«فواتير محالة» (فواتير العقد نفسه التي عليها أمر مؤكد). لا تدل إحداها على أخرى، ولا يُربط عقد بمبلغ أو اسم دافع.')}</div>}
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Related contracts', 'العقود ذات الصلة')}>
         <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Order and the contract', 'الأمر والعقد')}</th><th>{L('Invoices referred', 'فواتير محالة')}</th></tr></thead>
         <tbody>{view.map(({ k, direct, mentioned, ids, referred, open }) => (

@@ -7,6 +7,7 @@ import { locLabel } from '../../data/docxText';
 import { SIM_LABEL } from '../../data/ocrSimulation';
 import PdfPreview, { useDocFiles } from '../record/PdfPreview';
 import { Section } from '../record/RecordPage';
+import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
 
 // How the text of a page reached the system — kept apart on purpose (stored per record), and never called «OCR performed by this system».
 export const METHOD_NOTE = {
@@ -52,7 +53,7 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
     <>
       {docs.length > 1 && <div role="tablist" aria-label={L('Documents', 'المستندات')} style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{docs.map((x, i) => <button key={x.id} role="tab" aria-selected={i === sel} type="button" className={`btn btn-sm${i === sel ? ' btn-primary' : ''}`} onClick={() => { setSel(i); setPage(1); }}><span dir="ltr">{x.kind === 'manual' ? L('Typed references', 'مراجع مُدخلة') : x.name}</span></button>)}</div>}
       {d.kind === 'manual' ? (
-        <div className="rp-ev"><div className="rp-limit">{B(METHOD_NOTE.manual_entry)}. {L('There is no file: these references were typed by a person.', 'لا يوجد ملف: أدخل شخص هذه المراجع.')}</div>
+        <div className="rp-ev">{SHOW_INTERNAL_NOTES && <div className="rp-limit">{B(METHOD_NOTE.manual_entry)}. {L('There is no file: these references were typed by a person.', 'لا يوجد ملف: أدخل شخص هذه المراجع.')}</div>}
           <ul>{(ex?.refs || []).map((r) => <li key={r.value} dir="ltr">{r.value}</li>)}</ul></div>
       ) : (
         <div className="rp-split">
@@ -61,7 +62,7 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
             <div className="muted" style={{ fontSize: 12 }}><span dir="ltr">{d.name}</span> · {B(FORMAT_LABEL[ex?.format || d.format || 'pdf'] || FORMAT_LABEL.unknown)} · {(d.size / 1024).toFixed(1)} KB · {L('added', 'أُضيف')} {fmtRiyadh(d.addedAt)} · SHA-256 <span dir="ltr">{String(d.id).slice(0, 12)}…</span>{files[d.id] === false && <> · <b className="rp-warn">{L('original file unavailable — only the extracted evidence remains', 'الملف الأصلي غير متاح — بقي الدليل المستخرج فقط')}</b></>}{d.fileRestoredAt && <> · {L('file restored', 'استُعيد الملف')} {fmtRiyadh(d.fileRestoredAt)}</>}</div>
             {!ex && <div className="rp-limit rp-limit--warn">{L('Not analysed yet — press «Analyse and link invoices».', 'لم يُحلَّل بعد — اضغط «تحليل وربط الفواتير».')}</div>}
             {ex && ex.pages.length > 0 && ex.pages.every((p) => p.needsOcr) && !(d.ocrCovered || []).length && <div className="rp-limit rp-limit--warn"><b>{L('Nothing was read from this file.', 'لم يُقرأ شيء من هذا الملف.')}</b> {L('No method applies: it is kept as the original, and no reference is attributed to it.', 'لا تنطبق أي طريقة: يُحفظ الأصل ولا يُنسب إليه أي مرجع.')}</div>}
-            {ex && !(ex.pages.length > 0 && ex.pages.every((p) => p.needsOcr) && !(d.ocrCovered || []).length) && <div className="rp-limit"><b>{L('Method', 'الطريقة')}:</b> {B(METHOD_NOTE[method] || { en: method, ar: method })}{method === 'ocr_simulated' && <> <span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span></>}</div>}
+            {SHOW_INTERNAL_NOTES && ex && !(ex.pages.length > 0 && ex.pages.every((p) => p.needsOcr) && !(d.ocrCovered || []).length) && <div className="rp-limit"><b>{L('Method', 'الطريقة')}:</b> {B(METHOD_NOTE[method] || { en: method, ar: method })}{method === 'ocr_simulated' && <> <span className="rv-tag rv-tag--warn">{B(SIM_LABEL)}</span></>}</div>}
             {ex && (
               <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Pages read', 'الصفحات المقروءة')}>
                 <thead><tr><th>{exact ? L('Page', 'الصفحة') : L('Locations', 'المواضع')}</th><th>{L('How it was read', 'كيف قُرئت')}</th><th>{L('Status', 'الحالة')}</th></tr></thead>
@@ -89,7 +90,7 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
                 </div>
                 <label style={{ display: 'grid', gap: 4 }}>{L('Text (one page, or pages separated by «--- page N ---» lines)', 'النص (صفحة واحدة، أو صفحات تفصلها أسطر «--- page N ---»)')}<textarea className="input" style={{ height: 90, paddingBlock: 8 }} dir="ltr" value={s.text || ''} onChange={(e) => setSup((m) => ({ ...m, [d.id]: { ...s, text: e.target.value } }))} placeholder="177-2200000123" /></label>
                 <div><button type="button" className="btn btn-sm btn-primary" onClick={submitSupplement}>{L('Record the text', 'تسجيل النص')}</button></div>
-                <div className="rp-limit">{L('This is not OCR performed by this system. The text must come from an external OCR tool or be typed from the document; it is recorded as such.', 'هذا ليس OCR ينفّذه هذا النظام. يجب أن يأتي النص من أداة OCR خارجية أو يُكتب من المستند؛ ويُسجَّل كذلك.')}</div>
+                {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('This is not OCR performed by this system. The text must come from an external OCR tool or be typed from the document; it is recorded as such.', 'هذا ليس OCR ينفّذه هذا النظام. يجب أن يأتي النص من أداة OCR خارجية أو يُكتب من المستند؛ ويُسجَّل كذلك.')}</div>}
               </Section>
             )}
           </div>

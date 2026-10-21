@@ -1,5 +1,6 @@
 import React from 'react';
 import { useL } from '../../utils/bi';
+import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
 
 // Shared labels and chips for enforcement orders — used by the order list, the order page and the invoice view.
 export const CURRENT_ENFORCEMENT_LABEL = {
@@ -70,7 +71,7 @@ export function IntegrationNotice() {
   return (
     <div className="oj-marker" role="note">
       <span className="rv-tag rv-tag--warn">{L('Demo data · OCR simulation', 'بيانات تجريبية · محاكاة OCR')}</span>
-      <details>
+      {SHOW_INTERNAL_NOTES && <details>
         <summary>{L('Integration details', 'تفاصيل التكامل')}</summary>
         <ul>
           <li>{L('Orders and their invoice references come from a SYNTHETIC Sanad feed. Live Sanad retrieval and retrieval of Sanad attachments are not connected: add documents by hand or choose a prepared sample.', 'الأوامر ومراجع فواتيرها من تغذية «اصطناعية» لسند. الاسترجاع الحي من سند وجلب مرفقاته غير متصلين: أضف المستندات يدوياً أو اختر عينة معدّة.')}</li>
@@ -78,7 +79,7 @@ export function IntegrationNotice() {
           <li>{L('Scanned documents: there is NO OCR engine. The prepared samples run a labelled «OCR simulation — demo only» that replays the transcript of the sample; any other scan is flagged «not read» (supply external OCR text or type the references).', 'المستندات الممسوحة: لا يوجد محرك OCR. تشغّل العينات المعدّة «محاكاة OCR — للعرض التجريبي» تعيد نص العينة المعدّ؛ وأي مستند ممسوح آخر يُعلَّم «لم يُقرأ» (زوّد نص OCR خارجياً أو أدخل المراجع يدوياً).')}</li>
           <li>{L('Stored records keep the methods apart: digital extraction · OCR simulation · system OCR (not connected) · imported external OCR text · typed by a person.', 'تحفظ السجلات الطرق منفصلة: استخراج رقمي · محاكاة OCR · OCR النظام (غير متصل) · نص OCR خارجي مستورد · إدخال يدوي.')}</li>
         </ul>
-      </details>
+      </details>}
     </div>
   );
 }
@@ -86,6 +87,7 @@ export function IntegrationNotice() {
 // Why an invoice that is cancelled in the source and referred to enforcement stays cancelled (plain wording; the rule's name and history are in the documentation)
 export function Enf1Explainer() {
   const { L } = useL();
+  if (!SHOW_INTERNAL_NOTES) return null;
   return (
     <details className="oj-marker">
       <summary>{L('Why does the invoice stay cancelled?', 'لماذا تبقى الفاتورة ملغاة؟')}</summary>
