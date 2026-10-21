@@ -1799,4 +1799,11 @@ await test('IIM-30 · rows are matched on الأمانة + رقم الفاتور
   const sneaky = derive(makeCtx(st, { cfg, fileExclusions: { [idOf(st, b)]: { ruleId: 'CR-1', file: 'x', at: 'x', by: 'x' } } }), b, ctx0.cutoffN); assert.equal(sneaky.excluded, false);
   const rej = XLSX_I30.read(buildRej_I30(XLSX_I30, [{ ...rowOf(b), rejection: 'x' }]), { type: 'array' }); assert.equal(XLSX_I30.utils.sheet_to_json(rej.Sheets[rej.SheetNames[0]], { header: 1 })[0].at(-1), 'سبب الرفض');
 });
+// ---- metric dictionary: every exclusion is documented ----
+import { exclusionDocs as exclDocs_D, FORMULA_GROUPS as FG_D } from '../src/data/dictionaryDocs.js';
+await test('dictionary · every exclusion reason R1–R11 is documented with what it is, what it is built on, the exact rule and the engine bit; formulas are listed with their code location', () => {
+  const docs = exclDocs_D(); assert.equal(docs.length, EXCLUSION_REASONS.length);
+  for (const d of docs) { assert.ok(d.what?.ar && d.what?.en && d.basedOn?.length && d.rule && d.notWhen?.ar && d.feed?.ar && d.source?.ar, `${d.ruleId} is fully documented`); assert.equal(d.bit, 1 << RULE_IDS_V3.indexOf(d.ruleId)); assert.ok(Number.isFinite(d.priority)); }
+  assert.ok(FG_D.every((g) => g.rows.every((r) => r.f && r.where && r.name?.ar && r.meaning?.ar)));
+});
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

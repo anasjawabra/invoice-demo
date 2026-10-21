@@ -6,7 +6,7 @@ import { useL } from '../../utils/bi';
 export const SETTINGS_PAGES = [
   { to: '/settings/data-sources', en: 'Data sources', ar: 'مصادر البيانات', hintEn: 'Source status, versions, imports', hintAr: 'حالة المصادر والإصدارات والاستيراد' },
   { to: '/settings/data-quality', en: 'Data quality', ar: 'جودة البيانات', hintEn: 'Records to complete or match', hintAr: 'سجلات تحتاج استكمالاً أو مطابقة' },
-  { to: '/settings/metrics', en: 'Metric dictionary', ar: 'قاموس المقاييس', hintEn: 'One definition per metric', hintAr: 'تعريف واحد لكل مقياس' }
+  { to: '/settings/metrics', en: 'Metric dictionary', ar: 'قاموس المقاييس', hintEn: 'Metrics, exclusions, formulas, for developers', hintAr: 'المقاييس والاستبعادات والمعادلات وللمطورين' }
 ];
 
 export default function SettingsNav({ current }) {

@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
 import { useL, ratioText } from '../utils/bi';
 import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
 import { metricDictionary } from '../data/metricDictionary';
 import SettingsNav from '../components/settings/SettingsNav';
+import { ExclusionsTab, FormulasTab, DevelopersTab } from '../components/settings/DictionaryTabs';
 
 const KIND = {
   flow: { ar: 'تدفق لفترة', en: 'Period flow' },
@@ -16,6 +18,8 @@ export default function Metrics() {
   const rev = useRevenue();
   const { L, B, ar, short } = useL();
   const { snapshot } = rev;
+  const [sp, setSp] = useSearchParams(); const tab = ['metrics', 'exclusions', 'formulas', 'developers'].includes(sp.get('tab')) ? sp.get('tab') : 'metrics';
+  const TABS = [['metrics', L('Metrics', 'المقاييس')], ['exclusions', L('Exclusions', 'الاستبعادات')], ['formulas', L('Formulas and rules', 'المعادلات والقواعد')], ['developers', L('For developers', 'للمطورين')]];
   const dict = useMemo(() => metricDictionary(snapshot), [snapshot]);
   const T = snapshot.totals; const S = snapshot.stock;
   const value = {
@@ -30,9 +34,16 @@ export default function Metrics() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Metric dictionary', 'قاموس المقاييس')}</h1>
-          <div className="page-sub">{L('One definition per metric, used by the dashboard, reports, the assistant, charts and alerts. Values below are computed live for the scope selected above.', 'تعريف واحد لكل مقياس تستخدمه اللوحة والتقارير والمساعد والرسوم والتنبيهات. القيم أدناه محسوبة مباشرة للنطاق المحدد أعلاه.')}</div>
+          <div className="page-sub">{L('The full reference for the business and for developers: every metric, every exclusion and how it is computed, and every formula — one definition, used by the dashboard, reports, the assistant, charts and alerts.', 'المرجع الكامل للأعمال وللمطورين: كل مقياس، وكل استبعاد وكيف يُحسب وعلى ماذا يُبنى، وكل المعادلات — تعريف واحد تستخدمه لوحة المعلومات والتقارير والمساعد والرسوم والتنبيهات.')}</div>
         </div>
       </div>
+      <div className="rv-chips" role="tablist" aria-label={L('Dictionary sections', 'أقسام القاموس')} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 12px' }}>
+        {TABS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`btn btn-sm${tab === k ? ' btn-primary' : ''}`} onClick={() => setSp(k === 'metrics' ? {} : { tab: k })}>{label}</button>)}
+      </div>
+      {tab === 'exclusions' && <><ScopeBar hideStatus /><ExclusionsTab /></>}
+      {tab === 'formulas' && <FormulasTab />}
+      {tab === 'developers' && <DevelopersTab />}
+      {tab === 'metrics' && <>
       <ScopeBar />
       <div className="rv-callout">
         <b>{L('Two things that are not the same', 'أمران مختلفان')}</b>{' '}
@@ -60,6 +71,7 @@ export default function Metrics() {
           </article>
         ))}
       </div>
+      </>}
     </div>
   );
 }

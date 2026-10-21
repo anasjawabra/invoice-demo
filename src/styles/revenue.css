@@ -873,3 +873,10 @@
 .rv-sort:hover, .rv-sort:focus-visible { color: var(--primary); text-decoration: underline; outline: none; }
 .rv-row--link td:first-child a { color: var(--secondary); text-decoration: underline; text-underline-offset: 3px; }
 .rv-row--link:hover td { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+
+/* metric dictionary: exclusions, formulas, developer reference */
+.dd-tab { display: grid; gap: 14px; }
+.dd-code { margin: 0; padding: 8px 10px; background: color-mix(in srgb, var(--primary) 5%, var(--surface, #fff)); border: 1px solid var(--border, #e4e7ec); border-radius: 8px; font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; overflow-wrap: anywhere; text-align: left; }
+.dd-list { margin: 6px 0; padding-inline-start: 22px; display: grid; gap: 4px; line-height: 1.7; }
+.dd-table td { vertical-align: top; }
+.dd-table td .dd-code { min-width: 240px; }
