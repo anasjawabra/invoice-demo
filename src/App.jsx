@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Layout from './components/Layout';
-import DataSources from './pages/DataSources';
 import InsightsHub from './pages/InsightsHub';
 import SmartReportsPage from './pages/SmartReportsPage';
 import DecisionRoom from './pages/DecisionRoom';
@@ -12,7 +11,6 @@ import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
 import Invoices from './pages/Invoices';
 import Risk from './pages/Risk';
-import DataQuality from './pages/DataQuality';
 import Collection from './pages/Collection';
 import Exclusions from './pages/Exclusions';
 import Products from './pages/Products';
@@ -50,11 +48,11 @@ export default function App() {
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
         <Route path="what-if" element={<Navigate to="/planning" replace />} />
         <Route path="noncollection" element={<Navigate to="/collection" replace />} />
-        <Route path="settings" element={<Navigate to="/settings/data-sources" replace />} />
-        <Route path="settings/data-sources" element={<DataSources />} />
-        <Route path="settings/data-quality" element={<DataQuality />} />
+        <Route path="settings" element={<Navigate to="/settings/metrics" replace />} />
+        <Route path="settings/data-sources" element={<Navigate to="/settings/metrics" replace />} />
+        <Route path="settings/data-quality" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="settings/metrics" element={<Metrics />} />
-        <Route path="data-sources" element={<Navigate to="/settings/data-sources" replace />} />
+        <Route path="data-sources" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="contracts" element={<Contracts />} />
         <Route path="metrics" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="invoices" element={<Invoices />} />

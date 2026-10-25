@@ -157,7 +157,7 @@ function LayoutInner() {
     ],
     [t, lang]
   );
-  // system configuration and administration (source status, record-level data quality, metric definitions) is its own, rarely used area — not one of the daily operational pages
+  // system configuration and administration (metric definitions) is its own, rarely used area — not one of the daily operational pages
   const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
   const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
 
@@ -177,8 +177,6 @@ function LayoutInner() {
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
-    if (p.startsWith('/settings/data-sources')) return t('nav_data_sources');
-    if (p.startsWith('/settings/data-quality')) return t('nav_data_quality');
     if (p.startsWith('/settings/metrics')) return t('nav_metrics');
     if (p.startsWith('/settings')) return t('nav_system_settings');
     if (p.startsWith('/contracts')) return t('nav_contracts');

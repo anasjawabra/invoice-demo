@@ -8,7 +8,7 @@
 //   S6  exclusions are applied automatically (EXCLUSIONS_AUTO_APPLY).
 // The classification table mirrors the structure of the ministry's «تصنيف الإيرادات» file (codes and names only — no figures).
 // ============================================================================
-import { ENTITIES, ENT_HOUSING, ENT_UNASSIGNED, N_AMANAH, SOURCES, ITEMS } from './catalog.js';
+import { ENTITIES, ENT_HOUSING, N_AMANAH, SOURCES, ITEMS } from './catalog.js';
 
 /* ---------- billers / origin ---------- */
 export const CENTRAL_BILLER_IDS = ['177'];
@@ -19,22 +19,26 @@ export const REFERRED_CANCELLED_STAYS_BILLED = true;
 export const EXCLUSIONS_AUTO_APPLY = true; // ASSUMPTION S6 — switch to false to return to "proposed, needs confirmation"
 
 const pad = (n, w) => String(n).padStart(w, '0');
+/** SADAD biller ids (معرّف المُفوتر) of the Ministry and the Amanahs, by entity index (ENTITIES order). Source: the municipalities list supplied on 25 Oct 2026 (MoF e-services SADAD page; ANB SADAD billers directory).
+ *  177 is the Ministry's own biller id; some Amanahs (for example Riyadh) have biller ids of their own for their revenues. Hafr Al-Batin has NO verified independent number: its id here is a DEMO PLACEHOLDER. The Housing sector (171) is not in that list either. */
+export const HAFR_AL_BATIN = 14;
+export const AMANAH_BILLER_IDS = ['010', '028', '025', '027', '006', '084', '113', '070', '112', '064', '062', '061', '102', '087', '315', '104', '103'];
 /** Biller of an invoice: central invoices are billed under 177; an internal invoice under its own Amanah (or the Housing sector). */
 export function billerOf(ent, scope) {
   if (ent === ENT_HOUSING) return HOUSING_BILLER;
-  if (scope === 0 || ent === ENT_UNASSIGNED || ent == null) return CENTRAL_BILLER;
+  if (scope === 0 || ent == null) return CENTRAL_BILLER;
   const e = ENTITIES[ent];
-  return { id: `3${pad(ent + 1, 2)}`, ar: e.ar, en: e.en };
+  return { id: AMANAH_BILLER_IDS[ent], ar: e.ar, en: e.en, verified: ent !== HAFR_AL_BATIN };
 }
 /** الأمانة / الجهة: the Housing sector is an entity (جهة), not an Amanah (D31). */
-export const entityTypeOf = (ent) => (ent === ENT_HOUSING || ent === ENT_UNASSIGNED ? 'entity' : 'amanah');
+export const entityTypeOf = (ent) => (ent === ENT_HOUSING ? 'entity' : 'amanah');
 export const ENTITY_TYPE_AR = { amanah: 'أمانة', entity: 'جهة' };
 export const isCentralBiller = (billerId) => CENTRAL_BILLER_IDS.includes(String(billerId));
 export const originOf = (billerId) => (isCentralBiller(billerId) ? 'central' : 'internal');
 export const ORIGIN_AR = { central: 'مركزي', internal: 'داخلي' };
 export const ORIGIN_EN = { central: 'Central', internal: 'Internal' };
 /** All billers (for filters / lookup), in a stable order. */
-export const BILLERS = [CENTRAL_BILLER, ...ENTITIES.slice(0, N_AMANAH).map((e, i) => ({ id: `3${pad(i + 1, 2)}`, ar: e.ar, en: e.en })), HOUSING_BILLER];
+export const BILLERS = [CENTRAL_BILLER, ...ENTITIES.slice(0, N_AMANAH).map((e, i) => ({ id: AMANAH_BILLER_IDS[i], ar: e.ar, en: e.en, verified: i !== HAFR_AL_BATIN })), HOUSING_BILLER];
 export const billerEntity = (billerId) => { const k = BILLERS.findIndex((b) => b.id === String(billerId)); return k <= 0 ? null : k - 1 < N_AMANAH ? k - 1 : ENT_HOUSING; };
 
 /* ---------- invoice id: `${billerId}-${sadadNumber}` ---------- */

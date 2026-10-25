@@ -155,10 +155,10 @@ await test('worked example: gross 11 = exclusions 2 + net 9; net 9 = collected 6
   assert.equal(checkEquation({ ...a, collected: 9.5e9 }).ok, false, 'collected above net is rejected');
   assert.equal(checkEquation({ ...a, exclusions: 3e9 }).ok, false, 'a second deduction breaks gross = exclusions + net');
 });
-await test('YTD totals: gross = exclusions + net, net = collected + uncollected, ordered, non-negative — total, per Amanah (incl. unassigned), per source, per scope type', () => {
+await test('YTD totals: gross = exclusions + net, net = collected + uncollected, ordered, non-negative — total, per Amanah, per source, per scope type', () => {
   assert.ok(ytd.equation.ok, JSON.stringify(ytd.equation));
   const e = eqOf(ytd); assert.ok(e.total.ok); assert.ok(e.groups.every((g) => g.ok));
-  assert.ok(ytd.byAmanah.some((g) => g.key === 'Unassigned'), 'Unassigned Amanah is a separate row, never spread over the others');
+  assert.ok(!ytd.byAmanah.some((g) => g.key === 'Unassigned'), 'there is no "Unassigned" Amanah: every invoice belongs to an Amanah or the Housing sector');
   for (const k of ['count', 'gross', 'exclusions', 'net', 'collected', 'outstanding']) assert.ok(Math.abs(ytd.byAmanah.reduce((t, g) => t + g[k], 0) - ytd.totals[k]) < 0.5, `Amanahs add up (${k})`);
   assert.ok(Math.abs(ytd.totals.exclusions - ytd.totals.cancelled - ytd.totals.exclusionsRules) < 0.5, 'cancelled + rule exclusions = exclusions (an invoice with both is deducted once)');
 });
@@ -201,7 +201,7 @@ await test('filters recompute everything from the matching records: source, cent
   }
   const a = snapshot(st, { scope: { ...YTD, scopeType: 'central' }, cfg }).totals; const b = snapshot(st, { scope: { ...YTD, scopeType: 'internal' }, cfg }).totals;
   assert.ok(Math.abs(a.gross + b.gross - ytd.totals.gross) < 1, 'central + internal = all');
-  const mAm = ytd.byAmanah.find((g) => g.key !== 'Unassigned');
+  const mAm = ytd.byAmanah[0];
 });
 await test('an invoice with several exclusion reasons (or cancelled + a reason) leaves gross exactly once; a collected invoice is never excluded and a part-collected one only loses its uncollected remainder (D10)', () => {
   const whatIfCfg = { cutoff: TODAY, rules: Object.fromEntries(['DUP-1', 'CR-1', 'STY-1', 'NOC-1', 'INC-1', 'EXE-1', 'EFA-1'].map((id) => [id, true])) }; // the mechanism is tested with every rule on (unapproved rules are off by default)
@@ -306,7 +306,7 @@ await test('findings are split by function: every issue code and risk category b
   for (const c of Object.keys(q.counts)) { assert.ok(QUALITY_CODES.includes(c)); assert.equal(q.counts[c], all.counts[c], `${c}: same count as the ungrouped request`); }
   assert.ok(dev.total <= all.total && q.total <= all.total && dev.total + q.total >= all.total, 'an invoice may carry findings of both groups, never fewer than the whole');
   assert.equal(anomalies(st, { scope: YTD, cfg, limit: 100, codes: [] }).total, all.total, 'an empty group means no restriction');
-  assert.equal(issuePage('missing_fields'), '/settings/data-quality'); assert.equal(issuePage('contract_unlinked'), '/settings/data-quality'); assert.equal(issuePage('amount_conflict'), '/risk'); assert.equal(issuePage('risk_duplicate'), '/risk');
+  assert.equal(issuePage('missing_fields'), '/invoices'); assert.equal(issuePage('contract_unlinked'), '/invoices'); assert.equal(issuePage('amount_conflict'), '/risk'); assert.equal(issuePage('risk_duplicate'), '/risk');
 });
 await test('risk flags: the Risks page and the invoice page use one rule — a flag settled by an approved exclusion is not an open risk, an open flag shows on both', () => {
   const r = risk(st, { scope: YTD, cfg, limit: 200 });
@@ -1270,7 +1270,7 @@ const STABLE_IDS = {
   'desc_multi:0': 'EN-6070|177-414710120099,177-410770121872,177-411490121548',
   'desc_only:0': 'EN-6077|171-414530120180,171-413870120477,171-408240122970',
   'cancelled_open:0': 'EN-6084|171-408460122871',
-  'cancelled_closed:0': 'EN-6091|302-411590121503',
+  'cancelled_closed:0': 'EN-6091|028-411590121503',
   'attach_docx:1': 'EN-6098|177-412030121305,177-407900123204,177-408960122727',
   'contract_mention:1': 'EN-6105|177-412590121053,177-413310120729',
   'desc_only:1': 'EN-6112|177-408500122934,177-411410121584'
@@ -1409,9 +1409,9 @@ await test('goal data: payments by month (payment date) equal the snapshot recei
   const scope = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all' };
   const sn = snapshot(st, { scope, cfg: approved }); const sr = series(st, { scope, cfg: approved });
   const R = sn.receivedInPeriod; assert.ok(Math.abs(sr.values.reduce((a, b) => a + b, 0) - R.total) < 0.5, 'chart and tile come from the same payments'); assert.equal(sn.totals.exclusionsUnapproved, 0);
-  assert.ok(Math.abs(Object.values(R.byAmanah).reduce((a, b) => a + b, 0) - R.total) < 1, 'Amanah receipts (incl. unassigned) add up to the national figure');
+  assert.ok(Math.abs(Object.values(R.byAmanah).reduce((a, b) => a + b, 0) - R.total) < 1, 'Amanah receipts add up to the national figure');
   for (const a of amanahFilterOptions()) { const one = snapshot(st, { scope: { ...scope, amanah: a.key }, cfg: approved }).receivedInPeriod.total; assert.ok(Math.abs(one - (R.byAmanah[a.key] || 0)) < 0.5, a.key); }
-  assert.equal(amanahFilterOptions().length, amanahsG().length + 1); assert.equal(amanahFilterOptions().at(-1).key, 'Unassigned', 'the unassigned invoices are the last Amanah filter choice');
+  assert.equal(amanahFilterOptions().length, amanahsG().length); assert.ok(!amanahFilterOptions().some((a) => a.key === 'Unassigned'), 'no "Unassigned" Amanah filter choice');
 });
 await test('adjusted total = net billed everywhere: the DEFAULT configuration applies the exclusion reasons confirmed in the 18 Oct meeting (S6, automatic); switching them off is an explicit what-if that raises net billed', () => {
   const REASONS = ['CR-1', 'STY-1', 'OBJ-1', 'NOC-1', 'INC-1', 'EFA-1', 'EXE-1', 'SND-1'];
@@ -1571,7 +1571,7 @@ await test('IIM-01/02 · the invoice id is biller-sadad; only biller 177 is cent
   const internal = list(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'internal' }, cfg, filters: {}, page: 0, pageSize: 50 }).rows;
   assert.ok(internal.length > 0 && internal.every((r) => r.billerId !== '177' && r.origin === 'internal'), 'internal billers exist');
   assert.deepEqual(parseInvoiceKey('177-882607310000'), { billerId: '177', sadad: '882607310000' });
-  assert.equal(billerOf(0, 0).id, '177'); assert.equal(originOf('301'), 'internal');
+  assert.equal(billerOf(0, 0).id, '177'); assert.equal(originOf('010'), 'internal');
   const two = [...st.fixtures.entries()].map(([i, r]) => r.sadadNo).filter(Boolean); const seen = new Map(); two.forEach((s) => seen.set(s, (seen.get(s) || 0) + 1));
   assert.ok([...seen.values()].filter((n) => n > 1).length >= 2, 'at least two Sadad numbers repeat across billers in the demo data');
   const some = [...seen.entries()].find(([, n]) => n > 1)[0]; const found = lookupSadad(st, some); assert.ok(found.length >= 2); assert.notEqual(idOfI(st, found[0]), idOfI(st, found[1]));

@@ -149,7 +149,7 @@ export default function Invoices() {
       </section>
 
       <div className="card card-pad">
-        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{t('inv_makeen_note')} {bi.L('Amounts in this table are full SAR; cards above show one appropriate unit per amount.', 'المبالغ في هذا الجدول بالريال كاملة؛ والبطاقات أعلاه بوحدة واحدة مناسبة لكل مبلغ.')}</div>
+        <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{t('inv_ledger_note')} {bi.L('Amounts in this table are full SAR; cards above show one appropriate unit per amount.', 'المبالغ في هذا الجدول بالريال كاملة؛ والبطاقات أعلاه بوحدة واحدة مناسبة لكل مبلغ.')}</div>
         {filterMode === 'problem' && (
           <div className="card" style={{ padding: '8px 12px', marginBottom: 10, background: 'rgba(180, 35, 24, 0.06)', border: '1px solid rgba(180, 35, 24, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: 700 }}>{t('inv_filter_problem_title')}</span>

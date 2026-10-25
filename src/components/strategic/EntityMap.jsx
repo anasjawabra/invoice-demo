@@ -52,7 +52,7 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
     [L('نسبة تحقق المستهدف', 'Target achievement'), card.tg > 0 ? <PctBadge kind="share" v={card.col / card.tg} text={pct(card.col / card.tg)} /> : '—'],
     [L('المتبقي للتحصيل', 'Remaining to collect'), card.tg > 0 ? short(Math.max(card.tg - card.col, 0)) : '—']
   ];
-  const side = [byKey.get('Housing Sector'), byKey.get('Unassigned')].filter(Boolean);
+  const side = [byKey.get('Housing Sector')].filter(Boolean);
 
   // regions + the entities outside any region = the Ministry (a remainder row appears only if something is not listed, so the table always reconciles)
   const regionsTg = sumOf(shown.flatMap((p) => p.rows), (r) => r.target || 0); const regionsCol = sumOf(shown.flatMap((p) => p.rows), (r) => r.collected);
@@ -61,7 +61,7 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
   const restTg = (totals?.target || 0) - listedTg; const restCol = (totals?.collected || 0) - listedCol;
   const recon = [
     [L('كل المناطق', 'All regions'), regionsTg, regionsCol],
-    ...outside.map((r) => [r.key === 'Unassigned' ? L('غير محدد الأمانة', 'Unassigned') : nameOf(r.key), r.target || 0, r.collected || 0]),
+    ...outside.map((r) => [nameOf(r.key), r.target || 0, r.collected || 0]),
     ...(Math.abs(restTg) > 1 || Math.abs(restCol) > 1 ? [[L('جهات أخرى', 'Other entities'), restTg, restCol]] : [])
   ];
   const mil = (v) => (v / 1e6).toLocaleString('en-US', { maximumFractionDigits: 0 });
@@ -97,7 +97,7 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
           </div>
           {side.map((r) => (
             <div key={r.key} className="cg-geo__card cg-geo__card--plain">
-              <b>{r.key === 'Unassigned' ? L('غير محدد الأمانة', 'Unassigned') : nameOf(r.key)}</b>
+              <b>{nameOf(r.key)}</b>
               <div className="muted" style={{ fontSize: 12 }}>{L('نطاق مستقل عن المناطق', 'Not part of any region')}</div>
               <dl className="cg-geo__dl">
                 {r.target > 0 && <><dt>{L('المستهدف السنوي للإيراد', 'Annual revenue target')}</dt><dd dir="ltr">{short(r.target)}</dd></>}

@@ -164,8 +164,8 @@ var INVOICES = [
     tag: "taxfail"
   },
   {
-    id: "301-882607260000",
-    billerId: "301",
+    id: "010-882607260000",
+    billerId: "010",
     sadadNo: "882607260000",
     payType: "prepaid",
     centralSource: false,
@@ -189,8 +189,8 @@ var INVOICES = [
     tag: "normal"
   },
   {
-    id: "304-882607250000",
-    billerId: "304",
+    id: "027-882607250000",
+    billerId: "027",
     sadadNo: "882607250000",
     payType: "prepaid",
     centralSource: false,
@@ -299,8 +299,8 @@ var INVOICES = [
     tag: "normal"
   },
   {
-    id: "302-882508100000",
-    billerId: "302",
+    id: "028-882508100000",
+    billerId: "028",
     sadadNo: "882508100000",
     payType: "prepaid",
     centralSource: false,
@@ -419,8 +419,8 @@ var INVOICES = [
     tag: "normal"
   },
   {
-    id: "304-882605200000",
-    billerId: "304",
+    id: "027-882605200000",
+    billerId: "027",
     sadadNo: "882605200000",
     payType: "prepaid",
     centralSource: false,
@@ -543,8 +543,8 @@ var INVOICES = [
     tag: "normal"
   },
   {
-    id: "301-882606050000",
-    billerId: "301",
+    id: "010-882606050000",
+    billerId: "010",
     sadadNo: "882606050000",
     payType: "prepaid",
     centralSource: false,
@@ -743,8 +743,8 @@ var INVOICES = [
     tag: "taxfail"
   },
   {
-    id: "305-882608050000",
-    billerId: "305",
+    id: "006-882608050000",
+    billerId: "006",
     sadadNo: "882608050000",
     payType: "prepaid",
     centralSource: false,
@@ -841,8 +841,8 @@ var INVOICES = [
     tag: "dup"
   },
   {
-    id: "317-882608090000",
-    billerId: "317",
+    id: "103-882608090000",
+    billerId: "103",
     sadadNo: "882608090000",
     payType: "prepaid",
     centralSource: false,
@@ -967,12 +967,10 @@ var ENTITIES = [
   { en: "Hafr Al-Batin Amanah", ar: "\u0623\u0645\u0627\u0646\u0629 \u0645\u062D\u0627\u0641\u0638\u0629 \u062D\u0641\u0631 \u0627\u0644\u0628\u0627\u0637\u0646", zh: "\u54C8\u8D39\u5C14\u5DF4\u5EF7" },
   { en: "Al Bahah Amanah", ar: "\u0623\u0645\u0627\u0646\u0629 \u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u0628\u0627\u062D\u0629", zh: "\u5DF4\u54C8" },
   { en: "Al Jawf Amanah", ar: "\u0623\u0645\u0627\u0646\u0629 \u0645\u0646\u0637\u0642\u0629 \u0627\u0644\u062C\u0648\u0641", zh: "\u7126\u592B" },
-  { en: "Housing Sector", ar: "\u0642\u0637\u0627\u0639 \u0627\u0644\u0625\u0633\u0643\u0627\u0646", zh: "\u4F4F\u623F\u90E8\u95E8" },
-  { en: "Unassigned", ar: "\u063A\u064A\u0631 \u0645\u062D\u062F\u062F \u0627\u0644\u0623\u0645\u0627\u0646\u0629 (\u0644\u0645 \u062A\u064F\u0637\u0627\u0628\u0642 \u0641\u064A \u0645\u0643\u064A\u0646)", zh: "\u672A\u5206\u914D" }
+  { en: "Housing Sector", ar: "\u0642\u0637\u0627\u0639 \u0627\u0644\u0625\u0633\u0643\u0627\u0646", zh: "\u4F4F\u623F\u90E8\u95E8" }
 ];
 var N_AMANAH = 17;
 var ENT_HOUSING = 17;
-var ENT_UNASSIGNED = 18;
 var ENTITY_INDEX = Object.fromEntries(ENTITIES.map((e, i) => [e.en, i]));
 var AMANAH_CATALOG = ENTITIES.slice(0, N_AMANAH);
 var MUNI_DIRS = [{ en: "North", ar: "\u0627\u0644\u0634\u0645\u0627\u0644\u064A\u0629" }, { en: "Central", ar: "\u0627\u0644\u0645\u0631\u0643\u0632\u064A\u0629" }, { en: "South", ar: "\u0627\u0644\u062C\u0646\u0648\u0628\u064A\u0629" }];
@@ -982,7 +980,7 @@ function municipalityOf(ent, muni) {
   const e = ENTITIES[ent];
   if (!e) return null;
   if (ent === ENT_HOUSING) return muni === 0 ? { key: `${e.en}|Sales`, en: "Housing sales unit", ar: "\u0648\u062D\u062F\u0629 \u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0633\u0643\u0646\u064A\u0629" } : null;
-  if (ent === ENT_UNASSIGNED || muni == null || muni > 2) return null;
+  if (muni == null || muni > 2) return null;
   const d = MUNI_DIRS[muni];
   return { key: `${e.en}|${d.en}`, en: `${shortEn(e.en)} ${d.en} Municipality`, ar: `\u0628\u0644\u062F\u064A\u0629 ${shortAr(e.ar)} ${d.ar}` };
 }
@@ -1033,7 +1031,6 @@ var EFAA_STATUS = [null, "\u0645\u0633\u062F\u062F\u0629", "\u0642\u0627\u0626\u
 var CSTAT = ["not_applicable", "linked", "unmatched", "confirmed_none", "unlinked", "unverified"];
 var CHANNELS = ["sadad", "voluntary", "enforcement", "transfer", "card", "wallet"];
 var CH_WALLET = 5;
-var ALINK = ["internal_report", "makeen_matched", "makeen_unmatched"];
 var F = {
   OBJECTION: 1,
   MISSING_ID: 2,
@@ -1320,7 +1317,7 @@ var PARAMS = {
     // violations whose "violation value" differs from the "invoice value" (kept as a data-quality note)
   }
 };
-var IMPORT_VERSIONS = { tahseel_central: 6, tahseel_internal: 4, incorta_items: 2, makeen: 5, furas: 4, sanad: 3, efaa_v2: 7, sadad: 9, tobacco: 3, accommodation: 3, white_lands: 5, balady: 4, violations: 7, white_lands_enforcement: 2 };
+var IMPORT_VERSIONS = { tahseel_central: 6, tahseel_internal: 4, furas: 4, sanad: 3, efaa_v2: 7, sadad: 9, tobacco: 3, accommodation: 3, white_lands: 5, balady: 4, violations: 7, white_lands_enforcement: 2 };
 var GFS_BY_SOURCE = { investment: "1421901", fines: "1438001", municipal_fees: "142113", licenses: "142162", accommodation: "11442", tobacco: "1422110", white_lands: "1422111", housing_sales: "1422112" };
 var SOURCE_PROFILE = {
   tobacco: {
@@ -1329,7 +1326,7 @@ var SOURCE_PROFILE = {
     sheets: ["INVOICES", "DISCLOSURES", "SCHEDULES", "FACILITIES"],
     level: BI("\u0641\u0627\u062A\u0648\u0631\u0629 (INVOICES) \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0625\u0641\u0635\u0627\u062D \u0634\u0647\u0631\u064A (DISCLOSURES) \u0648\u062C\u062F\u0648\u0644\u0629 (SCHEDULES) \u0648\u0645\u0646\u0634\u0623\u0629 (FACILITIES)", "Invoice linked to a monthly disclosure, a schedule and a facility"),
     keys: ["INVOICE_KEY", "DISCLOSURE_KEY", "FACILITY_KEY", "SADAD_NO"],
-    supplier: BI("\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u062A\u0628\u063A (\u062C\u062F\u0627\u0648\u0644 TB_*) \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627\u060C \u062B\u0645 \u062A\u062D\u0635\u064A\u0644 \u0644\u0644\u062D\u0627\u0644\u0629 \u0648\u0627\u0644\u0633\u062F\u0627\u062F", "Tobacco disclosure platform (TB_* tables) via Incorta, then Tahseel for status and collection")
+    supplier: BI("\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u062A\u0628\u063A (\u062C\u062F\u0627\u0648\u0644 TB_*)\u060C \u062B\u0645 \u062A\u062D\u0635\u064A\u0644 \u0644\u0644\u062D\u0627\u0644\u0629 \u0648\u0627\u0644\u0633\u062F\u0627\u062F", "Tobacco disclosure platform (TB_* tables), then Tahseel for status and collection")
   },
   accommodation: {
     label: BI("\u0627\u0644\u0625\u064A\u0648\u0627\u0621", "Accommodation"),
@@ -1337,7 +1334,7 @@ var SOURCE_PROFILE = {
     sheets: ["Invoices", "Disclosures", "Schedules", "Facilities"],
     level: BI("\u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0625\u0641\u0635\u0627\u062D \u0625\u0634\u063A\u0627\u0644 (\u0623\u064A\u0627\u0645 \xD7 \u0633\u0639\u0631 \u064A\u0648\u0645\u064A) \u0648\u062C\u062F\u0648\u0644\u0629 \u0648\u0645\u0646\u0634\u0623\u0629", "Invoice linked to an occupancy disclosure (days x daily price), a schedule and a facility"),
     keys: ["INVOICE_KEY", "DISCLOSURE_KEY", "FACILITY_KEY", "SADAD_NO"],
-    supplier: BI("\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u0625\u064A\u0648\u0627\u0621 \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627\u060C \u062B\u0645 \u062A\u062D\u0635\u064A\u0644", "Accommodation disclosure platform via Incorta, then Tahseel")
+    supplier: BI("\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u0625\u064A\u0648\u0627\u0621\u060C \u062B\u0645 \u062A\u062D\u0635\u064A\u0644", "Accommodation disclosure platform, then Tahseel")
   },
   white_lands: {
     label: BI("\u0627\u0644\u0623\u0631\u0627\u0636\u064A \u0627\u0644\u0628\u064A\u0636\u0627\u0621", "White lands"),
@@ -1361,7 +1358,7 @@ var SOURCE_PROFILE = {
     sheets: ["Violations_report_BV"],
     level: BI("\u0645\u062E\u0627\u0644\u0641\u0629 \u0648\u0627\u062D\u062F\u0629 \u0641\u064A \u0632\u064A\u0627\u0631\u0629 \u0631\u0642\u0627\u0628\u064A\u0629 (\u0635\u0641 \u0644\u0643\u0644 \u0645\u062E\u0627\u0644\u0641\u0629) \u0648\u0642\u064A\u0645\u062A\u0627\u0646: \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0648\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "One violation row per inspection visit with two amounts: invoice value and violation value"),
     keys: ["\u0645\u0639\u0631\u0641_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "\u0631\u0642\u0645_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629_\u0641\u064A_\u0627\u064A\u0641\u0627\u0621", "\u0631\u0642\u0645_\u0627\u0644\u0633\u062F\u0627\u062F", "\u0631\u0642\u0645_\u0627\u0644\u0632\u064A\u0627\u0631\u0629"],
-    supplier: BI("\u0625\u064A\u0641\u0627\u0621 / \u0645\u0645\u062A\u062B\u0644 (\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627)", "Efaa / Mumathil (violations report via Incorta)")
+    supplier: BI("\u0625\u064A\u0641\u0627\u0621 / \u0645\u0645\u062A\u062B\u0644 (\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A)", "Efaa / Mumathil (violations report)")
   },
   municipal_fees: {
     label: BI("\u0627\u0644\u0631\u0633\u0648\u0645 \u0627\u0644\u0628\u0644\u062F\u064A\u0629", "Municipal fees"),
@@ -1369,7 +1366,7 @@ var SOURCE_PROFILE = {
     sheets: ["ENT_REVENUES"],
     level: BI("\u0628\u0646\u062F \u0641\u0627\u062A\u0648\u0631\u0629 (DETAIL_ID) \u0648\u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A \u0645\u0643\u0631\u0631 \u0639\u0644\u0649 \u0643\u0644 \u0628\u0646\u062F", "Invoice line (DETAIL_ID); the invoice total is repeated on every line"),
     keys: ["ACCOUNT_NO", "REVENUE_KEY", "REQUEST_ID"],
-    supplier: BI("\u0625\u0646\u0643\u0648\u0631\u062A\u0627 - \u0637\u0628\u0642\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u062D\u062F\u0629", "Incorta consolidated revenue layer")
+    supplier: BI("\u0637\u0628\u0642\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u062D\u062F\u0629", "Consolidated revenue layer")
   },
   housing_sales: {
     label: BI("\u0627\u0644\u0645\u0628\u064A\u0639\u0627\u062A \u0627\u0644\u0633\u0643\u0646\u064A\u0629", "Residential sales"),
@@ -1427,19 +1424,20 @@ var CENTRAL_BILLER = { id: "177", ar: "\u0627\u0644\u0641\u0648\u062A\u0631\u062
 var HOUSING_BILLER = { id: "171", ar: "\u0642\u0637\u0627\u0639 \u0627\u0644\u0625\u0633\u0643\u0627\u0646", en: "Housing sector" };
 var REFERRED_CANCELLED_STAYS_BILLED = true;
 var EXCLUSIONS_AUTO_APPLY = true;
-var pad = (n, w) => String(n).padStart(w, "0");
+var HAFR_AL_BATIN = 14;
+var AMANAH_BILLER_IDS = ["010", "028", "025", "027", "006", "084", "113", "070", "112", "064", "062", "061", "102", "087", "315", "104", "103"];
 function billerOf(ent, scope) {
   if (ent === ENT_HOUSING) return HOUSING_BILLER;
-  if (scope === 0 || ent === ENT_UNASSIGNED || ent == null) return CENTRAL_BILLER;
+  if (scope === 0 || ent == null) return CENTRAL_BILLER;
   const e = ENTITIES[ent];
-  return { id: `3${pad(ent + 1, 2)}`, ar: e.ar, en: e.en };
+  return { id: AMANAH_BILLER_IDS[ent], ar: e.ar, en: e.en, verified: ent !== HAFR_AL_BATIN };
 }
-var entityTypeOf = (ent) => ent === ENT_HOUSING || ent === ENT_UNASSIGNED ? "entity" : "amanah";
+var entityTypeOf = (ent) => ent === ENT_HOUSING ? "entity" : "amanah";
 var ENTITY_TYPE_AR = { amanah: "\u0623\u0645\u0627\u0646\u0629", entity: "\u062C\u0647\u0629" };
 var isCentralBiller = (billerId) => CENTRAL_BILLER_IDS.includes(String(billerId));
 var originOf = (billerId) => isCentralBiller(billerId) ? "central" : "internal";
 var ORIGIN_AR = { central: "\u0645\u0631\u0643\u0632\u064A", internal: "\u062F\u0627\u062E\u0644\u064A" };
-var BILLERS = [CENTRAL_BILLER, ...ENTITIES.slice(0, N_AMANAH).map((e, i) => ({ id: `3${pad(i + 1, 2)}`, ar: e.ar, en: e.en })), HOUSING_BILLER];
+var BILLERS = [CENTRAL_BILLER, ...ENTITIES.slice(0, N_AMANAH).map((e, i) => ({ id: AMANAH_BILLER_IDS[i], ar: e.ar, en: e.en, verified: i !== HAFR_AL_BATIN })), HOUSING_BILLER];
 function parseInvoiceKey(s) {
   const m = /^(\d{3,4})-(\d{6,14})$/.exec(String(s || "").trim());
   return m ? { billerId: m[1], sadad: m[2] } : null;
@@ -1944,7 +1942,7 @@ var Rng = class {
   }
 };
 var clamp = (x, a, b) => Math.min(b, Math.max(a, x));
-var pad2 = (n, w) => String(n).padStart(w, "0");
+var pad = (n, w) => String(n).padStart(w, "0");
 var COLS = {
   idKey: Float64Array,
   issue: Int32Array,
@@ -1971,7 +1969,6 @@ var COLS = {
   crSt: Uint8Array,
   exec: Int16Array,
   efaa: Uint8Array,
-  alink: Uint8Array,
   payer: Uint16Array,
   owner: Uint16Array,
   gfs: Uint8Array,
@@ -2150,6 +2147,8 @@ function planWhiteLand(r, issueN, dueN, amount) {
 }
 var worldCache = /* @__PURE__ */ new Map();
 function generateWorld(today, { scale = 1 } = {}) {
+  const legacyGroup = /* @__PURE__ */ new Set();
+  let legacyHit = false;
   const key = `${today}|${scale}`;
   if (worldCache.has(key)) return worldCache.get(key);
   const t0 = Date.now();
@@ -2173,7 +2172,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     const l = today.slice(0, 7);
     let y = Number(f.slice(0, 4));
     let m = Number(f.slice(5, 7));
-    while (`${y}-${pad2(m, 2)}` <= l) {
+    while (`${y}-${pad(m, 2)}` <= l) {
       monthsList.push([y, m]);
       m += 1;
       if (m > 12) {
@@ -2228,7 +2227,6 @@ function generateWorld(today, { scale = 1 } = {}) {
     st.crSt[i] = o.crSt || 0;
     st.exec[i] = -1;
     st.efaa[i] = o.efaa || 0;
-    st.alink[i] = o.alink ?? (o.scope === 1 ? 0 : 1);
     st.payer[i] = o.payer;
     st.owner[i] = 0;
     st.gfs[i] = gfsIndexOf(gfsCodeOf(ITEMS[o.item].key, Math.imul(o.idKey % 2147483629 | 0, 2246822507) >>> 0));
@@ -2292,7 +2290,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     const startY = 2020 + Math.floor(r.next() * 6.9);
     const startMonth = 1 + r.int(12);
     const startDay = 1 + r.int(27);
-    const start = dayNum(`${startY}-${pad2(startMonth, 2)}-${pad2(startDay, 2)}`);
+    const start = dayNum(`${startY}-${pad(startMonth, 2)}-${pad(startDay, 2)}`);
     const term = 4 + r.int(9);
     let mixRoll = r.next() * CONTRACT_MIX.reduce((s, x) => s + x.w, 0);
     let mixMonths = 1;
@@ -2313,13 +2311,13 @@ function generateWorld(today, { scale = 1 } = {}) {
     const crSt = crRoll < 0.9 ? 1 : crRoll < 0.94 ? 2 : crRoll < 0.97 ? 3 : 4;
     const status = r.next() < 0.06 ? "\u0645\u0648\u0642\u0648\u0641" : "\u0633\u0627\u0631\u064A";
     const end = start + Math.round(term * 365);
-    const ct = { future: start > todayN, idx: c, contractNo: `CT-${startY}-${pad2(c * 7 + 13, 4)}`, ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), crNo: `10${pad2(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], invs: [], totalValue: 0 };
+    const ct = { future: start > todayN, idx: c, contractNo: `CT-${startY}-${pad(c * 7 + 13, 4)}`, ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), crNo: `10${pad(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], invs: [], totalValue: 0 };
     let y = startY;
     let m = startMonth;
     let no = 0;
     for (let g = 0; g < 600; g += 1) {
       if (((m - anchor) % mixMonths + mixMonths) % mixMonths === 0) {
-        const dueN = dayNum(`${y}-${pad2(m, 2)}-${pad2(dueDay, 2)}`);
+        const dueN = dayNum(`${y}-${pad(m, 2)}-${pad(dueDay, 2)}`);
         if (dueN - 10 >= start && dueN <= end) {
           const yearsIn = Math.floor((dueN - start) / 365);
           const amount = Math.round(annual * mixMonths / 12 * Math.pow(1.03, yearsIn) / 10) * 10;
@@ -2342,7 +2340,7 @@ function generateWorld(today, { scale = 1 } = {}) {
         m = 1;
         y += 1;
       }
-      if (dayNum(`${y}-${pad2(m, 2)}-01`) > horizonN) break;
+      if (dayNum(`${y}-${pad(m, 2)}-01`) > horizonN) break;
     }
     if (ct.dues.length) {
       let rem = ct.totalValue;
@@ -2356,7 +2354,7 @@ function generateWorld(today, { scale = 1 } = {}) {
   const wlEnforce = [];
   const plannedByInv = /* @__PURE__ */ new Map();
   for (const [y, mo] of monthsList) {
-    const ym = `${y}-${pad2(mo, 2)}`;
+    const ym = `${y}-${pad(mo, 2)}`;
     const mi = mo - 1;
     const dim = daysIn(y, mo);
     for (const sk of SRC_KEYS) {
@@ -2386,7 +2384,7 @@ function generateWorld(today, { scale = 1 } = {}) {
           const ri = rI.reset(mix(3, y * 12 + mo, SRC_ID[sk] * 32 + e, k));
           const gross = Math.max(100, Math.round(Gc * wgt / sumW / 10) * 10);
           const day = sk === "other" ? Math.min(dim, 24 + ri.int(5)) : 1 + ri.int(dim);
-          const issueN = dayNum(`${ym}-${pad2(day, 2)}`);
+          const issueN = dayNum(`${ym}-${pad(day, 2)}`);
           const serial = nextSerial(y);
           const rr = sk === "tobacco" ? new Rng(mix(12, y * 12 + mo, SRC_ID[sk] * 32 + e, k)) : null;
           const replaced = !!rr && rr.next() < PARAMS.tobacco.replacedShare;
@@ -2423,7 +2421,7 @@ function generateWorld(today, { scale = 1 } = {}) {
           let flags = ex.flags | (ri.next() < 6e-3 ? F.AMT_CONFLICT : 0) | (replaced ? withGrp(GRP.TB_REPLACED) : 0);
           let efaa = 0;
           if (sk === "fines") efaa = ex.efaa || (pl.length ? 1 : 2);
-          const makeenMiss = !internal && ri.next() < 0.04;
+          const legacyMiss = !internal && ri.next() < 0.04;
           const muniIdx = ri.int(3);
           const payerIdx = ri.int(PAYER_POOL);
           writeInvoice({
@@ -2444,10 +2442,9 @@ function generateWorld(today, { scale = 1 } = {}) {
             exRev: ex.rev,
             flags,
             efaa,
-            payer: payerIdx,
-            alink: internal ? 0 : makeenMiss ? 2 : 1
+            payer: payerIdx
           });
-          if (makeenMiss) st.ent[st.n - 1] = ENT_UNASSIGNED;
+          if (legacyMiss) legacyGroup.add(st.n - 1);
           if (replaced && replIssue <= todayN) {
             const g2 = Math.max(100, Math.round(gross * (0.9 + 0.2 * rr.next()) / 10) * 10);
             const due2 = replIssue + cfg.due;
@@ -2457,7 +2454,7 @@ function generateWorld(today, { scale = 1 } = {}) {
               issue: replIssue,
               due: due2,
               gross: g2,
-              ent: makeenMiss ? ENT_UNASSIGNED : e,
+              ent: e,
               muni: muniIdx,
               scope: 0,
               src: SOURCE_INDEX[srcFinal],
@@ -2466,9 +2463,9 @@ function generateWorld(today, { scale = 1 } = {}) {
               pay: pl2,
               flags: withGrp(GRP.TB_REPLACEMENT),
               efaa: 0,
-              payer: payerIdx,
-              alink: makeenMiss ? 2 : 1
+              payer: payerIdx
             });
+            if (legacyMiss) legacyGroup.add(st.n - 1);
           }
         }
       }
@@ -2501,7 +2498,7 @@ function generateWorld(today, { scale = 1 } = {}) {
         }
         shares = shares.map((x) => x / sh);
         const day = mi === 0 ? 1 + rd.int(15) : 1 + rd.int(dim);
-        const issueN = dayNum(`${ym}-${pad2(day, 2)}`);
+        const issueN = dayNum(`${ym}-${pad(day, 2)}`);
         const extRoll = rd.next();
         const extDays = A.extensionDays[rd.int(A.extensionDays.length)];
         const ext = extRoll < A.extensionShare * A.extensionApproved ? 1 : extRoll < A.extensionShare * (A.extensionApproved + 0.3) ? 2 : extRoll < A.extensionShare ? 3 : 0;
@@ -2533,8 +2530,7 @@ function generateWorld(today, { scale = 1 } = {}) {
             cancelDay,
             exMask: objection ? RULE_BIT["OBJ-1"] : 0,
             flags,
-            payer: WL_PAYER_BASE + ri.int(3e4),
-            alink: 1
+            payer: WL_PAYER_BASE + ri.int(3e4)
           });
           if (never && !cancelDay && !objection && ri.next() < A.enforcementShare / 0.7) wlEnforce.push({ i, opened: dueN + 200 + ri.int(60) });
         }
@@ -2557,13 +2553,13 @@ function generateWorld(today, { scale = 1 } = {}) {
         const ri = rI.reset(mix(3, y * 12 + mo, 10 * 32 + ENT_HOUSING, k));
         const gross = Math.max(1e3, Math.round(Gh * wgt / sumW / 10) * 10);
         const day = 1 + ri.int(dim);
-        const issueN = dayNum(`${ym}-${pad2(day, 2)}`);
+        const issueN = dayNum(`${ym}-${pad(day, 2)}`);
         const serial = nextSerial(y);
         if (issueN > todayN) continue;
         const dueN = issueN + cfg.due;
         const pl = planPayment(ri, dueN, gross, cfg.pay, cfg.lag).map((p) => ({ ...p }));
         const cancelDay = pl.length === 0 && ri.next() < 0.15 ? issueN + 5 + ri.int(50) : 0;
-        writeInvoice({ idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent: ENT_HOUSING, muni: 0, scope: 0, src: SOURCE_INDEX.housing_sales, item: ri.next() < 0.7 ? ITEM_INDEX.housing_sales : ITEM_INDEX.housing_fees, lines: 1, pay: pl, cancelDay, payer: HOUSING_PAYER_BASE + ri.int(2e4), alink: 1 });
+        writeInvoice({ idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent: ENT_HOUSING, muni: 0, scope: 0, src: SOURCE_INDEX.housing_sales, item: ri.next() < 0.7 ? ITEM_INDEX.housing_sales : ITEM_INDEX.housing_fees, lines: 1, pay: pl, cancelDay, payer: HOUSING_PAYER_BASE + ri.int(2e4) });
       }
     }
     const list2 = instByMonth.get(ym) || [];
@@ -2603,10 +2599,10 @@ function generateWorld(today, { scale = 1 } = {}) {
         inst: d.no,
         cstat: ex.noContract ? 3 : unmatched ? 2 : 1,
         payer: ex.noContract && mix(22, c, d.no) % 100 < 22 ? mix(23, c, d.no) % 2 : ct.payer,
-        alink: ri.next() < 0.04 ? 2 : 1
-        /* R2: about a fifth of the no-contract invoices belong to the service companies under the stay of execution (customer index 0 / 1 = SERVICE_COMPANY_LIST) */
+        drawKept: legacyHit = ri.next() < 0.04
+        /* kept so the deterministic demo world (and its stable ids) does not move */
       });
-      if (st.alink[i] === 2) st.ent[i] = ENT_UNASSIGNED;
+      if (legacyHit) legacyGroup.add(i);
       if (linked) {
         d.inv = i;
         ct.invs.push(i);
@@ -2635,8 +2631,9 @@ function generateWorld(today, { scale = 1 } = {}) {
     const twin = (i, issue, flagged) => {
       const due = issue + (st.due[i] - st.issue[i]);
       serial += 1;
-      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i], alink: st.alink[i] });
+      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i] });
       st.gfs[j] = st.gfs[i];
+      if (legacyGroup.has(i)) legacyGroup.add(j);
       if (flagged) st.dupOf.set(j, i);
       return j;
     };
@@ -2684,6 +2681,7 @@ function generateWorld(today, { scale = 1 } = {}) {
   }
   {
     const ORDER_GEN_CUTOFF = dayNum("2026-08-31");
+    const eg = (i) => legacyGroup.has(i) ? 18 : st.ent[i];
     const elig = [];
     for (let i = 0; i < st.n; i += 1) {
       if (st.exec[i] >= 0 || grpOf(st.flags[i]) !== 0 || st.cancelDay[i] || st.payCount[i] > 0 || st.exMask[i] !== 0 || st.adjDay[i] !== 0 || st.flags[i] & F.OBJECTION) continue;
@@ -2705,7 +2703,7 @@ function generateWorld(today, { scale = 1 } = {}) {
       const seenSrc = /* @__PURE__ */ new Set([st.src[lead]]);
       for (const j of elig) {
         if (out.length >= n) break;
-        if (used.has(j) || out.includes(j) || st.ent[j] !== st.ent[lead]) continue;
+        if (used.has(j) || out.includes(j) || eg(j) !== eg(lead)) continue;
         if (differentSrc && seenSrc.has(st.src[j]) && elig.length > 60) continue;
         out.push(j);
         seenSrc.add(st.src[j]);
@@ -2806,9 +2804,9 @@ function generateWorld(today, { scale = 1 } = {}) {
         for (let t = 0; t < pool.length && lead < 0; t += 1) {
           const j = pool[(k * 29 + t * 13 + 5) % pool.length];
           if (used.has(j)) continue;
-          if (arch === "same_serial_two_years" && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue;
-          if (!cancelled && !["same_serial_two_years", "genuine_conflict", "one_attached"].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && st.ent[x] === st.ent[j])) continue;
-          if (arch === "genuine_conflict" && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue;
+          if (arch === "same_serial_two_years" && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && eg(x) === eg(j))) continue;
+          if (!cancelled && !["same_serial_two_years", "genuine_conflict", "one_attached"].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && eg(x) === eg(j))) continue;
+          if (arch === "genuine_conflict" && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && eg(x) === eg(j))) continue;
           lead = j;
         }
         if (lead < 0) {
@@ -2819,13 +2817,13 @@ function generateWorld(today, { scale = 1 } = {}) {
         if (arch === "cancelled_closed") covers = [lead];
         else if (arch === "cancelled_open") {
           covers = [lead];
-          for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && st.ent[j] === st.ent[lead]) covers.push(j);
+          for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && eg(j) === eg(lead)) covers.push(j);
         } else if (arch === "same_serial_two_years") {
-          other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[lead]);
+          other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && eg(x) === eg(lead));
           covers = [lead, other];
         } else if (arch === "genuine_conflict") {
           covers = [lead];
-          other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && st.ent[x] === st.ent[lead]);
+          other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && eg(x) === eg(lead));
         } else if (arch === "one_attached") covers = [lead];
         else {
           covers = pickMore(lead, arch === "contract_mention" || arch === "desc_sadad" || arch === "corrupted_structured" || arch === "notation_exact" ? 2 : 3, false);
@@ -2834,6 +2832,7 @@ function generateWorld(today, { scale = 1 } = {}) {
         if (!cancelled && arch !== "genuine_conflict" && arch !== "one_attached" && covers.length < 2) {
           continue;
         }
+        for (const j of [...covers, other]) if (j >= 0 && legacyGroup.has(j)) st.ent[j] = st.ent[lead];
         const owner = st.payer[lead];
         const lastDue = Math.max(...covers.map((i) => st.due[i]));
         const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
@@ -3046,7 +3045,8 @@ function generateWorld(today, { scale = 1 } = {}) {
 // server/fixtures.js
 function appendRecord(st, rec, { owner = 0, kind = "fixture" } = {}) {
   const i = st.addInvoice();
-  const e = ENTITY_INDEX[rec.amanahEn] ?? ENT_UNASSIGNED;
+  const e = ENTITY_INDEX[rec.amanahEn];
+  if (e == null) throw new Error(`unknown Amanah: ${rec.amanahEn}`);
   st.idKey[i] = 0;
   st.issue[i] = dayNum(rec.issueDate);
   st.due[i] = dayNum(rec.dueDate);
@@ -3099,7 +3099,6 @@ function appendRecord(st, rec, { owner = 0, kind = "fixture" } = {}) {
   st.crSt[i] = Math.max(0, CR_STATUS.indexOf(rec.crStatusRaw || null));
   st.exec[i] = -1;
   st.efaa[i] = 0;
-  st.alink[i] = rec.amanahLinkage === "makeen_unmatched" ? 2 : rec.scopeType === "internal" ? 0 : 1;
   st.payer[i] = 0;
   st.owner[i] = owner;
   st.fixtures.set(i, rec);
@@ -4505,7 +4504,7 @@ function iimDetail(st, i, rec, D) {
 var BI2 = (ar, en) => ({ ar, en });
 var fld = (n, ar, en, v) => ({ n, l: BI2(ar, en), v: v === void 0 ? null : v });
 var view = (id, table, title, fields) => ({ id, table, title, fields });
-var pad3 = (n, w) => String(n).padStart(w, "0");
+var pad2 = (n, w) => String(n).padStart(w, "0");
 var CITIES = ["\u0627\u0644\u0631\u064A\u0627\u0636", "\u062C\u062F\u0629", "\u0645\u0643\u0629 \u0627\u0644\u0645\u0643\u0631\u0645\u0629", "\u0627\u0644\u0645\u062F\u064A\u0646\u0629 \u0627\u0644\u0645\u0646\u0648\u0631\u0629", "\u0627\u0644\u062F\u0645\u0627\u0645", "\u0627\u0644\u062E\u0628\u0631", "\u0623\u0628\u0647\u0627", "\u0627\u0644\u0637\u0627\u0626\u0641", "\u0628\u0631\u064A\u062F\u0629", "\u062A\u0628\u0648\u0643", "\u062D\u0627\u0626\u0644", "\u062C\u0627\u0632\u0627\u0646"];
 var DISTRICTS = ["\u062D\u064A \u0627\u0644\u0646\u062E\u064A\u0644 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0631\u0628\u064A\u0639 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0648\u0627\u062D\u0629 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0641\u064A\u0635\u0644\u064A\u0629 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0645\u0631\u0648\u062C \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0635\u0641\u0627 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0633\u0644\u0627\u0645 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A", "\u062D\u064A \u0627\u0644\u0639\u0644\u064A\u0627 \u0627\u0644\u062A\u062C\u0631\u064A\u0628\u064A"];
 var ACTIVITIES = [["\u0628\u064A\u0639 \u0627\u0644\u0645\u0648\u0627\u062F \u0627\u0644\u063A\u0630\u0627\u0626\u064A\u0629 \u0628\u0627\u0644\u062A\u062C\u0632\u0626\u0629", "Retail food", 4711], ["\u0645\u0637\u0639\u0645", "Restaurant", 5610], ["\u0635\u0627\u0644\u0648\u0646 \u062D\u0644\u0627\u0642\u0629", "Barber", 9602], ["\u0645\u063A\u0633\u0644\u0629 \u0645\u0644\u0627\u0628\u0633", "Laundry", 9601], ["\u0628\u064A\u0639 \u0627\u0644\u0645\u0644\u0627\u0628\u0633", "Clothing retail", 4771], ["\u0645\u0642\u0647\u0649", "Cafe", 5630], ["\u0648\u0631\u0634\u0629 \u0635\u064A\u0627\u0646\u0629", "Workshop", 4520], ["\u0635\u064A\u062F\u0644\u064A\u0629", "Pharmacy", 4772]];
@@ -4600,8 +4599,8 @@ function sourceRecord(st, i, rec, D, cutoff) {
     const replaces = grp === GRP.TB_REPLACEMENT ? idKey - 1 : null;
     const facName = payer.ar;
     const crNo = crNoOf(st.payer[i]);
-    const reqId = `SR${pad3(hash(idKey % 1e6, 2) % 1e10, 10)}`;
-    out.providingSystem = BI2(tob ? "\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u062A\u0628\u063A (TB_*) \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627" : "\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u0625\u064A\u0648\u0627\u0621 \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627", tob ? "Tobacco disclosure platform (TB_*) via Incorta" : "Accommodation disclosure platform via Incorta").ar;
+    const reqId = `SR${pad2(hash(idKey % 1e6, 2) % 1e10, 10)}`;
+    out.providingSystem = BI2(tob ? "\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u062A\u0628\u063A (TB_*)" : "\u0645\u0646\u0635\u0629 \u0625\u0641\u0635\u0627\u062D \u0627\u0644\u0625\u064A\u0648\u0627\u0621", tob ? "Tobacco disclosure platform (TB_*)" : "Accommodation disclosure platform").ar;
     out.importVersion = tob ? IMPORT_VERSIONS.tobacco : IMPORT_VERSIONS.accommodation;
     const invoiceFields = [
       fld("INVOICE_KEY", "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0628\u0627\u0644\u0646\u0638\u0627\u0645", "Invoice key", String(71e6 + idKey % 1e8)),
@@ -4632,7 +4631,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
       fld("DISCLOSURE_KEY", "\u0643\u0648\u062F \u0627\u0644\u0625\u0641\u0635\u0627\u062D", "Disclosure key", dscKey),
       fld("DISCLOSURE_YEAR", "\u0633\u0646\u0629 \u0627\u0644\u0625\u0641\u0635\u0627\u062D", "Disclosure year", dy),
       fld("DISCLOSURE_MONTH", "\u0634\u0647\u0631 \u0627\u0644\u0625\u0641\u0635\u0627\u062D", "Disclosure month", dm),
-      fld("CREATED_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0628\u062F\u0627\u064A\u0629", "Period start", `${dy}-${pad3(dm, 2)}-01`),
+      fld("CREATED_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0628\u062F\u0627\u064A\u0629", "Period start", `${dy}-${pad2(dm, 2)}-01`),
       fld(tob ? "DISCLOSURE_DATE" : "MODIFIED_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u062A\u0642\u062F\u064A\u0645", "Submission date", addDays2(rec.issueDate, -(hash(idKey % 1e6, 4) % 3))),
       fld(tob ? "TOTAL_AMOUNT" : "TOTAL_OCCUPANCY", tob ? "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0625\u0641\u0635\u0627\u062D (\u0623\u0633\u0627\u0633 \u0627\u0644\u0627\u062D\u062A\u0633\u0627\u0628)" : "\u0625\u062C\u0645\u0627\u0644\u064A \u0627\u0644\u0625\u0641\u0635\u0627\u062D\u0627\u062A (\u0623\u0633\u0627\u0633 \u0627\u0644\u0627\u062D\u062A\u0633\u0627\u0628)", "Disclosed base", base),
       fld("TOTAL_PERCENTAGE", "\u0646\u0633\u0628\u0629 \u0627\u0644\u0627\u062D\u062A\u0633\u0627\u0628", "Calculation percentage", pct)
@@ -4654,7 +4653,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
       fld("DISCLOSURE_KEY", "\u0643\u0648\u062F \u0627\u0644\u0625\u0641\u0635\u0627\u062D", "Disclosure key", dscKey),
       fld("SCHEDULE_STATUS_KEY", "\u0643\u0648\u062F \u0627\u0644\u062D\u0627\u0644\u0629", "Status key", 2),
       fld("ARABIC_STATUS_NAME", "\u062D\u0627\u0644\u0629 \u0627\u0644\u062C\u062F\u0648\u0644\u0629", "Schedule status", "\u062A\u0645 \u0627\u0644\u0625\u0641\u0635\u0627\u062D"),
-      fld("CREATED_DATE", "\u062A\u0627\u0631\u064A\u062E \u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u062C\u062F\u0648\u0644\u0629", "Schedule created", `${dy}-${pad3(dm, 2)}-01`),
+      fld("CREATED_DATE", "\u062A\u0627\u0631\u064A\u062E \u0625\u0635\u062F\u0627\u0631 \u0627\u0644\u062C\u062F\u0648\u0644\u0629", "Schedule created", `${dy}-${pad2(dm, 2)}-01`),
       fld("UPDATE_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u062A\u0639\u062F\u064A\u0644", "Schedule updated", rec.issueDate)
     ]));
     const rooms = 8 + hash(st.payer[i], 11) % 150;
@@ -4849,7 +4848,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
     const licId = LICENCE.num(idKey);
     const reqId = Number(REQUEST.num(idKey).slice(0, 9));
     const nat = hash(st.payer[i], 53) % 100 < 70 ? "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A" : "\u0647\u0648\u064A\u0629 \u0648\u0637\u0646\u064A\u0629";
-    out.providingSystem = src.key === "licenses" ? "\u0645\u0646\u0635\u0629 \u0628\u0644\u062F\u064A (BALADY_BILLS) \u0648\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629" : "\u0625\u0646\u0643\u0648\u0631\u062A\u0627 \u2014 \u0637\u0628\u0642\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u062D\u062F\u0629 (ENT_REVENUES)";
+    out.providingSystem = src.key === "licenses" ? "\u0645\u0646\u0635\u0629 \u0628\u0644\u062F\u064A (BALADY_BILLS) \u0648\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629" : "\u0637\u0628\u0642\u0629 \u0627\u0644\u0625\u064A\u0631\u0627\u062F\u0627\u062A \u0627\u0644\u0645\u0648\u062D\u062F\u0629 (ENT_REVENUES)";
     out.importVersion = IMPORT_VERSIONS.balady;
     out.views.push(view("BALADY_BILLS", "TB_ENT_BALADY_BILLS", BI2("\u0641\u0627\u062A\u0648\u0631\u0629 \u0628\u0644\u062F\u064A", "Balady bill"), [
       fld("DATA_KEY", "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", "Bill key", rec.id),
@@ -4861,7 +4860,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
       fld("SERVICE_NAME", "\u0627\u0633\u0645 \u0627\u0644\u062E\u062F\u0645\u0629", "Service", svc[1]),
       fld("OWNER_ID", "\u0647\u0648\u064A\u0629 \u0627\u0644\u0645\u0627\u0644\u0643", "Owner id", nat === "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A" ? crNoOf(st.payer[i]) : nationalIdOf(st.payer[i])),
       fld("OWNER_TYPE_ID", "\u0646\u0648\u0639 \u0627\u0644\u0647\u0648\u064A\u0629", "Owner type", nat === "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A" ? 2 : 1),
-      fld("NATIONAL_NUMBER", "\u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u0645\u0648\u062D\u062F", "Unified number", nat === "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A" ? `700${pad3(hash(st.payer[i], 54) % 1e7, 7)}` : null),
+      fld("NATIONAL_NUMBER", "\u0627\u0644\u0631\u0642\u0645 \u0627\u0644\u0645\u0648\u062D\u062F", "Unified number", nat === "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A" ? `700${pad2(hash(st.payer[i], 54) % 1e7, 7)}` : null),
       fld("BILL_UPDATE_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u062A\u062D\u062F\u064A\u062B", "Updated", pf.last || rec.issueDate),
       fld("PAID_DATE", "\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0633\u062F\u0627\u062F", "Paid date", pf.last),
       fld("BILL_AMOUNT", "\u0645\u0628\u0644\u063A \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", "Bill amount", gross),
@@ -4934,7 +4933,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
     const size = [["S", "\u0635\u063A\u064A\u0631\u0629"], ["M", "\u0645\u062A\u0648\u0633\u0637\u0629"], ["L", "\u0643\u0628\u064A\u0631\u0629"]][hash(st.payer[i], 74) % 3];
     const paidRaw = rec.cancelled ? "\u0645\u0644\u063A\u0627\u0629" : pf.paid >= gross - 0.5 ? "\u0645\u0633\u062F\u062F\u0629" : pf.paid > 0 ? "\u0645\u0633\u062F\u062F\u0629 \u062C\u0632\u0626\u064A\u0627\u064B" : "\u063A\u064A\u0631 \u0645\u0633\u062F\u062F\u0629";
     const desc = { building_violations: "\u0645\u062E\u0627\u0644\u0641\u0629 \u0627\u0634\u062A\u0631\u0627\u0637\u0627\u062A \u0627\u0644\u0628\u0646\u0627\u0621", signage_violations: "\u0645\u062E\u0627\u0644\u0641\u0629 \u0627\u0644\u0644\u0648\u062D\u0627\u062A \u0627\u0644\u062A\u062C\u0627\u0631\u064A\u0629", health_violations: "\u0645\u062E\u0627\u0644\u0641\u0629 \u0627\u0644\u0627\u0634\u062A\u0631\u0627\u0637\u0627\u062A \u0627\u0644\u0635\u062D\u064A\u0629" }[item.key] || "\u0645\u062E\u0627\u0644\u0641\u0629 \u0628\u0644\u062F\u064A\u0629";
-    out.providingSystem = "\u0625\u064A\u0641\u0627\u0621 / \u0645\u0645\u062A\u062B\u0644 (\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A \u0639\u0628\u0631 \u0625\u0646\u0643\u0648\u0631\u062A\u0627)";
+    out.providingSystem = "\u0625\u064A\u0641\u0627\u0621 / \u0645\u0645\u062A\u062B\u0644 (\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A)";
     out.importVersion = IMPORT_VERSIONS.violations;
     const visitStart = addDays2(rec.issueDate, -(hash(idKey % 1e6, 75) % 4));
     out.views.push(view("Violations_report_BV", "Violations_report", BI2("\u062A\u0642\u0631\u064A\u0631 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0627\u062A", "Violations report"), [
@@ -4962,7 +4961,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
       fld("\u062A\u0627\u0631\u064A\u062E_\u0627\u0639\u062A\u0645\u0627\u062F_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "\u062A\u0627\u0631\u064A\u062E \u0627\u0639\u062A\u0645\u0627\u062F \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "Approval date", rec.issueDate),
       fld("\u0627\u0633\u0645_\u0627\u0644\u0645\u0639\u062A\u0645\u062F", "\u0627\u0633\u0645 \u0627\u0644\u0645\u0639\u062A\u0645\u062F", "Approver", personName(hash(idKey % 1e6, 80) % 300).ar),
       fld("\u0631\u0642\u0645_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629_\u0641\u064A_\u0627\u064A\u0641\u0627\u0621", "\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629 \u0641\u064A \u0625\u064A\u0641\u0627\u0621", "Efaa violation number", rec.violationNumber),
-      fld("\u0645\u0639\u0631\u0641_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "\u0645\u0639\u0631\u0641 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "Violation id", `V${pad3(idKey % 1e8, 9)}`),
+      fld("\u0645\u0639\u0631\u0641_\u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "\u0645\u0639\u0631\u0641 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", "Violation id", `V${pad2(idKey % 1e8, 9)}`),
       fld("\u064A\u062A\u0637\u0644\u0628_\u0627\u0644\u062A\u0646\u0628\u064A\u0647_\u0644\u0623\u0648\u0644_\u0645\u0631\u0629", "\u064A\u062A\u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0628\u064A\u0647 \u0644\u0623\u0648\u0644 \u0645\u0631\u0629", "First-time warning required", "\u0644\u0627"),
       fld("\u062D\u0627\u0644\u0629_\u0627\u0644\u0633\u062F\u0627\u062F", "\u062D\u0627\u0644\u0629 \u0627\u0644\u0633\u062F\u0627\u062F", "Payment status", paidRaw),
       fld("\u0631\u0645\u0632_\u062D\u062C\u0645_\u0627\u0644\u0645\u0646\u0634\u0623\u0629", "\u0631\u0645\u0632 \u062D\u062C\u0645 \u0627\u0644\u0645\u0646\u0634\u0623\u0629", "Facility size code", size[0]),
@@ -4977,7 +4976,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
     out.importVersion = IMPORT_VERSIONS.tahseel_central;
     out.views.push(view("HOUSING_SALE", "\u2014", BI2("\u0628\u064A\u0639 \u0633\u0643\u0646\u064A (\u0628\u0646\u064A\u0629 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0645\u0648\u062D\u062F\u0629 \u0641\u0642\u0637)", "Residential sale (unified-invoice structure only)"), [
       fld("BUYER_REF", "\u0645\u0631\u062C\u0639 \u0627\u0644\u0645\u0634\u062A\u0631\u064A", "Buyer reference", payer.ar),
-      fld("UNIT_REF", "\u0645\u0631\u062C\u0639 \u0627\u0644\u0648\u062D\u062F\u0629", "Unit reference", `UNIT-${pad3(hash(idKey % 1e6, 91) % 1e6, 6)}`),
+      fld("UNIT_REF", "\u0645\u0631\u062C\u0639 \u0627\u0644\u0648\u062D\u062F\u0629", "Unit reference", `UNIT-${pad2(hash(idKey % 1e6, 91) % 1e6, 6)}`),
       fld("SADAD", "\u0631\u0642\u0645 \u0633\u062F\u0627\u062F", "SADAD number", sadad),
       fld("SALE_AMOUNT", "\u0642\u064A\u0645\u0629 \u0627\u0644\u0628\u064A\u0639", "Sale amount", gross)
     ]));
@@ -4995,10 +4994,10 @@ function sourceRecord(st, i, rec, D, cutoff) {
   const tot = rec.lineItems.reduce((s, l) => s + l.amount, 0);
   const settleDay = pf.last ? addDays2(pf.last, 1 + hash(idKey % 1e6, 95) % 3) : null;
   out.revenueLines = rec.lineItems.map((l) => ({
-    REVENUE_KEY: `RV-${pad3(idKey % 1e8, 9)}-${l.no}`,
+    REVENUE_KEY: `RV-${pad2(idKey % 1e8, 9)}-${l.no}`,
     DETAIL_ID: l.no,
     ACCOUNT_NO: sadad,
-    SADAD_TRANSACTION_ID: pf.last ? `TX${pad3(hash(idKey % 1e6, 96) % 1e10, 10)}` : null,
+    SADAD_TRANSACTION_ID: pf.last ? `TX${pad2(hash(idKey % 1e6, 96) % 1e10, 10)}` : null,
     APPLICATION_NAME: SOURCES[st.src[i]].platform,
     TOTAL_AMOUNT: gross,
     DETAIL_AMOUNT: l.amount,
@@ -5018,8 +5017,7 @@ function sourceRecord(st, i, rec, D, cutoff) {
   out.checks.revenueLines = { lines: out.revenueLines.length, sumOfDetailAmount: tot, invoiceTotal: gross, totalRepeatedOnEveryLine: out.revenueLines.length > 1, sumEqualsInvoice: Math.abs(tot - gross) < 0.5, knownAmountConflict: rec.amountCheck?.status === "conflict" };
   const central = st.scope[i] === 0;
   out.links.unshift({ system: central ? "\u062A\u062D\u0635\u064A\u0644" : "\u062A\u0642\u0627\u0631\u064A\u0631 \u0627\u0644\u0623\u0645\u0627\u0646\u0627\u062A \u0627\u0644\u062F\u0627\u062E\u0644\u064A\u0629", dataset: central ? "invoice_details" : "internal_reports", importVersion: central ? IMPORT_VERSIONS.tahseel_central : IMPORT_VERSIONS.tahseel_internal, keyField: "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", key: rec.id, role: "primary", note: BI2("\u0627\u0644\u0645\u0631\u062C\u0639 \u0644\u062D\u0627\u0644\u0629 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0648\u0627\u0644\u062A\u062D\u0635\u064A\u0644", "Reference for invoice status and collection") });
-  out.links.push({ system: "\u0625\u0646\u0643\u0648\u0631\u062A\u0627", dataset: "ENT_REVENUES", importVersion: IMPORT_VERSIONS.incorta_items, keyField: "ACCOUNT_NO", key: sadad, role: "items", note: BI2(`${out.revenueLines.length} \u0628\u0646\u062F\u061B \u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A \u0645\u0643\u0631\u0631 \u0639\u0644\u0649 \u0643\u0644 \u0628\u0646\u062F \u0648\u064A\u064F\u062D\u062A\u0633\u0628 \u0645\u0631\u0629`, `${out.revenueLines.length} line(s); the total repeats on every line and is counted once`) });
-  if (central) out.links.push({ system: "\u0645\u0643\u064A\u0646", dataset: "invoice_amanah", importVersion: IMPORT_VERSIONS.makeen, keyField: "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629", key: rec.id, role: "amanah", present: st.alink[i] !== 2, note: st.alink[i] === 2 ? BI2("\u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629 \u0641\u064A \u0645\u0643\u064A\u0646 \u2014 \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \xAB\u063A\u064A\u0631 \u0645\u062D\u062F\u062F\xBB", "Not in Makeen - Amanah shown as unassigned") : BI2("\u062A\u062D\u062F\u062F \u0627\u0644\u0623\u0645\u0627\u0646\u0629 \u0648\u0627\u0644\u0628\u0644\u062F\u064A\u0629", "Gives the Amanah and municipality") });
+  out.links.push({ system: "\u0628\u0646\u0643 \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A", dataset: "ENT_REVENUES", importVersion: IMPORT_VERSIONS.tahseel_central, keyField: "ACCOUNT_NO", key: sadad, role: "items", note: BI2(`${out.revenueLines.length} \u0628\u0646\u062F\u061B \u0627\u0644\u0645\u0628\u0644\u063A \u0627\u0644\u0625\u062C\u0645\u0627\u0644\u064A \u0645\u0643\u0631\u0631 \u0639\u0644\u0649 \u0643\u0644 \u0628\u0646\u062F \u0648\u064A\u064F\u062D\u062A\u0633\u0628 \u0645\u0631\u0629`, `${out.revenueLines.length} line(s); the total repeats on every line and is counted once`) });
   if (src.key === "fines") out.links.push({ system: "\u0625\u064A\u0641\u0627\u0621", dataset: "violations_v2", importVersion: IMPORT_VERSIONS.efaa_v2, keyField: "\u0631\u0642\u0645 \u0627\u0644\u0645\u062E\u0627\u0644\u0641\u0629", key: rec.violationNumber, role: "violation", note: BI2("\u0627\u0644\u062D\u0627\u0644\u0629 \u0643\u0645\u0627 \u0641\u064A \u0625\u064A\u0641\u0627\u0621 \u062A\u064F\u062D\u0641\u0638 \u0645\u0646\u0641\u0635\u0644\u0629 \u0639\u0646 \u062D\u0627\u0644\u0629 \u062A\u062D\u0635\u064A\u0644", "The Efaa status is kept apart from the Tahseel status") });
   if (src.key === "tobacco" || src.key === "accommodation") out.links.push({ system: src.key === "tobacco" ? "\u0645\u0646\u0635\u0629 \u0627\u0644\u062A\u0628\u063A" : "\u0645\u0646\u0635\u0629 \u0627\u0644\u0625\u064A\u0648\u0627\u0621", dataset: "TB_ENT_INVOICES", importVersion: out.importVersion, keyField: "INVOICE_KEY / SADAD_NO", key: sadad, role: "activity-source", note: BI2("\u0627\u0644\u0625\u0641\u0635\u0627\u062D \u2190 \u0627\u0644\u062C\u062F\u0648\u0644\u0629 \u2190 \u0627\u0644\u0645\u0646\u0634\u0623\u0629", "Disclosure -> schedule -> facility") });
   if (src.key === "white_lands") out.links.push({ system: "\u0645\u0646\u0638\u0648\u0645\u0629 \u0627\u0644\u0623\u0631\u0627\u0636\u064A \u0627\u0644\u0628\u064A\u0636\u0627\u0621", dataset: "DS_038_IdleLandInvoices", importVersion: IMPORT_VERSIONS.white_lands, keyField: "SadadNum / InvoiceId", key: sadad, role: "activity-source", note: BI2("\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u2190 \u0627\u0644\u0635\u0643 \u2190 \u0627\u0644\u0642\u0637\u0639\u0629 \u2190 \u0627\u0644\u0645\u0627\u0644\u0643", "Invoice -> deed -> land plot -> owner") });
@@ -5175,7 +5173,6 @@ function materialize(st, i, ctx = null) {
     missingFields: flags & F.MISSING_ID ? ["debtor_id_number"] : [],
     amountCheck,
     aiRisk: { score: 0, tag: "normal" },
-    amanahLinkage: ALINK[st.alink[i]],
     exceptional: !!(flags & F.EXCEPTIONAL),
     provenance: { kind: "demo", system: "demo-world", ref: id }
   };
@@ -5391,7 +5388,6 @@ function rowOut(st, ctx, i, D) {
     nReasons: D.nReasons,
     primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null,
     tags: tagsOf(st, i, D),
-    amanahLinkage: st.alink[i],
     uploaded: !!(st.flags[i] & F.UPLOADED),
     ...im,
     invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null,
@@ -5906,7 +5902,7 @@ function quality(st, req) {
   const ctx = makeCtx(st, req);
   const sc = resolveScope(ctx, req.scope);
   const D = ctx.D;
-  const q2 = { records: 0, conflicts: 0, pending: 0, missing: 0, contractUnmatched: 0, contractConfirmedNone: 0, unassigned: 0, makeenMatched: 0, makeenUnmatched: 0, efaaDifferent: 0, efaaTotal: 0, centralInvoices: 0, internalInvoices: 0, lines: 0, investmentInvoices: 0, installmentsInvoiced: 0 };
+  const q2 = { records: 0, conflicts: 0, pending: 0, missing: 0, contractUnmatched: 0, contractConfirmedNone: 0, efaaDifferent: 0, efaaTotal: 0, centralInvoices: 0, internalInvoices: 0, lines: 0, investmentInvoices: 0, installmentsInvoiced: 0 };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i)) continue;
     q2.records += 1;
@@ -5921,11 +5917,6 @@ function quality(st, req) {
       if (st.cstat[i] === 2) q2.contractUnmatched += 1;
       if (st.cstat[i] === 3) q2.contractConfirmedNone += 1;
       if (st.contract[i] >= 0) q2.installmentsInvoiced += 1;
-    }
-    if (st.ent[i] === ENTITIES.length - 1) q2.unassigned += 1;
-    if (st.scope[i] === 0 && i < st.nGen) {
-      if (st.alink[i] === 2) q2.makeenUnmatched += 1;
-      else q2.makeenMatched += 1;
     }
     if (st.efaa[i]) {
       q2.efaaTotal += 1;
@@ -6165,7 +6156,7 @@ function reasonRuleOf(text) {
 function entityIndexOf(text) {
   const t = normText(text);
   if (!t) return -1;
-  return ENTITIES.findIndex((e, i) => i !== ENT_UNASSIGNED && [e.ar, e.en, e.zh].some((x) => normText(x) === t));
+  return ENTITIES.findIndex((e) => [e.ar, e.en, e.zh].some((x) => normText(x) === t));
 }
 
 // server/exclusionUpload.js

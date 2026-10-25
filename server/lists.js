@@ -1,6 +1,6 @@
 // Paged / searchable / sortable invoice listings, worklists, risk flags and the large streaming export — all over the
 // columnar store. Nothing here materialises more than one page of invoice objects.
-import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, ENT_UNASSIGNED, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, F, isoOf, dayNum, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { REFERRED_CANCELLED_STAYS_BILLED, OBJECTION_STATUS_OF } from '../src/data/iim.js';
 import { materialize } from './materialize.js';
@@ -78,7 +78,7 @@ export function rowOut(st, ctx, i, D) {
     daysOverdue: D.outstanding > 0 ? D.daysOverdue : 0, cls: CLASSES[D.cls], lines: st.lines[i],
     statusRawTahseel: tahseelOf(st, i, D), statusRawEfaa: EFAA_STATUS[st.efaa[i]] || null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,
     contractNo: ct && st.cstat[i] === 1 ? ct.contractNo : fx?.co || null, contractStatus: CSTAT[st.cstat[i]], executionIdx: st.exec[i], enforcement: ctx.mark ? (ctx.ov.get(i)?.link || 0) : 0, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, rules, nReasons: D.nReasons,
-    primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null, tags: tagsOf(st, i, D), amanahLinkage: st.alink[i], uploaded: !!(st.flags[i] & F.UPLOADED),
+    primaryRule: D.primaryBit ? RULE_IDS[Math.round(Math.log2(D.primaryBit))] : null, tags: tagsOf(st, i, D), uploaded: !!(st.flags[i] & F.UPLOADED),
     ...im, invoiceKindAr: im.invoiceKind ? INVOICE_KIND_SHORT_AR[im.invoiceKind] : null, exclusionReason: exclusionOf(D),
     // R7: the Mumtathil appeal status; R11: the invoice it repeats; R8 / R9: the file the exclusion came from
     objectionStatus: st.flags[i] & F.OBJECTION ? (() => { const x = OBJECTION_STATUS_OF[objectionStatusKey(st, i)]; return { key: x.key, ar: x.ar, en: x.en, excludes: x.exclude }; })() : null,
@@ -287,4 +287,4 @@ export function risk(st, req) {
   for (const [k, v] of Object.entries(cat)) out[k] = { count: v.n, amount: v.amt, rows: v.top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); return { ...rowOut(st, ctx, i, D), score: Math.round(score) }; }) };
   return { categories: out, valueAnomalyMultiple: VALUE_ANOMALY_MULTIPLE };
 }
-void ENT_UNASSIGNED; void CHANNELS; void violationOf; void subscriptionOf; void dayNum;
+void CHANNELS; void violationOf; void subscriptionOf; void dayNum;

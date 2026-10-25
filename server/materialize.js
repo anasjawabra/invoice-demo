@@ -1,6 +1,6 @@
 // Rebuilds the full record object of ONE invoice from the columns (invoice details are loaded when opened, never in bulk).
 // Line items, identifiers, evidence texts and the evidence trail are deterministic functions of the invoice key.
-import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, ALINK, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
 import { iimDetail } from './iimRow.js';
@@ -96,7 +96,7 @@ export function materialize(st, i, ctx = null) {
     crEvidence: ctReq && st.crSt[i] ? { method: ctReq.method === 1 ? 'ocr' : 'structured', source: `سند ${ctReq.enforceNum} — بند ١`, confidence: ctReq.confidence } : null,
     executionNo: req ? req.enforceNum : null, contractRequestNo: ctReq ? ctReq.enforceNum : null,
     missingFields: flags & F.MISSING_ID ? ['debtor_id_number'] : [], amountCheck, aiRisk: { score: 0, tag: 'normal' },
-    amanahLinkage: ALINK[st.alink[i]], exceptional: !!(flags & F.EXCEPTIONAL),
+    exceptional: !!(flags & F.EXCEPTIONAL),
     provenance: { kind: 'demo', system: 'demo-world', ref: id }
   };
   return rec;

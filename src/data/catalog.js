@@ -3,7 +3,7 @@
 // epoch-day helpers. Codes are what the columnar store keeps per invoice.
 // ============================================================================
 
-/* ---------- Entities (Amanahs + the Housing sector + "Unassigned") ---------- */
+/* ---------- Entities (Amanahs + the Housing sector) ---------- */
 export const ENTITIES = [
   { en: 'Riyadh Amanah', ar: 'أمانة منطقة الرياض', zh: '利雅得' },
   { en: 'Jeddah Amanah', ar: 'أمانة محافظة جدة', zh: '吉达' },
@@ -22,12 +22,10 @@ export const ENTITIES = [
   { en: 'Hafr Al-Batin Amanah', ar: 'أمانة محافظة حفر الباطن', zh: '哈费尔巴廷' },
   { en: 'Al Bahah Amanah', ar: 'أمانة منطقة الباحة', zh: '巴哈' },
   { en: 'Al Jawf Amanah', ar: 'أمانة منطقة الجوف', zh: '焦夫' },
-  { en: 'Housing Sector', ar: 'قطاع الإسكان', zh: '住房部门' },
-  { en: 'Unassigned', ar: 'غير محدد الأمانة (لم تُطابق في مكين)', zh: '未分配' }
+  { en: 'Housing Sector', ar: 'قطاع الإسكان', zh: '住房部门' }
 ];
 export const N_AMANAH = 17;
 export const ENT_HOUSING = 17;
-export const ENT_UNASSIGNED = 18;
 export const ENTITY_INDEX = Object.fromEntries(ENTITIES.map((e, i) => [e.en, i]));
 export const AMANAH_CATALOG = ENTITIES.slice(0, N_AMANAH);
 
@@ -38,7 +36,7 @@ export function municipalityOf(ent, muni) {
   const e = ENTITIES[ent];
   if (!e) return null;
   if (ent === ENT_HOUSING) return muni === 0 ? { key: `${e.en}|Sales`, en: 'Housing sales unit', ar: 'وحدة المبيعات السكنية' } : null; // white-land invoices carry a city (source detail), not a municipality
-  if (ent === ENT_UNASSIGNED || muni == null || muni > 2) return null;
+  if (muni == null || muni > 2) return null;
   const d = MUNI_DIRS[muni];
   return { key: `${e.en}|${d.en}`, en: `${shortEn(e.en)} ${d.en} Municipality`, ar: `بلدية ${shortAr(e.ar)} ${d.ar}` };
 }
@@ -46,7 +44,6 @@ export function municipalitiesOf(entityEn) {
   const ent = ENTITY_INDEX[entityEn];
   if (ent == null) return [];
   if (ent === ENT_HOUSING) return [municipalityOf(ent, 0)];
-  if (ent === ENT_UNASSIGNED) return [];
   return [0, 1, 2].map((m) => municipalityOf(ent, m));
 }
 
@@ -98,7 +95,6 @@ export const EFAA_STATUS = [null, 'مسددة', 'قائمة', 'تحت الاعت
 export const CSTAT = ['not_applicable', 'linked', 'unmatched', 'confirmed_none', 'unlinked', 'unverified'];
 export const CHANNELS = ['sadad', 'voluntary', 'enforcement', 'transfer', 'card', 'wallet']; // 'wallet' = deducted from the facility wallet (tobacco / accommodation platforms)
 export const CH_WALLET = 5;
-export const ALINK = ['internal_report', 'makeen_matched', 'makeen_unmatched'];
 
 /* ---------- Flag bits ---------- */
 export const F = {

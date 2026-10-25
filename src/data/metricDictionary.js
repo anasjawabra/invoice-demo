@@ -10,7 +10,7 @@ const BI = (ar, en) => ({ ar, en });
 
 // Static text per metric. `kind` says whether it is a period FLOW, a point-in-time STOCK, a ratio or a plan metric.
 const ENTRIES = [
-  { key: 'gross', kind: 'flow', sources: ['tahseel', 'makeen'], label: BI('إجمالي المفوتر', 'Gross billed'),
+  { key: 'gross', kind: 'flow', sources: ['tahseel'], label: BI('إجمالي المفوتر', 'Gross billed'),
     definition: BI('قيمة الفواتير الصادرة في الفترة قبل أي استبعاد (تشمل التسويات المعتمدة).', 'Value of the invoices issued in the period before any exclusion (approved adjustments included).'),
     formula: BI('Σ قيمة الفاتورة المعدّلة، مرة واحدة لكل فاتورة = الاستبعادات + صافي المفوتر', 'Σ adjusted invoice value, once per invoice = exclusions + net billed'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('تاريخ إصدار الفاتورة', 'Invoice issue date') },
@@ -28,7 +28,7 @@ const ENTRIES = [
     formula: BI('الملغى + المستبعد بقاعدة معتمدة = إجمالي المفوتر − صافي المفوتر', 'Cancelled + rule-excluded = gross billed − net billed'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('فواتير صادرة في الفترة؛ الإلغاء/الاستبعاد سارٍ حتى التاريخ المرجعي', 'Invoices issued in the period; cancellation/exclusion effective up to the reference date'),
     caveat: BI('الاستبعاد لا يعني أن المبلغ غير قابل للتحصيل. لا تُخصم الاستبعادات مجدداً من صافي المفوتر أو غير المحصل.', 'Exclusion never means uncollectible. Exclusions are not deducted again from net billed or uncollected.') },
-  { key: 'net', kind: 'flow', sources: ['tahseel', 'makeen'], label: BI('صافي المفوتر', 'Net billed'),
+  { key: 'net', kind: 'flow', sources: ['tahseel'], label: BI('صافي المفوتر', 'Net billed'),
     definition: BI('إجمالي المفوتر بعد خصم الاستبعادات مرة واحدة — أساس نسبة التحصيل لفترة الإصدار.', 'Gross billed less exclusions, deducted once — the base of the collection rate for the issue period.'),
     formula: BI('إجمالي المفوتر − الاستبعادات = المحصّل + غير المحصّل', 'Gross billed − exclusions = collected + uncollected'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('تاريخ إصدار الفاتورة', 'Invoice issue date'),
@@ -41,7 +41,7 @@ const ENTRIES = [
     definition: BI('الجزء من صافي المفوتر الذي لم يُحصَّل حتى التاريخ المرجعي، لفواتير الفترة المحددة.', 'The part of net billed not yet collected at the reference date, for the selected period\'s invoices.'),
     formula: BI('صافي المفوتر − المحصّل', 'Net billed − collected'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('فواتير صادرة في الفترة؛ التحصيل حتى التاريخ المرجعي', 'Invoices issued in the period; collections up to the reference date') },
-  { key: 'netUncollected', kind: 'stock', sources: ['tahseel', 'makeen', 'efaa'], label: BI('الرصيد القائم', 'Standing balance (net uncollected)'),
+  { key: 'netUncollected', kind: 'stock', sources: ['tahseel', 'efaa'], label: BI('الرصيد القائم', 'Standing balance (net uncollected)'),
     definition: BI('رصيد الفواتير الصادرة حتى تاريخ القطع ولم تُسدَّد، بعد استبعاد الملغاة والمستبعدة (دون تداخل). يشمل ما لم يحن استحقاقه ويُفصل عن المتأخر.', 'Standing balance of invoices issued up to the cutoff and still unpaid, after removing cancelled and excluded (non-overlapping). Includes not-yet-due amounts, shown apart from arrears.'),
     formula: BI('رقم تقرير غير المسدد − فروقات المطابقة − الملغاة − المستبعدة (غير المتداخلة) + فواتير بعد التقرير + النطاق الداخلي', 'Unpaid report − reconciliation differences − cancelled − excluded (non-overlapping) + invoices after the report + internal scope'),
     period: BI('رصيد في تاريخ القطع', 'Standing balance at the cutoff'), dateBasis: BI('كل ما صدر حتى تاريخ القطع، بغض النظر عن الفترة المحددة', 'Everything issued up to the cutoff, regardless of the selected period') },
@@ -82,7 +82,7 @@ const ENTRIES = [
 ];
 
 const SOURCE_LABEL = {
-  tahseel: BI('تحصيل', 'Tahseel'), makeen: BI('مكين', 'Makeen'), sadad: BI('سداد', 'SADAD'), efaa: BI('إيفاء', 'Efaa'),
+  tahseel: BI('تحصيل', 'Tahseel'), sadad: BI('سداد', 'SADAD'), efaa: BI('إيفاء', 'Efaa'),
   'cr-view': BI('CR View', 'CR View'), furas: BI('فرص', 'Furas'), 'target-config': BI('إعدادات المستهدف', 'Target configuration'), 'budget-config': BI('إعدادات الميزانية', 'Budget configuration')
 };
 

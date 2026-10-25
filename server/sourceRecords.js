@@ -4,7 +4,7 @@
 // The unified invoice (columns in the store) is the single record that carries the amount. This module rebuilds, on demand and
 // deterministically from the invoice key, how each source system would describe that same invoice: the original column names of
 // the source schemas (tobacco / accommodation platform tables, white-land DS_0xx views, Balady bills, the violations report, the
-// Incorta revenue lines), the related records (disclosure, schedule, facility, deed, land, owner, objection, extension request...)
+// revenue lines), the related records (disclosure, schedule, facility, deed, land, owner, objection, extension request...)
 // and the LINKS between systems. Nothing here adds an amount: every amount shown is the unified invoice amount, or a documented
 // breakdown of it. All persons, facilities and identifiers are synthetic.
 // ============================================================================
@@ -80,7 +80,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
     const replacedBy = grp === GRP.TB_REPLACED ? idKey + 1 : null; const replaces = grp === GRP.TB_REPLACEMENT ? idKey - 1 : null;
     const facName = payer.ar; const crNo = crNoOf(st.payer[i]);
     const reqId = `SR${pad(hash(idKey % 1e6, 2) % 1e10, 10)}`;
-    out.providingSystem = BI(tob ? 'منصة إفصاح التبغ (TB_*) عبر إنكورتا' : 'منصة إفصاح الإيواء عبر إنكورتا', tob ? 'Tobacco disclosure platform (TB_*) via Incorta' : 'Accommodation disclosure platform via Incorta').ar;
+    out.providingSystem = BI(tob ? 'منصة إفصاح التبغ (TB_*)' : 'منصة إفصاح الإيواء', tob ? 'Tobacco disclosure platform (TB_*)' : 'Accommodation disclosure platform').ar;
     out.importVersion = tob ? IMPORT_VERSIONS.tobacco : IMPORT_VERSIONS.accommodation;
     const invoiceFields = [
       fld('INVOICE_KEY', 'رقم الفاتورة بالنظام', 'Invoice key', String(71000000 + (idKey % 1e8))), fld('DISCLOSURE_KEY', 'رقم الإفصاح', 'Disclosure key', dscKey),
@@ -220,7 +220,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
     const billStatus = rec.cancelled ? (hash(idKey % 1e6, 52) % 2 ? 2 : 3) : pf.paid >= gross - 0.5 ? 1 : 0;
     const licId = LICENCE.num(idKey); const reqId = Number(REQUEST.num(idKey).slice(0, 9));
     const nat = hash(st.payer[i], 53) % 100 < 70 ? 'سجل تجاري' : 'هوية وطنية';
-    out.providingSystem = src.key === 'licenses' ? 'منصة بلدي (BALADY_BILLS) وتقارير الأمانات الداخلية' : 'إنكورتا — طبقة الإيرادات الموحدة (ENT_REVENUES)';
+    out.providingSystem = src.key === 'licenses' ? 'منصة بلدي (BALADY_BILLS) وتقارير الأمانات الداخلية' : 'طبقة الإيرادات الموحدة (ENT_REVENUES)';
     out.importVersion = IMPORT_VERSIONS.balady;
     out.views.push(view('BALADY_BILLS', 'TB_ENT_BALADY_BILLS', BI('فاتورة بلدي', 'Balady bill'), [
       fld('DATA_KEY', 'رقم الفاتورة', 'Bill key', rec.id), fld('REQUEST_ID', 'رقم الطلب', 'Request id', reqId), fld('LICENSE_ID', 'رقم الرخصة', 'Licence id', licId), fld('BILL_NUMBER', 'رقم السداد', 'SADAD number', sadad),
@@ -263,7 +263,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
     const size = [['S', 'صغيرة'], ['M', 'متوسطة'], ['L', 'كبيرة']][hash(st.payer[i], 74) % 3];
     const paidRaw = rec.cancelled ? 'ملغاة' : pf.paid >= gross - 0.5 ? 'مسددة' : pf.paid > 0 ? 'مسددة جزئياً' : 'غير مسددة';
     const desc = { building_violations: 'مخالفة اشتراطات البناء', signage_violations: 'مخالفة اللوحات التجارية', health_violations: 'مخالفة الاشتراطات الصحية' }[item.key] || 'مخالفة بلدية';
-    out.providingSystem = 'إيفاء / ممتثل (تقرير المخالفات عبر إنكورتا)';
+    out.providingSystem = 'إيفاء / ممتثل (تقرير المخالفات)';
     out.importVersion = IMPORT_VERSIONS.violations;
     const visitStart = addDays(rec.issueDate, -(hash(idKey % 1e6, 75) % 4));
     out.views.push(view('Violations_report_BV', 'Violations_report', BI('تقرير المخالفات', 'Violations report'), [
@@ -294,7 +294,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
     ]));
   }
 
-  /* ---------------------------------------------------------------- Incorta revenue lines (ENT_REVENUES): the invoice total is REPEATED on every line */
+  /* ---------------------------------------------------------------- Revenue lines (ENT_REVENUES): the invoice total is REPEATED on every line */
   const tot = rec.lineItems.reduce((s, l) => s + l.amount, 0);
   const settleDay = pf.last ? addDays(pf.last, 1 + (hash(idKey % 1e6, 95) % 3)) : null;
   out.revenueLines = rec.lineItems.map((l) => ({
@@ -308,8 +308,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
   /* ---------------------------------------------------------------- links between systems (one unified invoice, several supplying systems) */
   const central = st.scope[i] === 0;
   out.links.unshift({ system: central ? 'تحصيل' : 'تقارير الأمانات الداخلية', dataset: central ? 'invoice_details' : 'internal_reports', importVersion: central ? IMPORT_VERSIONS.tahseel_central : IMPORT_VERSIONS.tahseel_internal, keyField: 'رقم الفاتورة', key: rec.id, role: 'primary', note: BI('المرجع لحالة الفاتورة والتحصيل', 'Reference for invoice status and collection') });
-  out.links.push({ system: 'إنكورتا', dataset: 'ENT_REVENUES', importVersion: IMPORT_VERSIONS.incorta_items, keyField: 'ACCOUNT_NO', key: sadad, role: 'items', note: BI(`${out.revenueLines.length} بند؛ المبلغ الإجمالي مكرر على كل بند ويُحتسب مرة`, `${out.revenueLines.length} line(s); the total repeats on every line and is counted once`) });
-  if (central) out.links.push({ system: 'مكين', dataset: 'invoice_amanah', importVersion: IMPORT_VERSIONS.makeen, keyField: 'رقم الفاتورة', key: rec.id, role: 'amanah', present: st.alink[i] !== 2, note: st.alink[i] === 2 ? BI('غير موجودة في مكين — الأمانة «غير محدد»', 'Not in Makeen - Amanah shown as unassigned') : BI('تحدد الأمانة والبلدية', 'Gives the Amanah and municipality') });
+  out.links.push({ system: 'بنك البيانات', dataset: 'ENT_REVENUES', importVersion: IMPORT_VERSIONS.tahseel_central, keyField: 'ACCOUNT_NO', key: sadad, role: 'items', note: BI(`${out.revenueLines.length} بند؛ المبلغ الإجمالي مكرر على كل بند ويُحتسب مرة`, `${out.revenueLines.length} line(s); the total repeats on every line and is counted once`) });
   if (src.key === 'fines') out.links.push({ system: 'إيفاء', dataset: 'violations_v2', importVersion: IMPORT_VERSIONS.efaa_v2, keyField: 'رقم المخالفة', key: rec.violationNumber, role: 'violation', note: BI('الحالة كما في إيفاء تُحفظ منفصلة عن حالة تحصيل', 'The Efaa status is kept apart from the Tahseel status') });
   if (src.key === 'tobacco' || src.key === 'accommodation') out.links.push({ system: src.key === 'tobacco' ? 'منصة التبغ' : 'منصة الإيواء', dataset: 'TB_ENT_INVOICES', importVersion: out.importVersion, keyField: 'INVOICE_KEY / SADAD_NO', key: sadad, role: 'activity-source', note: BI('الإفصاح ← الجدولة ← المنشأة', 'Disclosure -> schedule -> facility') });
   if (src.key === 'white_lands') out.links.push({ system: 'منظومة الأراضي البيضاء', dataset: 'DS_038_IdleLandInvoices', importVersion: IMPORT_VERSIONS.white_lands, keyField: 'SadadNum / InvoiceId', key: sadad, role: 'activity-source', note: BI('الفاتورة ← الصك ← القطعة ← المالك', 'Invoice -> deed -> land plot -> owner') });

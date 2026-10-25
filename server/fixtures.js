@@ -1,11 +1,12 @@
 // Appends full record objects (the hand-anchored fixtures and uploaded rows) to the columnar store, so they are
 // scanned, scoped and aggregated by exactly the same engine as the generated invoices.
 import { gfsCodeOf, gfsIndexOf, objectionStatusIndex } from '../src/data/iim.js';
-import { ITEMS, ENTITY_INDEX, ENT_UNASSIGNED, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
+import { ITEMS, ENTITY_INDEX, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
 
 export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   const i = st.addInvoice();
-  const e = ENTITY_INDEX[rec.amanahEn] ?? ENT_UNASSIGNED;
+  const e = ENTITY_INDEX[rec.amanahEn];
+  if (e == null) throw new Error(`unknown Amanah: ${rec.amanahEn}`);
   st.idKey[i] = 0; st.issue[i] = dayNum(rec.issueDate); st.due[i] = dayNum(rec.dueDate); st.gross[i] = rec.grossAmount;
   const adj = (rec.adjustments || [])[0];
   st.adjAmt[i] = adj ? adj.amount : 0; st.adjDay[i] = adj ? dayNum(adj.date) : 0;
@@ -33,7 +34,7 @@ export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   st.flags[i] = flags;
   st.contract[i] = -1; st.inst[i] = 0; st.cstat[i] = Math.max(0, CSTAT.indexOf(rec.contract?.status || 'not_applicable'));
   st.crSt[i] = Math.max(0, CR_STATUS.indexOf(rec.crStatusRaw || null)); st.exec[i] = -1; st.efaa[i] = 0;
-  st.alink[i] = rec.amanahLinkage === 'makeen_unmatched' ? 2 : rec.scopeType === 'internal' ? 0 : 1; st.payer[i] = 0; st.owner[i] = owner;
+  st.payer[i] = 0; st.owner[i] = owner;
   st.fixtures.set(i, rec); st.fixtureById.set(rec.id, i);
   return i;
 }

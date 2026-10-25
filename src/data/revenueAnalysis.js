@@ -128,7 +128,7 @@ export function buildAnalysis({ cur, prev, comparable, today }) {
   // the Ministry's own target position (all entities that have an appropriation)
   const withTarget = entities.filter((e) => e.target);
   const ministryTarget = withTarget.length ? withTarget.reduce((t, e) => ({ appropriation: t.appropriation + e.target.appropriation, pay: t.pay + e.target.pay, expected: t.expected + e.target.expected }), { appropriation: 0, pay: 0, expected: 0 }) : null;
-  if (ministryTarget) { ministryTarget.unassignedPay = payBy.Unassigned || 0; ministryTarget.attainment = ministryTarget.pay / ministryTarget.appropriation; ministryTarget.deviation = ministryTarget.pay - ministryTarget.expected; ministryTarget.deviationPct = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected - 1 : null; ministryTarget.paceRatio = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected : null; }
+  if (ministryTarget) { ministryTarget.attainment = ministryTarget.pay / ministryTarget.appropriation; ministryTarget.deviation = ministryTarget.pay - ministryTarget.expected; ministryTarget.deviationPct = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected - 1 : null; ministryTarget.paceRatio = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected : null; }
 
   return { comparable: useP, total, entities, sources, entityKeys, sourceKeys, deviations, ministryTarget, targetAvailable: !!fy, checks, reporting, cur, prev, cc, pc, group };
 }

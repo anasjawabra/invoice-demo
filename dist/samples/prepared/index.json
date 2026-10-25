@@ -67,12 +67,12 @@
     "ar": "مرجع في الحقل المخصص وآخر في الوصف، والمرفق يذكر الباقي ويكرر الأول (يُدمج دون تكرار).",
     "en": "One reference in the structured field, one in the description; the attachment names the rest and repeats the first (merged without duplicates)."
    },
-   "size": 60605,
-   "sha256": "6d80185f393a6f83536a77f9a265c4167f08e6777b67405bb9ba5b9cc48a5ac2",
+   "size": 60957,
+   "sha256": "8ea46d11a5b2ea91b924721a94ebc545f49c1fd525241328d84f160cd3ed68aa",
    "pages": [
     {
      "page": 1,
-     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6042\nIssued by: Sanad (demo feed)    Opened: 2025-12-07    Order status: In execution\nMunicipality: Unassigned\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 245,133,200.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\n177-410030122205 | investment | 2025-04-09 | 217,803,890.00\n177-410690121908 | investment | 2025-05-28 | 6,388,130.00\nInvoice 177-409990122223 is also named in the order record (repeated here)."
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6042\nIssued by: Sanad (demo feed)    Opened: 2025-12-07    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Ofuq Development Co. (Beneficiary ID 1029549016)\nTotal amount: 245,133,200.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\n177-410030122205 | investment | 2025-04-09 | 217,803,890.00\n177-410690121908 | investment | 2025-05-28 | 6,388,130.00\nInvoice 177-409990122223 is also named in the order record (repeated here)."
     }
    ]
   },
@@ -133,12 +133,12 @@
     "ar": "يذكر المستند فاتورة تعود لدافع آخر غير مدين الأمر: يلزم دليل قبل الربط.",
     "en": "The document names an invoice that belongs to a different payer than the order’s debtor: evidence is needed before linking."
    },
-   "size": 55182,
-   "sha256": "1867ac371b621b2d0840982d3b6b33bd3e1aa474004aefc24c8e3dc5206c4dfe",
+   "size": 55503,
+   "sha256": "a0f733381029736c295e60fbda70f9296c617a6071af30ae99bcb6c6a1aaa2b3",
    "pages": [
     {
      "page": 1,
-     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6035\nIssued by: Sanad (demo feed)    Opened: 2026-07-21    Order status: In execution\nMunicipality: Unassigned\nDebtor: Al-Nukhba Contracting Co. (Beneficiary ID 1003834296)\nTotal amount: 26,767,520.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\n177-407240123420 | fines | 2026-01-02 | 26,767,520.00\n177-408470122907 | municipal_fees | 2025-02-23 | 33,373,590.00"
+     "text": "SYNTHETIC DEMO DOCUMENT - not an official record\nENFORCEMENT ORDER - schedule of invoices\nEnforcement order no: EN-6035\nIssued by: Sanad (demo feed)    Opened: 2026-07-21    Order status: In execution\nMunicipality: Jeddah Amanah\nDebtor: Al-Nukhba Contracting Co. (Beneficiary ID 1003834296)\nTotal amount: 26,767,520.00 SAR\nInvoices covered by this order\nInvoice No | Type | Issue date | Amount (SAR)\n177-407240123420 | fines | 2026-01-02 | 26,767,520.00\n177-408470122907 | municipal_fees | 2025-02-23 | 33,373,590.00"
     }
    ]
   },

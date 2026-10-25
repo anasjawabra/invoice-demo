@@ -278,20 +278,19 @@ export function DataStatusStrip() {
   const items = [
     { k: 'conflicts', n: q.amountConflictCount, tone: q.amountConflictCount ? 'warn' : 'ok', text: L('amount conflicts', 'تعارضات في المبالغ'), to: '/risk' },
     { k: 'pending', n: q.pendingExclusionCount, tone: q.pendingExclusionCount ? 'warn' : 'ok', text: L('exclusions awaiting review', 'استبعادات بانتظار المراجعة'), to: '/collection' },
-    { k: 'missing', n: q.missingFieldCount, tone: q.missingFieldCount ? 'warn' : 'ok', text: L('records with missing mandatory fields', 'سجلات بحقول إلزامية ناقصة'), to: '/settings/data-quality' },
-    { k: 'contract', n: q.contractIssueCount, tone: q.contractIssueCount ? 'warn' : 'ok', text: L('investment invoices without a linked contract', 'فواتير استثمار بلا عقد مرتبط'), to: '/settings/data-quality' }
+    { k: 'missing', n: q.missingFieldCount, tone: q.missingFieldCount ? 'warn' : 'ok', text: L('records with missing mandatory fields', 'سجلات بحقول إلزامية ناقصة'), to: '/invoices' },
+    { k: 'contract', n: q.contractIssueCount, tone: q.contractIssueCount ? 'warn' : 'ok', text: L('investment invoices without a linked contract', 'فواتير استثمار بلا عقد مرتبط'), to: '/invoices' }
   ];
   return (
     <div className="rv-status card" role="region" aria-label={L('Data freshness and completeness', 'حداثة البيانات واكتمالها')}>
       <div className="rv-status__head">
         <b>{L('Data freshness & completeness', 'حداثة البيانات واكتمالها')}</b>
-        <Link to="/settings/data-sources" className="rv-link">{L('Source status', 'حالة المصادر')} →</Link>
       </div>
       <div className="rv-status__grid">
         <div className="rv-status__cell">
           <span>{L('Freshness', 'الحداثة')}</span>
           <b dir="ltr">{snapshot.cutoff}</b>
-          <small>{L('Reference date of the loaded reports. A refresh adds a version; see Data sources for each source.', 'التاريخ المرجعي للتقارير المحمّلة. والتحديث يضيف إصداراً؛ راجع مصادر البيانات لكل مصدر.')}</small>
+          <small>{L('Reference date of the loaded reports. A refresh adds a version.', 'التاريخ المرجعي للتقارير المحمّلة. والتحديث يضيف إصداراً.')}</small>
         </div>
         <div className="rv-status__cell">
           <span>{L('Source of figures', 'مصدر الأرقام')}</span>

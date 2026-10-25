@@ -22,7 +22,7 @@
 // not fit a browser, ~70 bytes does). Amounts are SAR; the display unit is applied
 // at render time only (utils/money.js).
 // ============================================================================
-import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ENT_UNASSIGNED, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
+import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ITEM_INDEX, SOURCE_INDEX, RULE_BIT, F, GRP, withGrp, withExt, CH_WALLET, dayNum, isoOf } from '../src/data/catalog.js';
 import { PARAMS } from '../src/data/sourceAssumptions.js';
 import { sadadOf, invoiceIdFor } from './names.js';
 import { gfsCodeOf, gfsIndexOf } from '../src/data/iim.js';
@@ -59,7 +59,7 @@ const COLS = {
   ent: Uint8Array, muni: Uint8Array, scope: Uint8Array, src: Uint8Array, item: Uint8Array, lines: Uint8Array,
   payStart: Int32Array, payCount: Uint8Array, cancelDay: Int32Array, exMask: Uint16Array, exAppr: Uint16Array, exRev: Uint8Array,
   flags: Uint16Array, contract: Int32Array, inst: Uint16Array, cstat: Uint8Array, crSt: Uint8Array, exec: Int16Array,
-  efaa: Uint8Array, alink: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array, objSt: Uint8Array // objSt: Mumtathil appeal status of an invoice with an objection (1…5 = OBJECTION_STATUSES, 0 none)
+  efaa: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array, objSt: Uint8Array // objSt: Mumtathil appeal status of an invoice with an objection (1…5 = OBJECTION_STATUSES, 0 none)
 };
 const PCOLS = { pInv: Int32Array, pDay: Int32Array, pAmt: Float64Array, pCh: Uint8Array };
 
@@ -200,6 +200,8 @@ function planWhiteLand(r, issueN, dueN, amount) {
 const worldCache = new Map();
 
 export function generateWorld(today, { scale = 1 } = {}) {
+  // INERT bookkeeping: invoices that an earlier build grouped apart for order pairing. Nothing in the product reads it; it only keeps the E2 order generator (and so every stable order id) unchanged.
+  const legacyGroup = new Set(); let legacyHit = false;
   const key = `${today}|${scale}`;
   if (worldCache.has(key)) return worldCache.get(key);
   const t0 = Date.now();
@@ -236,7 +238,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     st.exMask[i] = exMask; st.exAppr[i] = exAppr; st.exRev[i] = o.exRev || 0;
     st.flags[i] = o.flags || 0;
     st.contract[i] = o.contract ?? -1; st.inst[i] = o.inst || 0; st.cstat[i] = o.cstat || 0; st.crSt[i] = o.crSt || 0; st.exec[i] = -1;
-    st.efaa[i] = o.efaa || 0; st.alink[i] = o.alink ?? (o.scope === 1 ? 0 : 1); st.payer[i] = o.payer; st.owner[i] = 0;
+    st.efaa[i] = o.efaa || 0; st.payer[i] = o.payer; st.owner[i] = 0;
     st.gfs[i] = gfsIndexOf(gfsCodeOf(ITEMS[o.item].key, Math.imul((o.idKey % 2147483629) | 0, 0x85ebca6b) >>> 0)); // revenue account (رقم حساب الإيراد): a stable function of the item and the invoice
     return i;
   }
@@ -376,21 +378,22 @@ export function generateWorld(today, { scale = 1 } = {}) {
           let flags = ex.flags | (ri.next() < 0.006 ? F.AMT_CONFLICT : 0) | (replaced ? withGrp(GRP.TB_REPLACED) : 0);
           let efaa = 0;
           if (sk === 'fines') efaa = ex.efaa || (pl.length ? 1 : 2);
-          const makeenMiss = !internal && ri.next() < 0.04;
+          const legacyMiss = !internal && ri.next() < 0.04; // this draw is kept so the deterministic demo world (and its stable ids) does not move
           const muniIdx = ri.int(3); const payerIdx = ri.int(PAYER_POOL);
           writeInvoice({
             idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent: e, muni: muniIdx, scope: internal ? 1 : 0, src: SOURCE_INDEX[srcFinal], item: itemIdx,
-            lines: linesFor(ri), pay: pl, cancelDay, exMask, exAppr, exRev: ex.rev, flags, efaa, payer: payerIdx, alink: internal ? 0 : makeenMiss ? 2 : 1
+            lines: linesFor(ri), pay: pl, cancelDay, exMask, exAppr, exRev: ex.rev, flags, efaa, payer: payerIdx
           });
-          if (makeenMiss) st.ent[st.n - 1] = ENT_UNASSIGNED; // Makeen could not match the invoice: the Amanah is NOT guessed
+          if (legacyMiss) legacyGroup.add(st.n - 1);
           if (replaced && replIssue <= todayN) {
             const g2 = Math.max(100, Math.round((gross * (0.9 + 0.2 * rr.next())) / 10) * 10);
             const due2 = replIssue + cfg.due;
             const pl2 = planPayment(rr, due2, g2, payProb, lagM).map((p) => ({ ...p }));
             writeInvoice({
-              idKey: y * 1e8 + replSerial, issue: replIssue, due: due2, gross: g2, ent: makeenMiss ? ENT_UNASSIGNED : e, muni: muniIdx, scope: 0, src: SOURCE_INDEX[srcFinal], item: itemIdx,
-              lines: 1, pay: pl2, flags: withGrp(GRP.TB_REPLACEMENT), efaa: 0, payer: payerIdx, alink: makeenMiss ? 2 : 1
+              idKey: y * 1e8 + replSerial, issue: replIssue, due: due2, gross: g2, ent: e, muni: muniIdx, scope: 0, src: SOURCE_INDEX[srcFinal], item: itemIdx,
+              lines: 1, pay: pl2, flags: withGrp(GRP.TB_REPLACEMENT), efaa: 0, payer: payerIdx
             });
+            if (legacyMiss) legacyGroup.add(st.n - 1);
           }
         }
       }
@@ -435,7 +438,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
           const flags = withGrp(grp) | withExt(ext) | (objection ? F.OBJECTION : 0);
           const i = writeInvoice({
             idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent, muni: 3, scope: 0, src: SOURCE_INDEX.white_lands, item: ITEM_INDEX.white_land_fee, lines: 1,
-            pay: pl, cancelDay, exMask: objection ? RULE_BIT['OBJ-1'] : 0, flags, payer: WL_PAYER_BASE + ri.int(30000), alink: 1
+            pay: pl, cancelDay, exMask: objection ? RULE_BIT['OBJ-1'] : 0, flags, payer: WL_PAYER_BASE + ri.int(30000)
           });
           if (never && !cancelDay && !objection && ri.next() < A.enforcementShare / 0.7) wlEnforce.push({ i, opened: dueN + 200 + ri.int(60) });
         }
@@ -463,7 +466,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
         const dueN = issueN + cfg.due;
         const pl = planPayment(ri, dueN, gross, cfg.pay, cfg.lag).map((p) => ({ ...p }));
         const cancelDay = pl.length === 0 && ri.next() < 0.15 ? issueN + 5 + ri.int(50) : 0;
-        writeInvoice({ idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent: ENT_HOUSING, muni: 0, scope: 0, src: SOURCE_INDEX.housing_sales, item: ri.next() < 0.7 ? ITEM_INDEX.housing_sales : ITEM_INDEX.housing_fees, lines: 1, pay: pl, cancelDay, payer: HOUSING_PAYER_BASE + ri.int(20000), alink: 1 });
+        writeInvoice({ idKey: y * 1e8 + serial, issue: issueN, due: dueN, gross, ent: ENT_HOUSING, muni: 0, scope: 0, src: SOURCE_INDEX.housing_sales, item: ri.next() < 0.7 ? ITEM_INDEX.housing_sales : ITEM_INDEX.housing_fees, lines: 1, pay: pl, cancelDay, payer: HOUSING_PAYER_BASE + ri.int(20000) });
       }
     }
     // ---- contract installments issued this month
@@ -486,9 +489,9 @@ export function generateWorld(today, { scale = 1 } = {}) {
         idKey: y * 1e8 + serial, issue: issueN, due: d.due, gross: d.amount, ent: ct.ent, muni: ct.muni, scope: 0, src: SOURCE_INDEX.investment, item: ct.item,
         lines: linesFor(ri) > 2 ? 2 : linesFor(ri), pay: pl, exMask: ex.mask, exAppr: ex.appr, exRev: ex.rev,
         flags: F.CONTRACT_INV | (ri.next() < 0.004 ? F.AMT_CONFLICT : 0), contract: linked ? c : -1, inst: d.no,
-        cstat: ex.noContract ? 3 : unmatched ? 2 : 1, payer: ex.noContract && mix(22, c, d.no) % 100 < 22 ? mix(23, c, d.no) % 2 : ct.payer, alink: ri.next() < 0.04 ? 2 : 1 /* R2: about a fifth of the no-contract invoices belong to the service companies under the stay of execution (customer index 0 / 1 = SERVICE_COMPANY_LIST) */
+        cstat: ex.noContract ? 3 : unmatched ? 2 : 1, payer: ex.noContract && mix(22, c, d.no) % 100 < 22 ? mix(23, c, d.no) % 2 : ct.payer, drawKept: (legacyHit = ri.next() < 0.04) /* kept so the deterministic demo world (and its stable ids) does not move */
       });
-      if (st.alink[i] === 2) st.ent[i] = ENT_UNASSIGNED;
+      if (legacyHit) legacyGroup.add(i);
       if (linked) { d.inv = i; ct.invs.push(i); }
       plannedByInv.set(i, { planSum, planFirst, due: d.due, amount: d.amount });
     }
@@ -510,8 +513,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
   // the earliest number stays and the twin is excluded. Plus a repeat issued a year later with the same values — NOT a duplicate.
   { const FN = SOURCE_INDEX.fines; const MFS = SOURCE_INDEX.municipal_fees; const DUPB = RULE_BIT['DUP-1']; let made = 0; let serial = 9_900_000; const open = (i) => st.payCount[i] === 0 && !st.cancelDay[i] && !st.exMask[i] && (st.src[i] === FN || st.src[i] === MFS) && st.payer[i] >= 2 && st.payer[i] < HOUSING_PAYER_BASE && st.due[i] < todayN;
     const twin = (i, issue, flagged) => { const due = issue + (st.due[i] - st.issue[i]); serial += 1;
-      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i], alink: st.alink[i] });
-      st.gfs[j] = st.gfs[i]; if (flagged) st.dupOf.set(j, i); return j; };
+      const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i]  });
+      st.gfs[j] = st.gfs[i]; if (legacyGroup.has(i)) legacyGroup.add(j); if (flagged) st.dupOf.set(j, i); return j; };
     const n0 = st.n; const j26 = dayNum('2026-01-05'); const j25a = dayNum('2025-03-01'); const j25b = dayNum('2025-12-31');
     for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) { twin(i, st.issue[i], true); made += 1; }
     let rep = 0; for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) { twin(i, st.issue[i] + 365, false); rep += 1; } }
@@ -550,6 +553,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
      `covers` is the hidden truth (used only to write the sample PDFs and in tests); the client sees `refs` (what Sanad supplies) and the amount. */
   {
     const ORDER_GEN_CUTOFF = dayNum('2026-08-31');
+    const eg = (i) => (legacyGroup.has(i) ? 18 : st.ent[i]); // pairing key (see legacyGroup)
     const elig = [];
     for (let i = 0; i < st.n; i += 1) {
       if (st.exec[i] >= 0 || grpOf(st.flags[i]) !== 0 || st.cancelDay[i] || st.payCount[i] > 0 || st.exMask[i] !== 0 || st.adjDay[i] !== 0 || (st.flags[i] & F.OBJECTION)) continue;
@@ -562,7 +566,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const target = scale < 1 ? 16 : Math.min(4000, Math.round(elig.length * 0.01));
     const pickMore = (lead, n, differentSrc = true) => {
       const out = [lead]; const seenSrc = new Set([st.src[lead]]);
-      for (const j of elig) { if (out.length >= n) break; if (used.has(j) || out.includes(j) || st.ent[j] !== st.ent[lead]) continue; if (differentSrc && seenSrc.has(st.src[j]) && elig.length > 60) continue; out.push(j); seenSrc.add(st.src[j]); }
+      for (const j of elig) { if (out.length >= n) break; if (used.has(j) || out.includes(j) || eg(j) !== eg(lead)) continue; if (differentSrc && seenSrc.has(st.src[j]) && elig.length > 60) continue; out.push(j); seenSrc.add(st.src[j]); }
       return out;
     };
     let firstSingle = null;
@@ -622,16 +626,17 @@ export function generateWorld(today, { scale = 1 } = {}) {
       for (const [rep, a] of E2_PASSES) {
         const arch = E2[a]; if (rep === 1 && (arch === 'notation_exact' || arch === 'desc_sadad' || arch === 'corrupted_structured' || arch === 'attach_unreadable' || arch === 'mixed_sources' || arch === 'one_attached' || arch === 'same_serial_two_years' || arch === 'genuine_conflict' || arch === 'attach_pdf' || arch === 'cancelled_closed' || arch === 'desc_multi')) continue; const k = rep * 20 + a; const r = rC.reset(mix(16, k)); const cancelled = arch.startsWith('cancelled');
         const pool = cancelled ? cancelledPool : elig; let lead = -1;
-        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch === 'same_serial_two_years' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[j])) continue; if (!cancelled && !['same_serial_two_years', 'genuine_conflict', 'one_attached'].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && st.ent[x] === st.ent[j])) continue; if (arch === 'genuine_conflict' && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && st.ent[x] === st.ent[j])) continue; lead = j; }
+        for (let t = 0; t < pool.length && lead < 0; t += 1) { const j = pool[(k * 29 + t * 13 + 5) % pool.length]; if (used.has(j)) continue; if (arch === 'same_serial_two_years' && !(bySerial.get(serialOf(j)) || []).some((x) => x !== j && st.idKey[x] !== st.idKey[j] && partnerOk(x) && !used.has(x) && eg(x) === eg(j))) continue; if (!cancelled && !['same_serial_two_years', 'genuine_conflict', 'one_attached'].includes(arch) && !elig.some((x) => !used.has(x) && x !== j && eg(x) === eg(j))) continue; if (arch === 'genuine_conflict' && !elig.some((x) => !used.has(x) && x !== j && st.payer[x] !== st.payer[j] && eg(x) === eg(j))) continue; lead = j; }
         if (lead < 0) { continue; }
         let covers = [lead]; let other = -1;
         if (arch === 'cancelled_closed') covers = [lead];
-        else if (arch === 'cancelled_open') { covers = [lead]; for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && st.ent[j] === st.ent[lead]) covers.push(j); }
-        else if (arch === 'same_serial_two_years') { other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && st.ent[x] === st.ent[lead]); covers = [lead, other]; } // two LEGITIMATE invoices: same serial, different years, same payer
-        else if (arch === 'genuine_conflict') { covers = [lead]; other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && st.ent[x] === st.ent[lead]); } // a referenced invoice that belongs to ANOTHER payer
+        else if (arch === 'cancelled_open') { covers = [lead]; for (const j of cancelledPool) if (covers.length < 2 && !used.has(j) && j !== lead && eg(j) === eg(lead)) covers.push(j); }
+        else if (arch === 'same_serial_two_years') { other = (bySerial.get(serialOf(lead)) || []).find((x) => x !== lead && st.idKey[x] !== st.idKey[lead] && partnerOk(x) && !used.has(x) && eg(x) === eg(lead)); covers = [lead, other]; } // two LEGITIMATE invoices: same serial, different years, same payer
+        else if (arch === 'genuine_conflict') { covers = [lead]; other = elig.find((x) => !used.has(x) && x !== lead && st.payer[x] !== st.payer[lead] && eg(x) === eg(lead)); } // a referenced invoice that belongs to ANOTHER payer
         else if (arch === 'one_attached') covers = [lead]; // ONE invoice, named only in the attached document
         else { covers = pickMore(lead, arch === 'contract_mention' || arch === 'desc_sadad' || arch === 'corrupted_structured' || arch === 'notation_exact' ? 2 : 3, false); }
         covers = [...new Set(covers)]; if (!cancelled && arch !== 'genuine_conflict' && arch !== 'one_attached' && covers.length < 2) { continue; }
+        for (const j of [...covers, other]) if (j >= 0 && legacyGroup.has(j)) st.ent[j] = st.ent[lead]; // invoices an earlier build grouped apart now belong to the order's Amanah, so every invoice an order covers has one Amanah
         const owner = st.payer[lead]; const lastDue = Math.max(...covers.map((i) => st.due[i])); const opened = Math.min(ORDER_GEN_CUTOFF + 40, lastDue + 160 + r.int(30));
         if (opened > todayN) { covers.forEach((i) => used.add(i)); continue; }
         covers.forEach((i) => { used.add(i); st.payer[i] = owner; }); if (arch === 'genuine_conflict' && other >= 0) used.add(other);

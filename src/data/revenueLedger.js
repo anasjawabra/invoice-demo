@@ -11,12 +11,12 @@
 // existing fixtures plus the small, clearly-labelled OVERLAY below. Nothing in
 // here is production data: every record is `provenance.kind === 'demo'`.
 //
-// Source statuses (Tahseel/Makeen-style) are kept SEPARATE from the AI
+// Source statuses (Tahseel-style) are kept SEPARATE from the AI
 // workflow status; neither is used as proof of the other.
 // ============================================================================
 import { INVOICES, RECON, SANAD_ENFORCEMENT } from './mock';
 import { DEMO_TODAY, addDaysIso } from './clock';
-import { SOURCES, ENTITIES, N_AMANAH, ENT_UNASSIGNED } from './catalog';
+import { SOURCES, ENTITIES, N_AMANAH } from './catalog';
 
 /* ---------- Data cutoff & provenance ---------- */
 
@@ -40,7 +40,6 @@ export const PROVENANCE_KINDS = {
    HLSD V0.4; in this demo none is connected. */
 export const SOURCE_SYSTEMS = [
   { id: 'tahseel', name: 'Tahseel', role: { en: 'Official collection figures', ar: 'أرقام التحصيل الرسمية' }, status: 'unavailable', risk: 'at_risk', note: { en: 'Not in the Data Bank; platform contact needed for schema. Continuous feed not established.', ar: 'غير متوفر في بنك البيانات؛ يلزم التواصل مع مالك المنصة للحصول على المخطط. لم يتم إنشاء تغذية مستمرة.' } },
-  { id: 'makeen', name: 'Makeen', role: { en: 'Billing / revenue reference (candidate)', ar: 'بيانات الفوترة والإيراد (مرشح)' }, status: 'awaiting', risk: 'verification', note: { en: 'Named in HLSD V0.4 as a candidate source; scope, identifiers and field authority unconfirmed.', ar: 'مذكور في وثيقة التصميم كمصدر مرشح؛ النطاق والمعرفات وسلطة الحقول غير مؤكدة.' } },
   { id: 'balady', name: 'Balady', role: { en: 'Municipal bills, payer names, licence links', ar: 'فواتير بلدية وأسماء الدافعين وروابط الرخص' }, status: 'unavailable', risk: 'not_at_risk', note: { en: 'Data exists in the Data Bank per the risk document, but it is not wired into this demo.', ar: 'البيانات موجودة في بنك البيانات وفق وثيقة المخاطر، لكنها غير موصولة بهذا العرض.' } },
   { id: 'furas', name: 'Furas', role: { en: 'Central platform contracts and payments', ar: 'عقود المنصة المركزية ودفعاتها' }, status: 'awaiting', risk: 'verification', note: { en: 'Not in the Data Bank; schema to verify. Direct feed, verified integration or approved dataset route not yet chosen.', ar: 'غير متوفر في بنك البيانات؛ المخطط قيد التحقق. لم يُحدَّد مسار التغذية بعد.' } },
   { id: 'momtathil', name: 'Mumtathil', role: { en: 'Violations / objections', ar: 'المخالفات والاعتراضات' }, status: 'awaiting', risk: 'verification', note: { en: 'Internal system; owning department not identified.', ar: 'نظام داخلي؛ لم تُحدَّد الإدارة المالكة.' } },
@@ -176,7 +175,7 @@ function stableOffset(id, min, span) {
 }
 
 function sourceStatusFor(inv, paid, excluded) {
-  // Makeen-style 4-value source vocabulary, derived and kept separate from the workflow status.
+  // Source-style 4-value vocabulary, derived and kept separate from the workflow status.
   if (inv.status === 'duplicate') return 'cancelled';
   if (paid <= 0) return 'uncollected';
   return paid >= inv.amount ? 'collected' : 'uncollected';
@@ -305,8 +304,7 @@ export function accessibleLedger(ledger, org) {
 export function amanahOptionsOf() {
   return ENTITIES.slice(0, N_AMANAH + 1).map((e) => ({ key: e.en, en: e.en, ar: e.ar, zh: e.zh })).sort((a, b) => a.en.localeCompare(b.en));
 }
-// Every Amanah PLUS the invoices Makeen assigns to none («غير محدد الأمانة»), listed last — the choice for every Amanah filter, so the Amanah figures add up to the national figure.
+// Every Amanah (and the Housing sector) — the choice for every Amanah filter, so the Amanah figures add up to the national figure.
 export function amanahFilterOptions() {
-  const u = ENTITIES[ENT_UNASSIGNED];
-  return [...amanahOptionsOf(), { key: u.en, en: u.en, ar: u.ar, zh: u.zh }];
+  return amanahOptionsOf();
 }

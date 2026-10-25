@@ -17,7 +17,7 @@ export const PRODUCT_CATALOG = [
   { id: 'mumtathil', group: 'other', kind: 'invoices', name: BI('ممتثل', 'Momtathel'), desc: BI('المخالفات والاعتراضات المرفوعة على الفواتير.', 'Violations and objections raised against invoices.'), filter: { product: ['mumtathil'] },
     status: { tone: 'ok', text: BI('في بنك البيانات.', 'In Databank.') } },
   { id: 'sanad-structured', group: 'other', kind: 'supporting', name: BI('سند – البيانات المهيكلة', 'Sanad – Structured'), desc: BI('أوامر التنفيذ وأرقام المراجع.', 'Enforcement orders and reference numbers.'),
-    status: { tone: 'part', text: BI('متاح عبر استعلام Incorta لدى فريق البيانات.', 'Available through an Incorta query held by the data team.') } },
+    status: { tone: 'part', text: BI('البيانات المهيكلة لسند؛ مسار الوصول يحتاج تأكيداً.', 'Structured Sanad data; the access route is to be confirmed.') } },
   { id: 'sanad-attachments', group: 'other', kind: 'supporting', name: BI('سند – المرفقات', 'Sanad – Attachments'), desc: BI('ملفات PDF لأوامر التنفيذ للتعرف الضوئي (OCR).', 'Enforcement order PDFs for OCR.'),
     status: { tone: 'todo', text: BI('ربما عبر بيانات بلدي — للتأكيد.', 'Possibly via Balady Bayanat — to confirm.') } },
   { id: 'sadad', group: 'other', kind: 'supporting', name: BI('سداد', 'SADAD'), desc: BI('الفواتير المحالة للتنفيذ وأرقام السجلات التجارية المشطوبة.', 'Invoices referred for enforcement and struck-off CR numbers.'),

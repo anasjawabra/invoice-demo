@@ -6,6 +6,8 @@ import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
 import { metricDictionary } from '../data/metricDictionary';
 import SettingsNav from '../components/settings/SettingsNav';
 import { ExclusionsTab, FormulasTab, DevelopersTab } from '../components/settings/DictionaryTabs';
+import ExclusionsReference from '../components/settings/ExclusionsReference';
+import SadadExample from '../components/settings/SadadExample';
 
 const KIND = {
   flow: { ar: 'تدفق لفترة', en: 'Period flow' },
@@ -71,6 +73,8 @@ export default function Metrics() {
           </article>
         ))}
       </div>
+      <SadadExample />
+      <ExclusionsReference />
       </>}
     </div>
   );

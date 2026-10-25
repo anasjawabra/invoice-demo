@@ -4,8 +4,6 @@ import { useL } from '../../utils/bi';
 
 // The sub-navigation of «إعدادات النظام»: system configuration and administration, kept apart from the daily operational pages.
 export const SETTINGS_PAGES = [
-  { to: '/settings/data-sources', en: 'Data sources', ar: 'مصادر البيانات', hintEn: 'Source status, versions, imports', hintAr: 'حالة المصادر والإصدارات والاستيراد' },
-  { to: '/settings/data-quality', en: 'Data quality', ar: 'جودة البيانات', hintEn: 'Records to complete or match', hintAr: 'سجلات تحتاج استكمالاً أو مطابقة' },
   { to: '/settings/metrics', en: 'Metric dictionary', ar: 'قاموس المقاييس', hintEn: 'Metrics, exclusions, formulas, for developers', hintAr: 'المقاييس والاستبعادات والمعادلات وللمطورين' }
 ];
 

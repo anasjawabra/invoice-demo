@@ -12,7 +12,7 @@ const TODAY = '2026-10-20'; const data = loadData(TODAY); const cfg = { cutoff: 
 const full = { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
 const snap = snapshot(data, { scope: full, cfg });
 const labels = { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) };
-const base = { today: TODAY, snapshot: snap, labels, targetRate: () => 0.6, plan: null, contracts: { count: 7, arrears: 1.5e9, overdueInstallments: 5, futureNotInvoiced: 2.4e9 }, noContractCount: 14, orders: { suspendedCount: 10, suspendedAmount: 4e8 }, matching: { unassignedCount: 31, unassignedPayments: 2.1e8, amountConflicts: 5, missingFields: 17 } };
+const base = { today: TODAY, snapshot: snap, labels, targetRate: () => 0.6, plan: null, contracts: { count: 7, arrears: 1.5e9, overdueInstallments: 5, futureNotInvoiced: 2.4e9 }, noContractCount: 14, orders: { suspendedCount: 10, suspendedAmount: 4e8 }, matching: { amountConflicts: 5, missingFields: 17 } };
 
 ok('the overdue and not-yet-due parts of the cells add up to «غير المحصّل» of the dashboard (a partition, nothing counted twice)', () => {
   const cells = snap.matrix.amanahSource; const od = cells.reduce((t, c) => t + c.overdue, 0); const nd = cells.reduce((t, c) => t + c.notDue, 0);
