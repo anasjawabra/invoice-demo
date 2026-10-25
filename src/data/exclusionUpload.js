@@ -3,7 +3,7 @@
 // (server: /api/exclusion-check) and only a FULL match is accepted; any mismatch is rejected and returned with the reason. Nothing here writes to a source system.
 // Pure functions + file builders that take the `xlsx` / `jszip` modules as arguments, so the same code runs in the browser and in the sample generator.
 import { EXCLUSION_REASONS, EXCLUSION_REASON_OF_RULE } from './iim';
-import { ENTITIES, ENT_UNASSIGNED, ENT_HOUSING } from './catalog';
+import { ENTITIES, ENT_HOUSING } from './catalog';
 
 export const UPLOAD_RULES = ['ENC-1', 'ATT-1']; // R8, R9 — the only reasons this template can carry
 export const UPLOAD_SOURCE = { ar: 'ملف الأمانة (رفع يدوي)', en: 'Amanah file (manual upload)' };
@@ -22,7 +22,7 @@ export const LISTS_SHEET = 'القوائم';
 export const TEMPLATE_ROWS = 500; // rows the drop-downs cover
 
 export const uploadReasons = () => UPLOAD_RULES.map((id) => EXCLUSION_REASON_OF_RULE[id]);
-export const amanahNames = () => ENTITIES.filter((_, i) => i !== ENT_UNASSIGNED).map((e) => e.ar);
+export const amanahNames = () => ENTITIES.map((e) => e.ar);
 
 const AR_DIGITS = '٠١٢٣٤٥٦٧٨٩'; const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 export const westernDigits = (v) => String(v ?? '').replace(/[٠-٩]/g, (d) => String(AR_DIGITS.indexOf(d))).replace(/[۰-۹]/g, (d) => String(FA_DIGITS.indexOf(d)));
@@ -38,7 +38,7 @@ export function reasonRuleOf(text) {
 /** the Amanah column → the entity index, or -1 */
 export function entityIndexOf(text) {
   const t = normText(text); if (!t) return -1;
-  return ENTITIES.findIndex((e, i) => i !== ENT_UNASSIGNED && [e.ar, e.en, e.zh].some((x) => normText(x) === t));
+  return ENTITIES.findIndex((e) => [e.ar, e.en, e.zh].some((x) => normText(x) === t));
 }
 export const isHousing = (idx) => idx === ENT_HOUSING;
 

@@ -4,7 +4,7 @@
 // loops over typed arrays, so a scope change over a million invoices takes tens of
 // milliseconds instead of seconds and the browser never holds the invoices.
 // ============================================================================
-import { ENTITIES, ENT_UNASSIGNED, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
 import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
 import { HOUSING_PAYER_BASE } from './world.js';
@@ -230,7 +230,7 @@ export function resolveScope(ctx, scope = {}) {
   for (let e = 0; e < ENTITIES.length; e += 1) {
     const en = ENTITIES[e].en;
     let ok = true;
-    if (orgKeys && !orgKeys.includes(en)) ok = false; // regional organisations never see the Housing sector or Unassigned
+    if (orgKeys && !orgKeys.includes(en)) ok = false; // regional organisations never see the Housing sector
     if (amSet && !amSet.has(en)) ok = false;
     out.entOk[e] = ok ? 1 : 0;
   }
@@ -269,7 +269,7 @@ function inClass(st, sc, i) {
 
 /* ------------------------------------------------------------------ approved identities
    gross billed = exclusions + net billed;  net billed = collected + uncollected;  gross >= net >= collected >= 0.
-   Checked on every aggregate the snapshot returns (total, per Amanah incl. unassigned, per source, per scope type). */
+   Checked on every aggregate the snapshot returns (total, per Amanah, per source, per scope type). */
 const EQ_TOL = 0.5; // SAR (float accumulation over ~10^6 rows)
 export function checkEquation(a) {
   const e1 = a.gross - a.exclusions - a.net; const e2 = a.net - a.collected - a.outstanding;

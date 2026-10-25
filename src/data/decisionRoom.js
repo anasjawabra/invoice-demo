@@ -43,7 +43,7 @@ export function planSectionOf({ year, reportingDate, entityRows, collectedByKey,
  * @param {object} inp
  *  today, snapshot (period scope), labels { amanah(key) → {ar,en}, source(key) → {ar,en} }, targetRate(amanahKey) → 0..1,
  *  plan (planSectionOf | null), contracts { count, arrears, overdueInstallments, futureNotInvoiced } | null, noContractCount,
- *  orders { suspendedCount, suspendedAmount } | null, matching { unassignedCount, unassignedPayments, amountConflicts, missingFields } | null
+ *  orders { suspendedCount, suspendedAmount } | null, matching { amountConflicts, missingFields } | null
  * @returns {{ items: object[], summary: object }}
  */
 export function buildDecisionItems(inp) {
@@ -160,12 +160,6 @@ export function buildDecisionItems(inp) {
 
   /* ---- 6. matching and data */
   const D = inp.matching;
-  if (D?.unassignedCount > 0 || D?.unassignedPayments > 0) {
-    add({ key: 'data:unassigned', category: 'data', lane: 'action', basis: 'data', title: bi('فواتير لم تُطابق أمانة (مكين) ومدفوعاتها', 'Invoices not matched to an Amanah (Makeen) and their payments'), problem: bi('مدفوعات مستلمة على فواتير بلا أمانة مطابقة؛ تُحسب في إجمالي الوزارة ولا تنسب إلى جهة.', 'Payments received on invoices with no matched Amanah; they count in the Ministry total and belong to no entity.'),
-      amount: D.unassignedPayments > 0 ? D.unassignedPayments : null, figures: [{ label: bi('فواتير غير مطابقة', 'Unmatched invoices'), value: D.unassignedCount, kind: 'count' }, { label: bi('مدفوعات مستلمة عليها', 'Payments received on them'), value: D.unassignedPayments > 0 ? D.unassignedPayments : null, kind: 'money' }],
-      cause: { status: 'confirmed', text: bi('رقم الفاتورة لم يُطابَق في تقرير مكين.', 'The invoice number was not matched in the Makeen report.') },
-      evidence: [{ label: bi('جودة البيانات', 'Data quality'), to: '/settings/data-quality' }], recommendation: bi('مطابقة هذه الفواتير مع الأمانات في مكين ثم إعادة قياس مستهدف كل جهة.', 'Match these invoices to the Amanahs in Makeen, then re-measure each entity against its target.'), decisionNeeded: null, role: 'data_owner', dueDays: 30, actionability: 0.8, evidenceQuality: 0.9 });
-  }
   if (D?.amountConflicts > 0) {
     add({ key: 'data:amount_conflicts', category: 'data', lane: 'action', basis: 'data', title: bi('تعارض بين مبلغ الفاتورة وبنودها', 'Invoice amount conflicts with its line items'), problem: bi('مبلغ الترويسة لا يساوي مجموع البنود فلا يُعرف أيهما الصحيح.', 'The header amount differs from the sum of the lines, so which is right is unknown.'), amount: null,
       figures: [{ label: bi('فواتير متعارضة', 'Conflicting invoices'), value: D.amountConflicts, kind: 'count' }], cause: { status: 'confirmed', text: bi('اختلاف حسابي بين الترويسة والبنود في بيانات المصدر.', 'An arithmetic difference between header and lines in the source data.') },
@@ -174,7 +168,7 @@ export function buildDecisionItems(inp) {
   if (D?.missingFields > 0) {
     add({ key: 'data:missing_fields', category: 'data', lane: 'watch', basis: 'data', title: bi('حقول إلزامية ناقصة', 'Mandatory fields missing'), problem: bi('فواتير تفتقد حقلاً لازماً للإحالة أو المطابقة.', 'Invoices lacking a field needed for referral or matching.'), amount: null,
       figures: [{ label: bi('فواتير', 'Invoices'), value: D.missingFields, kind: 'count' }], cause: { status: 'confirmed', text: bi('الحقل غير موجود في بيانات المصدر.', 'The field is absent from the source data.') },
-      evidence: [{ label: bi('جودة البيانات', 'Data quality'), to: '/settings/data-quality' }], recommendation: bi('استكمال الحقول من مصدرها.', 'Complete the fields at their source.'), decisionNeeded: null, role: 'data_owner', dueDays: 30, actionability: 0.4, evidenceQuality: 0.9 });
+      evidence: [{ label: bi('قائمة الفواتير', 'Invoice list'), to: '/invoices' }], recommendation: bi('استكمال الحقول من مصدرها.', 'Complete the fields at their source.'), decisionNeeded: null, role: 'data_owner', dueDays: 30, actionability: 0.4, evidenceQuality: 0.9 });
   }
 
   /* ---- ranking: the platform's existing formula, with the reasons spelled out */

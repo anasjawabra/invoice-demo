@@ -64,7 +64,7 @@ const D = {
     what: BI('جزاءات غير محصّلة لا تظهر في إيفاء (النظام المرجعي للمخالفات)، فلا سند للمتابعة.', 'Uncollected penalties that do not appear in Efaa (the system of record for violations), so there is nothing to follow up on.'),
     basedOn: [BI('تحصيل: المديونيات غير المحصّلة بتصنيف رئيسي «جزاءات وغرامات»', 'Tahseel: uncollected debt with main class «penalties and fines»'), BI('إيفاء: قائمة المخالفات (للمطابقة)', 'Efaa: the violations list (for the match)')],
     rule: 'invoice uncollected  AND  mainClass = «جزاءات وغرامات»  AND  no matching record in the Efaa list  →  link Efaa number ↔ invoice number  →  exclude',
-    notWhen: BI('الفواتير الأخرى (غير الجزاءات) لا تدخل. القاعدة مكتوبة على بيانات تحصيل غير المحصّلة؛ مكين مصدر BI وليس مرجعًا.', 'Other classes are out of scope. The rule is written on Tahseel\'s uncollected data; Makeen is a BI tool, not a source of authority.'),
+    notWhen: BI('الفواتير الأخرى (غير الجزاءات) لا تدخل. القاعدة مكتوبة على بيانات تحصيل غير المحصّلة.', 'Other classes are out of scope. The rule is written on Tahseel\'s uncollected data.'),
     feed: BI('بيانات العرض: كود إيفاء 0 (غير موجودة) على فواتير الغرامات + بت EFA-1.', 'Demo: Efaa code 0 (not found) on fines invoices + the EFA-1 bit.')
   },
   'EXE-1': {

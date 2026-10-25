@@ -55,7 +55,7 @@ export default function SourceCoverage() {
           </tbody>
         </table>
       </div>
-      <div className="rv-callout" style={{ marginTop: 8 }}>{L('The same invoice can appear in several systems (Tahseel, Incorta, Makeen, the activity platform, SADAD). It is ONE unified invoice with links to its source records; the amount is taken once.', 'قد تظهر الفاتورة نفسها في أكثر من نظام (تحصيل وإنكورتا ومكين ومنصة النشاط وسداد). هي فاتورة موحدة واحدة بروابط إلى سجلاتها المصدرية، والمبلغ يُحتسب مرة.')}</div>
+      <div className="rv-callout" style={{ marginTop: 8 }}>{L('The same invoice can appear in several systems (Tahseel, the activity platform, SADAD). It is ONE unified invoice with links to its source records; the amount is taken once.', 'قد تظهر الفاتورة نفسها في أكثر من نظام (تحصيل ومنصة النشاط وسداد). هي فاتورة موحدة واحدة بروابط إلى سجلاتها المصدرية، والمبلغ يُحتسب مرة.')}</div>
       <div style={{ marginTop: 8 }}>
         <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showAssume} onClick={() => setShowAssume((v) => !v)}>{showAssume ? L('Hide the demo assumptions', 'إخفاء الافتراضات التجريبية') : L(`Show the demo assumptions (${ASSUMPTIONS.length})`, `عرض الافتراضات التجريبية (${ASSUMPTIONS.length})`)}</button>
         {showAssume && (

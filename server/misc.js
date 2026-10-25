@@ -29,7 +29,7 @@ export function meta(st, today) {
 
 export function quality(st, req) {
   const ctx = makeCtx(st, req); const sc = resolveScope(ctx, req.scope); const D = ctx.D;
-  const q = { records: 0, conflicts: 0, pending: 0, missing: 0, contractUnmatched: 0, contractConfirmedNone: 0, unassigned: 0, makeenMatched: 0, makeenUnmatched: 0, efaaDifferent: 0, efaaTotal: 0, centralInvoices: 0, internalInvoices: 0, lines: 0, investmentInvoices: 0, installmentsInvoiced: 0 };
+  const q = { records: 0, conflicts: 0, pending: 0, missing: 0, contractUnmatched: 0, contractConfirmedNone: 0, efaaDifferent: 0, efaaTotal: 0, centralInvoices: 0, internalInvoices: 0, lines: 0, investmentInvoices: 0, installmentsInvoiced: 0 };
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i)) continue;
     q.records += 1; q.lines += st.lines[i];
@@ -38,8 +38,6 @@ export function quality(st, req) {
     if (st.flags[i] & F.MISSING_ID) q.missing += 1;
     if (st.exMask[i] & ~st.exAppr[i]) q.pending += 1;
     if (st.src[i] === 0) { q.investmentInvoices += 1; if (st.cstat[i] === 2) q.contractUnmatched += 1; if (st.cstat[i] === 3) q.contractConfirmedNone += 1; if (st.contract[i] >= 0) q.installmentsInvoiced += 1; }
-    if (st.ent[i] === ENTITIES.length - 1) q.unassigned += 1;
-    if (st.scope[i] === 0 && i < st.nGen) { if (st.alink[i] === 2) q.makeenUnmatched += 1; else q.makeenMatched += 1; }
     if (st.efaa[i]) { q.efaaTotal += 1; if (st.efaa[i] >= 3) q.efaaDifferent += 1; }
   }
   const sanad = st.requests.filter((r) => (r.system || 'sanad') === 'sanad');

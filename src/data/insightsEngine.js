@@ -120,14 +120,13 @@ export function buildInsights({ snapshot, prev = null, comparison = null, foreca
 
   /* ---------- 7. data completeness ---------- */
   {
-    const un = snapshot.byAmanah.find((g) => g.key === 'Unassigned'); const q = snapshot.quality;
-    const share = un && T.net > 0 ? un.net / T.net : 0;
-    if (share > 0.01 || q.pendingExclusionCount > 0 || q.amountConflictCount > 0) out.push({
-      id: 'quality', kind: 'quality', severity: share > 0.05 ? 'watch' : 'info',
+    const q = snapshot.quality;
+    if (q.pendingExclusionCount > 0 || q.amountConflictCount > 0) out.push({
+      id: 'quality', kind: 'quality', severity: 'info',
       title: bi('اكتمال البيانات والمطابقة', 'Data completeness and reconciliation'),
-      body: bi(`${(share * 100).toFixed(1)}% من صافي المفوتر غير محدد الأمانة (لم يُطابق في مكين ولم يُخمَّن)، و${q.pendingExclusionCount.toLocaleString('en-US')} استبعاد بانتظار المراجعة، و${q.amountConflictCount.toLocaleString('en-US')} تعارض في المبالغ.`, `${(share * 100).toFixed(1)}% of net billed has no Amanah (not matched in Makeen and not guessed), ${q.pendingExclusionCount.toLocaleString('en-US')} exclusions await review and ${q.amountConflictCount.toLocaleString('en-US')} amounts conflict.`),
-      evidence: [{ k: bi('صافي مفوتر غير محدد الأمانة', 'Net billed without Amanah'), v: un?.net || 0, fmt: 'money' }, { k: bi('استبعادات قيد المراجعة', 'Exclusions pending review'), v: q.pendingExclusionCount, fmt: 'count' }, { k: bi('تعارضات المبالغ', 'Amount conflicts'), v: q.amountConflictCount, fmt: 'count' }, { k: bi('سجلات بحقول ناقصة', 'Records with missing fields'), v: q.missingFieldCount, fmt: 'count' }],
-      basis: bi(`الفترة ${period}`, `Period ${period}`), drill: { to: '/settings/data-quality', label: bi('جودة البيانات', 'Data quality') }, caveat: null
+      body: bi(`${q.pendingExclusionCount.toLocaleString('en-US')} استبعاد بانتظار المراجعة، و${q.amountConflictCount.toLocaleString('en-US')} تعارض في المبالغ.`, `${q.pendingExclusionCount.toLocaleString('en-US')} exclusions await review and ${q.amountConflictCount.toLocaleString('en-US')} amounts conflict.`),
+      evidence: [{ k: bi('استبعادات قيد المراجعة', 'Exclusions pending review'), v: q.pendingExclusionCount, fmt: 'count' }, { k: bi('تعارضات المبالغ', 'Amount conflicts'), v: q.amountConflictCount, fmt: 'count' }, { k: bi('سجلات بحقول ناقصة', 'Records with missing fields'), v: q.missingFieldCount, fmt: 'count' }],
+      basis: bi(`الفترة ${period}`, `Period ${period}`), drill: { to: '/invoices', label: bi('قائمة الفواتير', 'Invoice list') }, caveat: null
     });
   }
 

@@ -28,7 +28,7 @@ function MilInput({ value, onCommit, label, id }) {
   return <input id={id} className="input tg-num" dir="ltr" inputMode="decimal" aria-label={label} value={shown} placeholder="—" onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }} />;
 }
 
-export default function TargetsPanel({ year, entityRows, store, setStore, selectedKey, total, canEdit, by, collectedByKey = {}, collectedTotal = 0, unassignedCollected = 0, L, ar, short, nameOf, dateText }) {
+export default function TargetsPanel({ year, entityRows, store, setStore, selectedKey, total, canEdit, by, collectedByKey = {}, collectedTotal = 0, L, ar, short, nameOf, dateText }) {
   const [error, setError] = useState('');
   const commit = (next) => { setStore(next); saveTargetStore(next); setError(''); };
   const opts = { at: new Date().toISOString(), by };
@@ -126,9 +126,6 @@ export default function TargetsPanel({ year, entityRows, store, setStore, select
                 <td>{nameOf(r.key)}</td><td dir="ltr" className="num">{mil(r.budget)}</td><td colSpan={5} className="muted">{L('لا مستهدف إيراد (ميزانية فقط)', 'No revenue target (budget only)')}</td><td />
               </tr>
             ))}
-            {unassignedCollected > 0 && (
-              <tr className="tg-row--muted"><td>{L('غير محدد الأمانة', 'Unassigned')}</td><td /><td colSpan={5} className="muted">{L('مدفوعات لم تُطابق أمانة: بلا مستهدف', 'Payments not matched to an Amanah: no target')}</td><td dir="ltr" className="num">{mil(unassignedCollected)}</td></tr>
-            )}
             <tr className="tg-row--total">
               <td>{L('إجمالي الوزارة', 'The Ministry')}</td><td dir="ltr" className="num">{mil(total.budget)}</td><td dir="ltr" className="num">{pct(total.coverage)}</td><td dir="ltr" className="num">{mil(total.revenueTarget)}</td>
               <td dir="ltr" className="num">{pct(total.collectionRate)}</td><td dir="ltr" className="num">{mil(total.billing)}</td><td dir="ltr" className="num">{milZ(collectedTotal)}</td>

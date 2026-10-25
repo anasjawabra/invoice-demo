@@ -226,9 +226,9 @@ export const AGENTS = [
     formEn: 'Workflow App',
     formAr: 'تطبيق سير العمل',
     color: 'teal',
-    desc: '三单核验（账单-催收单-应计确认）与 Makin/Tahseel 跨平台对账。',
-    descEn: '3-way verification (Invoice-Collection Order-Accrual Confirmation) and cross-platform reconciliation between Makin and Tahseel.',
-    descAr: 'المطابقة الثلاثية (فاتورة-أمر تحصيل-إثبات استحقاق) والتسوية عبر المنصات بين Makin وTahseel.',
+    desc: '三单核验（账单-催收单-应计确认）与 Tahseel 跨平台对账。',
+    descEn: '3-way verification (Invoice-Collection Order-Accrual Confirmation) and cross-platform reconciliation between platforms and Tahseel.',
+    descAr: 'المطابقة الثلاثية (فاتورة-أمر تحصيل-إثبات استحقاق) والتسوية عبر المنصات وتحصيل.',
     uc: 'UC-02 / FR-005',
     model: '豆包文本模型 · 温度 0.2',
     modelEn: 'Doubao Text · Temp 0.2',
@@ -389,7 +389,7 @@ export const AGENTS = [
   }
 ];
 /* ---------- Invoices ---------- */
-// Every invoice also carries the Amanah/beneficiary-ID fields a real Makeen
+// Every invoice also carries the Amanah/beneficiary-ID fields a real
 // extract joins in (see gfsForInvoice/collectionStatusFor below) — this is
 // what makes the Invoices list an AGGREGATOR view, not just a bill list.
 // None of the ORIGINAL fields below are renamed or removed: `.tag` still
@@ -507,7 +507,7 @@ export const INVOICES = [
     tag: 'taxfail'
   },
   {
-    id: '301-882607260000', billerId: '301', sadadNo: '882607260000',
+    id: '010-882607260000', billerId: '010', sadadNo: '882607260000',
     payType: 'prepaid',
     centralSource: false,
     entity: 'Riyadh 市政工程',
@@ -528,7 +528,7 @@ export const INVOICES = [
     tag: 'normal'
   },
   {
-    id: '304-882607250000', billerId: '304', sadadNo: '882607250000',
+    id: '027-882607250000', billerId: '027', sadadNo: '882607250000',
     payType: 'prepaid',
     centralSource: false,
     entity: 'STC 通信服务',
@@ -605,7 +605,7 @@ export const INVOICES = [
     date: '2025-08-14', status: 'approved', risk: 9, confidence: 0.97, tag: 'normal'
   },
   {
-    id: '302-882508100000', billerId: '302', sadadNo: '882508100000', payType: 'prepaid', centralSource: false,
+    id: '028-882508100000', billerId: '028', sadadNo: '882508100000', payType: 'prepaid', centralSource: false,
     entity: 'Jeddah 开发公司', entityEn: 'Jeddah Development Co.', entityAr: 'جدة للتطوير',
     amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1022001100',
     amount: 266500, currency: 'SAR', source: 'Amanah Internal Reports (Jeddah Amanah)', co: 'CO-86340', vat: '3002200110000011',
@@ -640,7 +640,7 @@ export const INVOICES = [
     date: '2026-01-12', status: 'approved', risk: 20, confidence: 0.92, tag: 'normal'
   },
   {
-    id: '304-882605200000', billerId: '304', sadadNo: '882605200000', payType: 'prepaid', centralSource: false,
+    id: '027-882605200000', billerId: '027', sadadNo: '882605200000', payType: 'prepaid', centralSource: false,
     entity: 'STC 通信服务', entityEn: 'STC Telecom Services', entityAr: 'STC لخدمات الاتصالات',
     amanah: '麦加', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة', beneficiaryId: '1033445566',
     amount: 182000, currency: 'SAR', source: 'Amanah Internal Reports (Makkah Amanah)', co: 'CO-87070', vat: '3003344556600009',
@@ -679,7 +679,7 @@ export const INVOICES = [
     date: '2026-04-20', status: 'approved', risk: 17, confidence: 0.95, tag: 'normal'
   },
   {
-    id: '301-882606050000', billerId: '301', sadadNo: '882606050000', payType: 'prepaid', centralSource: false,
+    id: '010-882606050000', billerId: '010', sadadNo: '882606050000', payType: 'prepaid', centralSource: false,
     entity: 'Riyadh 市政工程', entityEn: 'Riyadh Municipal Works', entityAr: 'أعمال بلدية الرياض',
     amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1077889900',
     amount: 1109000, currency: 'SAR', source: 'Amanah Internal Reports (Riyadh Amanah)', co: 'CO-87450', vat: '3007788990000004',
@@ -743,7 +743,7 @@ export const INVOICES = [
     date: '2025-11-30', status: 'review', risk: 41, confidence: 0.7, tag: 'taxfail'
   },
   {
-    id: '305-882608050000', billerId: '305', sadadNo: '882608050000', payType: 'prepaid', centralSource: false,
+    id: '006-882608050000', billerId: '006', sadadNo: '882608050000', payType: 'prepaid', centralSource: false,
     entity: 'Madinah 酒店集团', entityEn: 'Madinah Hospitality Group', entityAr: 'مجموعة المدينة للضيافة',
     amanah: '麦地那', amanahEn: 'Al Madinah Amanah', amanahAr: 'أمانة المدينة المنورة', beneficiaryId: '1055443305',
     amount: 1245000, currency: 'SAR', source: 'Amanah Internal Reports (Al Madinah Amanah)', co: 'CO-88381', vat: '3005544330500020',
@@ -773,7 +773,7 @@ export const INVOICES = [
     date: '2026-04-05', status: 'duplicate', risk: 0, confidence: 0.94, tag: 'dup'
   },
   {
-    id: '317-882608090000', billerId: '317', sadadNo: '882608090000', payType: 'prepaid', centralSource: false,
+    id: '103-882608090000', billerId: '103', sadadNo: '882608090000', payType: 'prepaid', centralSource: false,
     entity: 'Al Jawf 农业公司', entityEn: 'Al Jawf Agricultural Co.', entityAr: 'شركة الجوف الزراعية',
     amanah: '焦夫', amanahEn: 'Al Jawf Amanah', amanahAr: 'أمانة منطقة الجوف', beneficiaryId: '1011009909',
     amount: 287000, currency: 'SAR', source: 'Amanah Internal Reports (Al Jawf Amanah)', co: 'CO-88461', vat: '3001100990900024',
@@ -782,7 +782,7 @@ export const INVOICES = [
 ];
 
 /* ---------- GFS revenue-account classification, by originating platform ----------
-   A real Makeen-style aggregator extract joins every invoice back to a GFS
+   A real aggregator extract joins every invoice back to a GFS
    revenue account regardless of which of the 4 platforms actually issued
    it — derived here once rather than repeated on all 24 records. */
 const GFS_BY_SOURCE = {

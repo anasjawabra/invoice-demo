@@ -24,7 +24,6 @@ export default function Risk() {
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <Link className="btn btn-sm" to="/collection">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</Link>
-          <Link className="btn btn-sm" to="/settings/data-quality">{L('Data quality (system settings)', 'جودة البيانات (إعدادات النظام)')}</Link>
         </div>
       </div>
 

@@ -23,7 +23,6 @@ import { loadTargetStore, entityTargets, totalTargets } from '../data/planTarget
 import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY, APPROPRIATION_YEAR } from '../data/appropriations';
 
 const pct = (v) => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : '—');
-const UNASSIGNED = 'Unassigned';
 
 export default function PlanningArea() {
   const rev = useRevenue(); const { user } = useAuth();
@@ -69,7 +68,6 @@ export default function PlanningArea() {
     const tgt = new Map(entityRows.map((r) => [r.key, r.revenueTarget])); // the SAME target as the targets table (edited targets included)
     const list = visibleKeys.map((k) => { const a = appropriationOf(k, year); return { key: k, a, target: tgt.get(k) || 0, collected: recv[k] || 0 }; })
       .sort((x, y) => y.target - x.target || (y.a?.expAdjusted || 0) - (x.a?.expAdjusted || 0));
-    if (!rev.org.amanahKeys || rev.org.amanahKeys.includes(UNASSIGNED)) list.push({ key: UNASSIGNED, a: null, target: 0, collected: recv[UNASSIGNED] || 0 });
     return list;
   }, [DATA.data, visibleKeys, year, rev.org, entityRows]);
 
@@ -110,7 +108,7 @@ export default function PlanningArea() {
       <AsyncBlock state={DATA} onRetry={() => setRetry((n) => n + 1)} height={260}>
         {(ok || noTarget) && !noBudget && (
           <TargetsPanel year={year} entityRows={entityRows} store={tstore} setStore={setTstore} selectedKey={amanah} total={total} canEdit={canEdit} by={by}
-            collectedByKey={DATA.data?.byAmanah || {}} collectedTotal={DATA.data?.total || 0} unassignedCollected={DATA.data?.byAmanah?.[UNASSIGNED] || 0}
+            collectedByKey={DATA.data?.byAmanah || {}} collectedTotal={DATA.data?.total || 0}
             L={L} ar={ar} short={short} nameOf={nameOf} dateText={dateText} />
         )}
         {noBudget && (

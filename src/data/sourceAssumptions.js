@@ -43,7 +43,7 @@ export const PARAMS = {
 };
 
 /* ------------------------------------------------------------------ system of record per source and import versions */
-export const IMPORT_VERSIONS = { tahseel_central: 6, tahseel_internal: 4, incorta_items: 2, makeen: 5, furas: 4, sanad: 3, efaa_v2: 7, sadad: 9, tobacco: 3, accommodation: 3, white_lands: 5, balady: 4, violations: 7, white_lands_enforcement: 2 };
+export const IMPORT_VERSIONS = { tahseel_central: 6, tahseel_internal: 4, furas: 4, sanad: 3, efaa_v2: 7, sadad: 9, tobacco: 3, accommodation: 3, white_lands: 5, balady: 4, violations: 7, white_lands_enforcement: 2 };
 
 // revenue-account (GFS) codes of the sources, as used by the reports
 export const GFS_BY_SOURCE = { investment: '1421901', fines: '1438001', municipal_fees: '142113', licenses: '142162', accommodation: '11442', tobacco: '1422110', white_lands: '1422111', housing_sales: '1422112' };
@@ -55,7 +55,7 @@ export const SOURCE_PROFILE = {
     sheets: ['INVOICES', 'DISCLOSURES', 'SCHEDULES', 'FACILITIES'],
     level: BI('فاتورة (INVOICES) مرتبطة بإفصاح شهري (DISCLOSURES) وجدولة (SCHEDULES) ومنشأة (FACILITIES)', 'Invoice linked to a monthly disclosure, a schedule and a facility'),
     keys: ['INVOICE_KEY', 'DISCLOSURE_KEY', 'FACILITY_KEY', 'SADAD_NO'],
-    supplier: BI('منصة إفصاح التبغ (جداول TB_*) عبر إنكورتا، ثم تحصيل للحالة والسداد', 'Tobacco disclosure platform (TB_* tables) via Incorta, then Tahseel for status and collection')
+    supplier: BI('منصة إفصاح التبغ (جداول TB_*)، ثم تحصيل للحالة والسداد', 'Tobacco disclosure platform (TB_* tables), then Tahseel for status and collection')
   },
   accommodation: {
     label: BI('الإيواء', 'Accommodation'),
@@ -63,7 +63,7 @@ export const SOURCE_PROFILE = {
     sheets: ['Invoices', 'Disclosures', 'Schedules', 'Facilities'],
     level: BI('فاتورة مرتبطة بإفصاح إشغال (أيام × سعر يومي) وجدولة ومنشأة', 'Invoice linked to an occupancy disclosure (days x daily price), a schedule and a facility'),
     keys: ['INVOICE_KEY', 'DISCLOSURE_KEY', 'FACILITY_KEY', 'SADAD_NO'],
-    supplier: BI('منصة إفصاح الإيواء عبر إنكورتا، ثم تحصيل', 'Accommodation disclosure platform via Incorta, then Tahseel')
+    supplier: BI('منصة إفصاح الإيواء، ثم تحصيل', 'Accommodation disclosure platform, then Tahseel')
   },
   white_lands: {
     label: BI('الأراضي البيضاء', 'White lands'),
@@ -87,7 +87,7 @@ export const SOURCE_PROFILE = {
     sheets: ['Violations_report_BV'],
     level: BI('مخالفة واحدة في زيارة رقابية (صف لكل مخالفة) وقيمتان: الفاتورة والمخالفة', 'One violation row per inspection visit with two amounts: invoice value and violation value'),
     keys: ['معرف_المخالفة', 'رقم_المخالفة_في_ايفاء', 'رقم_السداد', 'رقم_الزيارة'],
-    supplier: BI('إيفاء / ممتثل (تقرير المخالفات عبر إنكورتا)', 'Efaa / Mumathil (violations report via Incorta)')
+    supplier: BI('إيفاء / ممتثل (تقرير المخالفات)', 'Efaa / Mumathil (violations report)')
   },
   municipal_fees: {
     label: BI('الرسوم البلدية', 'Municipal fees'),
@@ -95,7 +95,7 @@ export const SOURCE_PROFILE = {
     sheets: ['ENT_REVENUES'],
     level: BI('بند فاتورة (DETAIL_ID) والمبلغ الإجمالي مكرر على كل بند', 'Invoice line (DETAIL_ID); the invoice total is repeated on every line'),
     keys: ['ACCOUNT_NO', 'REVENUE_KEY', 'REQUEST_ID'],
-    supplier: BI('إنكورتا - طبقة الإيرادات الموحدة', 'Incorta consolidated revenue layer')
+    supplier: BI('طبقة الإيرادات الموحدة', 'Consolidated revenue layer')
   },
   housing_sales: {
     label: BI('المبيعات السكنية', 'Residential sales'),

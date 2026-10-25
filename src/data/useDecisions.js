@@ -23,7 +23,7 @@ export function useDecisions() {
 
   const labels = useMemo(() => {
     const am = new Map(amanahFilterOptions().map((a) => [a.key, { ar: a.ar, en: a.en }]));
-    return { amanah: (k) => (k === HQ_KEY ? { ar: 'ديوان عام الوزارة', en: 'Ministry headquarters' } : am.get(k) || { ar: k === 'Unassigned' ? 'غير محدد الأمانة' : k, en: k }), source: (k) => ({ ar: sourceAr(k), en: sourceEn(k) }) };
+    return { amanah: (k) => (k === HQ_KEY ? { ar: 'ديوان عام الوزارة', en: 'Ministry headquarters' } : am.get(k) || { ar: k, en: k }), source: (k) => ({ ar: sourceAr(k), en: sourceEn(k) }) };
   }, []);
   const visible = useMemo(() => appropriationKeys().filter((k) => (rev.org.amanahKeys ? rev.org.amanahKeys.includes(k) : true)), [rev.org]);
 
@@ -54,7 +54,7 @@ export function useDecisions() {
     return buildDecisionItems({
       today, snapshot: snap, labels, targetRate: (k) => rateByKey.get(k) ?? rev.targets?.collectionRate?.value ?? 0.6, plan: planSec, contracts: cs, noContractCount: noContract?.total || 0,
       orders: { suspendedCount: suspended.length, suspendedAmount: suspended.reduce((t, c) => t + (c.amount || 0), 0) },
-      matching: { unassignedCount: quality?.makeenUnmatched || 0, unassignedPayments: snap.receivedInPeriod?.byAmanah?.Unassigned || 0, amountConflicts: snap.quality?.amountConflictCount || 0, missingFields: snap.quality?.missingFieldCount || 0 }
+      matching: { amountConflicts: snap.quality?.amountConflictCount || 0, missingFields: snap.quality?.missingFieldCount || 0 }
     });
   }, [inputs.data, rev.snapshot, rev.cases, rev.targets, labels, today, year, sc.amanah]);
 
