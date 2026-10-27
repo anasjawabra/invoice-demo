@@ -10,7 +10,6 @@ import PlanningArea from './pages/PlanningArea';
 import Contracts from './pages/Contracts';
 import Metrics from './pages/Metrics';
 import Invoices from './pages/Invoices';
-import Risk from './pages/Risk';
 import Collection from './pages/Collection';
 import Exclusions from './pages/Exclusions';
 import Products from './pages/Products';
@@ -56,7 +55,7 @@ export default function App() {
         <Route path="contracts" element={<Contracts />} />
         <Route path="metrics" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="invoices" element={<Invoices />} />
-        <Route path="risk" element={<Risk />} />
+        <Route path="risk" element={<Navigate to="/insights" replace />} />
         <Route path="collection" element={<Collection />} />
         <Route path="exclusions" element={<Exclusions />} />
         <Route path="products" element={<Products />} />

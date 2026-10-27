@@ -26,9 +26,7 @@ import { checkRange, rangeMessage } from '../src/data/dateRange.js';
 import { fmtRiyadh, riyadhDateOf, lastCompleteMonths } from '../src/data/clock.js';
 import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisLabel } from '../src/data/measure.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
-import { list, exportChunks, worklist, anomalies, risk } from '../server/lists.js';
-import { DEVIATION_CODES, QUALITY_CODES, RISK_FLAG_CATEGORIES, DEVIATION_RISK_CATEGORIES, issuePage } from '../src/data/issueGroups.js';
-import { RISK_CATEGORIES } from '../src/data/riskAnalysis.js';
+import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
 import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
 import { paymentFacts } from '../src/data/invoicePayments.js';
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
@@ -295,34 +293,15 @@ await test('worklist and anomalies return ranked top rows without carrying the p
   assert.ok(w.rows.every((r) => r.outstanding > 0 && r.cls !== 'collected' && r.cls !== 'excluded'));
   const a = anomalies(st, { scope: YTD, cfg, limit: 40 }); assert.ok(a.total > 0 && a.rows.length <= 40);
 });
-await test('findings are split by function: every issue code and risk category belongs to exactly one page; a group request changes nothing but the group', () => {
-  const all = anomalies(st, { scope: YTD, cfg, limit: 100 });
-  const mine = new Set([...DEVIATION_CODES, ...QUALITY_CODES]);
-  assert.equal(mine.size, DEVIATION_CODES.length + QUALITY_CODES.length, 'no code is on both pages');
-  for (const c of Object.keys(all.counts)) assert.ok(mine.has(c), `${c} must belong to a page`);
-  assert.deepEqual([...RISK_FLAG_CATEGORIES, ...DEVIATION_RISK_CATEGORIES].sort(), [...RISK_CATEGORIES].sort(), 'every risk-radar category is on the risks & deviations page');
-  const dev = anomalies(st, { scope: YTD, cfg, limit: 100, codes: DEVIATION_CODES }); const q = anomalies(st, { scope: YTD, cfg, limit: 100, codes: QUALITY_CODES });
-  for (const c of Object.keys(dev.counts)) { assert.ok(DEVIATION_CODES.includes(c)); assert.equal(dev.counts[c], all.counts[c], `${c}: same count as the ungrouped request`); }
-  for (const c of Object.keys(q.counts)) { assert.ok(QUALITY_CODES.includes(c)); assert.equal(q.counts[c], all.counts[c], `${c}: same count as the ungrouped request`); }
-  assert.ok(dev.total <= all.total && q.total <= all.total && dev.total + q.total >= all.total, 'an invoice may carry findings of both groups, never fewer than the whole');
-  assert.equal(anomalies(st, { scope: YTD, cfg, limit: 100, codes: [] }).total, all.total, 'an empty group means no restriction');
-  assert.equal(issuePage('missing_fields'), '/invoices'); assert.equal(issuePage('contract_unlinked'), '/invoices'); assert.equal(issuePage('amount_conflict'), '/risk'); assert.equal(issuePage('risk_duplicate'), '/risk');
-});
-await test('risk flags: the Risks page and the invoice page use one rule — a flag settled by an approved exclusion is not an open risk, an open flag shows on both', () => {
-  const r = risk(st, { scope: YTD, cfg, limit: 200 });
+await test('risk flags on the invoice page: a flag settled by an approved exclusion is not an open finding; with the duplicate rule off the same invoices carry an OPEN duplicate flag', () => {
   const ctx = makeCtx(st, { scope: YTD, cfg });
   // 177-882607280000 / 177-882608080000: marked duplicate in the source, but the duplicate exclusion (DUP-1) is already approved and applied
   for (const id of ['177-882607280000', '177-882608080000']) {
     const d = detail(st, lookupId(st, id), ctx);
     assert.equal(d.riskFlags.duplicate, 'settled', `${id}: the duplicate is settled by the approved exclusion`); assert.equal(d.cls, 'excluded');
-    assert.ok(!r.categories.duplicate.rows.some((x) => x.id === id), `${id}: a settled duplicate is not listed as a risk`);
   }
-  // every invoice listed under a record-level risk category is OPEN on its own page (nothing listed on one page is missing from the other)
-  for (const cat of ['duplicate', 'struck_off_registry']) for (const row of r.categories[cat].rows) assert.equal(detail(st, lookupId(st, row.id), ctx).riskFlags[cat], 'open', `${row.id} ${cat}`);
-  // with the duplicate rule switched off nothing is settled: the same two invoices become OPEN duplicates, listed on the Risks page AND carried by the invoice page
-  const off = { cutoff: TODAY, rules: { 'DUP-1': false } }; const r2 = risk(st, { scope: YTD, cfg: off, limit: 200 }); const ctx2 = makeCtx(st, { scope: YTD, cfg: off });
-  for (const id of ['177-882607280000', '177-882608080000']) { assert.ok(r2.categories.duplicate.rows.some((x) => x.id === id), `${id}: listed when open`); assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open'); }
-  assert.ok(r2.categories.duplicate.count >= r.categories.duplicate.count + 2, 'every settled duplicate (the two anchored ones and the same-day twins of the seed) becomes an open risk when the rule is off');
+  const off = { cutoff: TODAY, rules: { 'DUP-1': false } }; const ctx2 = makeCtx(st, { scope: YTD, cfg: off });
+  for (const id of ['177-882607280000', '177-882608080000']) assert.equal(detail(st, lookupId(st, id), ctx2).riskFlags.duplicate, 'open', `${id}: open when the rule is off`);
 });
 await test('export streams in chunks, keeps exact SAR and a separately named abbreviated column', () => {
   const it = exportChunks(st, { scope: { ...YTD, source: 'white_lands' }, cfg, filters: {} }, 1000);
@@ -1717,7 +1696,6 @@ await test('v3 · R1–R11: the labels, codes and sources are exactly those of t
   assert.ok(RSV_V3.includes('21 Oct')); assert.ok(!RULE_IDS_V3.includes('DEC-1') && !RULES_V3.some((r) => r.id === 'DEC-1') && DEC_DEFERRED_V3 === true);
   const src = Object.fromEntries(EXCLUSION_REASONS.map((r) => [r.ruleId, EXCLUSION_SOURCE_OF_RULE_V3[r.ruleId].ar]));
   assert.equal(src['OBJ-1'], 'إيفاء + ممتثل (حالة الاستئناف)'); assert.equal(src['ENC-1'], 'ملف الأمانة (رفع يدوي)'); assert.equal(src['ATT-1'], 'ملف الأمانة (رفع يدوي)'); assert.ok(!JSON.stringify(EXCLUSION_REASONS).includes('بايفاء') && !JSON.stringify(EXCLUSION_REASONS).includes('متوفى'));
-  assert.ok(!RISK_CATEGORIES.includes('deceased_person') && !RISK_FLAG_CATEGORIES.includes('deceased_person'), 'the deceased category is out of the risk radar too (deferred)');
 });
 await test('v3 · every reason R1–R11 is the PRIMARY reason of at least three uncollected invoices; the reasons add up exactly to the excluded amount', () => {
   const sn = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' }, cfg });

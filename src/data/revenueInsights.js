@@ -189,7 +189,7 @@ export function buildDecisionCards(snapshot, { enforcementCases = [], limit = 5 
       timeframe: bi('Within 14 days (proposed)', 'خلال 14 يوماً (مقترح)'),
       impact: { kind: 'not_calculable', reason: bi('Impact depends on which amount is correct.', 'الأثر يعتمد على أي المبلغين هو الصحيح.') },
       followUp: bi('Number of unresolved amount conflicts.', 'عدد تعارضات المبالغ غير المحسومة.'),
-      drill: { to: '/risk' }
+      drill: { to: '/invoices' }
     });
   }
 

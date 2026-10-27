@@ -187,7 +187,7 @@ export const DEV_REFERENCE = {
     ['POST /api/worklist · /api/list', 'uncollected / collected invoice rows (rowOut: ids, class, reason, source, objection status, duplicateOf, file)'],
     ['POST /api/invoice', 'one invoice: record, derived figures, exclusion records, risk flags, source records'],
     ['POST /api/exclusion-check', 'row validation for the upload template (accepted / rejected + reason code)'],
-    ['POST /api/series · /api/bridge · /api/risk · /api/sources · /api/quality', 'monthly series, reconciliation bridge, risk radar, source report, data quality'],
+    ['POST /api/series · /api/bridge · /api/sources · /api/quality', 'monthly series, reconciliation bridge, source report, data quality'],
     ['GET /api/export.csv', 'streamed CSV of the current filters']
   ],
   columns: [

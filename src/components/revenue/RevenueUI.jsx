@@ -276,7 +276,7 @@ export function DataStatusStrip() {
   const q = snapshot.quality;
   const { count } = useL();
   const items = [
-    { k: 'conflicts', n: q.amountConflictCount, tone: q.amountConflictCount ? 'warn' : 'ok', text: L('amount conflicts', 'تعارضات في المبالغ'), to: '/risk' },
+    { k: 'conflicts', n: q.amountConflictCount, tone: q.amountConflictCount ? 'warn' : 'ok', text: L('amount conflicts', 'تعارضات في المبالغ'), to: '/invoices' },
     { k: 'pending', n: q.pendingExclusionCount, tone: q.pendingExclusionCount ? 'warn' : 'ok', text: L('exclusions awaiting review', 'استبعادات بانتظار المراجعة'), to: '/collection' },
     { k: 'missing', n: q.missingFieldCount, tone: q.missingFieldCount ? 'warn' : 'ok', text: L('records with missing mandatory fields', 'سجلات بحقول إلزامية ناقصة'), to: '/invoices' },
     { k: 'contract', n: q.contractIssueCount, tone: q.contractIssueCount ? 'warn' : 'ok', text: L('investment invoices without a linked contract', 'فواتير استثمار بلا عقد مرتبط'), to: '/invoices' }

@@ -245,7 +245,7 @@ export function anomalies(st, req) {
   const ctx = makeCtx(st, req); const sc = resolveScope(ctx, req.scope); const D = ctx.D; const limit = Math.min(300, req.limit || 100);
   const top = new TopK(limit); const counts = {}; let total = 0;
   const bump = (k) => { counts[k] = (counts[k] || 0) + 1; };
-  const group = Array.isArray(req.codes) && req.codes.length ? new Set(req.codes) : null; // a page may ask for one GROUP of issue codes (Risks & Deviations vs Data quality): only those count toward the total and the ranking
+  const group = Array.isArray(req.codes) && req.codes.length ? new Set(req.codes) : null; // a page may ask for one GROUP of issue codes: only those count toward the total and the ranking
   for (let i = 0; i < st.n; i += 1) {
     if (st.issue[i] > ctx.cutoffN || st.issue[i] < sc.fromN || st.issue[i] > sc.toN || !inScope(st, sc, i)) continue;
     derive(ctx, i, ctx.cutoffN);
@@ -267,24 +267,4 @@ export function anomalies(st, req) {
   return { total, counts, rows };
 }
 
-/* ------------------------------------------------------------------ risk radar (counts + top rows per category) */
-export const VALUE_ANOMALY_MULTIPLE = 10;
-export function risk(st, req) {
-  const ctx = makeCtx(st, req); const sc = resolveScope(ctx, req.scope); const D = ctx.D; const limit = req.limit || 60;
-  // peer baseline: mean gross per (entity, source) over the scope
-  const sum = new Float64Array(ENTITIES.length * SOURCES.length); const cnt = new Float64Array(ENTITIES.length * SOURCES.length);
-  for (let i = 0; i < st.n; i += 1) { if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue; const g = st.ent[i] * SOURCES.length + st.src[i]; sum[g] += st.gross[i]; cnt[g] += 1; }
-  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    // duplicate / struck-off: listed only while OPEN (not already settled by an approved exclusion) — the same rule the invoice page uses
-    const rf = recordRiskFlags(st, ctx, i);
-    for (const [c, state] of Object.entries(rf)) if (state === 'open') { cat[c].n += 1; cat[c].amt += st.gross[i]; cat[c].top.push(i, c === 'duplicate' ? 90 : 85); }
-    const g = st.ent[i] * SOURCES.length + st.src[i];
-    if (cnt[g] >= 30) { const avg = (sum[g] - st.gross[i]) / (cnt[g] - 1); const ratio = avg > 0 ? st.gross[i] / avg : 0; if (ratio >= VALUE_ANOMALY_MULTIPLE) { cat.value_anomaly.n += 1; cat.value_anomaly.amt += st.gross[i]; cat.value_anomaly.top.push(i, Math.min(99, 60 + (ratio - VALUE_ANOMALY_MULTIPLE) * 2)); } }
-  }
-  const out = {};
-  for (const [k, v] of Object.entries(cat)) out[k] = { count: v.n, amount: v.amt, rows: v.top.sorted().map(([i, score]) => { derive(ctx, i, ctx.cutoffN); return { ...rowOut(st, ctx, i, D), score: Math.round(score) }; }) };
-  return { categories: out, valueAnomalyMultiple: VALUE_ANOMALY_MULTIPLE };
-}
 void CHANNELS; void violationOf; void subscriptionOf; void dayNum;

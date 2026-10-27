@@ -76,7 +76,7 @@ export default function InvoicePage() {
 
   const findings = [];
   if (rec.amountCheck?.status === 'conflict') findings.push({ k: 'amount', tone: 'bad', title: L('Amount does not match the line items', 'المبلغ لا يطابق البنود'), why: L('The header amount differs from the sum of the line items (VAT shown apart).', 'مبلغ الرأس يختلف عن مجموع البنود (والضريبة منفصلة).'), evidence: L(`Header ${sar(rec.amountCheck.headerAmount)} · items ${sar(rec.amountCheck.lineTotal)} · difference ${sar(Math.abs(rec.amountCheck.difference))}. Not corrected: the metrics use the header amount.`, `الرأس ${sar(rec.amountCheck.headerAmount)} · البنود ${sar(rec.amountCheck.lineTotal)} · الفرق ${sar(Math.abs(rec.amountCheck.difference))}. لم يُصحَّح: تستخدم المؤشرات مبلغ الرأس.`), action: null });
-  // risk flags that are still OPEN (the same rule as the Risks & Deviations page): a flag whose exclusion is already approved is a settled decision, shown under «التحليل والمراجعة», not here
+  // risk flags that are still OPEN : a flag whose exclusion is already approved is a settled decision, shown under «التحليل والمراجعة», not here
   const RISK_FINDING = {
     duplicate: { en: ['Possible duplicate', 'The source marks this invoice as a duplicate, and no exclusion has been approved for it.'], ar: ['تكرار محتمل', 'يشير المصدر إلى أن هذه الفاتورة مكررة، ولم يُعتمد استبعاد لها.'] },
     struck_off_registry: { en: ['Struck-off commercial registry', 'The payer’s commercial registration is reported struck off, and no exclusion has been approved for it.'], ar: ['سجل تجاري مشطوب', 'السجل التجاري للدافع مبلغ عنه مشطوباً، ولم يُعتمد استبعاد لها.'] }

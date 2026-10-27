@@ -93,7 +93,6 @@ export function RevenueProvider({ children }) {
     series: (sc, extra) => api.series(requestFor(sc, extra)),
     worklist: (sc, limit, extra) => api.worklist(requestFor(sc, { limit, ...extra })),
     anomalies: (sc, limit, extra) => api.anomalies(requestFor(sc, { limit, ...extra })),
-    risk: (sc, extra) => api.risk(requestFor(sc, extra)),
     list: (sc, extra) => api.list(requestFor(sc, extra)),
     invoice: (id) => api.invoice(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { id })),
     contracts: (sc) => api.contracts(requestFor(sc)),
