@@ -35,7 +35,7 @@ export default function ProductPage() {
     const top = EXCLUSION_REASONS.map((r) => ({ r, s: snap.ruleStats?.[r.ruleId] })).filter((x) => x.s?.primaryCount > 0).sort((a, b) => b.s.primaryAmount - a.s.primaryAmount)[0];
     if (top && T.exclusionsRules > 0) challenges.push({ k: 'excl', text: L(`Exclusions remove ${short(T.exclusionsRules)}; the largest reason is «${top.r.en}» (${count(top.s.primaryCount)} invoices).`, `الاستبعادات تُخرج ${short(T.exclusionsRules)}؛ وأكبر سبب «${top.r.ar}» (${count(top.s.primaryCount)} فاتورة).`), to: '/exclusions' });
     if (T.net > 0 && T.overdueOutstanding > 0) challenges.push({ k: 'overdue', text: L(`${short(T.overdueOutstanding)} is overdue (${((T.overdueOutstanding / T.net) * 100).toFixed(1)}% of net billed).`, `${short(T.overdueOutstanding)} متأخر السداد (${((T.overdueOutstanding / T.net) * 100).toFixed(1)}% من صافي المفوتر).`), to: '/collection' });
-    if (noContract?.total > 0) challenges.push({ k: 'nocontract', text: L(`${count(noContract.total)} investment invoices are not linked to a contract.`, `${count(noContract.total)} فاتورة استثمار غير مرتبطة بعقد.`), to: '/risk' });
+    if (noContract?.total > 0) challenges.push({ k: 'nocontract', text: L(`${count(noContract.total)} investment invoices are not linked to a contract.`, `${count(noContract.total)} فاتورة استثمار غير مرتبطة بعقد.`) });
     if (!challenges.length) challenges.push({ k: 'ok', text: L('No material challenge in this selection.', 'لا تحدٍّ جوهري في هذا الاختيار.') });
   }
   // Furas: contracts, receivables, expected collection and contracting growth (from the contract schedules)

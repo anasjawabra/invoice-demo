@@ -109,7 +109,7 @@ export function detail(st, i, ctx) {
   const D = derive(ctx, i, ctx.cutoffN);
   const derived = { gross: D.gross, adjustments: D.adj, billedAfterAdj: D.billed, exclusionsTotal: D.exclTotal, received: D.received, collected: D.collected, overpayment: D.overpayment, outstanding: D.outstanding, payStatus: D.payStatus, sourceCancelled: D.sourceCancelled, enfConflict: D.enfConflict, cancelled: D.cancelled, cancelledAmount: D.cancelledAmount, overlapsCancelled: D.overlaps, excluded: D.excluded, exclusionAmount: D.exclusionAmount, net: D.net, daysOverdue: D.daysOverdue, reasonMask: D.mask, nReasons: D.nReasons, primaryRuleId: D.primaryBit ? RULE_IDS[Math.log2(D.primaryBit)] : null };
   const sourceRec = i < st.nGen ? sourceRecord(st, i, rec, D, ctx.cfg.cutoff) : null;
-  const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry: 'open' | 'settled' } — the same rule as the Risks & Deviations page
+  const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry: 'open' | 'settled' } — the rule the invoice page uses for its «needs review» findings
   rec.iim = iimDetail(st, i, rec, D);
   if (st.dupOf?.has(i)) rec.iim.duplicateOf = idOf(st, st.dupOf.get(i)); // R11: the earliest-numbered invoice this one repeats
   // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from

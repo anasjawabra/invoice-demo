@@ -2,7 +2,7 @@
 import { riyadhToday } from '../src/data/clock.js';
 import { currentStore } from './store.js';
 import { snapshot, series, bridge, makeCtx, lookupId } from './engine.js';
-import { list, exportChunks, worklist, anomalies, risk, bumpEpoch } from './lists.js';
+import { list, exportChunks, worklist, anomalies, bumpEpoch } from './lists.js';
 import { contractCards, contractCard, contractRollup, sanadCases } from './contracts.js';
 import { meta, quality } from './misc.js';
 import { sourcesReport } from './sourcesReport.js';
@@ -63,7 +63,6 @@ export async function handleApi(req, res) {
       case '/list': return send(res, 200, list(st, body));
       case '/worklist': return send(res, 200, memoize(key('wl'), () => worklist(st, body)));
       case '/anomalies': return send(res, 200, memoize(key('an'), () => anomalies(st, body)));
-      case '/risk': return send(res, 200, memoize(key('risk'), () => risk(st, body)));
       case '/sources': return send(res, 200, memoize(key('src'), () => sourcesReport(st, body)));
       case '/quality': return send(res, 200, memoize(key('q'), () => quality(st, body)));
       case '/contracts': return send(res, 200, memoize(key('ct'), () => { const cards = contractCards(st, body); return { cards, rollup: contractRollup(cards) }; }));

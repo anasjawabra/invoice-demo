@@ -69,7 +69,6 @@ export const api = {
   list: (req, o) => post('/list', req, o),
   worklist: (req, o) => post('/worklist', req, o),
   anomalies: (req, o) => post('/anomalies', req, o),
-  risk: (req, o) => post('/risk', req, o),
   quality: (req, o) => post('/quality', req, o),
   sources: (req, o) => post('/sources', req, o),
   contracts: (req, o) => post('/contracts', req, o),

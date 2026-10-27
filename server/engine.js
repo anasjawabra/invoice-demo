@@ -136,7 +136,7 @@ function primaryBitOfMask(mask) { for (const r of BY_PRIORITY) if (mask & r.bit)
 const popcount = (x) => { let n = 0; while (x) { n += x & 1; x >>>= 1; } return n; };
 
 /* ------------------------------------------------------------------ derive one row (no allocation) */
-// RISK FLAGS (duplicate · struck-off registry; «deceased debtor» is deferred — see DECEASED_DEFERRED in data/iim.js) — ONE rule for the Risks & Deviations page and the invoice page, so they cannot disagree.
+// RISK FLAGS (duplicate · struck-off registry; «deceased debtor» is deferred — see DECEASED_DEFERRED in data/iim.js) — the rule behind the invoice page's «needs review» findings.
 // A flag is a reason to look. It is OPEN only while nobody has decided: when the matching exclusion rule (DUP-1 · CR-1) is already APPROVED and applied, the flag is SETTLED —
 // the invoice is excluded on that ground, and the decision is shown on the invoice — so it is not listed as a live risk. Returns { category: 'open' | 'settled' } for the flags present.
 export function recordRiskFlags(st, ctx, i) {

@@ -152,8 +152,7 @@ function LayoutInner() {
       { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : 'Product management' },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
-      { to: '/contracts', icon: 'invoices', label: t('nav_contracts') },
-      { to: '/risk', icon: 'risk', label: t('nav_risk_deviations') }
+      { to: '/contracts', icon: 'invoices', label: t('nav_contracts') }
     ],
     [t, lang]
   );
@@ -181,7 +180,6 @@ function LayoutInner() {
     if (p.startsWith('/settings')) return t('nav_system_settings');
     if (p.startsWith('/contracts')) return t('nav_contracts');
     if (p.startsWith('/invoices')) return t('invoices');
-    if (p.startsWith('/risk')) return t('nav_risk_deviations');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
     if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';

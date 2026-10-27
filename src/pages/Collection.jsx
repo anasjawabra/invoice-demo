@@ -121,7 +121,7 @@ export default function Collection() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected invoices never appear here. Excluded invoices appear with their reason; the exclusion applies to the uncollected part only. Invoices with risk flags or amount conflicts are reviewed in ', 'لا تظهر هنا الفواتير المحصّلة. وتظهر المستبعدة مع سببها؛ والاستبعاد يخص الجزء غير المحصّل فقط. أما الفواتير ذات أعلام المخاطر أو تعارض المبالغ فتُراجَع في ')}<Link to="/risk">{L('Risks & Deviations', 'المخاطر والانحرافات')}</Link>.</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected invoices never appear here. Excluded invoices appear with their reason; the exclusion applies to the uncollected part only.', 'لا تظهر هنا الفواتير المحصّلة. وتظهر المستبعدة مع سببها؛ والاستبعاد يخص الجزء غير المحصّل فقط.')}</p>
       </div>
     </div>
   );
