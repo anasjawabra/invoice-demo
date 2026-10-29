@@ -1,3 +1,5 @@
+import { localize } from '../utils/zh';
+import { localizedObject } from '../utils/zh';
 // «غرفة القرارات» — what needs a decision, an action or follow-up now; each item has an owner, a due date, a status and a history.
 // Items come from the platform's own figures for the SELECTED scope (period · Amanah · source) — see src/data/decisionRoom.js. One page: a row opens in place.
 import React, { useMemo, useState } from 'react';
@@ -11,12 +13,14 @@ import { AsyncBlock } from '../components/strategic/AsyncState';
 import { ItemRow } from '../components/decisions/DecisionParts';
 import { CATEGORIES, LANES, ROLES } from '../data/decisionRoom';
 import { STATUSES } from '../data/decisionStore';
+import useTabs from '../utils/useTabs';
 
 export default function DecisionRoom() {
-  const rev = useRevenue(); const D = useDecisions(); const { L, ar, short, count } = useAr();
-  const B = (o) => (o == null ? '' : o[ar ? 'ar' : 'en']);
+  const rev = useRevenue(); const D = useDecisions(); const { L, ar, short, count , lang } = useAr();
+  const B = (o) => (localizedObject(o, lang));
   const [lane, setLane] = useState('decision'); const [cat, setCat] = useState('all'); const [owner, setOwner] = useState('all'); const [status, setStatus] = useState('open'); const [am, setAm] = useState('all'); const [src, setSrc] = useState('all');
   const [openKey, setOpenKey] = useState(null);
+  const tabs = useTabs({ keys: Object.keys(LANES), value: lane, onChange: (key) => { setLane(key); setOpenKey(null); } });
   const laneCount = useMemo(() => Object.fromEntries(Object.keys(LANES).map((k) => [k, D.items.filter((i) => i.lane === k && (status === 'open' ? ['new', 'in_progress'].includes(i.status) : true)).length])), [D.items, status]);
   const rows = useMemo(() => D.items.filter((i) => i.lane === lane
     && (cat === 'all' || i.category === cat) && (owner === 'all' || i.state?.owner === owner || (owner === 'none' && !i.state?.owner)) && (am === 'all' || i.amanah === am) && (src === 'all' || i.source === src)
@@ -47,13 +51,14 @@ export default function DecisionRoom() {
             </div>
 
             <div className="sr-tabs" role="tablist" aria-label={L('المسارات', 'Lanes')}>
-              {Object.keys(LANES).map((k) => <button key={k} type="button" role="tab" aria-selected={lane === k} className={`sr-tab ${lane === k ? 'is-active' : ''}`} onClick={() => { setLane(k); setOpenKey(null); }}><b>{B(LANES[k])}</b> <span className="muted">({laneCount[k]})</span></button>)}
+              {Object.keys(LANES).map((k) => <button key={k} {...tabs.getTabProps(k)} className={`sr-tab ${lane === k ? 'is-active' : ''}`}><b>{B(LANES[k])}</b> <span className="muted">({laneCount[k]})</span></button>)}
             </div>
 
+            <div {...tabs.getPanelProps(lane)} className="ui-section-stack">
             <div className="dr-filters" role="search" aria-label={L('تصفية البنود', 'Filter the items')}>
               <label className="cg-field" htmlFor="dr-cat">{L('الفئة', 'Category')}<select id="dr-cat" className="input" value={cat} onChange={(e) => setCat(e.target.value)}><option value="all">{L('كل الفئات', 'All categories')}</option>{Object.keys(CATEGORIES).map((k) => <option key={k} value={k}>{B(CATEGORIES[k])}</option>)}</select></label>
-              <label className="cg-field" htmlFor="dr-am">{L('الأمانة / الجهة', 'Amanah / entity')}<select id="dr-am" className="input" value={am} onChange={(e) => setAm(e.target.value)}><option value="all">{L('الكل', 'All')}</option>{amOptions.map((k) => <option key={k} value={k}>{D.labels.amanah(k)[ar ? 'ar' : 'en']}</option>)}</select></label>
-              <label className="cg-field" htmlFor="dr-src">{L('المصدر', 'Source')}<select id="dr-src" className="input" value={src} onChange={(e) => setSrc(e.target.value)}><option value="all">{L('الكل', 'All')}</option>{srcOptions.map((k) => <option key={k} value={k}>{D.labels.source(k)[ar ? 'ar' : 'en']}</option>)}</select></label>
+              <label className="cg-field" htmlFor="dr-am">{L('الأمانة / الجهة', 'Amanah / entity')}<select id="dr-am" className="input" value={am} onChange={(e) => setAm(e.target.value)}><option value="all">{L('الكل', 'All')}</option>{amOptions.map((k) => <option key={k} value={k}>{localize(D.labels.amanah(k)[ar ? 'ar' : 'en'], lang)}</option>)}</select></label>
+              <label className="cg-field" htmlFor="dr-src">{L('المصدر', 'Source')}<select id="dr-src" className="input" value={src} onChange={(e) => setSrc(e.target.value)}><option value="all">{L('الكل', 'All')}</option>{srcOptions.map((k) => <option key={k} value={k}>{localize(D.labels.source(k)[ar ? 'ar' : 'en'], lang)}</option>)}</select></label>
               <label className="cg-field" htmlFor="dr-owner">{L('المسؤول', 'Owner')}<select id="dr-owner" className="input" value={owner} onChange={(e) => setOwner(e.target.value)}><option value="all">{L('الكل', 'All')}</option><option value="none">{L('بلا مسؤول', 'No owner')}</option>{Object.keys(ROLES).map((k) => <option key={k} value={k}>{B(ROLES[k])}</option>)}</select></label>
               <label className="cg-field" htmlFor="dr-status">{L('الحالة', 'Status')}<select id="dr-status" className="input" value={status} onChange={(e) => setStatus(e.target.value)}><option value="open">{L('المفتوحة (جديد + قيد التنفيذ)', 'Open (new + in progress)')}</option><option value="all">{L('كل الحالات', 'All statuses')}</option>{Object.keys(STATUSES).map((k) => <option key={k} value={k}>{B(STATUSES[k])}</option>)}</select></label>
             </div>
@@ -63,6 +68,7 @@ export default function DecisionRoom() {
               {!rows.length && <div className="rv-empty">{L('لا بنود في هذا المسار بهذه التصفية. الفئات التي لا تدعمها البيانات لا تُولَّد بنودها.', 'No items in this lane with this filter. Categories the data does not support generate no items.')}</div>}
             </div>
             <div className="muted" style={{ fontSize: 12 }}>{L('الترتيب: 0.4 × المبلغ + 0.25 × العمر/الاستعجال + 0.25 × قابلية الإجراء + 0.1 × جودة الدليل (معادلة المنصة القائمة). ', 'Ranking: 0.4 × amount + 0.25 × aging/urgency + 0.25 × actionability + 0.1 × evidence quality (the platform’s existing formula). ')}<Link to="/insights">{L('العودة إلى لوحة المعلومات', 'Back to the dashboard')}</Link></div>
+            </div>
           </>
         )}
       </AsyncBlock>

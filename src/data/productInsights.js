@@ -1,10 +1,11 @@
+import { localize } from '../utils/zh';
 // Product management (IIM-24): the groups of products, their figures from the shared KPI module, and the ONE-LINE main challenge of each product — derived from its own numbers, never invented.
 import { PRODUCT_GROUPS, PRODUCTS } from './iim.js';
 import { ratio } from './revenueMetrics.js';
 
 export const groupId = (keys) => keys.join('-');
 export const groupByKey = (id) => PRODUCT_GROUPS.find((g) => groupId(g) === id) || null;
-export const groupName = (keys, lang) => keys.map((k) => (lang === 'ar' ? PRODUCTS[k].ar : PRODUCTS[k].en)).join(lang === 'ar' ? ' و' : ' & ');
+export const groupName = (keys, lang) => keys.map((k) => (lang === 'ar' ? PRODUCTS[k].ar : localize(PRODUCTS[k].en, lang))).join(lang === 'ar' ? ' و' : ' & ');
 
 const sumKeys = ['count', 'gross', 'exclusions', 'exclusionsRules', 'net', 'collected', 'outstanding', 'overdueOutstanding', 'notDueOutstanding', 'excludedCount', 'cancelled'];
 /** one product group = the sum of its products' aggregates (byProduct rows of a snapshot) */

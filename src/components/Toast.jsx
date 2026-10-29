@@ -1,5 +1,8 @@
+import UISymbol from './UISymbol';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useI18n } from '../context/I18nContext';
+import { localize } from '../utils/zh';
 
 const ToastContext = createContext(null);
 
@@ -10,30 +13,32 @@ function uid() {
 function iconFor(type) {
   switch (type) {
     case 'success':
-      return '✓';
+      return <UISymbol name="check" size={20} />;
     case 'error':
-      return '!';
+      return <UISymbol name="warning" size={20} />;
     case 'warning':
-      return '!';
+      return <UISymbol name="warning" size={20} />;
     default:
-      return 'i';
+      return <UISymbol name="info" size={20} />;
   }
 }
 
 function iconBg(type) {
   switch (type) {
     case 'success':
-      return { background: 'rgba(71, 205, 137, 0.16)', color: 'var(--green)' };
+      return { background: 'var(--ui-tint)', color: 'var(--ui-green-text)' };
     case 'error':
-      return { background: 'rgba(249, 112, 102, 0.14)', color: 'var(--red)' };
+      return { background: 'color-mix(in srgb, var(--error-text) 10%, var(--surface))', color: 'var(--error-text)' };
     case 'warning':
-      return { background: 'rgba(253, 176, 34, 0.14)', color: 'var(--orange)' };
+      return { background: 'color-mix(in srgb, var(--warning-text) 10%, var(--surface))', color: 'var(--warning-text)' };
     default:
-      return { background: 'rgba(83, 177, 253, 0.12)', color: 'var(--blue)' };
+      return { background: 'color-mix(in srgb, var(--info-text) 10%, var(--surface))', color: 'var(--info-text)' };
   }
 }
 
 export function ToastProvider({ children }) {
+  const { lang } = useI18n();
+  const label = (en, ar) => lang === 'ar' ? ar : localize(en, lang);
   const [items, setItems] = useState([]);
   const timers = useRef(new Map());
 
@@ -88,7 +93,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={api}>
       {children}
       {createPortal(
-        <div className="toast-stack" role="region" aria-label="Notifications">
+        <div className="toast-stack" role="region" aria-label={label('Notifications', 'الإشعارات')}>
           {items.map((t) => {
             const bg = iconBg(t.type);
             return (
@@ -98,8 +103,8 @@ export function ToastProvider({ children }) {
                     {iconFor(t.type)}
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div className="toast__title">{t.title}</div>
-                    {t.message ? <div className="toast__msg">{t.message}</div> : null}
+                    <div className="toast__title">{lang === 'ar' ? ({ Notice: 'تنبيه', Success: 'نجاح', Error: 'خطأ', Warning: 'تحذير' }[t.title] || t.title) : localize(t.title, lang)}</div>
+                    {t.message ? <div className="toast__msg">{localize(t.message, lang)}</div> : null}
                   </div>
                   <button
                     className="btn btn-ghost btn-sm"
@@ -108,14 +113,12 @@ export function ToastProvider({ children }) {
                       e.stopPropagation();
                       remove(t.id);
                     }}
-                    aria-label="Close"
+                    aria-label={label('Close', 'إغلاق')}
                     type="button"
-                  >
-                    ×
-                  </button>
+                  ><UISymbol name="close" /></button>
                 </div>
                 <div className="toast__bar">
-                  <i style={{ animationDuration: `${t.duration}ms` }} />
+                  <i style={{ animationDuration: `${t.duration}ms`, background: bg.color }} />
                 </div>
               </div>
             );

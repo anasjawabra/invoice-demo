@@ -1,3 +1,4 @@
+import { localize } from './zh';
 // ============================================================================
 // ONE central money formatter.
 //
@@ -8,9 +9,9 @@
 // Exact SAR stays available in tooltips, invoice/evidence tables and exports. Never apply this to ratios, counts, days or identifiers.
 // ============================================================================
 export const UNITS = {
-  B: { key: 'B', div: 1e9, ar: 'مليار', en: 'bn' },
-  M: { key: 'M', div: 1e6, ar: 'مليون', en: 'M' },
-  K: { key: 'K', div: 1e3, ar: 'ألف', en: 'K' },
+  B: { key: 'B', div: 1e9, ar: 'مليار', en: 'bn', zh: '十亿' },
+  M: { key: 'M', div: 1e6, ar: 'مليون', en: 'M', zh: '百万' },
+  K: { key: 'K', div: 1e3, ar: 'ألف', en: 'K', zh: '千' },
   S: { key: 'S', div: 1, ar: '', en: '' }
 };
 // threshold slightly under the next unit so 999.99 M reads «1 مليار», never «1,000 مليون»
@@ -22,7 +23,7 @@ export function pickUnit(maxAbs) {
   return UNITS.S;
 }
 // one currency style per language: «ريال» in Arabic text, «SAR» in English (the ISO code stays in file columns, ids and exact-amount sheets)
-export const unitLabel = (u, lang = 'ar') => `${u.key === 'S' ? '' : `${lang === 'ar' ? u.ar : u.en} `}${lang === 'ar' ? 'ريال' : 'SAR'}`;
+export const unitLabel = (u, lang = 'ar') => `${u.key === 'S' ? '' : `${lang === 'ar' ? u.ar : lang === 'zh' ? u.zh : u.en} `}${lang === 'ar' ? 'ريال' : lang === 'zh' ? '沙特里亚尔' : 'SAR'}`;
 export const unitOfValues = (values) => pickUnit(Math.max(0, ...(values || []).map((v) => Math.abs(Number(v) || 0))));
 
 const trim = (s) => (s.includes('.') ? s.replace(/0+$/, '').replace(/\.$/, '') : s);
@@ -63,14 +64,14 @@ export const fmtBn = fmtMoney;
 export function fmtSar(amountSar, lang = 'en') {
   const a = Number(amountSar);
   if (!Number.isFinite(a)) return '—';
-  return `${a.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${lang === 'ar' ? 'ريال' : 'SAR'}`;
+  return `${a.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${lang === 'ar' ? 'ريال' : localize('SAR', lang)}`;
 }
 
 // Chart helper: ONE unit for the whole chart, its axis title, ticks and tooltips.
 export function chartUnit(values, lang = 'ar') {
   const unit = unitOfValues(values);
   return {
-    unit, title: lang === 'ar' ? `القيمة — ${unitLabel(unit, 'ar')}` : `Value — ${unitLabel(unit, 'en')}`,
+    unit, title: lang === 'ar' ? `القيمة — ${unitLabel(unit, 'ar')}` : lang === 'zh' ? `金额 — ${unitLabel(unit, 'zh')}` : `Value — ${unitLabel(unit, 'en')}`,
     tick: (v) => scaled(v, unit), fmt: (v) => fmtMoney(v, { lang, unit })
   };
 }
@@ -84,7 +85,7 @@ export function fmtInvoices(n, { lang = 'ar', short = false } = {}) {
   if (short && v >= 10000) {
     const k = v / 1000;
     const s = k >= 1000 ? `${trim((k / 1000).toFixed(2))} ${lang === 'ar' ? 'مليون' : 'M'}` : `${trim(k.toFixed(k >= 100 ? 0 : 1))} ${lang === 'ar' ? 'ألف' : 'K'}`;
-    return `${s} ${lang === 'ar' ? 'فاتورة' : 'invoices'}`;
+    return `${s} ${lang === 'ar' ? 'فاتورة' : localize('invoices', lang)}`;
   }
-  return `${fmtInt(v)} ${lang === 'ar' ? 'فاتورة' : v === 1 ? 'invoice' : 'invoices'}`;
+  return `${fmtInt(v)} ${lang === 'ar' ? 'فاتورة' : lang === 'zh' ? '张发票' : v === 1 ? 'invoice' : 'invoices'}`;
 }

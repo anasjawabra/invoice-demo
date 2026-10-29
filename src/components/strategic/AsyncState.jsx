@@ -22,7 +22,7 @@ export function AsyncBlock({ state, onRetry, empty = false, emptyText, height = 
     <>
       {errBox}
       {state.loading && !state.error && <div className="muted" role="status" style={{ fontSize: 12 }}>{L('جارٍ تحديث هذا القسم…', 'Updating this section…')}</div>}
-      <div style={state.error ? { opacity: 0.55 } : undefined}>{children}</div>
+      <div className="st-async-content" style={state.error ? { opacity: 0.55 } : undefined}>{children}</div>
     </>
   );
 }

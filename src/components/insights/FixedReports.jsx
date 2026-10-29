@@ -1,3 +1,4 @@
+import UISymbol from '../UISymbol';
 // «التقارير الثابتة» — predefined reports that open directly (no prompt) under the shared filters and export exactly what is shown.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRevenue } from '../../context/RevenueContext';
@@ -53,7 +54,7 @@ function ReportBody({ def }) {
 }
 
 export default function FixedReports({ reportKey, setReport }) {
-  const { L, B, ar } = useAr();
+  const { L, B, ar , lang } = useAr();
   const def = FIXED_REPORTS.find((r) => r.key === reportKey);
   // After the user opens or leaves a report the control they pressed is gone: put keyboard focus on the new heading (not on first load).
   const head = useRef(null); const seen = useRef(reportKey);
@@ -62,7 +63,7 @@ export default function FixedReports({ reportKey, setReport }) {
     return (
       <div style={{ display: 'grid', gap: 12 }}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setReport(null)}>{ar ? '→' : '←'} {L('كل التقارير الثابتة', 'All fixed reports')}</button>
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => setReport(null)}>{ar ? <UISymbol name="right" /> : <UISymbol name="left" />} {L('كل التقارير الثابتة', 'All fixed reports')}</button>
           <h2 ref={head} tabIndex={-1} style={{ margin: 0, fontSize: 18 }}>{B({ ar: def.ar, en: def.en })}</h2>
           <select aria-label={L('تقرير آخر', 'Another report')} className="select" value={def.key} onChange={(e) => setReport(e.target.value)}>{FIXED_REPORTS.map((r) => <option key={r.key} value={r.key}>{B({ ar: r.ar, en: r.en })}</option>)}</select>
         </div>

@@ -1,3 +1,5 @@
+import { localize } from '../utils/zh';
+import UISymbol from '../components/UISymbol';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
@@ -79,7 +81,7 @@ export default function Invoices() {
   const toggleSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'id' ? 'asc' : 'desc' }));
   const th = (label, key) => (
     <th aria-sort={sort.key === SORTABLE[key] ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button type="button" className="rv-link" style={{ font: 'inherit', fontWeight: 700 }} onClick={() => toggleSort(SORTABLE[key])}>{label}{sort.key === SORTABLE[key] ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}</button>
+      <button type="button" className="rv-link" style={{ font: 'inherit', fontWeight: 700 }} onClick={() => toggleSort(SORTABLE[key])}>{label}{sort.key === SORTABLE[key] ? <UISymbol name={sort.dir === 'asc' ? 'up' : 'down'} /> : null}</button>
     </th>
   );
   const exportHref = rev.data.exportUrl(request.scope, { filters: request.filters, sort });
@@ -97,7 +99,7 @@ export default function Invoices() {
   if (idParam) return <Navigate to={invoicePath(idParam)} replace />; // the old «?id=» address of the former drawer
 
   return (
-    <div className="grid" style={{ gap: 14 }}>
+    <div className="grid" style={{ gap: 16 }}>
       <div className="page-head">
         <div>
           <h1 className="page-title">{t('invoices')}</h1>
@@ -107,8 +109,8 @@ export default function Invoices() {
 
       <ScopeBar hideStatus />
 
-      <div className="card card-pad" style={{ padding: '10px 14px' }} role="search" aria-label={bi.L('Invoice filters', 'تصفية الفواتير')}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <div className="card card-pad" style={{ padding: "12px 16px" }} role="search" aria-label={bi.L('Invoice filters', 'تصفية الفواتير')}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
         <input id="inv_search" className="input" style={{ flex: '1 1 220px', height: 32, minWidth: 180 }} placeholder={bi.L('Invoice, SADAD, subscription, violation, CR, payer or contract', 'فاتورة أو سداد أو اشتراك أو مخالفة أو سجل تجاري أو دافع أو عقد')} aria-label={bi.L('Search', 'بحث')} value={search} onChange={(e) => setSearch(e.target.value)} />
         <select id="f_state" className="select" aria-label={bi.L('Collection state', 'حالة التحصيل')} style={{ ...selStyle, minWidth: 180 }} value={collectionFilter} onChange={(e) => setCollectionFilter(e.target.value)}>
           <option value="all">{bi.L('All collected invoices (in full or in part)', 'كل الفواتير المحصّلة (كلياً أو جزئياً)')}</option>
@@ -136,12 +138,12 @@ export default function Invoices() {
           <div><span className="ip-k">{bi.L('Invoices', 'عدد الفواتير')}</span><b className="ip-big" dir="ltr">{bi.count(ST.count)}</b></div>
           <div><span className="ip-k">{bi.L('Total collected', 'إجمالي المحصّل')}</span><b className="ip-big" dir="ltr" title={bi.sar(ST.collected)}>{bi.short(ST.collected)}</b></div>
           <div><span className="ip-k">{bi.L('Collection rate', 'نسبة التحصيل')}</span><b className="ip-big">{ST.net > 0 ? <PctBadge v={ST.collected / ST.net} text={`${(Math.round((ST.collected / ST.net) * 1000) / 10).toFixed(1)}%`} /> : '—'}</b></div>
-          <div style={{ opacity: 0.65 }} title={bi.L('For reference — the main indicator is on the dashboard', 'للاطلاع – المؤشر الرئيسي في لوحة المؤشرات')}><span className="ip-k">{bi.L('Net billed (reference)', 'صافي المفوتر (للاطلاع)')}</span><b className="ip-big" dir="ltr" style={{ color: 'var(--txt-mute)', fontWeight: 600 }}>{bi.short(ST.net)}</b></div>
+          <div title={bi.L('For reference — the main indicator is on the dashboard', 'للاطلاع – المؤشر الرئيسي في لوحة المؤشرات')}><span className="ip-k">{bi.L('Net billed (reference)', 'صافي المفوتر (للاطلاع)')}</span><b className="ip-big" dir="ltr" style={{ color: 'var(--txt-mute)', fontWeight: 600 }}>{bi.short(ST.net)}</b></div>
         </div>
         {ST.net > 0 && <div className="ip-bar" role="img" aria-label={bi.L('Collected share of net billed', 'نسبة المحصّل من صافي المفوتر')}><i className="ip-bar__paid" style={{ width: `${Math.min(ST.collected / ST.net, 1) * 100}%`, background: pctColor('share', ST.collected / ST.net) }} /></div>}
         <div className="inv-stats__split" aria-label={bi.L('Collected by source', 'المحصّل حسب المصدر')}>
           <div><span className="ip-k">{bi.L('Collected by product', 'المحصّل حسب المنتج')}</span>
-            <ul className="inv-split">{byProduct.map((x) => <li key={x.key}><span>{lang === 'ar' ? PRODUCTS[x.key].ar : PRODUCTS[x.key].en}</span><b dir="ltr">{bi.short(x.collected)}</b></li>)}</ul></div>
+            <ul className="inv-split">{byProduct.map((x) => <li key={x.key}><span>{lang === 'ar' ? PRODUCTS[x.key].ar : localize(PRODUCTS[x.key].en, lang)}</span><b dir="ltr">{bi.short(x.collected)}</b></li>)}</ul></div>
           <div><span className="ip-k">{bi.L('Collected by invoice origin', 'المحصّل حسب مصدر الفاتورة')}</span>
             <ul className="inv-split">{byOrigin.map((x) => <li key={x.key}><span>{lang === 'ar' ? ORIGIN_AR[x.key] : ORIGIN_EN[x.key]}</span><b dir="ltr">{bi.short(x.collected)}</b></li>)}</ul></div>
         </div>
@@ -151,9 +153,9 @@ export default function Invoices() {
       <div className="card card-pad">
         <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{t('inv_ledger_note')} {bi.L('Amounts in this table are full SAR; cards above show one appropriate unit per amount.', 'المبالغ في هذا الجدول بالريال كاملة؛ والبطاقات أعلاه بوحدة واحدة مناسبة لكل مبلغ.')}</div>
         {filterMode === 'problem' && (
-          <div className="card" style={{ padding: '8px 12px', marginBottom: 10, background: 'rgba(180, 35, 24, 0.06)', border: '1px solid rgba(180, 35, 24, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+          <div className="card" style={{ padding: '8px 12px', marginBottom: 12, background: 'rgba(180, 35, 24, 0.06)', border: '1px solid rgba(180, 35, 24, 0.22)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 13, fontWeight: 700 }}>{t('inv_filter_problem_title')}</span>
-            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('filter'); return n; })}>{t('inv_filter_clear')} ×</button>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={() => setSearchParams((p) => { const n = new URLSearchParams(p); n.delete('filter'); return n; })}>{t('inv_filter_clear')}<UISymbol name="close" /></button>
           </div>
         )}
         {error && <div className="rv-callout rv-callout--bad" role="alert">{bi.L('The data service could not load this page.', 'تعذّر على خدمة البيانات تحميل هذه الصفحة.')} {String(error.message || '')}</div>}
@@ -185,24 +187,24 @@ export default function Invoices() {
                   onClick={(e) => openDetail(r)}
                   style={idParam === r.id ? { background: 'rgba(21, 112, 239, 0.08)' } : undefined}
                 >
-                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button><div className="muted" style={{ fontSize: 11, fontWeight: 400 }} dir="auto">{bi.L('Biller', 'المفوتر')} {r.billerId} · {bi.ar ? r.billerAr : r.billerEn}</div>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 6 }}>{lang === 'ar' ? 'مرفوع' : 'uploaded'}</span> : null}</td>
-                  <td>{lang === 'ar' ? r.payerAr : r.payerEn}</td>
-                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : r.amanahEn}{r.entityType === 'entity' && <span className="muted"> ({lang === 'ar' ? r.entityTypeAr : 'entity'})</span>}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : r.municipalityEn} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
-                  <td>{bi.ar ? r.productAr : r.productEn}{r.invoiceKindAr && <div className="muted" style={{ fontSize: 11 }}>{r.invoiceKindAr}</div>}</td>
-                  <td>{bi.ar ? r.originAr : (ORIGIN_EN[r.origin])}</td>
-                  <td>{bi.ar ? r.itemAr : r.itemEn}</td>
+                  <td style={{ fontWeight: 700 }} dir="ltr"><button type="button" className="rv-link" onClick={(e) => { e.stopPropagation(); openDetail(r); }} aria-label={`${viewLabel}: ${r.id}`}>{r.id}</button><div className="muted" style={{ fontSize: 12, fontWeight: 400 }} dir="auto">{bi.L('Biller', 'المفوتر')} {r.billerId} · {bi.ar ? r.billerAr : localize(r.billerEn, lang)}</div>{r.uploaded ? <span className="rv-tag" style={{ marginInlineStart: 8 }}>{lang === 'ar' ? 'مرفوع' : localize('uploaded', lang)}</span> : null}</td>
+                  <td>{lang === 'ar' ? r.payerAr : localize(r.payerEn, lang)}</td>
+                  <td>{lang === 'zh' ? r.amanahZh : lang === 'ar' ? r.amanahAr : localize(r.amanahEn, lang)}{r.entityType === 'entity' && <span className="muted"> ({lang === 'ar' ? r.entityTypeAr : localize('entity', lang)})</span>}{r.municipalityEn && <div className="muted" style={{ fontSize: 12 }}>{lang === 'ar' ? r.municipalityAr : localize(r.municipalityEn, lang)} · {r.scopeType === 'internal' ? bi.L('internal', 'داخلي') : bi.L('central', 'مركزي')}</div>}</td>
+                  <td>{bi.ar ? r.productAr : localize(r.productEn, lang)}{r.invoiceKindAr && <div className="muted" style={{ fontSize: 12 }}>{lang === 'zh' ? ({ occupancy: '入住申报', differences: '审计差额' }[r.invoiceKind] || r.invoiceKindAr) : r.invoiceKindAr}</div>}</td>
+                  <td>{bi.ar ? r.originAr : (localize(ORIGIN_EN[r.origin], lang))}</td>
+                  <td>{bi.ar ? r.itemAr : localize(r.itemEn, lang)}</td>
                   <td style={{ fontSize: 12 }}>{r.statusRawTahseel || '—'}{r.statusRawEfaa && r.statusRawEfaa !== r.statusRawTahseel && <div className="muted">{bi.L('Efaa', 'إيفاء')}: {r.statusRawEfaa}</div>}</td>
                   <td>
-                    <span className={`rv-cat rv-cat--${r.cls}`}>{r.cls === 'collected' ? (lang === 'ar' ? 'محصّلة' : 'Collected') : pickBi(CATEGORY_LABELS[r.cls], lang)}</span>
+                    <span className={`rv-cat rv-cat--${r.cls}`}>{r.cls === 'collected' ? (lang === 'ar' ? 'محصّلة' : localize('Collected', lang)) : pickBi(CATEGORY_LABELS[r.cls], lang)}</span>
                     {r.enforcement >= 2 && <span className={`rv-tag${r.enforcement === 3 ? ' rv-tag--warn' : ''}`} style={{ marginInlineStart: 4 }} title={bi.L('Enforcement is a separate dimension: it does not change the payment state', 'الإنفاذ بُعد منفصل: لا يغيّر حالة السداد')}>{r.enforcement === 2 ? bi.L('order not closed', 'أمر غير مغلق') : r.enforcement === 3 ? bi.L('order on hold', 'أمر معلّق') : bi.L('referred before', 'سبقت إحالتها')}</span>}
-                    {r.tags.includes('amount_conflict') && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'تعارض مبلغ' : 'amount conflict'}</span>}
-                    {r.tags.includes('contract_unmatched') && <span className="rv-tag rv-tag--warn" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'عقد غير مطابق' : 'contract not matched'}</span>}
-                    {r.tags.includes('exclusion_pending') && <span className="rv-tag" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'استبعاد قيد المراجعة' : 'exclusion pending'}</span>}
+                    {r.tags.includes('amount_conflict') && <span className="rv-tag rv-tag--bad" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'تعارض مبلغ' : localize('amount conflict', lang)}</span>}
+                    {r.tags.includes('contract_unmatched') && <span className="rv-tag rv-tag--warn" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'عقد غير مطابق' : localize('contract not matched', lang)}</span>}
+                    {r.tags.includes('exclusion_pending') && <span className="rv-tag" style={{ marginInlineStart: 4 }}>{lang === 'ar' ? 'استبعاد قيد المراجعة' : localize('exclusion pending', lang)}</span>}
                   </td>
                   <td dir="ltr">{bi.sar(r.gross)}{r.exclusions > 0 && <div className="muted" style={{ fontSize: 12 }}>{bi.L('excl.', 'استبعاد')} {bi.sar(r.exclusions)} · {bi.L('net', 'صافي')} {bi.sar(r.net)}</div>}</td>
                   <td dir="ltr">{bi.sar(r.outstanding)}{r.collected > 0 && <div className="muted" style={{ fontSize: 12 }}>{bi.L('collected', 'محصّل')} {bi.sar(r.collected)}</div>}</td>
-                  <td dir="ltr" title={r.issueDate}>{fmtDateText(r.issueDate, lang === 'ar' ? 'ar' : 'en')}</td>
-                  <td dir="ltr" title={r.dueDate}>{fmtDateText(r.dueDate, lang === 'ar' ? 'ar' : 'en')}</td>
+                  <td dir="ltr" title={r.issueDate}>{fmtDateText(r.issueDate, lang)}</td>
+                  <td dir="ltr" title={r.dueDate}>{fmtDateText(r.dueDate, lang)}</td>
                   <td dir="ltr">{r.daysOverdue > 0 ? r.daysOverdue : '—'}</td>
                   <td className="row-view">
                     <span className="row-view__link">{viewLabel}<span className="row-view__chev" aria-hidden="true">›</span></span>
@@ -213,12 +215,12 @@ export default function Invoices() {
             </tbody>
           </table>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }} role="navigation" aria-label={bi.L('Pages', 'الصفحات')}>
-          <button type="button" className="btn btn-sm" disabled={page <= 0} onClick={() => setPage(0)}>«</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }} role="navigation" aria-label={bi.L('Pages', 'الصفحات')}>
+          <button type="button" className="btn btn-sm" disabled={page <= 0} onClick={() => setPage(0)} aria-label={bi.L('First page', 'الصفحة الأولى')} title={bi.L('First page', 'الصفحة الأولى')}><UISymbol name={bi.ar ? 'last' : 'first'} /></button>
           <button type="button" className="btn btn-sm" disabled={page <= 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>{bi.L('Previous', 'السابق')}</button>
           <span className="muted" style={{ fontSize: 12 }} dir="ltr">{bi.count(Math.min(total, page * PAGE_SIZE + 1))}–{bi.count(Math.min(total, (page + 1) * PAGE_SIZE))} / {bi.count(total)} · {bi.L('page', 'صفحة')} {page + 1} / {bi.count(pages)}</span>
           <button type="button" className="btn btn-sm" disabled={page >= pages - 1} onClick={() => setPage((p) => Math.min(pages - 1, p + 1))}>{bi.L('Next', 'التالي')}</button>
-          <button type="button" className="btn btn-sm" disabled={page >= pages - 1} onClick={() => setPage(pages - 1)}>»</button>
+          <button type="button" className="btn btn-sm" disabled={page >= pages - 1} onClick={() => setPage(pages - 1)} aria-label={bi.L('Last page', 'الصفحة الأخيرة')} title={bi.L('Last page', 'الصفحة الأخيرة')}><UISymbol name={bi.ar ? 'first' : 'last'} /></button>
         </div>
       </div>
 

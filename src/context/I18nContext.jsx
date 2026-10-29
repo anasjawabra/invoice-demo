@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { translations } from '../data/i18n';
+import { zhText } from '../utils/zh';
 
 const I18nContext = createContext();
 
@@ -19,8 +20,8 @@ export function I18nProvider({ children }) {
 
   const t = useCallback((key) => {
     if (translations[lang] && translations[lang][key] != null) return translations[lang][key];
-    if (translations.en[key] != null) return translations.en[key];
-    return key;
+    if (translations.en[key] != null) return lang === 'zh' ? zhText(translations.en[key]) : translations.en[key];
+    return lang === 'zh' ? zhText(key) : key;
   }, [lang]);
 
   const T = useCallback((obj, field) => {

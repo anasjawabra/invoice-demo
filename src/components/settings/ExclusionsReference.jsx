@@ -2,12 +2,12 @@ import React from 'react';
 import { useL } from '../../utils/bi';
 import { EXCLUSIONS_REFERENCE as R } from '../../data/exclusionsReference';
 
-const split = (o, ar) => (ar ? o.ar : o.en).split('|');
+const split = (o, B) => B(o).split('|');
 
 /* مرجع: قائمة الاستبعادات (مخرجات جلسة 21 أكتوبر 2026) — منقولة من المستند المصدر، وليست اعتماداً جديداً */
 export default function ExclusionsReference() {
-  const { L, B, ar } = useL();
-  const head = split(R.table_head, ar);
+  const { L, B, ar , lang } = useL();
+  const head = split(R.table_head, B);
   return (
     <section className="card card-pad" id="exclusions-reference" aria-label={B(R.title)}>
       <div className="rv-card__head">
@@ -48,7 +48,7 @@ export default function ExclusionsReference() {
               <h4 className="h3" style={{ fontSize: 13 }}>{B(R.upload_title)}</h4>
               <div className="rv-table-wrap" tabIndex={0}>
                 <table className="rv-table dd-table">
-                  <thead><tr>{split(R.upload_head, ar).map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                  <thead><tr>{split(R.upload_head, B).map((h) => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>{R.upload.map((row, i) => <tr key={i}>{row.map((c, j) => <td key={j} dir="auto">{B(c)}</td>)}</tr>)}</tbody>
                 </table>
               </div>
@@ -60,7 +60,7 @@ export default function ExclusionsReference() {
               <h4 className="h3" style={{ fontSize: 13 }}>{B(R.objection_title)}</h4>
               <div className="rv-table-wrap" tabIndex={0}>
                 <table className="rv-table dd-table">
-                  <thead><tr>{split(R.objection_head, ar).map((h) => <th key={h}>{h}</th>)}</tr></thead>
+                  <thead><tr>{split(R.objection_head, B).map((h) => <th key={h}>{h}</th>)}</tr></thead>
                   <tbody>{R.objection.map((row, i) => <tr key={i}>{row.map((c, j) => <td key={j} dir="auto">{B(c)}</td>)}</tr>)}</tbody>
                 </table>
               </div>
@@ -72,7 +72,7 @@ export default function ExclusionsReference() {
       <h3 className="h3">{B(R.compare_title)}</h3>
       <div className="rv-table-wrap" tabIndex={0}>
         <table className="rv-table dd-table">
-          <thead><tr>{split(R.compare_head, ar).map((h) => <th key={h}>{h}</th>)}</tr></thead>
+          <thead><tr>{split(R.compare_head, B).map((h) => <th key={h}>{h}</th>)}</tr></thead>
           <tbody>{R.compare.map((row, i) => <tr key={i}>{row.map((c, j) => <td key={j} dir="auto">{B(c)}</td>)}</tr>)}</tbody>
         </table>
       </div>

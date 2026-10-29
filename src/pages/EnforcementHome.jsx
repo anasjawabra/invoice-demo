@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo, useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Pager from '../components/Pager';
@@ -35,7 +36,7 @@ const EXC_LABEL = {
 // (orders · referred invoices · related contracts · matching-review exceptions). It owns no data of its own.
 export default function EnforcementHome() {
   const rev = useRevenue();
-  const { L, B, ar, sar, count: fmt } = useL();
+  const { L, B, ar, sar, count: fmt , lang } = useL();
   const [sp, setSp] = useSearchParams();
   const view = VIEWS.includes(sp.get('view')) ? sp.get('view') : 'orders';
   const cases = rev.cases;
@@ -89,10 +90,10 @@ export default function EnforcementHome() {
           {card(inv.ever, L('Referred invoices', 'فواتير محالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('invoices') })}
           {card(eligibleN == null ? '…' : eligibleN, L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('eligible') })}
         </div>
-        {SHOW_INTERNAL_NOTES && <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>}
-        {SHOW_INTERNAL_NOTES && (<details className="oj-more" style={{ marginBlockStart: 6 }}>
+        {SHOW_INTERNAL_NOTES && <div className="muted" style={{ fontSize: 12, marginBlockStart: 8 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>}
+        {SHOW_INTERNAL_NOTES && (<details className="oj-more" style={{ marginBlockStart: 8 }}>
           <summary>{L('Breakdown of the counts', 'تفاصيل الأعداد')}</summary>
-          <div className="rp-tablewrap" tabIndex={0} style={{ marginBlockStart: 6 }}>
+          <div className="rp-tablewrap" tabIndex={0} style={{ marginBlockStart: 8 }}>
             <table aria-label={L('Counts', 'الأعداد')}>
               <thead><tr><th>{L('Unit', 'الوحدة')}</th><th>{L('Count', 'العدد')}</th><th className="num">{L('Number', 'العدد')}</th></tr></thead>
               <tbody>
@@ -141,9 +142,9 @@ function LegacyRecords() {
       <summary><b>{L(`${ids.length} saved record(s) under an old order number were not applied`, `${ids.length} سجل محفوظ بأرقام أوامر قديمة لم يُطبَّق على أي أمر`)}</b></summary>
       <div style={{ fontSize: 13 }}>{L('Order numbers of the demo samples were renumbered after these were saved, so they cannot be matched to an order safely. Nothing was deleted. Restore a record only to the order you know it belongs to.', 'أُعيد ترقيم بعض أوامر العرض بعد حفظ هذه السجلات، فلا يمكن ربطها بأمر بأمان. لم يُحذف شيء. استعد السجل فقط إلى الأمر الذي تعرف أنه يخصه.')}</div>
       {msg && <div role="status" className={msg.ok ? 'rp-ok' : 'rp-bad'}>{msg.t}</div>}
-      <ul style={{ margin: '6px 0 0', paddingInlineStart: 18 }}>{ids.map((id) => { const r = rev.legacyRecords[id]; const docs = Object.values(r.docs || {}); const links = Object.values(r.links || {}); return (
-        <li key={id} style={{ marginBlockEnd: 6 }}><b dir="ltr">{id}</b> · {L(`${docs.length} document(s), ${links.length} link(s)`, `${docs.length} مستند، ${links.length} رابط`)}{docs[0] ? <span dir="ltr" className="muted"> · {docs[0].name}</span> : null}
-          <div className="oj-row" style={{ marginBlockStart: 3 }}><label style={{ fontSize: 12 }}>{L('Restore to', 'استعادة إلى')} <select className="input" value={target[id] || ''} onChange={(e) => setTarget((m) => ({ ...m, [id]: e.target.value }))}><option value="">—</option>{targets.map((c) => <option key={c.enforceNum} value={c.enforceNum}>{c.source?.requestNo || ''} · {c.enforceNum}</option>)}</select></label>
+      <ul style={{ margin: '6px 0 0', paddingInlineStart: 20 }}>{ids.map((id) => { const r = rev.legacyRecords[id]; const docs = Object.values(r.docs || {}); const links = Object.values(r.links || {}); return (
+        <li key={id} style={{ marginBlockEnd: 8 }}><b dir="ltr">{id}</b> · {L(`${docs.length} document(s), ${links.length} link(s)`, `${docs.length} مستند، ${links.length} رابط`)}{docs[0] ? <span dir="ltr" className="muted"> · {docs[0].name}</span> : null}
+          <div className="oj-row" style={{ marginBlockStart: 4 }}><label style={{ fontSize: 12 }}>{L('Restore to', 'استعادة إلى')} <select className="input" value={target[id] || ''} onChange={(e) => setTarget((m) => ({ ...m, [id]: e.target.value }))}><option value="">—</option>{targets.map((c) => <option key={c.enforceNum} value={c.enforceNum}>{c.source?.requestNo || ''} · {c.enforceNum}</option>)}</select></label>
             <button type="button" className="btn btn-sm" disabled={!target[id] || !rev.canReview} onClick={() => { const r = rev.enforcement.restoreLegacy(id, target[id]); setMsg(r.ok ? { ok: true, t: L('Restored.', 'تمت الاستعادة.') } : { ok: false, t: L('Could not restore (the order already has its own record).', 'تعذّرت الاستعادة (للأمر سجل خاص به بالفعل).') }); }}>{L('Restore', 'استعادة')}</button></div></li>); })}</ul>
     </details>
   );
@@ -151,7 +152,7 @@ function LegacyRecords() {
 
 // «الفواتير القابلة للإحالة» — very important for the business: overdue invoices that can be referred to execution now.
 function EligibleInvoices() {
-  const rev = useRevenue(); const { L, ar, sar } = useL();
+  const rev = useRevenue(); const { L, ar, sar , lang } = useL();
   const [page, setPage] = useState(0);
   const req = useMemo(() => ({ ...rev.scopeEff, from: '2000-01-01', to: rev.cfg.cutoff }), [rev.scopeEff, rev.cfg.cutoff]);
   const { data } = useAsync(() => rev.data.list(req, { filters: { eligible: true, allPeriods: true }, page, pageSize: 25, sort: { key: 'outstanding', dir: 'desc' } }), [rev.data, req, page, rev.dataVersion]);
@@ -163,7 +164,7 @@ function EligibleInvoices() {
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
         <thead><tr><th>{L('Invoice', 'رقم الفاتورة')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Product', 'اسم المنتج')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th></tr></thead>
         <tbody>{rows.map((r) => (
-          <tr key={r.id}><td><RecordLink to={invoicePath(r.id)} dir="ltr"><b>{r.id}</b></RecordLink></td><td>{ar ? r.amanahAr : r.amanahEn}</td><td>{ar ? r.productAr : r.productEn}</td><td className="num" dir="ltr">{sar(r.outstanding)}</td><td dir="ltr">{r.dueDate}</td><td className="num">{r.daysOverdue}</td></tr>
+          <tr key={r.id}><td><RecordLink to={invoicePath(r.id)} dir="ltr"><b>{r.id}</b></RecordLink></td><td>{ar ? r.amanahAr : localize(r.amanahEn, lang)}</td><td>{ar ? r.productAr : localize(r.productEn, lang)}</td><td className="num" dir="ltr">{sar(r.outstanding)}</td><td dir="ltr">{r.dueDate}</td><td className="num">{r.daysOverdue}</td></tr>
         ))}
         {!rows.length && <tr><td colSpan={6} className="muted">{L('No invoice is eligible for referral in this scope.', 'لا فواتير قابلة للإحالة في هذا النطاق.')}</td></tr>}</tbody>
       </table></div>
@@ -207,7 +208,7 @@ function ReferredInvoices({ idx }) {
 }
 
 function RelatedContracts({ items }) {
-  const { L, B, ar, sar, short } = useL();
+  const { L, B, ar, sar, short , lang } = useL();
   const [page, setPage] = useState(0);
   const view = items.slice(page * 25, (page + 1) * 25);
   return (
@@ -217,8 +218,8 @@ function RelatedContracts({ items }) {
         <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Order and the contract', 'الأمر والعقد')}</th><th>{L('Invoices referred', 'فواتير محالة')}</th></tr></thead>
         <tbody>{view.map(({ k, direct, mentioned, ids, referred, open }) => (
           <tr key={k.contractNo}>
-            <td><RecordLink to={contractPath(k.contractNo)} dir="ltr"><b>{k.contractNo}</b></RecordLink><div className="muted" style={{ fontSize: 12 }}>{amanahName(k.amanahEn, ar)}</div></td>
-            <td dir="auto">{ar ? k.tenantAr : k.tenantEn}</td>
+            <td><RecordLink to={contractPath(k.contractNo)} dir="ltr"><b>{k.contractNo}</b></RecordLink><div className="muted" style={{ fontSize: 12 }}>{amanahName(k.amanahEn, lang)}</div></td>
+            <td dir="auto">{ar ? k.tenantAr : localize(k.tenantEn, lang)}</td>
             <td style={{ fontSize: 12 }}>{direct.length ? direct.map((c) => <div key={c.enforceNum}><RecordLink to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</RecordLink> <OrderStatusChip status={c.orderStatus} /> <span className="rv-tag rv-tag--ok">{L('directly referred', 'محال مباشرة')}</span></div>) : <span className="muted">{L('no direct referral', 'لا إحالة مباشرة')}</span>}{mentioned.map((c) => <div key={c.enforceNum}><RecordLink to={orderPath(c.enforceNum)} dir="ltr">{c.enforceNum}</RecordLink> <OrderStatusChip status={c.orderStatus} /> <span className="rv-tag rv-tag--warn">{L('mentioned only — review', 'مذكور فقط — مراجعة')}</span></div>)}</td>
             <td style={{ fontSize: 12 }}>{referred.length ? <><b>{referred.length}</b> {L('of', 'من')} {ids.length} {L('invoiced installments', 'دفعات مفوترة')}{open.length ? <> · {open.length} {L('with an open order', 'بأمر مفتوح')}</> : null}</> : <span className="muted">{L(`none of ${ids.length}`, `لا شيء من ${ids.length}`)}</span>}</td>
           </tr>))}

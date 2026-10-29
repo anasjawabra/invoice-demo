@@ -1,3 +1,4 @@
+import { localize } from '../../utils/zh';
 // The ONE compact, expandable filter context shared by the dashboard, the fixed reports and the planning baseline.
 import React, { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -11,14 +12,14 @@ import { sourceAr, sourceEn } from '../../data/insightsEngine';
 import { fmtRangeText } from '../../data/clock';
 
 export default function FilterChips() {
-  const rev = useRevenue(); const { L, ar } = useAr(); const s = rev.scopeEff; const [open, setOpen] = useState(false);
-  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
+  const rev = useRevenue(); const { L, ar , lang } = useAr(); const s = rev.scopeEff; const [open, setOpen] = useState(false);
+  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : localize(a.en, lang)) : k; }, [ar, lang]);
   const chips = useMemo(() => {
     const am = s.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(s.amanah).map(labelOfAmanah).join('، ');
-    const mu = s.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(s.muni).split('|')[0]).find((m) => m && m.key === s.muni)?.[ar ? 'ar' : 'en'] || s.muni);
-    const st = { all: null, collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[s.status || 'all'];
-    return [[L('الفترة', 'Period'), fmtRangeText(s.from, s.to, ar ? 'ar' : 'en')], [L('الأمانة / الجهة', 'Amanah'), am], [L('البلدية', 'Municipality'), mu], [L('المصدر', 'Source'), s.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(s.source) : sourceEn(s.source))], ...(st ? [[L('الحالة', 'Status'), st]] : [])];
-  }, [s, ar, L, labelOfAmanah]);
+    const mu = s.muni === 'all' ? L('كل البلديات', 'All municipalities') : (localize(municipalitiesOf(String(s.muni).split('|')[0]).find((m) => m && m.key === s.muni)?.[ar ? 'ar' : 'en'], lang) || s.muni);
+    const st = { all: null, collected: L('محصّلة', 'Collected'), open: lang === 'zh' ? '未结' : L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[s.status || 'all'];
+    return [[L('الفترة', 'Period'), fmtRangeText(s.from, s.to, lang)], [L('الأمانة / الجهة', 'Amanah'), am], [L('البلدية', 'Municipality'), mu], [L('المصدر', 'Source'), s.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(s.source) : localize(sourceEn(s.source), lang))], ...(st ? [[L('الحالة', 'Status'), st]] : [])];
+  }, [s, ar, L, labelOfAmanah, lang]);
   // how many filters differ from the defaults (year to date · everything) — and one click to go back
   const active = [rev.scope.preset !== 'ytd', s.amanah !== 'all', s.muni !== 'all', s.source !== 'all', (s.status || 'all') !== 'all'].filter(Boolean).length;
   // F-20: the calculation settings (grace days, collection basis, CR statuses, rules) change every figure — say so when they are not the defaults

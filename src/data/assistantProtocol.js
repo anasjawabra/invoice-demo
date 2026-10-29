@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ============================================================================
 // Assistant answer protocol (10 steps). Pure.
 //
@@ -47,7 +48,7 @@ export function concentrationBy(snapshot, key) {
 export function buildProtocolAnswer(intent, out, ctx) {
   const lang = ctx.lang || 'en';
   const ar = lang === 'ar';
-  const L = (en, a) => (ar ? a : en);
+  const L = (en, a) => (ar ? a : localize(en, lang));
   const M = (n) => fmtBn(n || 0, { lang });
   const snap = out.snapshot;
   const base = answerFor(intent === 'uncollected' || intent === 'why_decline' ? 'overview' : intent, out, ctx);

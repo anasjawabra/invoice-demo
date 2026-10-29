@@ -1,3 +1,5 @@
+import { localize } from '../../utils/zh';
+import UISymbol from '../UISymbol';
 import React, { useState } from 'react';
 import { RecordLink as Link } from '../../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../../utils/paths';
@@ -13,7 +15,7 @@ const cell = (v) => (v === null || v === undefined || v === '' ? '—' : typeof 
 
 // The original-source view of ONE unified invoice: which systems carry it, the original column names, the related records and the assumptions applied.
 export default function SourceRecordSection({ sr }) {
-  const { L, B, ar, sar } = useL();
+  const { L, B, ar, sar , lang } = useL();
   const [open, setOpen] = useState({});
   if (!sr) return null;
   const ids = sr.assumptions || [];
@@ -24,12 +26,12 @@ export default function SourceRecordSection({ sr }) {
         <div className="idd-section__sub">{L('Revenue source (activity) is separate from the supplying system and from the import version. One unified invoice, counted once.', 'مصدر الإيراد (النشاط) منفصل عن النظام المورّد وعن نسخة الاستيراد. فاتورة موحدة واحدة تُحتسب مرة.')}</div>
       </div>
       <div className="rv-kvgrid">
-        <div className="rv-kv"><span className="rv-kv__k">{L('Revenue source', 'مصدر الإيراد')}</span><span className="rv-kv__v">{sr.sourceLabel ? B(sr.sourceLabel) : sr.family} · {ar ? sr.item.ar : sr.item.en}</span></div>
+        <div className="rv-kv"><span className="rv-kv__k">{L('Revenue source', 'مصدر الإيراد')}</span><span className="rv-kv__v">{sr.sourceLabel ? B(sr.sourceLabel) : sr.family} · {ar ? sr.item.ar : localize(sr.item.en, lang)}</span></div>
         <div className="rv-kv"><span className="rv-kv__k">{L('Supplying system', 'النظام المورّد')}</span><span className="rv-kv__v" dir="auto">{sr.providingSystem}</span></div>
         <div className="rv-kv"><span className="rv-kv__k">{L('Import version', 'نسخة الاستيراد')}</span><span className="rv-kv__v" dir="ltr">v{sr.importVersion}</span></div>
         <div className="rv-kv"><span className="rv-kv__k">{L('Record level', 'مستوى السجل')}</span><span className="rv-kv__v" dir="auto">{sr.level ? B(sr.level) : '—'}</span></div>
       </div>
-      <p className="rv-sec-sub" style={{ marginTop: 6 }}>{B(sr.linkSummary)}</p>
+      <p className="rv-sec-sub" style={{ marginTop: 8 }}>{B(sr.linkSummary)}</p>
 
       <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
         <thead><tr><th>{L('System', 'النظام')}</th><th>{L('Dataset', 'المجموعة')}</th><th>{L('Role', 'الدور')}</th><th>{L('Key field', 'حقل الربط')}</th><th>{L('Key', 'المفتاح')}</th><th>{L('Version', 'النسخة')}</th></tr></thead>
@@ -42,7 +44,7 @@ export default function SourceRecordSection({ sr }) {
       </table></div>
 
       {sr.related.map((x, k) => (
-        <div key={k} className="rv-callout" style={{ marginTop: 6 }}>
+        <div key={k} className="rv-callout" style={{ marginTop: 8 }}>
           <b>{B(x.label)}</b>
           {x.invoiceId && <> · <Link to={invoicePath(x.invoiceId)} dir="ltr">{x.invoiceId}</Link></>}
           {x.deedNo && <> · <span dir="ltr">{x.deedNo}</span></>}
@@ -52,12 +54,12 @@ export default function SourceRecordSection({ sr }) {
           )}
         </div>
       ))}
-      {(sr.notes || []).map((n, k) => <div key={k} className="rv-callout rv-callout--warn" style={{ marginTop: 6 }}>{B(n)}</div>)}
+      {(sr.notes || []).map((n, k) => <div key={k} className="rv-callout rv-callout--warn" style={{ marginTop: 8 }}>{B(n)}</div>)}
 
       {sr.views.map((v) => (
-        <div key={v.id} style={{ marginTop: 10 }}>
+        <div key={v.id} style={{ marginTop: 12 }}>
           <button type="button" className="btn btn-sm btn-ghost btn-wrap" aria-expanded={!!open[v.id]} onClick={() => setOpen((o) => ({ ...o, [v.id]: !o[v.id] }))}>
-            {open[v.id] ? '▾' : '▸'} <span dir="ltr">{v.id}</span> — {B(v.title)} <span className="muted" dir="ltr">({v.table} · {v.fields.length})</span>
+            {open[v.id] ? <UISymbol name="down" /> : <UISymbol name="expand" />} <span dir="ltr">{v.id}</span> — {B(v.title)} <span className="muted" dir="ltr">({v.table} · {v.fields.length})</span>
           </button>
           {open[v.id] && (
             <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
@@ -69,8 +71,8 @@ export default function SourceRecordSection({ sr }) {
       ))}
 
       {sr.revenueLines?.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <button type="button" className="btn btn-sm btn-ghost btn-wrap" aria-expanded={!!open.__lines} onClick={() => setOpen((o) => ({ ...o, __lines: !o.__lines }))}>{open.__lines ? '▾' : '▸'} ENT_REVENUES — {L('Incorta revenue lines', 'بنود الإيراد في إنكورتا')} ({sr.revenueLines.length})</button>
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-sm btn-ghost btn-wrap" aria-expanded={!!open.__lines} onClick={() => setOpen((o) => ({ ...o, __lines: !o.__lines }))}>{open.__lines ? <UISymbol name="down" /> : <UISymbol name="expand" />} ENT_REVENUES — {L('Incorta revenue lines', 'بنود الإيراد في إنكورتا')} ({sr.revenueLines.length})</button>
           {open.__lines && (
             <div className="rv-table-wrap" tabIndex={0}><table className="rv-table" style={{ minWidth: 0 }}>
               <thead><tr><th dir="ltr">DETAIL_ID</th><th dir="ltr">ACCOUNT_NO</th><th>GFS</th><th className="num" dir="ltr">DETAIL_AMOUNT</th><th className="num" dir="ltr">TOTAL_AMOUNT</th><th>{L('Status', 'الحالة')}</th></tr></thead>
@@ -82,7 +84,7 @@ export default function SourceRecordSection({ sr }) {
       )}
 
       {ids.length > 0 && (
-        <details style={{ marginTop: 10 }}>
+        <details style={{ marginTop: 12 }}>
           <summary style={{ cursor: 'pointer', fontSize: 12 }}>{L(`Demo assumptions applied (${ids.length})`, `الافتراضات التجريبية المطبقة (${ids.length})`)}</summary>
           <ul className="rv-list" style={{ fontSize: 12 }}>{ASSUMPTIONS.filter((a) => ids.includes(a.id)).map((a) => <li key={a.id}><b dir="ltr">{a.id}</b> — <span dir="auto">{B(a.text)}</span></li>)}</ul>
           <small className="muted">{L('Not ministry-approved rules; editable in src/data/sourceAssumptions.js.', 'ليست قواعد معتمدة من الوزارة؛ وقابلة للتعديل في src/data/sourceAssumptions.js.')}</small>

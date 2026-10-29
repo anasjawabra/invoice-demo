@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ============================================================================
 // Metric dictionary — ONE entry per metric, shown on the "Metric dictionary" page
 // and behind the (?) on every tile. Each entry carries: definition, formula,
@@ -88,8 +89,8 @@ const SOURCE_LABEL = {
 
 export function scopeText(scope, lang = 'ar') {
   if (!scope) return '—';
-  const am = scope.amanah === 'all' ? (lang === 'ar' ? 'كل الأمانات والجهات' : 'all Amanahs') : [].concat(scope.amanah).join(', ');
-  const src = scope.source === 'all' ? (lang === 'ar' ? 'كل مصادر الإيراد' : 'all revenue sources') : scope.source;
+  const am = scope.amanah === 'all' ? (lang === 'ar' ? 'كل الأمانات والجهات' : localize('all Amanahs', lang)) : [].concat(scope.amanah).join(', ');
+  const src = scope.source === 'all' ? (lang === 'ar' ? 'كل مصادر الإيراد' : localize('all revenue sources', lang)) : scope.source;
   return `${am} · ${src} · ${scope.from} → ${scope.to}`;
 }
 
@@ -107,7 +108,7 @@ export function metricDictionary(snapshot) {
   const asOf = snapshot.cutoff;
   return ENTRIES.map((e) => ({
     ...e,
-    scope: { ar: scopeText(snapshot.scope, 'ar'), en: scopeText(snapshot.scope, 'en') },
+    scope: { ar: scopeText(snapshot.scope, 'ar'), en: scopeText(snapshot.scope, 'en'), zh: scopeText(snapshot.scope, 'zh') },
     sourceLabels: e.sources.map((s) => SOURCE_LABEL[s] || BI(s, s)),
     updatedAt: asOf,
     ruleVersion: EXCLUSION_RULE_SET_VERSION,

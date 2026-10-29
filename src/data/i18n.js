@@ -23,7 +23,7 @@ export const translations = {
     nav_proc: '账单智能处理',
     nav_hub: '智能中枢',
     dashboard: '经营仪表盘',
-    invoices: '账单库',
+    invoices: '已收款发票列表',
     approvals: '审批中心',
     risk: '风险雷达',
     collection: '催收预测',

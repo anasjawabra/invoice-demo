@@ -24,7 +24,10 @@
     "sample:exclusion": "esbuild scripts/make-exclusion-sample.mjs --bundle --platform=node --format=esm --log-level=error --external:xlsx --external:jszip --outfile=.test-build/make-exclusion-sample.mjs && node .test-build/make-exclusion-sample.mjs"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "@hugeicons/react": "^1.1.10",
     "chart.js": "^4.4.4",
     "docx": "^9.7.1",
     "jszip": "^3.10.1",

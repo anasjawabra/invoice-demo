@@ -9,6 +9,7 @@
 import { detectFormat } from './docText';
 import { readPdfPages, loadPdfLib } from './pdfText';
 import { readDocxPages } from './docxText';
+import { localizedObject } from '../utils/zh';
 
 export const MAX_FILES = 6;
 export const MAX_BYTES = 15 * 1024 * 1024;
@@ -17,7 +18,7 @@ export const ACCEPT = '.pdf,.docx,.xlsx,.xls,.csv,.pptx,.png,.jpg,.jpeg,.gif,.we
 
 const EXT = (name) => String(name || '').toLowerCase().split('.').pop();
 export const KIND_LABEL = { pdf: 'PDF', docx: 'Word', sheet: 'Excel', csv: 'CSV', pptx: 'PowerPoint', image: { ar: 'صورة', en: 'Image' }, doc: 'Word (.doc)', ppt: 'PowerPoint (.ppt)', unknown: { ar: 'غير معروف', en: 'Unknown' } };
-export const kindLabel = (k, ar) => { const v = KIND_LABEL[k] ?? k; return typeof v === 'string' ? v : v[ar ? 'ar' : 'en']; };
+export const kindLabel = (k, ar) => localizedObject(KIND_LABEL[k] ?? k, typeof ar === 'string' ? ar : ar ? 'ar' : 'en');
 
 const NOTE = {
   scanned: { ar: 'لم تُقرأ — الصفحات صور بلا طبقة نص؛ ولا يجري هذا النظام OCR.', en: 'NOT read — the pages are images with no text layer; this system performs no OCR.' },
@@ -29,7 +30,7 @@ const NOTE = {
   failed: { ar: 'تعذّرت قراءة الملف (قد يكون تالفاً أو محمياً بكلمة مرور).', en: 'The file could not be read (it may be damaged or password-protected).' },
   truncated: { ar: 'قُرئت أول 20,000 صف فقط.', en: 'Only the first 20,000 rows were read.' }
 };
-export const noteText = (n, ar) => (n ? (typeof n === 'string' ? n : n[ar ? 'ar' : 'en']) : '');
+export const noteText = (n, ar) => localizedObject(n, typeof ar === 'string' ? ar : ar ? 'ar' : 'en');
 
 const uid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 

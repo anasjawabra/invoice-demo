@@ -1,14 +1,14 @@
 import { useI18n } from '../context/I18nContext';
+import { localize, localizedObject } from './zh';
 import { fmtMoney, fmtSar, fmtInt, fmtInvoices, fmtParts, unitLabel, unitOfValues, chartUnit } from './money';
 
 // Inline bilingual helper for revenue-intelligence screens. English and Arabic
-// are authored; Chinese falls back to English (the dictionary-based t() is
-// still used for navigation and page titles).
+// and Chinese share the same semantic keys and display-only translation catalog.
 export function useL() {
   const { lang, isRtl, t, T } = useI18n();
   const ar = lang === 'ar';
-  const L = (en, arText) => (ar ? arText : en);
-  const B = (o) => (o == null ? '' : typeof o === 'string' ? o : (ar ? o.ar : o.en) || o.en || '');
+  const L = (en, arText) => (ar ? arText : localize(en, lang));
+  const B = (o) => localizedObject(o, lang);
   // ONE appropriate unit per amount (SAR · ألف · مليون · مليار), or ONE shared unit for a whole table/chart (pass `unit`). Stored values stay in SAR.
   const money = (n, unit = 'auto') => fmtMoney(n, { lang, unit });
   const short = money;
@@ -24,9 +24,9 @@ export function useL() {
   return { lang, isRtl, ar, t, T, L, B, money, short, detail, sar, num, parts, unitFor, uLabel, cu, count, invoices };
 }
 
-export const NC = { en: 'Not available', ar: 'غير متاحة' };
+export const NC = { en: 'Not available', ar: 'غير متاحة', zh: '暂无数据' };
 
 export function ratioText(r, ar = false, digits = 1) {
-  if (!r || !r.calculable) return ar ? NC.ar : NC.en;
+  if (!r || !r.calculable) return ar === 'zh' ? NC.zh : ar === true || ar === 'ar' ? NC.ar : NC.en;
   return `${(r.value * 100).toFixed(digits)}%`;
 }

@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // One validation rule for every period control (Dashboard scope bar, Smart-report filter panel, typed requests).
 // A range is applied only when it is valid; a range that is partly outside the data is clamped AND the user is told.
 import { DATA_START } from './revenueLedger';
@@ -29,6 +30,6 @@ export function rangeMessage(code, lang, opts) {
     from_clamped: [`البيانات تبدأ من ${start}؛ ضُبط تاريخ البداية.`, `Data starts on ${start}; the start date was adjusted.`],
     to_clamped: planMax ? [`أبعد نهاية مسموحة لفترة الخطة ${planMax}؛ ضُبط تاريخ النهاية.`, `The latest allowed plan end is ${planMax}; the end date was adjusted.`] : [`لا توجد بيانات بعد ${today}؛ ضُبط تاريخ النهاية.`, `There is no data after ${today}; the end date was adjusted.`]
   }[code];
-  return M ? M[ar ? 0 : 1] : '';
+  return M ? localize(M[ar ? 0 : 1], lang) : '';
 }
-export const coverageLine = (lang, { today, start = DATA_START }) => (lang === 'ar' ? `البيانات متاحة من ${fmtDateText(start, 'ar')} حتى ${fmtDateText(today, 'ar')}` : `Data is available from ${fmtDateText(start, 'en')} to ${fmtDateText(today, 'en')}`);
+export const coverageLine = (lang, { today, start = DATA_START }) => (lang === 'ar' ? `البيانات متاحة من ${fmtDateText(start, 'ar')} حتى ${fmtDateText(today, 'ar')}` : localize(`Data is available from ${fmtDateText(start, 'en')} to ${fmtDateText(today, 'en')}`, lang));

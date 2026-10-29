@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import UISymbol from '../UISymbol';
 import { Link } from 'react-router-dom';
 import { useL } from '../../utils/bi';
 
@@ -17,7 +18,7 @@ export function RecordHeader({ crumbs = [], title, id = null, kind = null, statu
             <li key={i}>{c.to && i < crumbs.length - 1 ? <Link to={c.to}>{c.label}</Link> : <span aria-current={i === crumbs.length - 1 ? 'page' : undefined} dir={c.ltr ? 'ltr' : undefined}>{c.label}</span>}</li>
           ))}
         </ol>
-        {ret && <button type="button" className="btn btn-sm rp-return" onClick={ret.go}><span aria-hidden="true">{L('←', '→')}</span> {L('Back to', 'العودة إلى')} {ret.label}</button>}
+        {ret && <button type="button" className="btn btn-sm rp-return" onClick={ret.go}><span aria-hidden="true"><UISymbol name={L('left', 'right')} /></span> {L('Back to', 'العودة إلى')} {ret.label}</button>}
       </nav>
       <div className="rp-titlebar">
         <div className="rp-title">
@@ -43,7 +44,7 @@ export function Figures({ items, label }) {
     <dl className="rp-figures" aria-label={label}>
       {items.map((x, i) => (
         <div key={i} className={`rp-fig${x.tone ? ` rp-fig--${x.tone}` : ''}`}>
-          <dt>{x.label}</dt><dd dir="ltr">{x.value}</dd>{x.note && <div className="rp-fig__note">{x.note}</div>}
+          <dt>{x.label}</dt><dd dir="ltr">{x.value}{x.note && <div className="rp-fig__note" dir="auto">{x.note}</div>}</dd>
         </div>
       ))}
     </dl>

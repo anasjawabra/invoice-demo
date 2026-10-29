@@ -1,10 +1,11 @@
+import { localize } from '../../utils/zh';
 import React from 'react';
 import { useL } from '../../utils/bi';
 import { BILLERS, CENTRAL_BILLER, HOUSING_BILLER, invoiceKey } from '../../data/iim';
 
 /* مثال: رقم السداد ومعرّف المُفوتر — مفتاح الفاتورة = معرّف المُفوتر + رقم السداد */
 export default function SadadExample() {
-  const { L, B, ar } = useL();
+  const { L, B, ar , lang } = useL();
   const ex = { sadad: '409280122502' };
   const riyadh = BILLERS.find((b) => b.en === 'Riyadh Amanah');
   const rows = BILLERS.filter((b) => b.id !== HOUSING_BILLER.id);
@@ -35,7 +36,7 @@ export default function SadadExample() {
           <tbody>
             {rows.map((b) => (
               <tr key={b.en}>
-                <td dir="auto">{ar ? b.ar : b.en}</td>
+                <td dir="auto">{ar ? b.ar : localize(b.en, lang)}</td>
                 <td dir="ltr">{b.verified === false ? <span title={L('No independent number verified; the demo uses a placeholder', 'لم يُتحقق من رقم مستقل؛ يستخدم العرض رقماً مؤقتاً')}>— <span className="muted">({b.id} {L('demo placeholder', 'مؤقت في العرض')})</span></span> : b.id}</td>
               </tr>
             ))}

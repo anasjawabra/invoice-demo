@@ -1,9 +1,11 @@
+import { localize } from './zh';
 // Exports a report MODEL to Word / Excel / PowerPoint. The files carry exactly what the conversation shows: the same context (filters,
 // period, basis, data label), KPIs, tables (same unit per table, stated in the header), chart data, insights and assumptions;
 // Excel also gets exact SAR amounts. Nothing is recomputed here.
 import { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType, ImageRun } from 'docx';
 import * as XLSX from 'xlsx';
 import pptxgen from 'pptxgenjs';
+import { applyReportTemplate } from './pptxTemplate';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../data/reportFormat';
 import { fmtSar } from './money';
 import { riyadhDateOf, fmtRiyadh } from '../data/clock';
@@ -14,19 +16,19 @@ function download(blob, filename) {
 }
 // Excel caps sheet names at 31 characters; cut at a word boundary instead of mid-word
 const cutAtWord = (t, max) => { const x = t.trim(); if (x.length <= max) return x; const cut = x.slice(0, max); const i = cut.lastIndexOf(' '); return (i >= Math.floor(max * 0.5) ? cut.slice(0, i) : cut).trim(); };
-const relationsLine = (T, lang) => { const L = (a, e) => (lang === 'ar' ? a : e); return `${L('إجمالي المفوتر', 'Gross billed')} ${fmtSar(T.gross, lang)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(T.exclusions, lang)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(T.net, lang)}; ${L('صافي المفوتر', 'net billed')} = ${L('المحصّل', 'collected')} ${fmtSar(T.collected, lang)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(T.outstanding, lang)}; ${L('نسبة التحصيل', 'collection rate')} ${rateText(T.collectedOverNet, lang)}; ${L('نسبة الاستبعاد', 'exclusion rate')} ${rateText(T.exclusionRate, lang)}`; };
+const relationsLine = (T, lang) => { const L = (a, e) => (lang === 'ar' ? a : localize(e, lang)); return `${L('إجمالي المفوتر', 'Gross billed')} ${fmtSar(T.gross, lang)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(T.exclusions, lang)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(T.net, lang)}; ${L('صافي المفوتر', 'net billed')} = ${L('المحصّل', 'collected')} ${fmtSar(T.collected, lang)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(T.outstanding, lang)}; ${L('نسبة التحصيل', 'collection rate')} ${rateText(T.collectedOverNet, lang)}; ${L('نسبة الاستبعاد', 'exclusion rate')} ${rateText(T.exclusionRate, lang)}`; };
 // the report context as it is shown on screen, plus the data cut-off and the time the report was prepared (Asia/Riyadh) — every export carries them
-const exportContext = (model, lang) => { const L = (a, e) => (lang === 'ar' ? a : e); return [...model.context.map((c) => [c.label, c.value]), ...(model.cutoff ? [[L('قطع البيانات', 'Data cut-off'), model.cutoff]] : []), [L('أُعدّ في (بتوقيت الرياض)', 'Prepared (Riyadh time)'), fmtRiyadh(model.generatedAt)]]; };
-const NA = { ar: 'غير متاحة', en: 'Not available' };
+const exportContext = (model, lang) => { const L = (a, e) => (lang === 'ar' ? a : localize(e, lang)); return [...model.context.map((c) => [c.label, c.value]), ...(model.cutoff ? [[L('قطع البيانات', 'Data cut-off'), model.cutoff]] : []), [L('أُعدّ في (بتوقيت الرياض)', 'Prepared (Riyadh time)'), fmtRiyadh(model.generatedAt)]]; };
+const NA = { ar: 'غير متاحة', en: 'Not available', zh: '暂无数据' };
 // a rate object {calculable, value} → «57.8%» or the explicit unavailable label (never a silent zero)
 const rateText = (r, lang = 'ar') => (r && r.calculable ? `${(r.value * 100).toFixed(1)}%` : NA[lang]);
-const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
-const dataLine = (model, lang) => model.dataNote || (lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة' : 'Synthetic demo data — not the Ministry’s actual data');
+const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : localize(o.en, lang)) || o.en || '');
+const dataLine = (model, lang) => model.dataNote || (lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة' : localize('Synthetic demo data — not the Ministry’s actual data', lang));
 export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${riyadhDateOf(model.generatedAt)}.${ext}`;
 
 // the flat, text form of a model (shared by Word and PowerPoint)
 export function modelToLines(model) {
-  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang));
   const items = [];
   const pushBlock = (b) => {
     if (b.type === 'text') items.push({ k: 'p', text: b.text });
@@ -81,7 +83,7 @@ export async function exportModelToDocx(model, filename = reportFileName(model, 
 
 /* ---------------------------- Excel ---------------------------- */
 export function buildWorkbook(model) {
-  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const lang = model.lang; const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang));
   const wb = XLSX.utils.book_new();
   if (ar) wb.Workbook = { Views: [{ RTL: true }] };
   const summary = [[model.title], [model.subtitle], [dataLine(model, lang)], [], [L('سياق التقرير والتصفية', 'Report context and filters')], ...exportContext(model, lang), []];
@@ -120,49 +122,107 @@ export function exportModelToXlsx(model, filename = reportFileName(model, 'xlsx'
 // rows per slide: a long table continues on the next slide, so no row (and never the total row, which is last) is dropped
 export const paginateRows = (rows, per = 11) => { const out = []; for (let i = 0; i < rows.length; i += per) out.push(rows.slice(i, i + per)); return out.length ? out : [[]]; };
 export async function exportModelToPptx(model, filename = reportFileName(model, 'pptx')) {
-  const rtl = model.lang === 'ar'; const PRIMARY = '1B8354';
-  const pptx = new pptxgen(); pptx.rtlMode = rtl;
-  const title = pptx.addSlide(); title.background = { color: PRIMARY };
-  title.addText(model.title, { x: 0.5, y: 2, w: 9, h: 1.2, fontSize: 30, bold: true, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
-  title.addText(`${model.subtitle}\n${dataLine(model, model.lang)}`, { x: 0.5, y: 3.3, w: 9, h: 1, fontSize: 14, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
-  const lines = modelToLines(model);
-  let slide = null; let y = 0; let heading = '';
-  const open = (h) => { slide = pptx.addSlide(); heading = h; slide.addText(h, { x: 0.4, y: 0.25, w: 9.2, h: 0.55, fontSize: 20, bold: true, color: PRIMARY, align: rtl ? 'right' : 'left', rtlMode: rtl }); y = 0.95; };
-  for (const it of lines) {
-    if (it.k === 'h2') { open(it.text); continue; }
-    if (!slide) open(rtl ? 'سياق التقرير' : 'Report context');
-    if (it.k === 'h3') continue;
-    if (it.k === 'table') {
-      if (it.chart) { // the chart as a native PowerPoint chart (editable in PowerPoint), then its data table
-        if (y > 1.3) open(heading);
-        const b = it.chart; const { cu } = chartInfo(b, model.lang); const kind = b.kind || 'bar';
-        const labs = b.labels.map((l) => String(l)); const sv = (v) => (v == null ? null : Number((v / cu.unit.div).toFixed(2)));
-        const type = kind === 'line' ? pptx.charts.LINE : kind === 'pie' ? pptx.charts.PIE : pptx.charts.BAR;
-        const data = (kind === 'pie' ? b.series.slice(0, 1) : b.series).map((s) => ({ name: s.label, labels: labs, values: s.values.map(sv) }));
-        slide.addText(b.title, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4;
-        slide.addChart(type, data, { x: 0.4, y, w: 9.2, h: 3.7, ...(kind === 'bar' || kind === 'hbar' ? { barDir: kind === 'hbar' ? 'bar' : 'col', barGrouping: 'clustered' } : {}), showLegend: data.length > 1 || kind === 'pie', legendPos: 'b', legendFontSize: 10, catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, showValAxisTitle: kind !== 'pie', valAxisTitle: cu.title, valAxisTitleFontSize: 9, chartColors: ['194185', '1B8354', 'FDB022', 'B42318', '6941C6', '0E9384'], ...(kind === 'pie' ? { showPercent: true, showLabel: false, showValue: false } : {}) });
-        y += 3.8; open(heading);
-      }
-      // a table that does not fit is continued on the next slide (header repeated, "part n of m" in the title); the total row is the last row and is never dropped
-      const chunks = paginateRows(it.rows); const parts = chunks.length;
-      for (let k = 0; k < parts; k += 1) {
-        const rows = chunks[k];
-        if (k > 0 || y > 3.6) open(heading);
-        const ttl = it.title ? (parts > 1 ? `${it.title} — ${rtl ? `الجزء ${k + 1} من ${parts}` : `part ${k + 1} of ${parts}`}` : it.title) : '';
-        if (ttl) { slide.addText(ttl, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4; }
-        slide.addTable([it.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: 'EFEFEF' } } })), ...rows], { x: 0.4, y, w: 9.2, fontSize: 9, rtlMode: rtl, autoPage: false });
-        y += 0.28 * (rows.length + 1) + 0.2;
-        if (it.note && k === parts - 1) { const nh = Math.min(0.9, 0.3 + it.note.length / 150 * 0.3); slide.addText(it.note, { x: 0.4, y, w: 9.2, h: nh, fontSize: 9, italic: true, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl }); y += nh + 0.1; }
-      }
-    } else {
-      const text = it.k === 'li' ? `• ${it.text}` : it.text;
-      if (y > 5) open(heading);
-      slide.addText(text, { x: 0.4, y, w: 9.2, h: Math.min(1.2, 0.3 + text.length / 140 * 0.3), fontSize: 11, bold: !!it.bold, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl });
-      y += Math.min(1.2, 0.3 + text.length / 140 * 0.3) + 0.05;
+  const rtl = model.lang === 'ar'; const L = (a, e) => rtl ? a : localize(e, model.lang);
+  const pptx = new pptxgen();
+  // Both MOMAH templates are 13⅓ × 7½ inches, with mirrored body side rules.
+  pptx.defineLayout({ name: 'MOMAH', width: 40 / 3, height: 7.5 });
+  pptx.layout = 'MOMAH'; pptx.rtlMode = rtl;
+  const fontFace = rtl ? 'Sakkal Majalla' : model.lang === 'zh' ? 'Microsoft YaHei' : 'Trebuchet MS';
+  pptx.theme = { headFontFace: fontFace, bodyFontFace: fontFace, lang: rtl ? 'ar-SA' : model.lang === 'zh' ? 'zh-CN' : 'en-US' };
+  const X = rtl ? 0.85 : 0.69; const W = 11.79; const TOP = 1.48; const BOTTOM = 6.85;
+  const textStyle = { fontFace, color: '003A37', margin: 0, align: rtl ? 'right' : 'left', rtlMode: rtl };
+  const slideTitles = [''];
+  const cover = pptx.addSlide(); // Main text is filled in the original cover's placeholders.
+  cover.addText(dataLine(model, model.lang), { ...textStyle, x: 0.73, y: 5.05, w: 8.03, h: 0.35, fontSize: rtl ? 14 : 11, color: '006C67', fit: 'shrink' });
+  let slide; let y = TOP; let heading = L('سياق التقرير', 'Report context');
+  const open = (title = heading) => {
+    heading = title; slide = pptx.addSlide(); slideTitles.push(title); y = TOP;
+  };
+  // Estimate wrapped lines in points, including wide Chinese glyphs and explicit newlines.
+  const lineCount = (text, width, fontSize) => String(text ?? '').split('\n').reduce((sum, line) => {
+    const limit = (width * 72 - 8) / fontSize;
+    let lines = 1; let used = 0;
+    // PowerPoint wraps whole words. Counting only characters underestimates
+    // long municipality names in narrow table columns.
+    for (const word of line.trim().split(/\s+/)) {
+      const units = Array.from(word).reduce((n, ch) => n + (/[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff00-\uffef]/.test(ch) ? 1 : /[\u0600-\u06ff]/.test(ch) ? 0.65 : 0.55), 0);
+      if (used && used + 0.55 + units > limit) { lines += 1; used = 0; }
+      used += (used ? 0.55 : 0) + units;
+      while (used > limit) { lines += 1; used -= limit; }
     }
+    return sum + lines;
+  }, 0);
+  const addText = (text, options = {}) => {
+    if (!text) return;
+    const fontSize = (options.fontSize || 11) * (rtl ? 1.6 : 4 / 3);
+    // Long narrative blocks continue, without spilling into the template footer.
+    const maxChars = Math.min(1000, Math.floor((W * 72 - 8) / fontSize) * Math.floor((BOTTOM - TOP - 0.08) * 72 / (fontSize * 1.35)));
+    const paragraphs = String(text).match(new RegExp(`[\\s\\S]{1,${maxChars}}(?:\\s|$)|[\\s\\S]{1,${maxChars}}`, 'g')) || [];
+    for (const paragraph of paragraphs) {
+      const h = Math.max(0.25, lineCount(paragraph, W, fontSize) * fontSize * 1.35 / 72 + 0.08);
+      if (!slide || y + h > BOTTOM) open();
+      slide.addText(paragraph, { ...textStyle, x: X, y, w: W, h, valign: 'top', ...options, fontSize });
+      y += h + 0.1;
+    }
+  };
+  open();
+  for (const it of modelToLines(model)) {
+    if (it.k === 'h2') { open(it.text); continue; }
+    if (it.k === 'h3') { addText(it.text, { bold: true, fontSize: 13 }); continue; }
+    if (it.k !== 'table') { addText(it.k === 'li' ? `• ${it.text}` : it.text, { bold: !!it.bold }); continue; }
+    if (it.chart) {
+      if (y > TOP) open();
+      const b = it.chart; const { cu } = chartInfo(b, model.lang); const kind = b.kind || 'bar';
+      const labels = b.labels.map(String);
+      const type = kind === 'line' ? pptx.charts.LINE : kind === 'pie' ? pptx.charts.PIE : pptx.charts.BAR;
+      const data = (kind === 'pie' ? b.series.slice(0, 1) : b.series).map((s) => ({ name: s.label, labels, values: s.values.map((v) => v == null ? null : Number((v / cu.unit.div).toFixed(2))) }));
+      addText(b.title, { fontSize: 12, bold: true });
+      slide.addChart(type, data, { x: X, y, w: W, h: BOTTOM - y,
+        ...(kind === 'bar' || kind === 'hbar' ? { barDir: kind === 'hbar' ? 'bar' : 'col', barGrouping: 'clustered' } : {}),
+        showLegend: data.length > 1 || kind === 'pie', legendPos: 'b', legendFontSize: 12, catAxisLabelFontSize: 11, valAxisLabelFontSize: 11,
+        showValAxisTitle: kind !== 'pie', valAxisTitle: cu.title, valAxisTitleFontSize: 11,
+        chartColors: ['006C67', '009A93', '9BC73E', '535353', '2DC5D9', '003A37'],
+        ...(kind === 'pie' ? { showPercent: true, showLabel: false, showValue: false } : {}) });
+      y = BOTTOM;
+    }
+    // A table uses the body's available height, repeating headers on every page.
+    // Keep totals and all rows, including for narrow columns with wrapped labels.
+    const fontSize = it.headers.length > 9 ? (rtl ? 11 : 10.5) : (rtl ? 14 : 12);
+    const colW = W / it.headers.length;
+    const rowHeight = (row) => Math.max(0.28, ...row.map((cell) => lineCount(cell, colW, fontSize) * fontSize * 1.4 / 72 + 0.12));
+    const headerHeight = rowHeight(it.headers);
+    const chunks = []; let chunk = []; let height = headerHeight;
+    const titleFontSize = 12 * (rtl ? 1.6 : 4 / 3);
+    const titleHeight = Math.max(0.35, lineCount(`${it.title || ''} — ${L('الجزء 99 من 99', 'part 99 of 99')}`, W, titleFontSize) * titleFontSize * 1.35 / 72 + 0.08);
+    const available = BOTTOM - TOP - titleHeight - 0.15;
+    for (const row of it.rows) {
+      const h = rowHeight(row);
+      if (chunk.length && height + h > available) { chunks.push(chunk); chunk = []; height = headerHeight; }
+      chunk.push(row); height += h;
+    }
+    if (chunk.length || !chunks.length) chunks.push(chunk);
+    for (let k = 0; k < chunks.length; k += 1) {
+      const part = model.lang === 'zh' ? `第 ${k + 1} / ${chunks.length} 部分` : L(`الجزء ${k + 1} من ${chunks.length}`, `part ${k + 1} of ${chunks.length}`);
+      const title = chunks.length > 1 ? `${it.title} — ${part}` : it.title;
+      const rows = chunks[k];
+      const rowH = [headerHeight, ...rows.map(rowHeight)];
+      if (k > 0 || y + titleHeight + 0.1 + rowH.reduce((sum, h) => sum + h, 0) > BOTTOM) open();
+      addText(title, { fontSize: 12, bold: true });
+      const tableRows = [it.headers.map((text) => ({ text, options: { bold: true, color: 'FFFFFF', fill: { color: '006C67' } } })), ...rows];
+      slide.addTable(rtl ? tableRows.map((row) => [...row].reverse()) : tableRows, {
+        x: X, y, w: W, colW, rowH, fontFace, fontSize, color: '003A37',
+        border: { type: 'solid', pt: 0.5, color: 'CAD8D2' }, fill: { color: 'F8FAF9' },
+        margin: 3, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl, autoPage: false
+      });
+      y += rowH.reduce((sum, h) => sum + h, 0) + 0.15;
+    }
+    if (it.note) addText(it.note, { fontSize: 9, italic: true, color: '5B6663' });
   }
-  await pptx.writeFile({ fileName: filename });
+  pptx.addSlide(); slideTitles.push(''); // Original branded closing slide.
+  pptx.addSlide(); slideTitles.push(''); // The supplied language-specific disclaimer.
+  download(await applyReportTemplate(await pptx.write({ outputType: 'arraybuffer' }), model, slideTitles), filename);
 }
+
 
 
 /* ---------------------------- CSV ---------------------------- */
@@ -184,7 +244,7 @@ export function exportModelToCsv(model, filename = reportFileName(model, 'csv'))
 // choose «Save as PDF». The button says so. Nothing else is claimed.
 const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 export function modelToHtml(model) {
-  const lang = model.lang; const rtl = lang === 'ar'; const L = (a, e) => (rtl ? a : e);
+  const lang = model.lang; const rtl = lang === 'ar'; const L = (a, e) => (rtl ? a : localize(e, lang));
   const body = [`<h1>${esc(model.title)}</h1>`, `<p class="sub">${esc(model.subtitle)}</p>`, `<p class="note">${esc(dataLine(model, lang))}</p>`];
   let open = false;
   for (const it of modelToLines(model)) {

@@ -1,3 +1,4 @@
+import { localize } from '../../utils/zh';
 import React, { useState } from 'react';
 import { RecordLink as Link } from '../../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../../utils/paths';
@@ -13,7 +14,7 @@ import { RULE_APPROVAL_LABEL } from '../../data/ruleRegistry';
    Unpaid-report figure → reconciliation differences → cancelled → excluded →
    net uncollected. Unmatched report rows are listed APART (never in the net). */
 export function UncollectedBridge({ bridge, stock }) {
-  const { L, B, short, money, ar, count } = useL();
+  const { L, B, short, money, ar, count , lang } = useL();
   const max = Math.max(...bridge.steps.map((s) => Math.abs(s.amount)), bridge.net, 1);
   let running = 0;
   const rows = bridge.steps.map((s) => {
@@ -67,13 +68,13 @@ export function UncollectedBridge({ bridge, stock }) {
         </div>
       </div>
       {bridge.unmatched.count > 0 ? (
-        <div className="rv-callout rv-callout--warn" style={{ marginTop: 10 }}>
+        <div className="rv-callout rv-callout--warn" style={{ marginTop: 12 }}>
           <b>{L('Not matched — shown apart', 'غير مطابق — يُعرض منفصلاً')}</b>
           <div>{L(`${count(bridge.unmatched.count)} report invoice(s) worth ${money(bridge.unmatched.amount)} could not be matched to the details report. They are neither deducted nor added to the net; resolve them in Data → matching.`, `${count(bridge.unmatched.count)} فاتورة في التقرير بقيمة ${money(bridge.unmatched.amount)} تعذّرت مطابقتها مع بيان التفاصيل. لا تُخصم ولا تُضاف إلى الصافي؛ تُعالج من البيانات ← المطابقة.`)}</div>
           <div className="muted" dir="ltr" style={{ fontSize: 12 }}>{bridge.unmatched.rows.map((r) => r.invoiceNo).join(' · ')}</div>
         </div>
       ) : bridge.unmatched.scopedOut ? (
-        <div className="rv-callout" style={{ marginTop: 10 }}>{L(`Report-only invoices carry no Amanah, so the ${bridge.unmatched.nationalCount} unmatched rows (${money(bridge.unmatched.nationalAmount)}) appear in the national view only.`, `فواتير التقرير غير المطابقة لا تحمل أمانة لذا تظهر ${bridge.unmatched.nationalCount} صفوف (${money(bridge.unmatched.nationalAmount)}) في العرض الوطني فقط.`)}</div>
+        <div className="rv-callout" style={{ marginTop: 12 }}>{L(`Report-only invoices carry no Amanah, so the ${bridge.unmatched.nationalCount} unmatched rows (${money(bridge.unmatched.nationalAmount)}) appear in the national view only.`, `فواتير التقرير غير المطابقة لا تحمل أمانة لذا تظهر ${bridge.unmatched.nationalCount} صفوف (${money(bridge.unmatched.nationalAmount)}) في العرض الوطني فقط.`)}</div>
       ) : null}
       <p className="rv-sec-sub" style={{ marginTop: 8 }}>{L('Net billed (a period flow) is not net uncollected (a standing balance). Cancelled and excluded amounts are deducted once; an amount already removed as cancelled is never removed again as excluded.', 'صافي المفوتر (تدفق لفترة) ليس الرصيد القائم (رصيد قائم). تُخصم الملغاة والمستبعدة مرة واحدة؛ والمبلغ المخصوم كملغى لا يُخصم ثانية كمستبعد.')}</p>
       {(exc?.detail?.unapprovedRules > 0) && <span className="rv-badge rv-badge--sm rv-badge--warn">{L('Includes exclusions under unapproved rules', 'يتضمن استبعادات وفق قواعد غير معتمدة')}</span>}
@@ -83,7 +84,7 @@ export function UncollectedBridge({ bridge, stock }) {
 
 /* ---------------------------------------------------------- Change explanation */
 export function ChangeExplanation() {
-  const { L, B, ar } = useL();
+  const { L, B, ar , lang } = useL();
   const rev = useRevenue();
   const { data: ex } = useAsync(() => explainChange(rev.data, rev.scopeEff, rev.cfg, { curr: rev.snapshot, prev: rev.prevSnapshot }), [rev.data, rev.snapshot, rev.prevSnapshot]);
   if (!ex) return <div className="card card-pad"><h2 className="rv-sec-title">{L('What explains the change?', 'ما الذي يفسّر التغير؟')}</h2><div className="rv-empty">{L('Calculating…', 'جارٍ الاحتساب…')}</div></div>;
@@ -102,7 +103,7 @@ export function ChangeExplanation() {
             <div className="rv-table-wrap" tabIndex={0}>
               <table className="rv-table" style={{ minWidth: 0 }}>
                 <thead><tr><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Mix effect (pp)', 'أثر المزيج (نقطة)')}</th><th className="num">{L('Rate effect (pp)', 'أثر المعدل (نقطة)')}</th><th className="num">{L('Total (pp)', 'المجموع (نقطة)')}</th></tr></thead>
-                <tbody>{ex.byAmanah.rows.slice(0, 5).map((r) => <tr key={r.key}><td>{r.label ? pickBi(r.label, ar ? 'ar' : 'en') : r.key}</td><td className="num" dir="ltr">{r.mixPp.toFixed(2)}</td><td className="num" dir="ltr">{r.ratePp.toFixed(2)}</td><td className="num" dir="ltr"><b>{r.totalPp.toFixed(2)}</b></td></tr>)}</tbody>
+                <tbody>{ex.byAmanah.rows.slice(0, 5).map((r) => <tr key={r.key}><td>{r.label ? pickBi(r.label, lang) : r.key}</td><td className="num" dir="ltr">{r.mixPp.toFixed(2)}</td><td className="num" dir="ltr">{r.ratePp.toFixed(2)}</td><td className="num" dir="ltr"><b>{r.totalPp.toFixed(2)}</b></td></tr>)}</tbody>
               </table>
             </div>
           )}
@@ -117,8 +118,8 @@ export function ChangeExplanation() {
 }
 
 /* ---------------------------------------------------------------- Amanah map */
-export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
-  const { L, B, ar, short, count } = useL();
+export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick, children }) {
+  const { L, B, ar, short, count , lang } = useL();
   const [sort, setSort] = useState('rate'); // D32: the entities are ranked by the LOWEST collection rate first
   const total = snapshot.byAmanah.reduce((s, g) => s + g.outstanding, 0);
   const prev = new Map((prevSnapshot?.byAmanah || []).map((g) => [g.key, g]));
@@ -139,7 +140,7 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
   });
   const maxNet = Math.max(...rows.map((r) => r.g.net), 1);
   return (
-    <div className="card card-pad">
+    <div className="card card-pad ui-section-stack rv-amanahs">
       <div className="rv-card__head">
         <div>
           <h2 className="rv-sec-title">{L('Amanahs and entities', 'الأمانات / الجهات')}</h2>
@@ -168,9 +169,9 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
           <tbody>
             {sorted.map(({ g, rate, trend, ownShare, share, small }) => (
               <tr key={g.key}>
-                <td><button type="button" className="rv-link" onClick={() => onPick?.(g.key)}>{pickBi(g.label, ar ? 'ar' : 'en')}</button>{small && <span className="rv-tag" style={{ marginInlineStart: 6 }} title={L('Fewer than 8 invoices: the rate is volatile', 'أقل من 8 فواتير: النسبة متقلبة')}>{L('under 8 invoices', 'أقل من 8 فواتير')}</span>}</td>
+                <td><button type="button" className="rv-link" onClick={() => onPick?.(g.key)}>{pickBi(g.label, lang)}</button>{small && <span className="rv-tag" style={{ marginInlineStart: 8 }} title={L('Fewer than 8 invoices: the rate is volatile', 'أقل من 8 فواتير: النسبة متقلبة')}>{L('under 8 invoices', 'أقل من 8 فواتير')}</span>}</td>
                 <td><span className="rv-sizebar" role="img" aria-label={short(g.net)}><i style={{ width: `${Math.max(3, (g.net / maxNet) * 100)}%` }} /></span> <small className="muted" dir="ltr">{short(g.net)} · {count(g.count)}</small></td>
-                <td className="num">{ratioText(rate, ar, 0)}</td>
+                <td className="num">{ratioText(rate, lang, 0)}</td>
                 <td className="num" dir="ltr">{trend == null ? '—' : <span className={trend < 0 ? 'rv-neg' : 'rv-pos'}>{trend > 0 ? '+' : ''}{trend}</span>}</td>
                 <td className="num">{short(g.outstanding)}</td>
                 <td className="num">{ownShare == null ? '—' : `${Math.round(ownShare * 100)}%`}</td>
@@ -181,13 +182,14 @@ export function AmanahMap({ snapshot, prevSnapshot, comparable, onPick }) {
         </table>
       </div>
       {!comparable && <small className="muted">{L('Trend needs a like-for-like previous period inside the data coverage.', 'الاتجاه يحتاج فترة سابقة مماثلة ضمن تغطية البيانات.')}</small>}
+      {children}
     </div>
   );
 }
 
 /* ------------------------------------------------------------- Priority debt */
 export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
-  const { L, ar, short, money, sar, count } = useL();
+  const { L, ar, short, money, sar, count , lang } = useL();
   const q = snapshot.quality;
   const contractRows = contracts.filter((c) => c.totals.arrears > 0).sort((a, b) => b.totals.arrears - a.totals.arrears).slice(0, 5);
   const execRows = contracts.filter((c) => c.requests.length).sort((a, b) => b.execution.amount - a.execution.amount).slice(0, 4);
@@ -201,11 +203,11 @@ export function PriorityDebt({ snapshot, contracts, overdueRows, bridge }) {
     <div className="rv-three">
       <div className="card card-pad">
         <h2 className="rv-sec-title">{L('Large overdue invoices', 'فواتير متأخرة كبيرة')}</h2>
-        {overdueRows.length ? <ul className="rv-list">{overdueRows.map((d) => <li key={d.id}><Link to={invoicePath(d.id)} dir="ltr">{d.id}</Link> <span className="muted">{ar ? d.amanahAr : d.amanahEn}</span> <b dir="ltr">{sar(d.outstanding)}</b> <small className="muted">{d.daysOverdue} {L('days', 'يوماً')}</small></li>)}</ul> : <div className="rv-empty">{L('None in this scope.', 'لا شيء في هذا النطاق.')}</div>}
+        {overdueRows.length ? <ul className="rv-list">{overdueRows.map((d) => <li key={d.id}><Link to={invoicePath(d.id)} dir="ltr">{d.id}</Link> <span className="muted">{ar ? d.amanahAr : localize(d.amanahEn, lang)}</span> <b dir="ltr">{sar(d.outstanding)}</b> <small className="muted">{d.daysOverdue} {L('days', 'يوماً')}</small></li>)}</ul> : <div className="rv-empty">{L('None in this scope.', 'لا شيء في هذا النطاق.')}</div>}
       </div>
       <div className="card card-pad">
         <h2 className="rv-sec-title">{L('Contracts with overdue installments', 'عقود بدفعات متأخرة')}</h2>
-        {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={contractPath(c.contractNo)} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : c.tenantEn}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
+        {contractRows.length ? <ul className="rv-list">{contractRows.map((c) => <li key={c.contractNo}><Link to={contractPath(c.contractNo)} dir="ltr">{c.contractNo}</Link> <span className="muted">{ar ? c.tenantAr : localize(c.tenantEn, lang)}</span> <b>{short(c.totals.arrears)}</b> <small className="muted">{c.totals.overdueInstallments} {L('overdue', 'متأخرة')} · {c.totals.futureInstallments} {L('future', 'مستقبلية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
         <h4 className="rv-sec-title" style={{ fontSize: 13, marginTop: 12 }}>{L('Enforcement to follow up', 'تنفيذ يحتاج متابعة')}</h4>
         {execRows.length ? <ul className="rv-list">{execRows.map((c) => <li key={c.contractNo}><Link to={orderPath(c.requests[0].enforceNum)} dir="ltr">{c.requests[0].enforceNum}</Link> <b>{short(c.execution.amount)}</b> <small className="muted">{c.execution.invoicesIdentified ? L('invoices identified', 'فواتير محددة') : L('invoices not identified — not added to the debt', 'فواتير غير محددة — لا تُضاف للمديونية')}</small></li>)}</ul> : <div className="rv-empty">{L('None.', 'لا شيء.')}</div>}
       </div>

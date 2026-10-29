@@ -1,3 +1,4 @@
+import UISymbol from '../UISymbol';
 import React from 'react';
 import { useL } from '../../utils/bi';
 import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
@@ -117,7 +118,7 @@ export function EnforcementChips({ enf }) {
 // the three completeness states in one compact cell — each its own line, never merged into a single label
 export function CompletenessMarks({ comp }) {
   const { L } = useL();
-  const m = (ok, text) => <div className={ok ? 'rp-ok' : 'rp-warn'} style={{ fontSize: 12 }}>{ok ? '✓' : '!'} {text}</div>;
+  const m = (ok, text) => <div className={ok ? 'rp-ok' : 'rp-warn'} style={{ fontSize: 12 }}>{ok ? <UISymbol name="check" /> : <UISymbol name="warning" />} {text}</div>;
   return (
     <div>
       {m(comp.references.state === 'complete', comp.references.state === 'complete' ? L('references complete', 'المراجع مكتملة') : comp.references.state === 'none' ? L('invoice numbers not identified — needs review', 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة') : L(`${comp.references.unresolved + comp.references.proposed} reference(s) open`, `${comp.references.unresolved + comp.references.proposed} مرجع مفتوح`))}

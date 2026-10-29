@@ -1,3 +1,4 @@
+import UISymbol from '../UISymbol';
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { analysisPath } from '../../utils/paths';
@@ -43,7 +44,7 @@ function TaskDock() {
                   {!isTerminal(t) && <button type="button" className="ap__btn ap__btn--danger" onClick={() => cancelTask(t.id)}>{L('Cancel', 'إلغاء')}</button>}
                   {isTerminal(t) && t.result && <button type="button" className="ap__btn ap__btn--primary" onClick={() => viewResult(t.id)}>{L('View results', 'عرض النتائج')}</button>}
                   {isTerminal(t) && !t.result && <button type="button" className="ap__btn" onClick={() => openTask(t.id)}>{L('Details', 'التفاصيل')}</button>}
-                  {isTerminal(t) && <button type="button" className="ap__btn" onClick={() => dismissTask(t.id)} aria-label={L('Dismiss', 'إخفاء')}>×</button>}
+                  {isTerminal(t) && <button type="button" className="ap__btn" onClick={() => dismissTask(t.id)} aria-label={L('Dismiss', 'إخفاء')}><UISymbol name="close" /></button>}
                 </div>
               </li>
             );

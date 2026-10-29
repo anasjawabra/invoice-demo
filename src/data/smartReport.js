@@ -1,3 +1,4 @@
+import { localize, localizedObject } from '../utils/zh';
 // ============================================================================
 // Smart report builder. Pure: takes the SAME snapshot (and forecast) the
 // initiating screen used, so a report can never show different numbers from
@@ -16,15 +17,15 @@ export const REPORT_FOCUS = ['revenue', 'amanah', 'noncollection', 'investment']
 
 export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos, achievement, cards = [], anomalies = [], cases = [], focus = 'revenue', lang = 'en', request = '' }) {
   const ar = lang === 'ar';
-  const L = (en, a) => (ar ? a : en);
-  const B = (o) => pickBi(o, lang);
-  const M = (n) => fmtMoney(n || 0, { lang: ar ? 'ar' : 'en' });
+  const L = (en, a) => (ar ? a : localize(en, lang));
+  const B = (o) => localizedObject(o, lang);
+  const M = (n) => fmtMoney(n || 0, { lang: lang });
   const cnt = (n) => Number(n || 0).toLocaleString('en-US');
   const tu = unitOfValues(snapshot.byAmanah.flatMap((g) => [g.gross, g.exclusions, g.net, g.collected, g.outstanding])); // ONE unit for the whole table
-  const unitName = unitLabel(tu, ar ? 'ar' : 'en');
+  const unitName = unitLabel(tu, lang);
   const T = snapshot.totals;
   const Q = snapshot.quality;
-  const ratioN = formatRatio(T.collectedOverNet, ar ? 'ar' : 'en');
+  const ratioN = formatRatio(T.collectedOverNet, lang);
   const basisTxt = L(`Invoices issued ${snapshot.basis?.invoicesFrom || snapshot.scope.from} → ${snapshot.basis?.invoicesTo || snapshot.scope.to}; collections up to ${snapshot.basis?.collectionsAsOf || snapshot.cutoff}`, `فواتير صادرة ${snapshot.basis?.invoicesFrom || snapshot.scope.from} ← ${snapshot.basis?.invoicesTo || snapshot.scope.to}؛ التحصيل حتى ${snapshot.basis?.collectionsAsOf || snapshot.cutoff}`);
 
   const subtitle = {
@@ -48,11 +49,11 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
     { label: L('Collection rate', 'نسبة التحصيل'), value: ratioN, caption: L('Collected ÷ net billed × 100', 'المحصّل ÷ صافي المفوتر × 100') },
     { label: L('Net uncollected (standing balance)', 'الرصيد القائم'), value: M(snapshot.stock.netUncollected), caption: L(`All issue periods. Overdue ${M(snapshot.stock.overdue)}, not yet due ${M(snapshot.stock.notYetDue)} at ${snapshot.cutoff}. Different from the period's uncollected.`, `كل فترات الإصدار. متأخر ${M(snapshot.stock.overdue)} ولم يحن ${M(snapshot.stock.notYetDue)} عند ${snapshot.cutoff}. يختلف عن غير المحصّل للفترة.`) },
   ];
-  if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Collection target achievement', 'تحقيق مستهدف التحصيل'), value: formatRatio(achievement.achievement, ar ? 'ar' : 'en'), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs cumulative target ${M(achievement.targetYtd || 0)} (target is a demo input)`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المستهدف التراكمي ${M(achievement.targetYtd || 0)} (المستهدف مُدخل توضيحي)`) });
+  if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Collection target achievement', 'تحقيق مستهدف التحصيل'), value: formatRatio(achievement.achievement, lang), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs cumulative target ${M(achievement.targetYtd || 0)} (target is a demo input)`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المستهدف التراكمي ${M(achievement.targetYtd || 0)} (المستهدف مُدخل توضيحي)`) });
 
   const analysisTable = {
     headers: [L('Amanah', 'الأمانة / الجهة'), L('Invoices', 'الفواتير'), L(`Gross (${unitName})`, `الإجمالي (${unitName})`), L(`Exclusions (${unitName})`, `الاستبعادات (${unitName})`), L(`Net (${unitName})`, `الصافي (${unitName})`), L(`Collected (${unitName})`, `المحصّل (${unitName})`), L(`Uncollected (${unitName})`, `غير المحصّل (${unitName})`), L('Collection rate', 'نسبة التحصيل')],
-    rows: snapshot.byAmanah.map((g) => [pickBi(g.label, lang), cnt(g.count), scaled(g.gross, tu), scaled(g.exclusions, tu), scaled(g.net, tu), scaled(g.collected, tu), scaled(g.outstanding, tu), formatRatio(g.collectedOverNet, ar ? 'ar' : 'en', 0)]),
+    rows: snapshot.byAmanah.map((g) => [pickBi(g.label, lang), cnt(g.count), scaled(g.gross, tu), scaled(g.exclusions, tu), scaled(g.net, tu), scaled(g.collected, tu), scaled(g.outstanding, tu), formatRatio(g.collectedOverNet, lang, 0)]),
     // exports keep the exact numbers in SAR beside the abbreviated display columns (never the abbreviated value alone)
     rawHeaders: ['amanah', 'invoice_count', 'gross_sar', 'exclusions_sar', 'net_sar', 'collected_sar', 'uncollected_sar', 'collection_rate_pct', `gross_${tu.key.toLowerCase()}`, `exclusions_${tu.key.toLowerCase()}`, `net_${tu.key.toLowerCase()}`, `collected_${tu.key.toLowerCase()}`, `uncollected_${tu.key.toLowerCase()}`],
     rawRows: snapshot.byAmanah.map((g) => [pickBi(g.label, lang), g.count, g.gross, g.exclusions, g.net, g.collected, g.outstanding, g.collectedOverNet.calculable ? Math.round(g.collectedOverNet.value * 1000) / 10 : 'n/a', g.gross / tu.div, g.exclusions / tu.div, g.net / tu.div, g.collected / tu.div, g.outstanding / tu.div])
@@ -110,9 +111,9 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
   }
 
   const additionalReports = [
-    ...(bridge ? [{ title: L('Net-uncollected bridge', 'جسر الرصيد القائم'), description: bridge.steps.map((x) => `${ar ? BRIDGE_LABELS[x.key].ar : BRIDGE_LABELS[x.key].en}: ${M(x.amount)}`).join(' → ') + ` = ${M(bridge.net)}` + (bridge.unmatched.count ? ` · ${L('Unmatched report invoices (shown apart, not in the net)', 'فواتير تقرير غير مطابقة (منفصلة وليست في الصافي)')}: ${bridge.unmatched.count} / ${M(bridge.unmatched.amount)}` : '') }] : []),
+    ...(bridge ? [{ title: L('Net-uncollected bridge', 'جسر الرصيد القائم'), description: bridge.steps.map((x) => `${ar ? BRIDGE_LABELS[x.key].ar : localize(BRIDGE_LABELS[x.key].en, lang)}: ${M(x.amount)}`).join(' → ') + ` = ${M(bridge.net)}` + (bridge.unmatched.count ? ` · ${L('Unmatched report invoices (shown apart, not in the net)', 'فواتير تقرير غير مطابقة (منفصلة وليست في الصافي)')}: ${bridge.unmatched.count} / ${M(bridge.unmatched.amount)}` : '') }] : []),
     { title: L('Noncollection by state', 'عدم التحصيل حسب الحالة'), description: NONCOLLECTION_CATEGORIES.map((c) => `${B(CATEGORY_LABELS[c])}: ${snapshot.noncollection[c].count} / ${M(snapshot.noncollection[c].amount)}`).join(' · ') },
-    { title: L('Revenue source breakdown', 'التفصيل حسب مصدر الإيراد'), description: snapshot.bySource.map((s) => `${ar ? REVENUE_SOURCES[s.key].ar : REVENUE_SOURCES[s.key].en}: ${L('net', 'صافي')} ${M(s.net)}, ${L('collected', 'محصّل')} ${M(s.collected)}, ${L('outstanding', 'متبقٍ')} ${M(s.outstanding)}`).join(' · ') },
+    { title: L('Revenue source breakdown', 'التفصيل حسب مصدر الإيراد'), description: snapshot.bySource.map((s) => `${ar ? REVENUE_SOURCES[s.key].ar : localize(REVENUE_SOURCES[s.key].en, lang)}: ${L('net', 'صافي')} ${M(s.net)}, ${L('collected', 'محصّل')} ${M(s.collected)}, ${L('outstanding', 'متبقٍ')} ${M(s.outstanding)}`).join(' · ') },
     { title: L('Exclusion rules in force', 'قواعد الاستبعاد السارية'), description: EXCLUSION_RULES.map((r) => `${r.id}: ${B(r.label)} — ${snapshot.config.rules[r.id] ? L('enabled', 'مفعّلة') : L('off', 'معطّلة')}`).join(' · ') }
   ];
 
@@ -154,7 +155,7 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
     charts: {
       composition: { labels: [L('Collected', 'المحصّل'), L('Uncollected', 'غير المحصّل'), L('Exclusions', 'الاستبعادات')], values: [T.collected, T.outstanding, T.exclusions] },
       amanah: { labels: snapshot.byAmanah.map((g) => pickBi(g.label, lang)), net: snapshot.byAmanah.map((g) => g.net), collected: snapshot.byAmanah.map((g) => g.collected) },
-      source: { labels: snapshot.bySource.map((s) => (ar ? REVENUE_SOURCES[s.key].ar : REVENUE_SOURCES[s.key].en)), net: snapshot.bySource.map((s) => s.net), collected: snapshot.bySource.map((s) => s.collected) }
+      source: { labels: snapshot.bySource.map((s) => (ar ? REVENUE_SOURCES[s.key].ar : localize(REVENUE_SOURCES[s.key].en, lang))), net: snapshot.bySource.map((s) => s.net), collected: snapshot.bySource.map((s) => s.collected) }
     },
     meta: { invoiceCount: T.count, cutoff: snapshot.cutoff, scope: snapshot.scope }
   };

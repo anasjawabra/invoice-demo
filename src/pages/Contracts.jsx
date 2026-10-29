@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import Pager from '../components/Pager';
@@ -11,12 +12,12 @@ import { PctBadge } from '../components/strategic/EntityMap';
 import { INSTALLMENT_STATES } from '../data/contracts';
 import { AMANAH_CATALOG, ENTITIES, ITEMS } from '../data/catalog';
 
-export const amanahName = (en, ar) => { const a = (ENTITIES || AMANAH_CATALOG).find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };
+export const amanahName = (en, ar) => { const lang = typeof ar === 'string' ? ar : ar ? 'ar' : 'en'; const a = (ENTITIES || AMANAH_CATALOG).find((x) => x.en === en); return localize(a ? (lang === 'ar' ? a.ar : a.en) : en, lang); };
 export const itemName = (key, ar) => { const i = ITEMS.find((x) => x.key === key); return i ? (ar ? i.ar : i.en) : key; };
 
 export default function Contracts() {
   const rev = useRevenue();
-  const { L, B, ar, short, money, count, sar } = useL();
+  const { L, B, ar, short, money, count, sar , lang } = useL();
   const [sp] = useSearchParams();
   const restore = useShouldRestore();
   const mem = useMemo(() => readListMemory('contracts', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -59,7 +60,7 @@ export default function Contracts() {
         <div className="rv-tile"><div className="rv-tile__label">{L('Future installments (not arrears)', 'دفعات مستقبلية (ليست متأخرات)')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.futureNotInvoiced, 0))}</div><div className="rv-tile__sub">{L('not invoiced yet', 'لم تُفوتر بعد')}</div></div>
       </div>
 
-      <div className="card card-pad">
+      <div className="card card-pad ui-section-stack">
         <div className="rv-form">
           <label>{L('Search', 'بحث')}<input id="ct_q" className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('Contract number or tenant', 'رقم العقد أو المستأجر')} /></label>
           <label>{L('Show', 'عرض')}
@@ -77,8 +78,8 @@ export default function Contracts() {
               {list.slice(page * PS, (page + 1) * PS).map((c) => (
                 <tr key={c.contractNo}>
                   <td><RecordLink to={contractPath(c.contractNo)} dir="ltr">{c.contractNo}</RecordLink></td>
-                  <td dir="auto">{ar ? c.tenantAr : c.tenantEn}</td>
-                  <td>{amanahName(c.amanahEn, ar)}</td>
+                  <td dir="auto">{ar ? c.tenantAr : localize(c.tenantEn, lang)}</td>
+                  <td>{amanahName(c.amanahEn, lang)}</td>
                   <td className="num">{short(c.totals.contractValue)}</td>
                   <td className="num">{short(c.totals.collected)}</td>
                   <td className="num">{c.totals.dueToDate > 0 ? <PctBadge v={c.totals.collected / c.totals.dueToDate} text={`${(Math.round((c.totals.collected / c.totals.dueToDate) * 1000) / 10).toFixed(1)}%`} /> : '—'}</td>

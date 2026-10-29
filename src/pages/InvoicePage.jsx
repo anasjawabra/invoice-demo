@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useRevenue } from '../context/RevenueContext';
@@ -44,7 +45,7 @@ const CONTRACT_STATE = { linked: { en: 'Linked', ar: 'مرتبط' }, unmatched: 
 export default function InvoicePage() {
   const { id: rawId } = useParams(); const id = decodeURIComponent(rawId || '');
   const rev = useRevenue();
-  const { L, B, ar, sar, short } = useL();
+  const { L, B, ar, sar, short , lang } = useL();
   const { canReview } = rev;
   const [reload, setReload] = useState(0);
   const ret = useReturnTarget({ path: '/invoices', label: L('Collected invoices list', 'قائمة الفواتير المحصّلة') });
@@ -84,7 +85,7 @@ export default function InvoicePage() {
   for (const [cat, state] of Object.entries(det.riskFlags || {})) if (state === 'open' && RISK_FINDING[cat]) findings.push({ k: `risk-${cat}`, tone: 'warn', title: L(RISK_FINDING[cat].en[0], RISK_FINDING[cat].ar[0]), why: L(RISK_FINDING[cat].en[1], RISK_FINDING[cat].ar[1]), evidence: null, action: null });
   for (const ex of pendingEx) findings.push({ k: `ex-${ex.ruleId}`, tone: 'warn', title: L('An exclusion is waiting for review', 'استبعاد بانتظار المراجعة'), why: L(`Rule ${ex.ruleId} flagged this invoice; until approved it stays inside the invoice value.`, `القاعدة ${ex.ruleId} أشارت إلى هذه الفاتورة؛ وتبقى ضمن قيمة الفاتورة حتى يُعتمد الاستبعاد.`), evidence: B(ex.evidence), action: ['ex', ex] });
   for (const o of proposedLinks) findings.push({ k: `pl-${o.enforceNum}`, tone: 'warn', title: L(`A proposed link to order ${o.enforceNum}`, `رابط مقترح بالأمر ${o.enforceNum}`), why: L('A reference in the order points to this invoice. A proposal has no effect until a person confirms it.', 'مرجع في الأمر يشير إلى هذه الفاتورة. والمقترح بلا أثر حتى يؤكده شخص.'), evidence: null, action: ['link', o] });
-  if (im.investment?.outcome === 'not_linked') findings.push({ k: 'inv-no-contract', tone: 'warn', title: L('Investment invoice not linked to a contract', 'فاتورة استثمار غير مرتبطة بعقد'), why: L('This invoice is billed centrally (177) and Furas does not know it. It is flagged, not excluded.', 'هذه الفاتورة صادرة مركزيًا (177) ولا تعرفها منصة فرص. تُعلَّم ولا تُستبعد تلقائيًا.'), evidence: `${L('Possible causes', 'الأسباب المحتملة')}: ${im.investment.causes.map((c) => (ar ? c.ar : c.en)).join(' · ')}`, action: null });
+  if (im.investment?.outcome === 'not_linked') findings.push({ k: 'inv-no-contract', tone: 'warn', title: L('Investment invoice not linked to a contract', 'فاتورة استثمار غير مرتبطة بعقد'), why: L('This invoice is billed centrally (177) and Furas does not know it. It is flagged, not excluded.', 'هذه الفاتورة صادرة مركزيًا (177) ولا تعرفها منصة فرص. تُعلَّم ولا تُستبعد تلقائيًا.'), evidence: `${L('Possible causes', 'الأسباب المحتملة')}: ${im.investment.causes.map((c) => (ar ? c.ar : localize(c.en, lang))).join(' · ')}`, action: null });
   if (im.investment?.outcome === 'internal_note') findings.push({ k: 'inv-internal', tone: 'info', title: L('Investment invoice from an internal system', 'فاتورة استثمار صادرة من نظام داخلي'), why: L('An investment invoice issued from an internal system — it is not expected to be linked to the Furas platform. This is not a deviation.', 'فاتورة استثمار صادرة من نظام داخلي – لا يُتوقع ربطها بمنصة فرص. وهذه ليست انحرافًا.'), evidence: null, action: null });
   if (rec.contract?.status === 'unmatched' && im.investment?.outcome !== 'not_linked') findings.push({ k: 'contract', tone: 'info', title: L('Contract not matched', 'العقد غير مطابق'), why: L('This investment invoice carries no matched contract. It is NOT treated as “no contract”.', 'لا عقد مطابق لهذه الفاتورة الاستثمارية، ولا تُعامل على أنها «بلا عقد».'), evidence: L('No contract is inferred from an amount or a payer name.', 'لا يُستنتج عقد من مبلغ أو اسم دافع.'), action: null });
   if (rec.missingFields?.length) findings.push({ k: 'missing', tone: 'warn', title: L('Mandatory fields are missing', 'حقول إلزامية ناقصة'), why: L('The invoice cannot be referred as-is.', 'لا يمكن إحالة الفاتورة كما هي.'), evidence: rec.missingFields.join(', '), action: null });
@@ -116,7 +117,7 @@ export default function InvoicePage() {
   return (
     <div className="rp">
       <RecordHeader
-        crumbs={crumbs} ret={ret} kind={`${L('Invoice', 'فاتورة')} · ${typeLabel} · ${ar ? im.productAr : im.productEn} · ${L('Origin', 'مصدر الفاتورة')}: ${ar ? im.originAr : (im.origin === 'central' ? 'Central' : 'Internal')}`} title={id} id={null}
+        crumbs={crumbs} ret={ret} kind={`${L('Invoice', 'فاتورة')} · ${typeLabel} · ${ar ? im.productAr : localize(im.productEn, lang)} · ${L('Origin', 'مصدر الفاتورة')}: ${ar ? im.originAr : (im.origin === 'central' ? 'Central' : 'Internal')}`} title={id} id={null}
         statuses={<>
           <StatusGroup label={L('Payment status', 'حالة السداد')} hint={L('what was paid — separate from enforcement and review', 'ما سُدّد — منفصلة عن الإنفاذ والمراجعة')}><PayStatusChip status={der.payStatus} />{der.daysOverdue > 0 && der.outstanding > 0 && <span className="rv-tag rv-tag--warn">{der.daysOverdue} {L('days overdue', 'يوماً متأخرة')}</span>}</StatusGroup>
           <StatusGroup label={L('Enforcement status', 'حالة الإنفاذ')} hint={L('from confirmed orders only; “referred before” stays after an order closes', 'من الأوامر المؤكدة فقط؛ وتبقى «سبقت إحالتها» بعد إغلاق الأمر')}><EnforcementChips enf={enf} /></StatusGroup>
@@ -133,13 +134,13 @@ export default function InvoicePage() {
       <InfoGroups groups={[
         { title: L('Invoice identity', 'تعريف الفاتورة'), items: [
           { k: L('SADAD no.', 'رقم السداد'), v: im.sadadNo, ltr: true },
-          { k: L('Biller', 'المفوتر'), v: <span><span dir="ltr">{im.billerId}</span> / {ar ? im.billerAr : im.billerEn}</span> },
-          { k: L('Product', 'اسم المنتج'), v: ar ? im.productAr : im.productEn },
+          { k: L('Biller', 'المفوتر'), v: <span><span dir="ltr">{im.billerId}</span> / {ar ? im.billerAr : localize(im.billerEn, lang)}</span> },
+          { k: L('Product', 'اسم المنتج'), v: ar ? im.productAr : localize(im.productEn, lang) },
           rec.violationNumber && rec.revenueSource !== 'fines' && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true }
         ] },
         { title: L('Location and revenue classification', 'الموقع وتصنيف الإيراد'), items: [
-          { k: L('Amanah / entity', 'الأمانة / الجهة'), v: `${ar ? rec.amanahAr : rec.amanahEn}${im.entityType === 'entity' ? ` (${ar ? im.entityTypeAr : 'entity'})` : ''}` },
-          rec.municipalityEn && { k: L('Municipality', 'البلدية'), v: ar ? rec.municipalityAr : rec.municipalityEn },
+          { k: L('Amanah / entity', 'الأمانة / الجهة'), v: `${ar ? rec.amanahAr : localize(rec.amanahEn, lang)}${im.entityType === 'entity' ? ` (${ar ? im.entityTypeAr : localize('entity', lang)})` : ''}` },
+          rec.municipalityEn && { k: L('Municipality', 'البلدية'), v: ar ? rec.municipalityAr : localize(rec.municipalityEn, lang) },
           im.gfsCode && { k: L('Revenue account no.', 'رقم حساب الإيراد'), v: im.gfsCode, ltr: true },
           im.gfsSub && { k: L('Revenue sub-class', 'تصنيف الإيراد الفرعي'), v: <span>{im.gfsSub} <small className="muted" dir="ltr">({im.gfsCode})</small></span> },
           { k: L('Main revenue class', 'تصنيف الإيراد الرئيسي'), v: ar ? im.mainClass : (MAIN_EN[im.mainClass] || im.mainClass) },
@@ -147,49 +148,49 @@ export default function InvoicePage() {
           im.requestNo && { k: L('Request no.', 'رقم الطلب'), v: im.requestNo, ltr: true }
         ] },
         { title: L('Beneficiary', 'المستفيد'), items: [
-          im.beneficiary?.id && { k: L('ID type', 'نوع هوية المستفيد'), v: ar ? im.beneficiary.idType.ar : im.beneficiary.idType.en },
+          im.beneficiary?.id && { k: L('ID type', 'نوع هوية المستفيد'), v: ar ? im.beneficiary.idType.ar : localize(im.beneficiary.idType.en, lang) },
           im.beneficiary?.id && { k: L('Beneficiary ID', 'هوية المستفيد'), v: im.beneficiary.id, ltr: true },
-          { k: L('Beneficiary name', 'اسم المستفيد'), v: ar ? im.beneficiary?.name?.ar : im.beneficiary?.name?.en },
+          { k: L('Beneficiary name', 'اسم المستفيد'), v: ar ? im.beneficiary?.name?.ar : localize(im.beneficiary?.name?.en, lang) },
           im.beneficiary?.mobile && { k: L('Beneficiary mobile', 'جوال المستفيد'), v: im.beneficiary.mobile, ltr: true }
         ] },
         { title: L('Dates and amounts', 'التواريخ والمبالغ'), items: [
-          { k: L('Issue date', 'تاريخ إصدار الفاتورة'), v: fmtDateText(rec.issueDate, ar ? 'ar' : 'en') },
-          { k: L('Due date', 'تاريخ الاستحقاق'), v: fmtDateText(rec.dueDate, ar ? 'ar' : 'en') },
-          im.paidDate && { k: L('Payment date', 'تاريخ السداد'), v: fmtDateText(im.paidDate, ar ? 'ar' : 'en') },
-          im.settlementDate && { k: L('Settlement date', 'تاريخ التسوية'), v: fmtDateText(im.settlementDate, ar ? 'ar' : 'en') },
-          im.cancelDate && { k: L('Cancellation date', 'تاريخ الإلغاء'), v: fmtDateText(im.cancelDate, ar ? 'ar' : 'en') },
+          { k: L('Issue date', 'تاريخ إصدار الفاتورة'), v: fmtDateText(rec.issueDate, lang) },
+          { k: L('Due date', 'تاريخ الاستحقاق'), v: fmtDateText(rec.dueDate, lang) },
+          im.paidDate && { k: L('Payment date', 'تاريخ السداد'), v: fmtDateText(im.paidDate, lang) },
+          im.settlementDate && { k: L('Settlement date', 'تاريخ التسوية'), v: fmtDateText(im.settlementDate, lang) },
+          im.cancelDate && { k: L('Cancellation date', 'تاريخ الإلغاء'), v: fmtDateText(im.cancelDate, lang) },
           { k: L('Invoice amount', 'مبلغ الفاتورة'), v: sar(rec.grossAmount), ltr: true },
           im.revenueAmount > 0 && { k: L('Revenue amount', 'مبلغ الإيراد'), v: sar(im.revenueAmount), ltr: true },
-          im.exclusion && { k: L('Exclusion reason', 'سبب الاستبعاد'), v: <span>{ar ? im.exclusion.reasonAr : im.exclusion.reasonEn}{im.exclusion.sourceAr && <small className="muted"> — {ar ? im.exclusion.sourceAr : im.exclusion.sourceEn}</small>}</span> }
+          im.exclusion && { k: L('Exclusion reason', 'سبب الاستبعاد'), v: <span>{ar ? im.exclusion.reasonAr : localize(im.exclusion.reasonEn, lang)}{im.exclusion.sourceAr && <small className="muted"> — {ar ? im.exclusion.sourceAr : localize(im.exclusion.sourceEn, lang)}</small>}</span> }
         ] },
         // IIM-33 — one block per source system, shown only when the invoice has data from it (empty fields are hidden)
         (rec.revenueSource === 'investment' || im.mainClass === MAIN.investment) && { title: L('Furas data', 'بيانات فرص'), items: [
           rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
           rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
           !rec.co && rec.contract?.status && rec.contract.status !== 'not_applicable' && { k: L('Contract in Furas', 'العقد في فرص'), v: L(CONTRACT_STATE[rec.contract.status]?.en || rec.contract.status, CONTRACT_STATE[rec.contract.status]?.ar || rec.contract.status) },
-          rec.co && myPay && card && { k: L('Instalment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Instalment ${myPay.no} of ${card.schedule.length}` },
+          rec.co && myPay && card && { k: L('Instalment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : localize(`Instalment ${myPay.no} of ${card.schedule.length}`, lang) },
           rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true },
-          { k: L('Asset / site', 'الأصل / الموقع'), v: `${B(rec.revenueItem)}${rec.municipalityAr ? ` — ${ar ? rec.municipalityAr : rec.municipalityEn}` : ''}` }
+          { k: L('Asset / site', 'الأصل / الموقع'), v: `${B(rec.revenueItem)}${rec.municipalityAr ? ` — ${ar ? rec.municipalityAr : localize(rec.municipalityEn, lang)}` : ''}` }
         ] },
         rec.revenueSource === 'fines' && { title: L('Violation data (Efaa / Mumtathil)', 'بيانات المخالفة (إيفاء / ممتثل)'), items: [
           rec.violationNumber && { k: L('Violation no.', 'رقم المخالفة'), v: rec.violationNumber, ltr: true },
           rec.statusRawEfaa && { k: L('Efaa status', 'حالة إيفاء'), v: rec.statusRawEfaa === 'غير مكتملة' ? L('Incomplete', 'غير مكتمل') : L('Complete', 'مكتمل') },
           rec.statusRawEfaa && { k: L('Executed against (Efaa)', 'منفذ ضده (إيفاء)'), v: rec.statusRawEfaa === 'منفذ ضده' ? L('Yes', 'نعم') : L('No', 'لا') },
-          rec.objection?.statusAr && { k: L('Objection status (Efaa / Mumtathil)', 'حالة الاعتراض (إيفاء / ممتثل)'), v: ar ? rec.objection.statusAr : rec.objection.statusEn },
+          rec.objection?.statusAr && { k: L('Objection status (Efaa / Mumtathil)', 'حالة الاعتراض (إيفاء / ممتثل)'), v: ar ? rec.objection.statusAr : localize(rec.objection.statusEn, lang) },
           rec.objection?.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
         ] },
         rec.revenueSource !== 'fines' && rec.objection?.statusAr && { title: L('Objection data (Efaa / Mumtathil)', 'بيانات الاعتراض (إيفاء / ممتثل)'), items: [
-          { k: L('Objection status', 'حالة الاعتراض'), v: ar ? rec.objection.statusAr : rec.objection.statusEn }, rec.objection.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
+          { k: L('Objection status', 'حالة الاعتراض'), v: ar ? rec.objection.statusAr : localize(rec.objection.statusEn, lang) }, rec.objection.ref && { k: L('Objection no.', 'رقم الاعتراض'), v: rec.objection.ref, ltr: true }
         ] },
         (rec.crNo || rec.crStatusRaw) && { title: L('Commercial registration', 'بيانات السجل التجاري'), items: [
           rec.crNo && { k: L('CR number', 'رقم السجل التجاري'), v: rec.crNo, ltr: true },
           rec.crStatusRaw && { k: L('CR status', 'حالة السجل التجاري'), v: rec.crStatusRaw, ltr: true }
         ] },
         im.exclusion && { title: L('Exclusion data', 'بيانات الاستبعاد'), items: [
-          { k: L('Exclusion reason', 'سبب الاستبعاد'), v: ar ? im.exclusion.reasonAr : im.exclusion.reasonEn },
-          im.exclusion.sourceAr && { k: L('Exclusion source', 'مصدر الاستبعاد'), v: ar ? im.exclusion.sourceAr : im.exclusion.sourceEn },
+          { k: L('Exclusion reason', 'سبب الاستبعاد'), v: ar ? im.exclusion.reasonAr : localize(im.exclusion.reasonEn, lang) },
+          im.exclusion.sourceAr && { k: L('Exclusion source', 'مصدر الاستبعاد'), v: ar ? im.exclusion.sourceAr : localize(im.exclusion.sourceEn, lang) },
           uploadedEx?.file && { k: L('File', 'اسم الملف'), v: uploadedEx.file.name, ltr: true },
-          uploadedEx?.file && { k: L('Upload date', 'تاريخ الرفع'), v: fmtDateText(String(uploadedEx.file.at).slice(0, 10), ar ? 'ar' : 'en') },
+          uploadedEx?.file && { k: L('Upload date', 'تاريخ الرفع'), v: fmtDateText(String(uploadedEx.file.at).slice(0, 10), lang) },
           uploadedEx?.file && uploadedEx.file.by && { k: L('Uploaded by', 'رُفع بواسطة'), v: uploadedEx.file.by },
           im.exclusion.ruleId === 'DUP-1' && im.duplicateOf && { k: L('Repeats the invoice', 'تكرار للفاتورة'), v: <RecordLink to={invoicePath(im.duplicateOf)} dir="ltr">{im.duplicateOf}</RecordLink> }
         ] },
@@ -264,7 +265,7 @@ export default function InvoicePage() {
               <div><b>{ex.category.replace(/_/g, ' ')}</b> · <span dir="ltr">{ex.ruleId}</span> {rule && <span className="rv-tag">{B(RULE_APPROVAL_LABEL[rule.approval])}</span>} — {ex.reviewStatus === 'approved' ? L('approved', 'معتمد') : ex.reviewStatus === 'rejected' ? L('rejected', 'مرفوض') : L('pending: stays in the invoice value', 'معلّق: يبقى ضمن قيمة الفاتورة')}</div>
               <div dir="auto">{B(ex.evidence)}</div>
               {ex.sources?.length > 0 && <div className="muted">{ex.sources.map((x) => `${x.system} › ${x.field} = ${x.value}`).join(' · ')}</div>}
-              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <button type="button" className="btn btn-sm btn-primary" disabled={!canReview || ex.reviewStatus === 'approved'} onClick={() => decide(ex.ruleId, 'approved')}>{L('Approve', 'اعتماد')}</button>
                 <button type="button" className="btn btn-sm" disabled={!canReview || ex.reviewStatus === 'rejected'} onClick={() => decide(ex.ruleId, 'rejected')}>{L('Reject', 'رفض')}</button>
               </div>
@@ -289,7 +290,7 @@ export default function InvoicePage() {
               return (
                 <tr key={c.enforceNum}>
                   <td><RecordLink to={orderPath(c.enforceNum)} dir="ltr"><b>{c.enforceNum}</b></RecordLink><div className="muted" dir="ltr">{sar(c.amount)}</div></td>
-                  <td><OrderStatusChip status={st} />{st === 'closed' && <div className="muted" style={{ fontSize: 12 }}>{c.source?.statusText || L('closure reason unknown', 'سبب الإغلاق غير معروف')}</div>}{st === 'closed' && <div className="muted" style={{ fontSize: 11 }}>{L('closing an order does not mean payment', 'إغلاق الأمر لا يعني السداد')}</div>}</td>
+                  <td><OrderStatusChip status={st} />{st === 'closed' && <div className="muted" style={{ fontSize: 12 }}>{c.source?.statusText || L('closure reason unknown', 'سبب الإغلاق غير معروف')}</div>}{st === 'closed' && <div className="muted" style={{ fontSize: 12 }}>{L('closing an order does not mean payment', 'إغلاق الأمر لا يعني السداد')}</div>}</td>
                   <td><Chip def={l.ledgerStatus === 'removed' ? { en: 'Withdrawn', ar: 'مسحوب', cls: 'rv-cat--excluded' } : LINK_STATUS_LABEL[l.status]} />{hard.length > 0 && l.status === 'candidate' && <div className="rp-bad" style={{ fontSize: 12 }}>{hard.map((x) => B(CONFLICT_LABEL[x] || { en: x, ar: x })).join(' · ')}</div>}</td>
                   <td style={{ fontSize: 12 }}>{B(ORIGIN_LABEL[l.origin] || ORIGIN_LABEL.sanad_structured)}</td>
                 </tr>
@@ -319,8 +320,8 @@ export default function InvoicePage() {
         <Section id="disclosure" title={L('Disclosure details', 'تفاصيل الإفصاح')}>
           <Facts items={[
             { k: L('Invoice type', 'نوع الفاتورة'), v: im.disclosure.kind === 'occupancy' ? L('Occupancy (declared by the taxpayer)', 'إشغالات (إفصاح من المكلف)') : L('Differences (from the audit)', 'فروقات (ناتجة عن التدقيق)') },
-            { k: L('Taxpayer', 'اسم المكلف'), v: ar ? im.disclosure.taxpayer.ar : im.disclosure.taxpayer.en },
-            { k: L('Facility', 'المنشأة'), v: <span>{ar ? im.disclosure.facility.ar : im.disclosure.facility.en} <small className="muted" dir="ltr">({im.disclosure.facility.key})</small></span> },
+            { k: L('Taxpayer', 'اسم المكلف'), v: ar ? im.disclosure.taxpayer.ar : localize(im.disclosure.taxpayer.en, lang) },
+            { k: L('Facility', 'المنشأة'), v: <span>{ar ? im.disclosure.facility.ar : localize(im.disclosure.facility.en, lang)} <small className="muted" dir="ltr">({im.disclosure.facility.key})</small></span> },
             im.disclosure.year && { k: L('Disclosure year', 'سنة الإفصاح'), v: String(im.disclosure.year), ltr: true },
             im.disclosure.month && { k: L('Disclosure month', 'شهر الإفصاح'), v: String(im.disclosure.month), ltr: true }
           ].filter(Boolean)} />
@@ -332,8 +333,8 @@ export default function InvoicePage() {
           <Facts items={[
             { k: L('Linked to a contract', 'مرتبطة بعقد'), v: rec.co ? L('Yes', 'نعم') : L('No', 'لا') },
             rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
-            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : card.tenantEn }, rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
-            rec.co && myPay && card && { k: L('Payment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Payment ${myPay.no} of ${card.schedule.length}` },
+            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : localize(card.tenantEn, lang) }, rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
+            rec.co && myPay && card && { k: L('Payment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : localize(`Payment ${myPay.no} of ${card.schedule.length}`, lang) },
             rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true }
           ].filter(Boolean)} />
           {rec.co ? <div className="rp-limit">{L('The contract is the one recorded on the invoice (Furas). It was not inferred from an amount or a payer name.', 'العقد هو المسجّل على الفاتورة (فرص). ولم يُستنتج من مبلغ أو اسم دافع.')}</div>

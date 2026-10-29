@@ -8,6 +8,7 @@ import SettingsNav from '../components/settings/SettingsNav';
 import { ExclusionsTab, FormulasTab, DevelopersTab } from '../components/settings/DictionaryTabs';
 import ExclusionsReference from '../components/settings/ExclusionsReference';
 import SadadExample from '../components/settings/SadadExample';
+import useTabs from '../utils/useTabs';
 
 const KIND = {
   flow: { ar: 'تدفق لفترة', en: 'Period flow' },
@@ -18,16 +19,17 @@ const KIND = {
 
 export default function Metrics() {
   const rev = useRevenue();
-  const { L, B, ar, short } = useL();
+  const { L, B, ar, short , lang } = useL();
   const { snapshot } = rev;
   const [sp, setSp] = useSearchParams(); const tab = ['metrics', 'exclusions', 'formulas', 'developers'].includes(sp.get('tab')) ? sp.get('tab') : 'metrics';
   const TABS = [['metrics', L('Metrics', 'المقاييس')], ['exclusions', L('Exclusions', 'الاستبعادات')], ['formulas', L('Formulas and rules', 'المعادلات والقواعد')], ['developers', L('For developers', 'للمطورين')]];
+  const tabs = useTabs({ keys: TABS.map(([key]) => key), value: tab, onChange: (key) => setSp(key === 'metrics' ? {} : { tab: key }) });
   const dict = useMemo(() => metricDictionary(snapshot), [snapshot]);
   const T = snapshot.totals; const S = snapshot.stock;
   const value = {
     gross: short(T.gross), adjustments: short(T.adjustments), cancelled: short(T.cancelled), exclusions: short(T.exclusions), net: short(T.net),
     collected: short(T.collected), uncollected: short(T.outstanding), netUncollected: short(S.netUncollected), overdue: short(S.overdue), notYetDue: short(S.notYetDue),
-    collectedOverNet: ratioText(T.collectedOverNet, ar),
+    collectedOverNet: ratioText(T.collectedOverNet, lang),
     adjustedTotal: '—', targetCollection: '—', remainingToTarget: '—'
   };
   return (
@@ -40,8 +42,9 @@ export default function Metrics() {
         </div>
       </div>
       <div className="rv-chips" role="tablist" aria-label={L('Dictionary sections', 'أقسام القاموس')} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 12px' }}>
-        {TABS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`btn btn-sm${tab === k ? ' btn-primary' : ''}`} onClick={() => setSp(k === 'metrics' ? {} : { tab: k })}>{label}</button>)}
+        {TABS.map(([k, label]) => <button key={k} {...tabs.getTabProps(k)} className={`btn btn-sm${tab === k ? ' btn-primary' : ''}`}>{label}</button>)}
       </div>
+      <div {...tabs.getPanelProps(tab)} className="ui-section-stack">
       {tab === 'exclusions' && <><ScopeBar hideStatus /><ExclusionsTab /></>}
       {tab === 'formulas' && <FormulasTab />}
       {tab === 'developers' && <DevelopersTab />}
@@ -66,7 +69,7 @@ export default function Metrics() {
               <dt>{L('Scope', 'النطاق')}</dt><dd dir="auto">{B(m.scope)}</dd>
               <dt>{L('Sources', 'المصادر')}</dt><dd>{m.sourceLabels.map((x) => B(x)).join(ar ? '، ' : ', ')}</dd>
               <dt>{L('Updated', 'آخر تحديث')}</dt><dd dir="ltr">{m.updatedAt}</dd>
-              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{m.ruleVersion}</dd>
+              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{B(m.ruleVersion)}</dd>
               <dt>{L('Data completeness', 'اكتمال البيانات')}</dt><dd>{m.completeness.calculable ? `${Math.round(m.completeness.value * 100)}%` : L('Not calculable', 'غير قابل للاحتساب')}</dd>
               {m.caveat && (<><dt>{L('Caution', 'تنبيه')}</dt><dd dir="auto">{B(m.caveat)}</dd></>)}
             </dl>
@@ -76,6 +79,7 @@ export default function Metrics() {
       <SadadExample />
       <ExclusionsReference />
       </>}
+      </div>
     </div>
   );
 }

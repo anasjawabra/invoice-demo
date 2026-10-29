@@ -1,3 +1,4 @@
+import UISymbol from '../components/UISymbol';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Pager from '../components/Pager';
@@ -18,7 +19,7 @@ const REASONS = [['all', 'Any', 'أي سبب'], ['no_references', 'Numbers not i
 // Three filters are visible; the rest are under «تصفية إضافية». Everything else about an order is in its details page.
 export default function OrdersView() {
   const { cases } = useRevenue();
-  const { L, B, sar, ar } = useL();
+  const { L, B, sar, ar , lang } = useL();
   const [sp] = useSearchParams();
   const restore = useShouldRestore();
   const mem = useMemo(() => readListMemory('orders', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -62,7 +63,7 @@ export default function OrdersView() {
   const active = [
     (dFrom || dTo) && { k: 'per', t: `${L('Referral date', 'تاريخ الإحالة')}: ${dFrom || '…'} → ${dTo || '…'}`, off: () => { setDFrom(''); setDTo(''); } },
     q.trim() && { k: 'q', t: `${L('Search', 'بحث')}: ${q.trim()}`, off: () => setQ('') },
-    fAm !== 'all' && { k: 'am', t: amanahName(fAm, ar), off: () => setFAm('all') },
+    fAm !== 'all' && { k: 'am', t: amanahName(fAm, lang), off: () => setFAm('all') },
     fRev !== 'all' && { k: 'rev', t: fRev === 'open' ? L('Needs attention', 'تحتاج إجراء') : B(REVIEW_LABEL[fRev] || { en: fRev, ar: fRev }), off: () => setFRev('all') },
     fSrc !== 'all' && { k: 'src', t: SOURCE_STATUSES.find((x) => String(x.id) === fSrc)?.text, off: () => setFSrc('all') },
     fType !== 'all' && { k: 'type', t: DEBTOR_TYPES.find((x) => String(x.id) === fType)?.text, off: () => setFType('all') },
@@ -78,12 +79,12 @@ export default function OrdersView() {
         <label style={{ flex: '1 1 240px' }}>{L('Search by request number or invoice number', 'بحث برقم طلب التنفيذ أو رقم الفاتورة')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="4606056" dir="auto" /></label>
         <label>{L('Referral from', 'من تاريخ الإحالة')}<input id="ord_from" className="input" type="date" value={dFrom} max={dTo || undefined} onChange={(e) => { setDFrom(e.target.value); setPage(0); }} /></label>
         <label>{L('Referral to', 'إلى تاريخ الإحالة')}<input id="ord_to" className="input" type="date" value={dTo} min={dFrom || undefined} onChange={(e) => { setDTo(e.target.value); setPage(0); }} /></label>
-        <label>{L('Amanah', 'الأمانة / الجهة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
+        <label>{L('Amanah', 'الأمانة / الجهة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, lang)}</option>)}</select></label>
         {sel('ord_rev', L('Matching review', 'مراجعة المطابقة'), fRev, setFRev, [['all', 'All', 'الكل'], ['open', 'Needs attention', 'تحتاج إجراء'], ['needs_review', 'Needs review', 'تحتاج مراجعة'], ['not_identified', 'Numbers not identified', 'أرقام غير محددة'], ['complete', 'Complete', 'مكتملة']])}
       </div>
       <details open={extras.length > 0} className="oj-more">
         <summary>{L('More filters', 'تصفية إضافية')}{extras.length ? ` (${extras.length})` : ''}</summary>
-        <div className="rv-form" style={{ marginTop: 6 }}>
+        <div className="rv-form" style={{ marginTop: 8 }}>
           <label>{L('Source status', 'حالة الطلب في سند')}<select id="ord_src" className="input" value={fSrc} onChange={(e) => { setFSrc(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{usedStatuses.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
           <label>{L('Debtor type', 'نوع المنفذ ضده')}<select id="ord_type" className="input" value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{DEBTOR_TYPES.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
           {sel('ord_why', L('Review reason', 'سبب المراجعة'), fWhy, setFWhy, REASONS)}
@@ -93,7 +94,7 @@ export default function OrdersView() {
       </details>
       <div className="oj-bar">
         <span role="status" aria-live="polite"><b>{shown.length}</b> {L('requests', 'طلب')}</span>
-        {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة التصفية')}: ${x.t}`}>{x.t} ×</button>)}
+        {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة التصفية')}: ${x.t}`}>{x.t}<UISymbol name="close" /></button>)}
         {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل التصفية')}</button>}
         <label className="oj-sort">{L('Sort', 'الترتيب')}<select id="ord_sort" className="input" value={sort} onChange={(e) => { setSort(e.target.value); setPage(0); }}>{SORTS.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>
       </div>
@@ -104,11 +105,11 @@ export default function OrdersView() {
             {view.map(({ c, comp, review, alerts }) => { const sc = c.source || {}; const lab = REVIEW_LABEL[review]; return (
               <tr key={c.enforceNum}>
                 <td><RecordLink to={orderPath(c.enforceNum)} dir="ltr"><b style={{ fontSize: 15 }}>{sc.requestNo || c.enforceNum}</b></RecordLink></td>
-                <td>{amanahName(c.amanahEn, ar)}{sc.municipality ? <span className="muted"> · {sc.municipality}</span> : null}</td>
+                <td>{amanahName(c.amanahEn, lang)}{sc.municipality ? <span className="muted"> · {sc.municipality}</span> : null}</td>
                 <td style={{ fontSize: 13 }}>{sc.statusText || '—'}</td>
                 <td className="num" dir="ltr">{sar(c.amount)}</td>
                 <td className="num">{comp.references.confirmedLinks || <span className="muted">—</span>}</td>
-                <td><span className={lab.tone === 'ok' ? 'rp-ok' : 'rp-warn'}>{lab.tone === 'ok' ? '✓' : '!'} {B(lab)}</span>{alerts.length > 0 && <div className="oj-alerts">{alerts.map((a) => <span key={a.key} className="oj-alert" title={B(a.why)}>⚠ {B(a)}</span>)}</div>}</td>
+                <td><span className={lab.tone === 'ok' ? 'rp-ok' : 'rp-warn'}>{lab.tone === 'ok' ? <UISymbol name="check" /> : <UISymbol name="warning" />} {B(lab)}</span>{alerts.length > 0 && <div className="oj-alerts">{alerts.map((a) => <span key={a.key} className="oj-alert" title={B(a.why)}><UISymbol name="warning" /> {B(a)}</span>)}</div>}</td>
                 <td><RecordLink className="btn btn-sm" to={orderPath(c.enforceNum)}>{L('Open', 'فتح')}</RecordLink></td>
               </tr>); })}
             {!view.length && <tr><td colSpan={7} className="muted">{L('No requests match these filters.', 'لا توجد طلبات مطابقة.')}</td></tr>}

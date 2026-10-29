@@ -1,3 +1,5 @@
+import { localize } from '../../utils/zh';
+import { useI18n } from '../../context/I18nContext';
 // «المستهدفات» — the FIRST section of the planning page: the targets a person sets for the year, per الأمانة / الجهة, next to what has been collected.
 //   مستهدف نسبة التغطية × الميزانية المبلغة (الأبواب 1–3) = المستهدف السنوي للإيراد
 //   مستهدف نسبة التحصيل (محصّل ÷ صافي المفوتر)   → مستهدف الفوترة = المستهدف ÷ نسبة التحصيل (مشتق، لا يُكتب)
@@ -29,6 +31,7 @@ function MilInput({ value, onCommit, label, id }) {
 }
 
 export default function TargetsPanel({ year, entityRows, store, setStore, selectedKey, total, canEdit, by, collectedByKey = {}, collectedTotal = 0, L, ar, short, nameOf, dateText }) {
+  const { lang } = useI18n();
   const [error, setError] = useState('');
   const commit = (next) => { setStore(next); saveTargetStore(next); setError(''); };
   const opts = { at: new Date().toISOString(), by };
@@ -36,7 +39,7 @@ export default function TargetsPanel({ year, entityRows, store, setStore, select
   const ov = overallOf(store, year); const on = overrideOn(store, year);
   const setO = (patch) => { const e = targetError(patch); if (e) { setError(ERR[e]); return; } commit(setOverall(store, year, patch, opts)); };
   const set = (key, patch) => { const e = targetError(patch); if (e) { setError(ERR[e]); return; } commit(setTargets(store, year, key, patch, opts)); };
-  const months = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2000, i, 1)).toLocaleString(ar ? 'ar' : 'en', { month: 'short', timeZone: 'UTC' }));
+  const months = Array.from({ length: 12 }, (_, i) => new Date(Date.UTC(2000, i, 1)).toLocaleString(lang, { month: 'short', timeZone: 'UTC' }));
   const editable = selectedKey !== 'all'; const t = editable ? entityRows.find((r) => r.key === selectedKey) : null;
   const sum = editable && t ? t : total; // the selection: one entity, or the Ministry
   const lastSaved = [...entityRows.map((r) => r.savedAt), ov.savedAt].filter(Boolean).sort().pop();
@@ -89,7 +92,7 @@ export default function TargetsPanel({ year, entityRows, store, setStore, select
       )}
       <details className="tg-months" open={on || undefined}>
         <summary><b>{L('تخصيص حسب الأمانة', 'Customise by Amanah')}</b> <span className="muted" style={{ fontSize: 12 }}>{on ? L('مفعّل', 'on') : L('مغلق (افتراضي)', 'off (default)')}</span></summary>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <input type="checkbox" checked={on} disabled={!canEdit} onChange={(e) => commit(setOverride(store, year, e.target.checked))} />
           <span>{L('السماح بقيم خاصة لكل أمانة / جهة (تحلّ محل المستهدفات العامة)', 'Allow own values per Amanah / entity (they replace the overall targets)')}</span>
         </label>

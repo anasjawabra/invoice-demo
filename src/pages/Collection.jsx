@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo, useState } from 'react';
 import { useAsync } from '../utils/useAsync';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -22,7 +23,7 @@ export default function Collection() {
   const rev = useRevenue();
   const nav = useNavigate();
   const { snapshot } = rev;
-  const { L, B, ar, short, count, sar } = useL();
+  const { L, B, ar, short, count, sar , lang } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('collection', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [searchParams, setSearchParams] = useSearchParams();
   const [cat, setCat] = useState(searchParams.get('category') || mem.cat || 'all');
@@ -46,7 +47,7 @@ export default function Collection() {
   const stats = snapshot.ruleStats || {};
   const totalN = wl?.total ?? 0;
   useRestoreScroll(rows.length > 0);
-  const reasonLabel = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : r.en) : id; };
+  const reasonLabel = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : localize(r.en, lang)) : id; };
 
   return (
     <div className="rv-page">
@@ -70,18 +71,18 @@ export default function Collection() {
       </div>
 
       <div className="card card-pad" id="uncollected-list">
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }} role="group" aria-label={L('Filter by state', 'تصفية حسب الحالة')}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }} role="group" aria-label={L('Filter by state', 'تصفية حسب الحالة')}>
           <button type="button" className={`btn btn-sm ${cat === 'all' ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === 'all'} onClick={() => setCat('all')}>{L('All', 'الكل')}</button>
           {STATE_CHIPS.map((c) => (
             <button key={c} type="button" className={`btn btn-sm ${cat === c ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={cat === c} onClick={() => setCat(c)}>{B(CATEGORY_LABELS[c])} · {count(nc[c].count)}</button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
           <label htmlFor="rv-reason" className="rv-scope__lbl">{L('Exclusion reason', 'سبب الاستبعاد')}</label>
           <select id="rv-reason" className="select" value={reason} onChange={(e) => { setReason(e.target.value); setCat('all'); }}>
             <option value="all">{L('All (excluded and not)', 'الكل (مستبعدة وغير مستبعدة)')}</option>
             <option value="none">{L('Not excluded', 'غير مستبعدة')}</option>
-            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : r.en}{stats[r.ruleId]?.primaryCount ? ` · ${count(stats[r.ruleId].primaryCount)}` : ''}</option>)}
+            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : localize(r.en, lang)}{stats[r.ruleId]?.primaryCount ? ` · ${count(stats[r.ruleId].primaryCount)}` : ''}</option>)}
           </select>
           {(rev.scopeEff.product || []).some((k) => DISCLOSURE_PRODUCTS.includes(k)) && (
             <select id="rv-kind" className="select" aria-label={L('Invoice type', 'نوع الفاتورة')} value={kind} onChange={(e) => setKind(e.target.value)}>
@@ -99,18 +100,18 @@ export default function Collection() {
               {rows.length ? rows.map((w, i) => (
                 <tr key={w.id} data-clickable="true" onClick={() => setDetail(detail === w.id ? null : w.id)}>
                   <td className="num">{i + 1}</td>
-                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link><div className="muted" style={{ fontSize: 11 }} dir="auto">{L('Biller', 'المفوتر')} {w.billerId} · {ar ? w.billerAr : w.billerEn}</div></td>
-                  <td>{ar ? w.amanahAr : w.amanahEn} · {ar ? PRODUCTS[w.productKey].ar : PRODUCTS[w.productKey].en}{w.invoiceKindAr ? ` — ${w.invoiceKindAr}` : ''} <span className="muted" style={{ fontSize: 11 }}>({ar ? REVENUE_SOURCES[w.source].ar : REVENUE_SOURCES[w.source].en})</span></td>
+                  <td><Link to={invoicePath(w.id)} dir="ltr" onClick={(e) => e.stopPropagation()}>{w.id}</Link><div className="muted" style={{ fontSize: 11 }} dir="auto">{L('Biller', 'المفوتر')} {w.billerId} · {ar ? w.billerAr : localize(w.billerEn, lang)}</div></td>
+                  <td>{ar ? w.amanahAr : localize(w.amanahEn, lang)} · {ar ? PRODUCTS[w.productKey].ar : localize(PRODUCTS[w.productKey].en, lang)}{w.invoiceKindAr ? ` — ${w.invoiceKindAr}` : ''} <span className="muted" style={{ fontSize: 11 }}>({ar ? REVENUE_SOURCES[w.source].ar : localize(REVENUE_SOURCES[w.source].en, lang)})</span></td>
                   <td>{ar ? ORIGIN_AR[w.origin] : ORIGIN_EN[w.origin]}</td>
                   <td><span className={`rv-cat rv-cat--${w.category}`}>{B(CATEGORY_LABELS[w.category])}</span></td>
                   <td className="num" dir="ltr">{sar(w.uncollected ?? w.outstanding)}</td>
-                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : w.exclusionReason.reasonEn) : '—'}{w.exclusionReason && detail === w.id && <div className="muted" style={{ fontSize: 11 }}>{L('Source', 'المصدر')}: {ar ? w.exclusionReason.sourceAr : w.exclusionReason.sourceEn}</div>}</td>
+                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : localize(w.exclusionReason.reasonEn, lang)) : '—'}{w.exclusionReason && detail === w.id && <div className="muted" style={{ fontSize: 11 }}>{L('Source', 'المصدر')}: {ar ? w.exclusionReason.sourceAr : localize(w.exclusionReason.sourceEn, lang)}</div>}</td>
                   <td className="num">{w.daysOverdue || '—'}</td>
                   <td className="num" title={L(`amount ${PRIORITY_WEIGHTS.amount}, aging ${PRIORITY_WEIGHTS.aging}, actionability ${PRIORITY_WEIGHTS.actionability}, evidence ${PRIORITY_WEIGHTS.evidence}`, `المبلغ ${PRIORITY_WEIGHTS.amount}، التقادم ${PRIORITY_WEIGHTS.aging}، قابلية الإجراء ${PRIORITY_WEIGHTS.actionability}، الدليل ${PRIORITY_WEIGHTS.evidence}`)}>{w.score}</td>
                   <td dir="auto" style={{ fontSize: 12 }}>
                     {B(w.nextStep)}
                     {detail === w.id && (
-                      <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+                      <div className="muted" style={{ marginTop: 8, fontSize: 12 }}>
                         {L(`Actionability ${w.actionability}; evidence quality ${w.evidenceQuality}.`, `قابلية الإجراء ${w.actionability}؛ جودة الدليل ${w.evidenceQuality}.`)}
                         {w.tags.length > 0 && <div>{w.tags.join(' · ')}</div>}
                       </div>
@@ -121,7 +122,7 @@ export default function Collection() {
             </tbody>
           </table>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Collected invoices never appear here. Excluded invoices appear with their reason; the exclusion applies to the uncollected part only.', 'لا تظهر هنا الفواتير المحصّلة. وتظهر المستبعدة مع سببها؛ والاستبعاد يخص الجزء غير المحصّل فقط.')}</p>
+        <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{L('Collected invoices never appear here. Excluded invoices appear with their reason; the exclusion applies to the uncollected part only.', 'لا تظهر هنا الفواتير المحصّلة. وتظهر المستبعدة مع سببها؛ والاستبعاد يخص الجزء غير المحصّل فقط.')}</p>
       </div>
     </div>
   );

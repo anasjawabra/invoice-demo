@@ -1,3 +1,7 @@
+import { localize } from '../utils/zh';
+import UISymbol from './UISymbol';
+import AppHeader from './AppHeader';
+import BrandMark from './BrandMark';
 import { trapTab } from '../utils/modalFocus';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -11,110 +15,9 @@ import { ToastProvider, useToast } from './Toast';
 import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
 import { useFitTables } from '../utils/fitTables';
+import AppIcon from './AppIcon';
 
-function Icon({ name }) {
-  // Minimal inline icons (no external deps)
-  const common = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 };
-  switch (name) {
-    case 'dashboard':
-      return (
-        <svg {...common}>
-          <path d="M4 13h7V4H4v9z" />
-          <path d="M13 20h7V11h-7v9z" />
-          <path d="M13 4h7v5h-7V4z" />
-          <path d="M4 20h7v-5H4v5z" />
-        </svg>
-      );
-    case 'invoices':
-      return (
-        <svg {...common}>
-          <path d="M6 2h9l3 3v17l-2-1-2 1-2-1-2 1-2-1-2 1V2z" />
-          <path d="M8 7h8" />
-          <path d="M8 11h8" />
-          <path d="M8 15h6" />
-        </svg>
-      );
-    case 'risk':
-      return (
-        <svg {...common}>
-          <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z" />
-          <path d="M12 8v4" />
-          <path d="M12 16h.01" />
-        </svg>
-      );
-    case 'settings':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-        </svg>
-      );
-    case 'collection':
-      return (
-        <svg {...common}>
-          <path d="M3 3v18h18" />
-          <path d="M7 14l4-4 3 3 6-6" />
-        </svg>
-      );
-    case 'assistant':
-      return (
-        <svg {...common}>
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z" />
-        </svg>
-      );
-    case 'smart-reports':
-      return (
-        <svg {...common}>
-          <path d="M9 2h6l5 5v13a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" />
-          <path d="M9 12l2 2 4-4" />
-        </svg>
-      );
-    case 'what-if':
-      return (
-        <svg {...common}>
-          <path d="M4 19h16" />
-          <path d="M4 19V7" />
-          <path d="M4 15l4-3 4 2 8-7" />
-          <path d="M20 7v4M20 7h-4" />
-        </svg>
-      );
-    case 'decision-room':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="9" />
-          <circle cx="12" cy="12" r="5" />
-          <circle cx="12" cy="12" r="1" fill="currentColor" />
-        </svg>
-      );
-    case 'bell':
-      return (
-        <svg {...common}>
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      );
-    case 'sun':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-        </svg>
-      );
-    case 'moon':
-      return (
-        <svg {...common}>
-          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
-        </svg>
-      );
-    default:
-      return (
-        <svg {...common}>
-          <path d="M12 2v20" />
-          <path d="M2 12h20" />
-        </svg>
-      );
-  }
-}
+function Icon({ name }) { return <AppIcon name={name} />; }
 
 function LayoutInner() {
   const { t, lang, setLang, T, isRtl } = useI18n();
@@ -145,11 +48,11 @@ function LayoutInner() {
   const tabs = useMemo(
     () => [
       { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
-      { to: '/smart-reports', icon: 'smart-reports', label: lang === 'ar' ? 'التقارير الذكية' : 'Smart reports' },
+      { to: '/smart-reports', icon: 'smart-reports', label: lang === 'ar' ? 'التقارير الذكية' : localize('Smart reports', lang) },
       { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
       { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
-      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
-      { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : 'Product management' },
+      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : localize('Exclusions management', lang) },
+      { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : localize('Product management', lang) },
       { to: '/invoices', icon: 'invoices', label: t('invoices') },
       { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
       { to: '/contracts', icon: 'invoices', label: t('nav_contracts') }
@@ -181,13 +84,13 @@ function LayoutInner() {
     if (p.startsWith('/contracts')) return t('nav_contracts');
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
-    if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
-    if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';
-    if (p.startsWith('/decisions')) return lang === 'ar' ? 'غرفة القرارات' : 'Decision room';
-    if (p.startsWith('/smart-reports')) return lang === 'ar' ? 'التقارير الذكية' : 'Smart reports';
+    if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : localize('Exclusions management', lang);
+    if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : localize('Product management', lang);
+    if (p.startsWith('/decisions')) return lang === 'ar' ? 'غرفة القرارات' : localize('Decision room', lang);
+    if (p.startsWith('/smart-reports')) return lang === 'ar' ? 'التقارير الذكية' : localize('Smart reports', lang);
     if (p.startsWith('/planning')) return t('nav_planning');
     if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
-    if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';
+    if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : localize('Analysis result', lang);
     return 'INTELLIBILL';
   }, [loc.pathname, t, lang]);
 
@@ -196,30 +99,31 @@ function LayoutInner() {
   useEffect(() => { document.title = pageTitle && pageTitle !== 'INTELLIBILL' ? `${pageTitle} | ${baseTitle}` : baseTitle; }, [pageTitle, baseTitle]);
 
   return (
-    <div className="app-shell">
-      <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'}</a>
-      {IS_TIME_TRAVEL && <div className="day-banner" role="status" data-testid="demo-date-banner">{lang === 'ar' ? `وضع العرض: التاريخ مثبّت على ${DEMO_TODAY} (عبر demoToday — للعرض والمراجعة فقط، وليس تاريخ اليوم الفعلي).` : `Demo mode: the date is pinned to ${DEMO_TODAY} (via demoToday — for demonstration and review only, not today's real date).`} <a href="?demoToday=reset">{lang === 'ar' ? 'إلغاء التثبيت' : 'Unpin'}</a></div>}
-      {dayChanged && <div className="day-banner" role="status">{lang === 'ar' ? 'تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق.' : 'The date has changed since this page was opened; figures belong to the previous day.'} <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>{lang === 'ar' ? 'تحديث الآن' : 'Refresh now'}</button></div>}
+    <div className={`app-shell${loc.pathname.startsWith('/smart-reports') ? ' app-shell--smart' : ''}`}>
+      <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : localize('Skip to content', lang)}</a>
+      {IS_TIME_TRAVEL && <div className="day-banner" role="status" data-testid="demo-date-banner">{lang === 'ar' ? `وضع العرض: التاريخ مثبّت على ${DEMO_TODAY} (عبر demoToday — للعرض والمراجعة فقط، وليس تاريخ اليوم الفعلي).` : localize(`Demo mode: the date is pinned to ${DEMO_TODAY} (via demoToday — for demonstration and review only, not today's real date).`, lang)} <a href="?demoToday=reset">{lang === 'ar' ? 'إلغاء التثبيت' : localize('Unpin', lang)}</a></div>}
+      {dayChanged && <div className="day-banner" role="status">{lang === 'ar' ? 'تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق.' : localize('The date has changed since this page was opened; figures belong to the previous day.', lang)} <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>{lang === 'ar' ? 'تحديث الآن' : localize('Refresh now', lang)}</button></div>}
       <div className="bg-fx" />
       <div className="bg-grid" />
 
       <main className="main">
+        <AppHeader>
         <header className="topbar">
           <div className="topbar-left">
             <NavLink to="/insights" className="side-brand">
-              <div className="side-brand__logo">IB</div>
+              <BrandMark className="side-brand__logo" />
               <div className="side-brand__text">
                 <b>{t('side_brand')}</b>
                 <span>{t('brand_tagline')}</span>
               </div>
             </NavLink>
             <details className="demo-note">
-              <summary>{lang === 'ar' ? 'بيانات تجريبية' : 'Demo data'}</summary>
-              <div role="note">{lang === 'ar' ? `بيانات اصطناعية وليست بيانات الوزارة الفعلية${rev.meta?.size === 'compact' ? ` (عينة مضغوطة: ${rev.meta.counts?.invoicesTotal ?? ''} فاتورة)` : ''}. التواريخ والأوقات بتوقيت الرياض.` : `Synthetic data, not the Ministry’s actual data${rev.meta?.size === 'compact' ? ` (compact sample: ${rev.meta.counts?.invoicesTotal ?? ''} invoices)` : ''}. Dates and times are Asia/Riyadh.`}</div>
+              <summary>{lang === 'ar' ? 'بيانات تجريبية' : localize('Demo data', lang)}</summary>
+              <div role="note">{lang === 'ar' ? `بيانات اصطناعية وليست بيانات الوزارة الفعلية${rev.meta?.size === 'compact' ? ` (عينة مضغوطة: ${rev.meta.counts?.invoicesTotal ?? ''} فاتورة)` : ''}. التواريخ والأوقات بتوقيت الرياض.` : localize(`Synthetic data, not the Ministry’s actual data${rev.meta?.size === 'compact' ? ` (compact sample: ${rev.meta.counts?.invoicesTotal ?? ''} invoices)` : ''}. Dates and times are Asia/Riyadh.`, lang)}</div>
             </details>
           </div>
 
-          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'التفضيلات والحساب' : 'Preferences and account'} <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span></button>
+          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'التفضيلات والحساب' : localize('Preferences and account', lang)} <span aria-hidden="true">{moreOpen ? <UISymbol name="up" /> : <UISymbol name="down" />}</span></button>
           <div className="topbar-right" id="topbar-controls" data-open={moreOpen ? 'true' : undefined}>
             <button
               type="button"
@@ -245,7 +149,6 @@ function LayoutInner() {
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
                 onClick={() => {
                   setLang('zh');
                   toast.info(t('switched_zh'));
@@ -255,7 +158,7 @@ function LayoutInner() {
               </button>
               <button
                 type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : localize('btn-ghost', lang)}`}
                 onClick={() => {
                   setLang('ar');
                   toast.info(t('switched_ar'));
@@ -321,7 +224,7 @@ function LayoutInner() {
               <span style={{ fontSize: 12 }}>{t('notif')}</span>
             </button>
 
-            <div className="pill" style={{ gap: 10 }}>
+            <div className="pill" style={{ gap: 12 }}>
               <div
                 className="badge badge--teal"
                 style={{ width: 34, height: 34, borderRadius: 12, paddingInline: 0, display: 'grid', placeItems: 'center' }}
@@ -353,7 +256,7 @@ function LayoutInner() {
           </div>
         </header>
 
-        <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
+        <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : localize('Main navigation', lang)}>
           {primaryTabs.map((tab) => (
             <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) || (tab.to === '/insights' && loc.pathname.startsWith('/decisions')) ? ' active' : ''}`}>
               <span className="tab__icon"><Icon name={tab.icon} /></span>
@@ -364,7 +267,7 @@ function LayoutInner() {
             <button type="button" ref={opsBtn} className={`tab${opsActive ? ' active' : ''}`} aria-expanded={opsOpen} aria-controls="ops-menu" onClick={() => setOpsOpen((v) => !v)}>
               <span className="tab__icon"><Icon name="invoices" /></span>
               <span className="tab__text">{opsLabel}</span>
-              <span aria-hidden="true" className="tab__chev">▾</span>
+              <span aria-hidden="true" className="tab__chev"><UISymbol name="down" /></span>
             </button>
             {opsOpen && (
               <ul id="ops-menu" className="tab-menu__list">
@@ -379,12 +282,12 @@ function LayoutInner() {
             <span className="tab__text">{settingsTab.label}</span>
           </NavLink>
         </nav>
+        </AppHeader>
 
         <section className="content" id="main-content" tabIndex={-1}>
-          {lang === 'zh' && <div className="rv-callout" role="note" data-testid="zh-notice"><span lang="zh-CN">中文翻译不完整：当前大部分页面、导航和报告尚未翻译，以英文显示（仅部分旧版文本为中文）。</span> <span lang="en">The Chinese translation is incomplete: most current pages, navigation and reports are not translated and are shown in English (only some legacy text is Chinese). Arabic and English are the fully authored languages.</span></div>}
-          <div lang={lang === 'zh' ? 'en' : undefined}><Outlet /></div>
+          <div><Outlet /></div>
         </section>
-        <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data · dates and times are Asia/Riyadh'}</footer>
+        <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة · التواريخ والأوقات بتوقيت الرياض' : localize('Synthetic demo data — not the Ministry’s actual data · dates and times are Asia/Riyadh', lang)}</footer>
 
         <FloatingAssistantButton />
         <AnalysisHost />

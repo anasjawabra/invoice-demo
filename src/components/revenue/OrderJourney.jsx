@@ -1,3 +1,4 @@
+import UISymbol from '../UISymbol';
 import React, { useMemo, useRef, useState } from 'react';
 import { useL } from '../../utils/bi';
 import { RecordLink } from '../../utils/returnContext';
@@ -15,13 +16,13 @@ import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
 // The order's journey in three plain steps — 1 add the document · 2 analyse it · 3 review and confirm the links — with ONE primary action and ONE consolidated review table.
 // References from the structured field, the description, the notes and every document are combined automatically; nothing asks for a separate confirmation per source.
 export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onRetry, comp, inputFor, others, onMessage, setTick, setFocus }) {
-  const { L, B, ar, sar } = useL();
+  const { L, B, ar, sar , lang } = useL();
   const work = useOrderWork({ order: c, rev, onMessage, L, B });
   const fileRef = useRef(null);
   const [ran, setRan] = useState(false); const [manual, setManual] = useState(''); const [ov, setOv] = useState({}); const [done, setDone] = useState(null); const [fix, setFix] = useState({}); const [why, setWhy] = useState({});
   const docs = c.docs || []; const canReview = rev.canReview;
   // D22 — three criteria must agree (invoice number · Amanah · amount). The order's amount is compared with the invoices matched by reference: the one invoice, or their total.
-  const orderTotal = useMemo(() => { const ids = new Map(); for (const r of rowsIn) { const st = rowState(r); if (st.candidate && st.kind !== 'duplicate' && st.kind !== 'needs_evidence' && st.kind !== 'ambiguous') ids.set(st.candidate.invoiceId, st.candidate.grossAmount || 0); } return [...ids.values()].reduce((t, x) => t + x, 0); }, [rowsIn]);
+  const orderTotal = useMemo(() => { const ids = new Map(); for (const r of rowsIn) { const st = rowState(r); if (st.candidate && st.kind !== 'duplicate' && st.kind !== 'needs_evidence' && st.kind !== 'ambiguous') ids.set(st.candidate.invoiceId, st.candidate.grossAmount || 0); } return [...ids.values()].reduce((t, x) => t + x, 0); }, [rowsIn, lang]);
   const rows = useMemo(() => rowsIn.map((r) => { const cr = matchCriteria(c, r, orderTotal); return { ...r, criteria: cr, confidence: cr ? confidenceOf(c, r, cr) : null, partialMatch: !!cr && !cr.full && rowState(r).kind === 'ready' }; }), [rowsIn, c, orderTotal]);
   const pending = docs.filter((d) => !d.extraction && d.kind !== 'manual');
   const ownSamples = samplesForOrder(work.samples, c.enforceNum);
@@ -66,15 +67,15 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
     <section className="rp-section oj" aria-label={L('Link the order’s invoices', 'ربط فواتير الأمر')} id="journey">
       <ol className="oj-steps" aria-label={L('Steps', 'الخطوات')}>
         {[[1, L('Add the document', 'إضافة المستند')], [2, L('Analyse the document', 'تحليل المستند')], [3, L('Review and confirm the links', 'مراجعة وتأكيد الربط')]].map(([k, t]) => (
-          <li key={k} className={`oj-step oj-step--${stateOf(k)}`} aria-current={stateOf(k) === 'now' ? 'step' : undefined}><span className="oj-step__n" aria-hidden="true">{stateOf(k) === 'done' ? '✓' : k}</span>{k}. {t}</li>
+          <li key={k} className={`oj-step oj-step--${stateOf(k)}`} aria-current={stateOf(k) === 'now' ? 'step' : undefined}><span className="oj-step__n" aria-hidden="true">{stateOf(k) === 'done' ? <UISymbol name="check" /> : k}</span>{k}. {t}</li>
         ))}
       </ol>
 
       {/* 1 · add */}
-      <div className="oj-panel" style={{ marginBlockStart: 14 }}>
+      <div className="oj-panel" style={{ marginBlockStart: 16 }}>
         <h3>{L('1 · Add the document', '1 · إضافة المستند')}</h3>
         <div className="oj-row">
-          <label style={{ display: 'grid', gap: 3, fontSize: 13 }}>{L('Upload a file (PDF or Word .docx)', 'رفع ملف (PDF أو Word .docx)')}
+          <label style={{ display: 'grid', gap: 4, fontSize: 13 }}>{L('Upload a file (PDF or Word .docx)', 'رفع ملف (PDF أو Word .docx)')}
             <input ref={fileRef} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff,application/pdf" disabled={!canReview || work.busy} onChange={async (e) => { const f = e.target.files?.[0]; await work.addFile(f); if (fileRef.current) fileRef.current.value = ''; setTick((x) => x + 1); }} />
           </label>
           <span className="rv-tag rv-tag--warn">{L('Simulation — pending the link to the Sanad database', 'محاكاة – بانتظار الربط مع قاعدة بيانات سند')}</span>
@@ -95,8 +96,8 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
         </div>
         <details>
           <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{L('Type invoice numbers by hand', 'إدخال أرقام الفواتير يدوياً')}</summary>
-          <div className="oj-row" style={{ marginBlockStart: 6 }}>
-            <label style={{ flex: '1 1 260px', display: 'grid', gap: 3, fontSize: 13 }}>{L('One number per line (a full number such as 177-2200000123 (biller id – Sadad number))', 'رقم في كل سطر (رقم كامل مثل 177-2200000123 (رقم المفوتر – رقم السداد))')}
+          <div className="oj-row" style={{ marginBlockStart: 8 }}>
+            <label style={{ flex: '1 1 260px', display: 'grid', gap: 4, fontSize: 13 }}>{L('One number per line (a full number such as 177-2200000123 (biller id – Sadad number))', 'رقم في كل سطر (رقم كامل مثل 177-2200000123 (رقم المفوتر – رقم السداد))')}
               <textarea className="input" dir="ltr" style={{ height: 70, paddingBlock: 8 }} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="177-2200000123" disabled={!canReview} /></label>
             <button type="button" className="btn btn-sm" disabled={!canReview || !manual.trim()} onClick={() => { if (work.addManual(manual)) { setManual(''); setTick((x) => x + 1); } }}>{L('Add the numbers', 'إضافة الأرقام')}</button>
           </div>
@@ -121,7 +122,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
       </div>
 
       {/* 2 · analyse */}
-      <div className="oj-panel" style={{ marginBlockStart: 18 }}>
+      <div className="oj-panel" style={{ marginBlockStart: 20 }}>
         <h3>{L('2 · Analyse the document', '2 · تحليل المستند')}</h3>
         <div className="oj-row">
           <button type="button" className="btn btn-primary oj-primary" disabled={!canReview || work.busy} onClick={run}>{work.busy ? L('Analysing…', 'جارٍ التحليل…') : L('Analyse and link invoices', 'تحليل وربط الفواتير')}</button>
@@ -145,7 +146,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
       </div>
 
       {/* 3 · review and confirm */}
-      <div className="oj-panel" style={{ marginBlockStart: 18 }}>
+      <div className="oj-panel" style={{ marginBlockStart: 20 }}>
         <h3>{L('3 · Review and confirm the links', '3 · مراجعة وتأكيد الربط')}</h3>
         {done && done.length > 0 && (
           <div className="oj-success" role="status" aria-live="polite">
@@ -176,7 +177,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
                       {cand && <><RecordLink to={invoicePath(id)} dir="ltr"><b>{id}</b></RecordLink> · {B(SOURCE_LABEL[cand.source] || { en: cand.source, ar: cand.source })}
                         <div className="muted" style={{ fontSize: 12 }} dir="auto">{B(cand.payerName)} · <PayStatusChip status={cand.paymentStatus} /></div>
                         {(row.conflicts[id] || []).map((x) => <span key={x} className={`rv-tag ${hard.includes(x) ? 'rv-tag--bad' : 'rv-tag--warn'}`}>{B(CONFLICT_LABEL[x] || { en: x, ar: x })}</span>)}
-                        {(row.resolved[id] || []).map((r) => <div key={r.conflict} className="rp-ok" style={{ fontSize: 12 }}>✓ {L('conflict resolved by evidence', 'حُسم التعارض بدليل')}</div>)}
+                        {(row.resolved[id] || []).map((r) => <div key={r.conflict} className="rp-ok" style={{ fontSize: 12 }}><UISymbol name="check" />{L('conflict resolved by evidence', 'حُسم التعارض بدليل')}</div>)}
                         {(others.get(id) || []).map((o) => <div key={o.enforceNum} className="muted" style={{ fontSize: 12 }}>{L('also on', 'عليها أيضاً')} <RecordLink to={`/enforcement-orders/${o.enforceNum}`} dir="ltr">{o.enforceNum}</RecordLink></div>)}
                       </>}
                       {st.kind === 'ambiguous' && (
@@ -191,7 +192,7 @@ export default function OrderJourney({ c, rev, rows: rowsIn, loading, error, onR
                     <td>{resultChip(st, row)}
                       {row.criteria && cand && (
                         <ul className="oj-crit" aria-label={L('Matching criteria', 'معايير المطابقة')}>
-                          {[[L('Invoice number', 'رقم الفاتورة'), row.criteria.invoiceNo], [L('Amanah', 'الأمانة'), row.criteria.amanah], [L('Amount', 'المبلغ'), row.criteria.amount]].map(([lbl, ok]) => <li key={lbl} className={ok === true ? 'rp-ok' : ok === false ? 'rp-bad' : 'muted'}><span aria-hidden="true">{ok === true ? '✓' : ok === false ? '✗' : '—'}</span> {lbl}</li>)}
+                          {[[L('Invoice number', 'رقم الفاتورة'), row.criteria.invoiceNo], [L('Amanah', 'الأمانة'), row.criteria.amanah], [L('Amount', 'المبلغ'), row.criteria.amount]].map(([lbl, ok]) => <li key={lbl} className={ok === true ? 'rp-ok' : ok === false ? 'rp-bad' : 'muted'}><span aria-hidden="true">{ok === true ? <UISymbol name="check" /> : ok === false ? <UISymbol name="close" /> : '—'}</span> {lbl}</li>)}
                         </ul>
                       )}
                       {row.confidence && cand && <div className="oj-conf" style={{ fontSize: 12, marginBlockStart: 4 }}><b>{L('Confidence', 'درجة التيقن')}:</b> <span dir="ltr">{row.confidence.score}%</span> — {B(CONFIDENCE_LABEL[row.confidence.level])}</div>}

@@ -1,3 +1,4 @@
+import UISymbol from '../UISymbol';
 import React, { useEffect, useRef } from 'react';
 import { useL } from '../../utils/bi';
 import { describeScope } from '../../data/revenueInsights';
@@ -24,10 +25,10 @@ const STAGE_STATE_LABEL = {
 export const isTerminal = (task) => ['completed', 'completed_with_limitations', 'failed', 'cancelled'].includes(task.status);
 
 function StageIcon({ status, index }) {
-  if (status === 'completed') return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
-  if (status === 'failed') return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>;
-  if (status === 'skipped' || status === 'not_run') return <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="M6 12h12" /></svg>;
-  if (status === 'cancelled') return <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>;
+  if (status === 'completed') return <UISymbol name="check" size={16} />;
+  if (status === 'failed') return <UISymbol name="close" size={16} />;
+  if (status === 'skipped' || status === 'not_run') return <UISymbol name="minus" size={16} />;
+  if (status === 'cancelled') return <UISymbol name="stop" size={16} />;
   if (status === 'active') return <span className="ap-spin" aria-hidden="true" />;
   return <span className="ap-num">{index + 1}</span>;
 }
@@ -67,13 +68,13 @@ export default function AnalysisProgress({ task, variant = 'modal', stale = fals
         <div className="ap__emblem" aria-hidden="true">
           <div className={`ap__orb${task.status === 'running' || task.status === 'queued' ? ' ap__orb--live' : ''}`}>
             {task.status === 'failed' ? (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
+              <UISymbol name="warning" size={24} />
             ) : task.status === 'cancelled' ? (
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
+              <UISymbol name="stop" size={24} />
             ) : terminal ? (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+              <UISymbol name="check" size={24} />
             ) : (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4L12 3z" /><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z" /></svg>
+              <UISymbol name="assistant" size={24} />
             )}
           </div>
         </div>
@@ -124,7 +125,7 @@ export default function AnalysisProgress({ task, variant = 'modal', stale = fals
         {warnings.length > 0 && (
           <ul className="ap__warnings" aria-label={L('Data warnings', 'تنبيهات البيانات')}>
             {warnings.slice(0, variant === 'inline' ? 2 : 6).map((w, i) => (
-              <li key={i}><span aria-hidden="true">!</span>{B(w.text)}</li>
+              <li key={i}><span aria-hidden="true"><UISymbol name="warning" /></span>{B(w.text)}</li>
             ))}
             {warnings.length > (variant === 'inline' ? 2 : 6) && <li className="ap__more">+{warnings.length - (variant === 'inline' ? 2 : 6)} {L('more', 'أخرى')}</li>}
           </ul>

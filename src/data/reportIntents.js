@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ============================================================================
 // Request interpreter for the unified «التقارير الذكية» conversation. RULE-BASED (keywords + the shared period / Amanah / source
 // parsers) — not a language model, and the UI says so. It turns a sentence into a report SPEC and lists which context fields the
@@ -308,14 +309,14 @@ export function interpret(text, prev, today, { amanahLabel = (k) => k, base: bas
 
 const STATUS_LABELS = { all: { ar: 'كل الحالات', en: 'All statuses' }, collected: { ar: 'محصّلة', en: 'Collected' }, open: { ar: 'قائمة', en: 'Open' }, overdue: { ar: 'متأخرة', en: 'Overdue' }, partial: { ar: 'جزئية', en: 'Partial' }, not_due: { ar: 'لم تستحق', en: 'Not due' }, cancelled: { ar: 'ملغاة', en: 'Cancelled' }, excluded: { ar: 'مستبعدة', en: 'Excluded' } };
 export function describeChange(c, lang, { amanahLabel = (k) => k, spec } = {}) {
-  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang));
   const lab = { sections: L('أُضيف قسم', 'Section added'), period: L('الفترة', 'Period'), amanah: L('الأمانة', 'Amanah'), muni: L('البلدية', 'Municipality'), source: L('المصدر', 'Source'), status: L('حالة الفاتورة', 'Invoice status'), scopeType: L('النطاق', 'Scope'), compare: L('المقارنة', 'Comparison'), depth: L('مستوى التفصيل', 'Depth'), reset: L('التصفية', 'Filters') }[c.key];
   const v = c.key === 'amanah' ? (c.value === 'all' ? L('كل الأمانات', 'All Amanahs') : [].concat(c.value).map(amanahLabel).join('، '))
     : c.key === 'compare' ? ({ prev_month: spec && !isSingleMonth(spec.scope) ? L('الفترة السابقة المساوية في الطول', 'Preceding period of equal length') : L('الشهر الماضي (المدة المنقضية نفسها)', 'Last month (same elapsed days)'), prev_year: L('نفس الفترة من العام السابق', 'Same period last year'), none: L('بدون', 'None') }[c.value])
-      : c.key === 'period' && /^\d{4}-\d{2}-\d{2} → \d{4}-\d{2}-\d{2}$/.test(String(c.value)) ? fmtRangeText(String(c.value).slice(0, 10), String(c.value).slice(-10), ar ? 'ar' : 'en')
-      : c.key === 'sections' ? String(c.value).split(',').map((k) => SECTION_META[k]?.[ar ? 'ar' : 'en'] || k).join('، ') : c.key === 'depth' ? L('تفصيلي', 'Detailed') : c.key === 'reset' ? L('أُعيدت إلى الافتراضي', 'Reset to default') : c.key === 'muni' ? (c.value === 'all' ? L('كل البلديات', 'All municipalities') : String(c.value).split('|').pop())
+      : c.key === 'period' && /^\d{4}-\d{2}-\d{2} → \d{4}-\d{2}-\d{2}$/.test(String(c.value)) ? fmtRangeText(String(c.value).slice(0, 10), String(c.value).slice(-10), lang)
+      : c.key === 'sections' ? String(c.value).split(',').map((k) => localize(SECTION_META[k]?.[ar ? 'ar' : 'en'], lang) || k).join('، ') : c.key === 'depth' ? L('تفصيلي', 'Detailed') : c.key === 'reset' ? L('أُعيدت إلى الافتراضي', 'Reset to default') : c.key === 'muni' ? (c.value === 'all' ? L('كل البلديات', 'All municipalities') : String(c.value).split('|').pop())
         : c.key === 'source' ? (c.value === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(c.value) : sourceEn(c.value)))
-          : c.key === 'status' ? (STATUS_LABELS[c.value]?.[ar ? 'ar' : 'en'] || String(c.value)) : String(c.value);
+          : c.key === 'status' ? (localize(STATUS_LABELS[c.value]?.[ar ? 'ar' : 'en'], lang) || String(c.value)) : String(c.value);
   return `${lab}: ${v}`;
 }
 export { addDaysIso };

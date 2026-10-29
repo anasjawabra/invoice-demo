@@ -8,6 +8,7 @@ import { SIM_LABEL } from '../../data/ocrSimulation';
 import PdfPreview, { useDocFiles } from '../record/PdfPreview';
 import { Section } from '../record/RecordPage';
 import { SHOW_INTERNAL_NOTES } from '../../data/uiFlags';
+import useTabs from '../../utils/useTabs';
 
 // How the text of a page reached the system — kept apart on purpose (stored per record), and never called «OCR performed by this system».
 export const METHOD_NOTE = {
@@ -22,12 +23,13 @@ export const METHOD_NOTE = {
 // Evidence of the order's documents (inside «details»): the real file beside what was read from it, page by page (a Word file by location), the method of each reading, and a way to
 // supply text for pages that could not be read. Adding and analysing documents happens in the three-step journey above, not here.
 export default function OrderDocuments({ order, rev, onMessage, focus = null, tick = 0, onChanged }) {
-  const { L, B, ar } = useL();
+  const { L, B, ar , lang } = useL();
   const [sel, setSel] = useState(0); const [page, setPage] = useState(1);
   const [sup, setSup] = useState({});
   const docs = order.docs || []; const canReview = rev.canReview;
   const files = useDocFiles(docs.map((d) => d.id), tick);
   const d = docs[Math.min(sel, docs.length - 1)] || null;
+  const tabs = useTabs({ keys: docs.map((doc) => doc.id), value: d?.id, onChange: (key) => { setSel(docs.findIndex((doc) => doc.id === key)); setPage(1); } });
   React.useEffect(() => { if (focus) { const i = docs.findIndex((x) => x.id === focus.docId); if (i >= 0) { setSel(i); setPage(focus.page || 1); } } }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
   const say = (ok, text) => onMessage({ ok, text });
 
@@ -51,12 +53,12 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
   const s = sup[d.id] || {};
   return (
     <>
-      {docs.length > 1 && <div role="tablist" aria-label={L('Documents', 'المستندات')} style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{docs.map((x, i) => <button key={x.id} role="tab" aria-selected={i === sel} type="button" className={`btn btn-sm${i === sel ? ' btn-primary' : ''}`} onClick={() => { setSel(i); setPage(1); }}><span dir="ltr">{x.kind === 'manual' ? L('Typed references', 'مراجع مُدخلة') : x.name}</span></button>)}</div>}
+      {docs.length > 1 && <div role="tablist" aria-label={L('Documents', 'المستندات')} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{docs.map((x) => <button key={x.id} {...tabs.getTabProps(x.id)} className={`btn btn-sm${x.id === d.id ? ' btn-primary' : ''}`}><span dir="ltr">{x.kind === 'manual' ? L('Typed references', 'مراجع مُدخلة') : x.name}</span></button>)}</div>}
       {d.kind === 'manual' ? (
-        <div className="rp-ev">{SHOW_INTERNAL_NOTES && <div className="rp-limit">{B(METHOD_NOTE.manual_entry)}. {L('There is no file: these references were typed by a person.', 'لا يوجد ملف: أدخل شخص هذه المراجع.')}</div>}
+        <div className="rp-ev" {...(docs.length > 1 ? tabs.getPanelProps(d.id) : {})}>{SHOW_INTERNAL_NOTES && <div className="rp-limit">{B(METHOD_NOTE.manual_entry)}. {L('There is no file: these references were typed by a person.', 'لا يوجد ملف: أدخل شخص هذه المراجع.')}</div>}
           <ul>{(ex?.refs || []).map((r) => <li key={r.value} dir="ltr">{r.value}</li>)}</ul></div>
       ) : (
-        <div className="rp-split">
+        <div className="rp-split" {...(docs.length > 1 ? tabs.getPanelProps(d.id) : {})}>
           <div><PdfPreview doc={d} page={page} tick={tick} onRestored={(name) => { rev.enforcement.restoreFile(order.enforceNum, d.id, name); onChanged?.(); }} /></div>
           <div className="rp-ev">
             <div className="muted" style={{ fontSize: 12 }}><span dir="ltr">{d.name}</span> · {B(FORMAT_LABEL[ex?.format || d.format || 'pdf'] || FORMAT_LABEL.unknown)} · {(d.size / 1024).toFixed(1)} KB · {L('added', 'أُضيف')} {fmtRiyadh(d.addedAt)} · SHA-256 <span dir="ltr">{String(d.id).slice(0, 12)}…</span>{files[d.id] === false && <> · <b className="rp-warn">{L('original file unavailable — only the extracted evidence remains', 'الملف الأصلي غير متاح — بقي الدليل المستخرج فقط')}</b></>}{d.fileRestoredAt && <> · {L('file restored', 'استُعيد الملف')} {fmtRiyadh(d.fileRestoredAt)}</>}</div>

@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // Formatting shared by the on-screen report and the exports, so both show the same text.
 // Money columns of ONE table share ONE unit (the largest value decides), stated in the column header.
 import { unitOfValues, unitLabel, scaled, fmtInt, fmtMoney, chartUnit } from '../utils/money';
@@ -24,7 +25,7 @@ export function tableToText(table, lang = 'ar') {
 }
 const plainNum = (v) => (Number.isInteger(v) ? v.toLocaleString('en-US') : Number(v).toLocaleString('en-US', { maximumFractionDigits: 2 }));
 export function chartInfo(block, lang = 'ar') {
-  if (block.plain) return { cu: { unit: { key: 'plain', div: 1 }, title: block.valueTitle || (lang === 'ar' ? 'القيمة' : 'Value'), tick: plainNum, fmt: plainNum }, unitText: '', plain: true }; // values from an attached file: shown as they are, never scaled or labelled as SAR
+  if (block.plain) return { cu: { unit: { key: 'plain', div: 1 }, title: block.valueTitle || (lang === 'ar' ? 'القيمة' : localize('Value', lang)), tick: plainNum, fmt: plainNum }, unitText: '', plain: true }; // values from an attached file: shown as they are, never scaled or labelled as SAR
   const cu = chartUnit(block.series.flatMap((s) => s.values).filter((v) => v != null), lang);
   return { cu, unitText: unitLabel(cu.unit, lang) };
 }
@@ -34,9 +35,9 @@ export { fmtMoney };
 export function fillTokens(text, tokens, lang) { return !tokens ? text : text.replace(/\{(\w+)\}/g, (_, k) => (tokens[k] == null ? '' : fmtMoney(tokens[k], { lang }))); }
 export function fmtEvidence(e, lang) {
   const ar = lang === 'ar';
-  if (e.v == null) return ar ? 'غير متاحة' : 'Not available';
+  if (e.v == null) return ar ? 'غير متاحة' : localize('Not available', lang);
   if (e.fmt === 'money') return fmtMoney(e.v, { lang });
   if (e.fmt === 'ratio') return `${(e.v * 100).toFixed(1)}%`;
-  if (e.fmt === 'pp') return `${e.v >= 0 ? '+' : ''}${e.v.toFixed(1)} ${ar ? 'نقطة' : 'pp'}`;
+  if (e.fmt === 'pp') return `${e.v >= 0 ? '+' : ''}${e.v.toFixed(1)} ${ar ? 'نقطة' : localize('pp', lang)}`;
   return Number(e.v).toLocaleString('en-US');
 }

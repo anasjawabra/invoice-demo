@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
@@ -18,7 +19,7 @@ const PRECEDENCE = [...EXCLUSION_REASONS].sort((a, b) => (ruleById(a.ruleId)?.pr
 
 export default function Exclusions() {
   const rev = useRevenue(); const { snapshot } = rev;
-  const { L, ar, short, count, sar } = useL();
+  const { L, ar, short, count, sar , lang } = useL();
   const [sp] = useSearchParams();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('exclusions', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reason, setReason] = useState(sp.get('reason') || mem.reason || 'all');
@@ -33,7 +34,7 @@ export default function Exclusions() {
   const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100, { includeExcluded: true, reason: reason === 'all' ? 'any' : reason, category: 'excluded' }), [rev.data, scopeReq, reason]);
   const list = wl?.rows || [];
   useRestoreScroll(list.length > 0);
-  const label = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : r.en) : ''; };
+  const label = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : localize(r.en, lang)) : ''; };
 
   return (
     <div className="rv-page">
@@ -61,9 +62,9 @@ export default function Exclusions() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.ruleId} className={reason === r.ruleId ? 'is-on' : undefined}>
-                  <td>{ar ? r.ar : r.en}{r.workingLabel && <> <span className="rv-tag rv-tag--warn" title={L('A working label, to be confirmed', 'تسمية مؤقتة للتأكيد')}>{L('working label', 'تسمية مؤقتة')}</span></>}</td>
-                  <td className="muted" style={{ fontSize: 12, maxWidth: 360 }}>{ar ? r.ruleAr : r.ruleEn}</td>
-                  <td className="muted">{r.source ? (ar ? r.source.ar : r.source.en) : '—'}</td>
+                  <td>{ar ? r.ar : localize(r.en, lang)}{r.workingLabel && <> <span className="rv-tag rv-tag--warn" title={L('A working label, to be confirmed', 'تسمية مؤقتة للتأكيد')}>{L('working label', 'تسمية مؤقتة')}</span></>}</td>
+                  <td className="muted" style={{ fontSize: 12, maxWidth: 360 }}>{ar ? r.ruleAr : localize(r.ruleEn, lang)}</td>
+                  <td className="muted">{r.source ? (ar ? r.source.ar : localize(r.source.en, lang)) : '—'}</td>
                   <td className="num">{count(r.count)}</td>
                   <td className="num" dir="ltr">{sar(r.amount)}</td>
                   <td className="num">{K.excluded > 0 ? `${(Math.round((r.amount / K.excluded) * 1000) / 10).toFixed(1)}%` : '—'}</td>
@@ -81,18 +82,18 @@ export default function Exclusions() {
 
       <details className="card card-pad" id="exclusion-rules">
         <summary><b>{L('Exclusion rules', 'قواعد الاستبعاد')}</b> <span className="muted" style={{ fontSize: 12 }}>{L('— when an invoice meets several reasons, the first one in this order applies', '— إذا انطبق على الفاتورة أكثر من سبب فيُطبَّق الأول بهذا الترتيب')}</span></summary>
-        <ol style={{ margin: '8px 0 0', paddingInlineStart: 20, display: 'grid', gap: 6 }}>
-          {PRECEDENCE.map((r) => <li key={r.ruleId}><b>{ar ? r.ar : r.en}</b> — <span className="muted">{ar ? r.ruleAr : r.ruleEn}</span></li>)}
+        <ol style={{ margin: '8px 0 0', paddingInlineStart: 20, display: 'grid', gap: 8 }}>
+          {PRECEDENCE.map((r) => <li key={r.ruleId}><b>{ar ? r.ar : localize(r.en, lang)}</b> — <span className="muted">{ar ? r.ruleAr : localize(r.ruleEn, lang)}</span></li>)}
         </ol>
         <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>{L('Exclusions apply only to uncollected invoices. An exclusion never means the amount is uncollectible.', 'تنطبق الاستبعادات على الفواتير غير المحصّلة فقط. والاستبعاد لا يعني أن المبلغ غير قابل للتحصيل.')}</div>
       </details>
 
       <div className="card card-pad" id="excluded-invoices">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 12 }}>
           <label htmlFor="ex-reason" className="rv-scope__lbl">{L('Reason', 'السبب')}</label>
           <select id="ex-reason" className="select" value={reason} onChange={(ev) => setReason(ev.target.value)}>
             <option value="all">{L('All reasons', 'كل الأسباب')}</option>
-            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : r.en}</option>)}
+            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : localize(r.en, lang)}</option>)}
           </select>
           <span className="muted" style={{ fontSize: 12 }}>{L(`${count(wl?.total ?? 0)} excluded invoices`, `${count(wl?.total ?? 0)} فاتورة مستبعدة`)}{reason !== 'all' ? ` — ${label(reason)}` : ''}</span>
         </div>
@@ -109,19 +110,19 @@ export default function Exclusions() {
                   <td className="num">{i + 1}</td>
                   <td><Link to={invoicePath(w.id)} dir="ltr">{w.id}</Link></td>
                   <td dir="ltr">{w.sadadNo || '—'}</td>
-                  <td>{ar ? w.billerAr : w.billerEn} <span className="muted" dir="ltr">({w.billerId})</span></td>
-                  <td>{ar ? w.productAr : w.productEn}</td>
-                  <td>{ar ? w.amanahAr : w.amanahEn}</td>
-                  <td>{(ar ? w.municipalityAr : w.municipalityEn) || '—'}</td>
+                  <td>{ar ? w.billerAr : localize(w.billerEn, lang)} <span className="muted" dir="ltr">({w.billerId})</span></td>
+                  <td>{ar ? w.productAr : localize(w.productEn, lang)}</td>
+                  <td>{ar ? w.amanahAr : localize(w.amanahEn, lang)}</td>
+                  <td>{(ar ? w.municipalityAr : localize(w.municipalityEn, lang)) || '—'}</td>
                   <td dir="ltr">{w.gfsCode || '—'}</td>
                   <td>{w.gfsSub ? <>{w.gfsSub}<div className="muted" style={{ fontSize: 12 }}>{w.mainClass}</div></> : <span>{w.mainClass || '—'}</span>}</td>
-                  <td>{ar ? w.payerAr : w.payerEn}</td>
+                  <td>{ar ? w.payerAr : localize(w.payerEn, lang)}</td>
                   <td dir="ltr">{w.issueDate}</td>
                   <td dir="ltr">{w.dueDate}</td>
                   <td className="num" dir="ltr">{sar(w.gross)}</td>
-                  <td className="muted">{w.exclusionReason ? (ar ? w.exclusionReason.sourceAr : w.exclusionReason.sourceEn) : '—'}{w.exclusionFile && <div style={{ fontSize: 12 }} dir="ltr">{w.exclusionFile.file}</div>}</td>
-                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : w.exclusionReason.reasonEn) : '—'}
-                    {w.exclusionReason?.ruleId === 'OBJ-1' && w.objectionStatus && <div className="muted" style={{ fontSize: 12 }}>{L('Objection status', 'حالة الاعتراض')}: {ar ? w.objectionStatus.ar : w.objectionStatus.en}</div>}
+                  <td className="muted">{w.exclusionReason ? (ar ? w.exclusionReason.sourceAr : localize(w.exclusionReason.sourceEn, lang)) : '—'}{w.exclusionFile && <div style={{ fontSize: 12 }} dir="ltr">{w.exclusionFile.file}</div>}</td>
+                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : localize(w.exclusionReason.reasonEn, lang)) : '—'}
+                    {w.exclusionReason?.ruleId === 'OBJ-1' && w.objectionStatus && <div className="muted" style={{ fontSize: 12 }}>{L('Objection status', 'حالة الاعتراض')}: {ar ? w.objectionStatus.ar : localize(w.objectionStatus.en, lang)}</div>}
                     {w.exclusionReason?.ruleId === 'DUP-1' && w.duplicateOf && <div style={{ fontSize: 12 }}>{L('Repeats', 'تكرار للفاتورة')}: <Link to={invoicePath(w.duplicateOf)} dir="ltr">{w.duplicateOf}</Link></div>}
                   </td>
                 </tr>

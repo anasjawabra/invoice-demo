@@ -1,3 +1,5 @@
+import { localize } from '../../utils/zh';
+import { useI18n } from '../../context/I18nContext';
 // Geographic reading of the planning page: one map of the Kingdom's regions coloured by how much of the TARGET each region has collected, a region selector and the figures of the selection.
 // The target is the SAME one the targets table holds (edited targets included); every region is the sum of its Amanahs (src/data/ksaProvinces.js). The Ministry headquarters, the housing sector and the
 // payments of «غير محدد الأمانة» have no region: they are listed beside the map, and a reconciliation table adds regions + those = the Ministry.
@@ -12,7 +14,7 @@ export const PCT_COLORS = ['#e53935', '#f4903b', '#fde85c', '#4caf2f'];
 export const PCT_CUTS = [0.4, 0.6, 0.8];
 export const pctColor = (_kind, v) => (Number.isFinite(v) ? PCT_COLORS[PCT_CUTS.filter((c) => v >= c).length] : null);
 // a percentage with its colour chip; `v` colours the chip (pass the share of the TARGET reached when `text` is another figure)
-export const PctBadge = ({ kind, v, text }) => { const c = pctColor(kind, v); return <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>{c && <i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: c, display: 'inline-block', border: '1px solid rgba(0,0,0,.15)' }} />}{text}</span>; };
+export const PctBadge = ({ kind, v, text }) => { const c = pctColor(kind, v); return <span dir="ltr" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{c && <i aria-hidden="true" style={{ width: 12, height: 12, borderRadius: 3, background: c, display: 'inline-block', border: '1px solid rgba(0,0,0,.15)' }} />}{text}</span>; };
 const NONE = 'var(--surface-2, #e5e7eb)';
 
 // the measures: both colour the region by its share of the target; `text` is the value written on it — the percentage (capped at «100%+») or the amount collected
@@ -24,6 +26,7 @@ const MEASURES = [
 ];
 
 export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, selected, onSelect }) {
+  const { lang } = useI18n();
   const [measureId, setMeasureId] = useState('share');
   const measure = MEASURES.find((m) => m.id === measureId);
   const byKey = useMemo(() => new Map(rows.map((r) => [r.key, r])), [rows]);
@@ -31,7 +34,7 @@ export default function EntityMap({ rows, hqRow, totals, L, ar, short, nameOf, s
   const shown = regions.filter((p) => p.rows.length);
   const [iso, setIso] = useState(null);
   const region = shown.find((p) => p.iso === iso) || null;
-  const regionName = (p) => (ar ? p.nameAr : p.nameEn);
+  const regionName = (p) => (ar ? p.nameAr : localize(p.nameEn, lang));
 
   const colorOf = (v) => (v == null ? NONE : PCT_COLORS[PCT_CUTS.filter((c) => v >= c).length]);
   const textOf = (rs) => { const v = measure.pct(rs); if (v == null) return '—'; return measure.amount ? short(measure.amount(rs)).replace(/\s*(ريال|SAR|riyals?)$/i, '') : v >= 1 ? '100%+' : pct(v); };

@@ -56,7 +56,7 @@ export function useDecisions() {
       orders: { suspendedCount: suspended.length, suspendedAmount: suspended.reduce((t, c) => t + (c.amount || 0), 0) },
       matching: { amountConflicts: snap.quality?.amountConflictCount || 0, missingFields: snap.quality?.missingFieldCount || 0 }
     });
-  }, [inputs.data, rev.snapshot, rev.cases, rev.targets, labels, today, year, sc.amanah]);
+  }, [inputs.data, rev.snapshot, rev.cases, rev.targets, labels, today, year, sc.amanah, lang]);
 
   const items = useMemo(() => (built ? withState(built.items, st, { today }) : []), [built, st, today]);
   const summary = useMemo(() => (built ? summaryOf(items, built.summary) : null), [built, items]);

@@ -1,3 +1,4 @@
+import UISymbol from '../components/UISymbol';
 import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
@@ -63,7 +64,7 @@ const originOf = (row) => (row.origins.find((o) => o.type === 'sanad_structured'
 export default function EnforcementOrderPage() {
   const { enforceNum: raw } = useParams(); const enforceNum = decodeURIComponent(raw || '');
   const rev = useRevenue();
-  const { L, B, ar, sar } = useL();
+  const { L, B, ar, sar , lang } = useL();
   const ret = useReturnTarget({ path: ordersListPath, label: L('Enforcement management', 'إدارة التنفيذ') });
   const c = rev.cases.find((x) => x.enforceNum === enforceNum);
   const [msg, setMsg] = useState(null); const [notes, setNotes] = useState({}); const [debtor, setDebtor] = useState(null); const [cf, setCf] = useState({}); const [tick, setTick] = useState(0); const [focus, setFocus] = useState(null);
@@ -107,7 +108,7 @@ export default function EnforcementOrderPage() {
   const proposeAll = () => { let n = 0; for (const row of rows) if (clean(row) && rev.enforcement.propose(c.enforceNum, inputFor(row, row.candidates[0])).ok) n += 1; setMsg({ ok: true, text: L(`${n} proposal(s) saved. They have no effect on any invoice until confirmed.`, `حُفظ ${n} اقتراح. لا أثر له على أي فاتورة حتى يُؤكَّد.`) }); };
   const loadDebtor = async () => { const r = await rev.enforcement.debtorInvoices(c.debtorIdx, links.filter((l) => l.status !== 'rejected').map((l) => l.invoiceId)); setDebtor(r.invoices); };
   const dismiss = (row) => say(rev.enforcement.dismiss(c.enforceNum, row.key, { note: notes[row.key] || '' }), 'Reference set aside (kept in the history).', 'استُبعد المرجع (محفوظ في السجل).');
-  const noteInput = (id, ph) => <input key={id} className="input" style={{ width: '100%', padding: '5px 8px', margin: '4px 0' }} aria-label={L('Reason', 'السبب')} placeholder={ph} value={notes[id] || ''} onChange={(e) => setNotes({ ...notes, [id]: e.target.value })} disabled={!rev.canReview} />;
+  const noteInput = (id, ph) => <input key={id} className="input" style={{ width: '100%', padding: "8px 8px", margin: '4px 0' }} aria-label={L('Reason', 'السبب')} placeholder={ph} value={notes[id] || ''} onChange={(e) => setNotes({ ...notes, [id]: e.target.value })} disabled={!rev.canReview} />;
   // درجة اليقين of a linked invoice = the same score the review table shows (number found · Amanah agrees · amount agrees), taken from the review row that names the invoice
   const orderTotal = (() => { const ids = new Map(); for (const r of rows) { const st = rowState(r); if (st.candidate && st.kind !== 'duplicate' && st.kind !== 'needs_evidence' && st.kind !== 'ambiguous') ids.set(st.candidate.invoiceId, st.candidate.grossAmount || 0); } return [...ids.values()].reduce((t, x) => t + x, 0); })();
   const confOf = (invoiceId) => {
@@ -146,11 +147,11 @@ export default function EnforcementOrderPage() {
                   <td><RecordLink to={invoicePath(l.invoiceId)} dir="ltr"><b>{l.invoiceId}</b></RecordLink> <RecordLink className="rv-link" to={invoicePath(l.invoiceId)}>{L('View the invoice', 'عرض الفاتورة')}</RecordLink>
                     <div className="muted" style={{ fontSize: 12 }}>{B(SOURCE_LABEL[k?.source || snap.source] || { en: k?.source || snap.source || '', ar: k?.source || snap.source || '' })} · <span dir="auto">{B(k?.payerName || snap.payerName)}</span></div>
                     {k?.enfConflict && <div><span className="rv-tag rv-tag--bad">{L('source/enforcement conflict — review required', 'تعارض بين المصدر والإنفاذ — يلزم مراجعة')}</span></div>}</td>
-                  <td>{(k?.amanahEn || snap.amanahEn) ? amanahName(k?.amanahEn || snap.amanahEn, ar) : '—'}</td>
+                  <td>{(k?.amanahEn || snap.amanahEn) ? amanahName(k?.amanahEn || snap.amanahEn, lang) : '—'}</td>
                   <td className="num" dir="ltr">{sar(k?.grossAmount ?? l.gross ?? 0)}</td>
                   <td>{confOf(l.invoiceId)}</td>
-                  <td><Chip def={LINK_STATUS_LABEL[l.status] || LINK_STATUS_LABEL.rejected} /><div className="muted" style={{ fontSize: 11 }}>{B(ORIGIN_LABEL[l.origin] || ORIGIN_LABEL.sanad_structured)}</div></td>
-                  <td>{l.status === 'confirmed' ? (<>{noteInput(`rm-${l.invoiceId}`, L('Reason to withdraw (required)', 'سبب السحب (مطلوب)'))}<button type="button" className="btn btn-sm" disabled={!rev.canReview} onClick={() => withdraw(l.invoiceId)}>{L('Withdraw link…', 'سحب الرابط…')}</button></>) : <span className="muted">{L('awaiting confirmation', 'بانتظار التأكيد')}</span>}</td>
+                  <td><Chip def={LINK_STATUS_LABEL[l.status] || LINK_STATUS_LABEL.rejected} /><div className="muted" style={{ fontSize: 12 }}>{B(ORIGIN_LABEL[l.origin] || ORIGIN_LABEL.sanad_structured)}</div></td>
+                  <td>{l.status === 'confirmed' ? (<>{noteInput(`rm-${l.invoiceId}`, L('Reason to withdraw (required)', 'سبب السحب (مطلوب)'))}<button type="button" className="btn btn-sm btn-danger" disabled={!rev.canReview} onClick={() => withdraw(l.invoiceId)}>{L('Withdraw link…', 'سحب الرابط…')}</button></>) : <span className="muted">{L('awaiting confirmation', 'بانتظار التأكيد')}</span>}</td>
                 </tr>
               );
             })}</tbody>
@@ -161,7 +162,7 @@ export default function EnforcementOrderPage() {
 
       {(rec.state === 'short' || rec.state === 'over') && rec.confirmedCount > 0 && <div className="rp-limit rp-limit--warn" role="status"><b>{L('Financial gap', 'فرق مالي')}: <span dir="ltr">{sar(Math.abs(rec.difference))}</span></b> {rec.state === 'short' ? L('of the request amount is not covered by the linked invoices.', 'من مبلغ الطلب غير مغطى بالفواتير المربوطة.') : L('more than the request amount is covered.', 'أكثر من مبلغ الطلب مغطى.')} {L('This calls for a search; it does not prove another invoice exists, and it does not prevent confirming valid links.', 'يستدعي ذلك بحثاً، ولا يثبت وجود فاتورة أخرى، ولا يمنع تأكيد الروابط الصحيحة.')}</div>}
       <div className={`oj-next${next.key === 'done' ? ' oj-next--done' : ''}`} role="group" aria-label={L('Next action', 'الإجراء التالي')}>
-        <span className="oj-next__t">{next.key === 'done' ? '✓ ' : '! '}{B(next)}</span>
+        <span className="oj-next__t">{next.key === 'done' ? <UISymbol name="check" /> : <UISymbol name="warning" />}{B(next)}</span>
         {next.cta && <a className="btn btn-primary" href="#journey">{B(next.cta)}</a>}
       </div>
 
@@ -198,19 +199,19 @@ export default function EnforcementOrderPage() {
         <div className="rp-compl" role="group" aria-label={L('Three completeness states — kept separate', 'ثلاث حالات اكتمال — منفصلة')}>
           <div>
             <h3>{L('1 · Reference matching', '1 · مطابقة المراجع')}</h3>
-            <div className={`rp-compl__v ${tone(comp.references.state === 'complete')}`}>{comp.references.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.references.state)}</div>
+            <div className={`rp-compl__v ${tone(comp.references.state === 'complete')}`}>{comp.references.state === 'complete' ? <UISymbol name="check" /> : <UISymbol name="warning" />}{stateWord(comp.references.state)}</div>
             <div className="rp-compl__d">{comp.references.state === 'none' ? L('Invoice numbers not identified — needs review. This is not “no related invoices”.', 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة. وهذا لا يعني «لا فواتير مرتبطة».') : L(`${comp.references.total} reference(s) found · ${comp.references.confirmedLinks} confirmed link(s)${comp.references.unresolved ? ` · ${comp.references.unresolved} unresolved` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} proposal(s) to confirm` : ''}.`, `${comp.references.total} مرجع · ${comp.references.confirmedLinks} رابط مؤكد${comp.references.unresolved ? ` · ${comp.references.unresolved} غير محسوم` : ''}${comp.references.proposed ? ` · ${comp.references.proposed} اقتراح للتأكيد` : ''}.`)}</div>
             <div className="rp-compl__d">{L('“Complete” means every reference found is decided; it does not prove every covered invoice was found. Does not depend on the amount.', '«مكتملة» تعني أن كل مرجع وُجد قد حُسم؛ ولا تثبت أن كل فاتورة مشمولة وُجدت. ولا تعتمد على المبلغ.')}</div>
           </div>
           <div>
             <h3>{L('2 · Document extraction', '2 · استخراج المستند')}</h3>
-            <div className={`rp-compl__v ${tone(comp.extraction.state === 'complete')}`}>{comp.extraction.state === 'complete' ? '✓ ' : '! '}{stateWord(comp.extraction.state)}</div>
+            <div className={`rp-compl__v ${tone(comp.extraction.state === 'complete')}`}>{comp.extraction.state === 'complete' ? <UISymbol name="check" /> : <UISymbol name="warning" />}{stateWord(comp.extraction.state)}</div>
             <div className="rp-compl__d">{comp.extraction.state === 'no_document' ? L('No order document attached.', 'لا مستند مرفق بالأمر.') : comp.extraction.state === 'incomplete' ? (comp.extraction.unreadPages ? L(`${comp.extraction.unreadPages} page(s) not read.`, `${comp.extraction.unreadPages} صفحة لم تُقرأ.`) : L(`${comp.extraction.attachmentsPending} listed attachment(s) not added.`, `${comp.extraction.attachmentsPending} مرفق مدرج لم يُضَف.`)) : L(`Every page of ${comp.extraction.documents} document(s) has text.`, `لكل صفحات ${comp.extraction.documents} مستند نص.`)}</div>
             {comp.extraction.suppliedPages > 0 && <div className="rp-compl__d rp-warn">{L(`${comp.extraction.suppliedPages} page(s) rely on supplied text (imported external OCR or typed) — its quality is NOT verified by this system.`, `${comp.extraction.suppliedPages} صفحة تعتمد على نص مُزوَّد (OCR خارجي مستورد أو مُدخل يدوياً) — ولا يتحقق هذا النظام من جودته.`)}</div>}
           </div>
           <div>
             <h3>{L('3 · Financial reconciliation', '3 · التسوية المالية')}</h3>
-            <div className={`rp-compl__v ${tone(comp.finance.state === 'reconciled')}`}>{comp.finance.state === 'reconciled' ? '✓ ' : '! '}{stateWord(comp.finance.state)}</div>
+            <div className={`rp-compl__v ${tone(comp.finance.state === 'reconciled')}`}>{comp.finance.state === 'reconciled' ? <UISymbol name="check" /> : <UISymbol name="warning" />}{stateWord(comp.finance.state)}</div>
             <div className="rp-compl__d">{comp.finance.state === 'reconciled' ? L('Linked invoices add up to the order amount.', 'الفواتير المربوطة تساوي مبلغ الأمر.') : comp.finance.difference != null && (comp.finance.state === 'short' || comp.finance.state === 'over') ? L(`${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'of the order is not covered by a linked invoice' : 'more than the order is covered'} — reported, never forced to match.`, `${sar(Math.abs(comp.finance.difference))} ${comp.finance.state === 'short' ? 'من الأمر غير مغطى بفاتورة مربوطة' : 'أكثر من الأمر مغطى'} — يُعرض ولا يُفرض تطابقه.`) : L('No linked invoice to compare yet.', 'لا فاتورة مربوطة للمقارنة بعد.')}</div>
             {rec.proposedCount > 0 && <div className="rp-compl__d">{L('Difference if every proposal were confirmed', 'الفرق لو أُكِّدت كل الاقتراحات')}: <span dir="ltr">{rec.differenceIfProposedConfirmed == null ? '—' : sar(rec.differenceIfProposedConfirmed)}</span></div>}
           </div>
@@ -245,14 +246,14 @@ export default function EnforcementOrderPage() {
               <tr key={m.contractNo}>
                 <td>{exists ? <RecordLink to={contractPath(m.contractNo)} dir="ltr"><b>{m.contractNo}</b></RecordLink> : <b dir="ltr">{m.contractNo}</b>}{!exists && resolved && <div className="rv-tag rv-tag--bad">{L('no such contract in the system', 'لا عقد بهذا الرقم في النظام')}</div>}</td>
                 <td style={{ fontSize: 12 }}>{m.origins.map((o, i) => <div key={i}>{B(ORIGIN_LABEL[o.type] || { en: o.type, ar: o.type })}{o.docName ? <span dir="ltr"> · {o.docName}</span> : null}{o.locs?.length ? <> · {o.locs.map((x) => locLabel(x, ar)).join('، ')}</> : o.pages?.length ? <> · {L('page', 'صفحة')} {o.pages.join(', ')}</> : null}{o.snippet ? <div className="muted" dir="ltr">“{o.snippet}”</div> : null}</div>)}</td>
-                <td>{m.status === 'supported_by_source' && <span className="rv-tag rv-tag--ok">{L('Directly referred — Sanad structured field', 'محال مباشرة — حقل سند المهيكل')}</span>}{m.status === 'confirmed_by_review' && <span className="rv-tag rv-tag--ok">{L('Directly referred — explicit statement confirmed by review', 'محال مباشرة — نص صريح أكّدته المراجعة')}</span>}{m.status === 'mentioned' && <span className="rv-tag rv-tag--warn">{L('Mentioned only — not a direct referral', 'مذكور فقط — ليس إحالة مباشرة')}</span>}{m.status === 'rejected' && <span className="rv-tag">{L('Mention rejected by review', 'رفضت المراجعة هذا الذكر')}</span>}{m.review && <div className="muted" style={{ fontSize: 11 }}>{m.review.by} · {fmtRiyadh(m.review.at)}{m.review.note ? ` · “${m.review.note}”` : ''}</div>}</td>
+                <td>{m.status === 'supported_by_source' && <span className="rv-tag rv-tag--ok">{L('Directly referred — Sanad structured field', 'محال مباشرة — حقل سند المهيكل')}</span>}{m.status === 'confirmed_by_review' && <span className="rv-tag rv-tag--ok">{L('Directly referred — explicit statement confirmed by review', 'محال مباشرة — نص صريح أكّدته المراجعة')}</span>}{m.status === 'mentioned' && <span className="rv-tag rv-tag--warn">{L('Mentioned only — not a direct referral', 'مذكور فقط — ليس إحالة مباشرة')}</span>}{m.status === 'rejected' && <span className="rv-tag">{L('Mention rejected by review', 'رفضت المراجعة هذا الذكر')}</span>}{m.review && <div className="muted" style={{ fontSize: 12 }}>{m.review.by} · {fmtRiyadh(m.review.at)}{m.review.note ? ` · “${m.review.note}”` : ''}</div>}</td>
                 <td style={{ fontSize: 12 }}>
                   {m.status === 'confirmed_by_review' && m.review?.evidence && <div>{L('Evidence', 'الدليل')}: <span dir="ltr">{m.review.evidence.docName}</span>{m.review.evidence.location ? ` · ${m.review.evidence.location}` : ''}<div className="muted" dir="auto">“{m.review.evidence.quote}”</div></div>}
-                  {m.status === 'mentioned' && rev.canReview ? (docOrigins.length && exists ? (<div style={{ display: 'grid', gap: 5 }}>
+                  {m.status === 'mentioned' && rev.canReview ? (docOrigins.length && exists ? (<div style={{ display: 'grid', gap: 8 }}>
                     <label>{L('Document location', 'موضع المستند')}<select className="input" value={f.at ?? 0} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, at: Number(e.target.value) } }))}>{docOrigins.map((o, i) => <option key={i} value={i}>{o.docName}{o.locs?.length ? ` — ${o.locs.map((x) => locLabel(x, ar)).join(', ')}` : o.pages?.length ? ` — ${L('page', 'صفحة')} ${o.pages.join(',')}` : ''}</option>)}</select></label>
-                    <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}><input type="checkbox" checked={!!f.explicit} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, explicit: e.target.checked } }))} /> <span>{L('The document EXPLICITLY states that the contract itself is referred to enforcement (it does not merely mention it)', 'المستند ينص صراحة على أن العقد نفسه محال إلى التنفيذ (وليس مجرد ذكره)')}</span></label>
+                    <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}><input type="checkbox" checked={!!f.explicit} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, explicit: e.target.checked } }))} /> <span>{L('The document EXPLICITLY states that the contract itself is referred to enforcement (it does not merely mention it)', 'المستند ينص صراحة على أن العقد نفسه محال إلى التنفيذ (وليس مجرد ذكره)')}</span></label>
                     <label>{L('The statement, as written in the document', 'النص كما ورد في المستند')}<input className="input" dir="auto" value={f.quote || ''} onChange={(e) => setCf((x) => ({ ...x, [m.contractNo]: { ...f, quote: e.target.value } }))} /></label>
-                    <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <button type="button" className="btn btn-sm btn-primary" disabled={!f.explicit || String(f.quote || '').trim().length < 5} onClick={() => reviewContract(m, 'confirmed', { type: picked.type, docId: picked.docId, docName: picked.docName, location: picked.locs?.length ? picked.locs.map((x) => locLabel(x, ar)).join(', ') : picked.pages?.length ? `${L('page', 'صفحة')} ${picked.pages.join(',')}` : null, statedExplicitly: !!f.explicit, quote: String(f.quote || '').trim() }, exists)}>{L('Confirm direct referral', 'تأكيد الإحالة المباشرة')}</button>
                       <button type="button" className="btn btn-sm" onClick={() => reviewContract(m, 'rejected', null, exists)}>{L('Not a referral', 'ليست إحالة')}</button>
                     </div></div>) : (<div style={{ display: 'grid', gap: 4 }}><span className="muted">{!exists ? L('The contract does not exist in the system, so it cannot be confirmed.', 'العقد غير موجود في النظام فلا يمكن تأكيده.') : L('Needs explicit evidence: a mention in the description cannot be confirmed; a document that explicitly states the contract itself is referred is required.', 'يلزم دليل صريح: لا يمكن تأكيد ذكر في الوصف؛ ويلزم مستند ينص صراحة على إحالة العقد نفسه.')}</span>

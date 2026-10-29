@@ -1,3 +1,5 @@
+import { localize } from '../../utils/zh';
+import UISymbol from '../UISymbol';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useRevenue, SCOPE_PRESETS } from '../../context/RevenueContext';
@@ -30,7 +32,7 @@ export function ProvenanceBadge({ kind = 'demo', size = 'md' }) {
 
 /* ---------- Metric definition popover ---------- */
 export function DefinitionButton({ metric }) {
-  const { B, L, ar } = useL();
+  const { B, L, ar , lang } = useL();
   const rev = useRevenue();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -48,13 +50,13 @@ export function DefinitionButton({ metric }) {
   const comp = entry.completeness;
   return (
     <span className="rv-def" ref={ref}>
-      <button type="button" className="rv-def__btn" aria-expanded={open} aria-controls={popId} aria-label={L('How is this calculated?', 'كيف يُحتسب هذا؟')} onClick={() => setOpen((o) => !o)}>?</button>
+      <button type="button" className="rv-def__btn" aria-expanded={open} aria-controls={popId} aria-label={L('How is this calculated?', 'كيف يُحتسب هذا؟')} onClick={() => setOpen((o) => !o)}><UISymbol name="help" /></button>
       {open && (
-        <div id={popId} role="dialog" className="rv-def__pop">
+        <div id={popId} role="dialog" aria-label={`${B(entry.label)} — ${L('How is this calculated?', 'كيف يُحتسب هذا؟')}`} className="rv-def__pop">
           <b>{B(entry.label)}</b>
           <dl>
             <dt>{L('What is it?', 'ما هو؟')}</dt><dd>{B(entry.definition)}</dd>
-            <dt>{L('How is it calculated?', 'كيف يُحسب؟')}</dt><dd>{B(entry.formula).replace(/Σ\s*/g, ar ? 'مجموع ' : 'sum of ')}</dd>
+            <dt>{L('How is it calculated?', 'كيف يُحسب؟')}</dt><dd>{B(entry.formula).replace(/Σ\s*/g, ar ? 'مجموع ' : localize('sum of ', lang))}</dd>
             {entry.caveat && (<><dt>{L('What it does not mean', 'ما الذي لا يعنيه؟')}</dt><dd>{B(entry.caveat)}</dd></>)}
           </dl>
           <details className="rv-def__more">
@@ -65,7 +67,7 @@ export function DefinitionButton({ metric }) {
               <dt>{L('Scope', 'النطاق')}</dt><dd dir="auto">{B(entry.scope)}</dd>
               <dt>{L('Source systems', 'الأنظمة المصدر')}</dt><dd>{entry.sourceLabels.map((x) => B(x)).join(ar ? '، ' : ', ')}</dd>
               <dt>{L('Updated', 'آخر تحديث')}</dt><dd dir="ltr">{entry.updatedAt}</dd>
-              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{entry.ruleVersion}</dd>
+              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{B(entry.ruleVersion)}</dd>
             </dl>
           </details>
           <small><Link to="/settings/metrics">{L('Open the metric dictionary', 'فتح قاموس المقاييس')}</Link></small>
@@ -85,8 +87,8 @@ export function MetricTile({ label, value, sub, metric, tone, delta, children, w
       {delta}
       {sub && <div className="rv-tile__sub">{sub}</div>}
       {children}
-      {onAction && <button type="button" className="rv-tile__more" onClick={onAction} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'inherit', textAlign: 'start' }}>{actionLabel} ←</button>}
-      {to && <Link className="rv-tile__more" to={to}>{L('Drill down: invoices and evidence', 'التفاصيل: الفواتير والأدلة')} ←</Link>}
+      {onAction && <button type="button" className="rv-tile__more" onClick={onAction} style={{ background: 'none', border: 0, padding: 0, cursor: 'pointer', font: 'inherit', textAlign: 'start' }}>{actionLabel}<UISymbol name="left" /></button>}
+      {to && <Link className="rv-tile__more" to={to}>{L('Drill down: invoices and evidence', 'التفاصيل: الفواتير والأدلة')}<UISymbol name="left" /></Link>}
     </div>
   );
 }
@@ -128,9 +130,9 @@ export function DateRangeFields({ from, to, onChange, today, lang, idPrefix = 'r
   const key = (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(latest.current); } };
   return (
     <span className="rv-scope__dates">
-      <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : 'From'} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} onBlur={flush} onKeyDown={key} />
-      <span className="muted">→</span>
-      <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : 'To'} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} onBlur={flush} onKeyDown={key} />
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'من' : localize('From', lang)} value={draft.from} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, from: e.target.value })} onBlur={flush} onKeyDown={key} />
+      <span className="muted"><UISymbol name="right" /></span>
+      <input className="input rv-scope__date" type="date" aria-label={ar ? 'إلى' : localize('To', lang)} value={draft.to} min={DATA_START} max={today} aria-invalid={msg?.bad ? 'true' : undefined} aria-describedby={hintId} onChange={(e) => apply({ ...draft, to: e.target.value })} onBlur={flush} onKeyDown={key} />
       <span id={hintId} className={`rv-scope__hint ${msg ? (msg.bad ? 'rv-scope__hint--bad' : 'rv-scope__hint--note') : ''}`} role={msg ? 'alert' : undefined}>{msg ? rangeMessage(msg.code, lang, { today, planMax }) : (hint || coverageLine(lang, { today }))}</span>
     </span>
   );
@@ -175,13 +177,13 @@ export function ProductPicker({ value, onChange }) {
   const { L, lang } = useL();
   const keys = Object.keys(PRODUCTS);
   const toggle = (k) => onChange(value.includes(k) ? value.filter((x) => x !== k) : [...value, k]);
-  const text = value.length === 0 ? L('All products', 'كل المنتجات') : value.map((k) => (lang === 'ar' ? PRODUCTS[k].ar : PRODUCTS[k].en)).join('، ');
+  const text = value.length === 0 ? L('All products', 'كل المنتجات') : value.map((k) => (lang === 'ar' ? PRODUCTS[k].ar : localize(PRODUCTS[k].en, lang))).join('، ');
   return (
     <details className="rv-multi">
-      <summary className="select" aria-label={L('Product', 'اسم المنتج')}><span className="rv-scope__lbl" style={{ marginInlineEnd: 6 }}>{L('Product', 'اسم المنتج')}</span>{text}</summary>
+      <summary className="select" aria-label={L('Product', 'اسم المنتج')}><span className="rv-scope__lbl" style={{ marginInlineEnd: 8 }}>{L('Product', 'اسم المنتج')}</span>{text}</summary>
       <div className="rv-multi__list" role="group" aria-label={L('Product', 'اسم المنتج')}>
         {keys.map((k) => (
-          <label key={k} className="rv-multi__item"><input type="checkbox" checked={value.includes(k)} onChange={() => toggle(k)} /> {lang === 'ar' ? PRODUCTS[k].ar : PRODUCTS[k].en}</label>
+          <label key={k} className="rv-multi__item"><input type="checkbox" checked={value.includes(k)} onChange={() => toggle(k)} /> {lang === 'ar' ? PRODUCTS[k].ar : localize(PRODUCTS[k].en, lang)}</label>
         ))}
         {value.length > 0 && <button type="button" className="btn btn-sm btn-ghost" onClick={() => onChange([])}>{L('Clear', 'مسح')}</button>}
       </div>
@@ -195,7 +197,7 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
   const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
   const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
   const munis = useMemo(() => (scope.amanah === 'all' || Array.isArray(scope.amanah) ? [] : municipalitiesOf(scope.amanah).filter(Boolean)), [scope.amanah]);
-  const presets = PRESETS.map((p) => [p.key, lang === 'ar' ? p.ar : p.en]);
+  const presets = PRESETS.map((p) => [p.key, lang === 'ar' ? p.ar : localize(p.en, lang)]);
 
   return (
     <div className="rv-scope card" role="region" aria-label={L('Analysis scope', 'نطاق التحليل')}>
@@ -215,8 +217,8 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
           <label className="rv-scope__lbl" htmlFor="rv-source">{L('Revenue source', 'مصدر الإيراد')}</label>
           <select id="rv-source" className="select" value={scope.source} onChange={(e) => setSource(e.target.value)}>
             <option value="all">{L('All revenue sources', 'جميع مصادر الإيراد')}</option>
-            {REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{lang === 'ar' ? REVENUE_SOURCES[k].ar : REVENUE_SOURCES[k].en}</option>)}
-            {UNAVAILABLE_REVENUE_SOURCES.map((s) => <option key={s.id} value="__na" disabled>{(lang === 'ar' ? s.ar : s.en)} — {L('no records', 'لا سجلات')}</option>)}
+            {REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{lang === 'ar' ? REVENUE_SOURCES[k].ar : localize(REVENUE_SOURCES[k].en, lang)}</option>)}
+            {UNAVAILABLE_REVENUE_SOURCES.map((s) => <option key={s.id} value="__na" disabled>{(lang === 'ar' ? s.ar : localize(s.en, lang))} — {L('no records', 'لا سجلات')}</option>)}
           </select>
           {!hideStatus && (<>
           <label className="rv-scope__lbl" htmlFor="rv-status">{L('Invoice status', 'حالة الفاتورة')}</label>
@@ -228,8 +230,8 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
           <label className="rv-scope__lbl" htmlFor="rv-origin">{L('Invoice origin', 'مصدر الفاتورة')}</label>
           <select id="rv-origin" className="select" value={scope.scopeType || 'all'} onChange={(e) => setScopeType(e.target.value)}>
             <option value="all">{L('All', 'الكل')}</option>
-            <option value="central">{lang === 'ar' ? 'مركزي' : 'Central'}</option>
-            <option value="internal">{lang === 'ar' ? 'داخلي' : 'Internal'}</option>
+            <option value="central">{lang === 'ar' ? 'مركزي' : localize('Central', lang)}</option>
+            <option value="internal">{lang === 'ar' ? 'داخلي' : localize('Internal', lang)}</option>
           </select>
           <ProductPicker value={scope.product || []} onChange={setProduct} />
           <label className="rv-scope__lbl" htmlFor="rv-mainclass">{L('Main revenue class', 'تصنيف الإيراد الرئيسي')}</label>
@@ -242,7 +244,7 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
             <label className="rv-scope__lbl" htmlFor="rv-muni">{L('Municipality', 'البلدية')}</label>
             <select id="rv-muni" className="select" value={scope.muni || 'all'} onChange={(e) => setMuni(e.target.value)}>
               <option value="all">{L('All municipalities', 'كل البلديات')}</option>
-              {munis.map((m) => <option key={m.key} value={m.key}>{lang === 'ar' ? m.ar : m.en}</option>)}
+              {munis.map((m) => <option key={m.key} value={m.key}>{lang === 'ar' ? m.ar : localize(m.en, lang)}</option>)}
             </select>
           </>)}
         </div>
@@ -259,7 +261,7 @@ export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = fals
               <li>{L('Today (Riyadh)', 'اليوم (الرياض)')}: <b>{fmtDateText(snapshot.cutoff, lang)}</b></li>
               {snapshot.basis && <li title={L('Invoices are selected by issue date; collections count payments up to the stated date.', 'تُختار الفواتير بتاريخ الإصدار؛ ويُحتسب المحصّل بالمدفوعات حتى التاريخ المذكور.')}>{L('Invoices are selected by issue date', 'تُختار الفواتير بتاريخ الإصدار')}</li>}
               {snapshot.equation && snapshot.equation.ok && <li>{L('Reconciliation checks passed', 'فحوص المطابقة سليمة')}</li>}
-              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{snapshot.ruleSetVersion}</span></li>
+              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{localize(snapshot.ruleSetVersion, lang)}</span></li>
               <li>{L('Grace period: none applied (the policy is not yet decided)', 'فترة السماح: لا تُطبَّق حالياً (السياسة غير محسومة)')}</li>
             </ul>
           </details>

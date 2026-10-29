@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // Turns the files attached to a conversation (read by chatFiles.js) into a REPORT MODEL — the same structure the system reports use, so the
 // answer is rendered in the conversation and exported (Word / PowerPoint / PDF / Excel / CSV) from one source.
 // What is computed here is only what the files and the system data support:
@@ -85,14 +86,14 @@ const entityAr = (en) => ENTITIES.find((e) => e.en === en)?.ar || en;
 const STATUS_AR = { collected: ['محصّلة بالكامل', 'Collected in full'], ...Object.fromEntries(Object.entries(CATEGORY_LABELS).map(([k, v]) => [k, [v.ar, v.en]])) };
 
 export function buildAttachmentModel({ atts, refs, resolved = null, snapshot = null, scopeText = '', lang = 'ar', groupTerm = null, generatedAt = new Date(), cutoff = '', question = '' }) {
-  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e);
+  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang));
   const headline = []; const sections = []; const limits = [];
   const readable = atts.filter((a) => a.status !== 'unread'); const unread = atts.filter((a) => a.status === 'unread');
 
   /* ---- 1. the files */
   const fileRows = atts.map((a) => {
     const extent = a.tables?.length ? L(`${a.tables.length} ورقة · ${a.tables.reduce((t, x) => t + x.rows.length, 0).toLocaleString('en-US')} صف`, `${a.tables.length} sheet(s) · ${a.tables.reduce((t, x) => t + x.rows.length, 0).toLocaleString('en-US')} rows`) : a.pageCount ? L(`${a.pageCount} ${a.kind === 'pptx' ? 'شريحة' : 'صفحة'}`, `${a.pageCount} ${a.kind === 'pptx' ? 'slides' : 'pages'}`) : '—';
-    return [a.name, kindLabel(a.kind, ar), sizeText(a.size), extent, a.status === 'ready' ? L('قُرئ', 'Read') : a.status === 'partial' ? L('قُرئ جزئياً', 'Partly read') : L('لم يُقرأ', 'Not read'), noteText(a.note, ar) || ''];
+    return [a.name, kindLabel(a.kind, lang), sizeText(a.size), extent, a.status === 'ready' ? L('قُرئ', 'Read') : a.status === 'partial' ? L('قُرئ جزئياً', 'Partly read') : L('لم يُقرأ', 'Not read'), noteText(a.note, lang) || ''];
   });
   const fileBlocks = [tbl('files', L('الملفات المرفقة', 'Attached files'), [H(L('الملف', 'File')), H(L('النوع', 'Type')), H(L('الحجم', 'Size')), H(L('المحتوى', 'Content')), H(L('الحالة', 'Status')), H(L('ملاحظة', 'Note'))], fileRows)];
   unread.forEach((a) => limits.push(L(`«${a.name}»: ${noteText(a.note, true)}`, `“${a.name}”: ${noteText(a.note, false)}`)));
@@ -121,7 +122,7 @@ export function buildAttachmentModel({ atts, refs, resolved = null, snapshot = n
         { label: L('المحصّل', 'Collected'), value: fmtNum(Math.round(sum('collected'))) + L(' ريال', ' SAR'), raw: sum('collected'), sub: L('حتى تاريخ البيانات', 'to the data date') },
         { label: L('غير المحصّل', 'Uncollected'), value: fmtNum(Math.round(sum('outstanding'))) + L(' ريال', ' SAR'), raw: sum('outstanding'), sub: L('رصيد قائم', 'balance owed') }
       ] });
-      const rows = [...inv.values()].map(({ c, refs: v }) => [c.invoiceId, ar ? sourceAr(c.source) : sourceEn(c.source), ar ? entityAr(c.amanahEn) : c.amanahEn, (STATUS_AR[c.paymentStatus] || [c.paymentStatus, c.paymentStatus])[ar ? 0 : 1], c.netAmount, c.collected, c.outstanding, v.join(' ، ')]);
+      const rows = [...inv.values()].map(({ c, refs: v }) => [c.invoiceId, ar ? sourceAr(c.source) : sourceEn(c.source), ar ? entityAr(c.amanahEn) : localize(c.amanahEn, lang), localize((STATUS_AR[c.paymentStatus] || [c.paymentStatus, c.paymentStatus])[ar ? 0 : 1], lang), c.netAmount, c.collected, c.outstanding, v.join(' ، ')]);
       refBlocks.push(tbl('matched', L('الفواتير المطابقة في النظام', 'Matched invoices in the system'), [H(L('رقم الفاتورة', 'Invoice')), H(L('المصدر', 'Source')), H(L('الأمانة / الجهة', 'Amanah')), H(L('الحالة', 'Status')), H(L('الصافي', 'Net'), 'money'), H(L('المحصّل', 'Collected'), 'money'), H(L('غير المحصّل', 'Uncollected'), 'money'), H(L('المرجع في الملف', 'Reference in the file'))], rows.slice(0, CAP_ROWS), { note: rows.length > CAP_ROWS ? L(`عُرض أول ${CAP_ROWS} من ${rows.length} فاتورة.`, `The first ${CAP_ROWS} of ${rows.length} invoices are shown.`) : null }));
     }
     if (unmatched.length || ambiguous.length) {
@@ -155,7 +156,7 @@ export function buildAttachmentModel({ atts, refs, resolved = null, snapshot = n
         const hits = groups.map((g) => ({ g, key: matchAmanah(g.key) })).filter((x) => x.key);
         if (hits.length) {
           sysCompareDone = true;
-          const rows2 = hits.map(({ g, key }) => { const s = snapshot.byAmanah.find((x) => x.key === key); return [s ? (typeof s.label === 'string' ? s.label : s.label?.[ar ? 'ar' : 'en']) : g.key, g.sum, s ? Math.round(s.net) : null, s ? Math.round(s.collected) : null, s && s.net > 0 ? s.collected / s.net : null]; }); // whole riyals as plain numbers: a file's amounts and the system's are comparable only in one unit, and the file's are often small
+          const rows2 = hits.map(({ g, key }) => { const s = snapshot.byAmanah.find((x) => x.key === key); return [s ? (typeof s.label === 'string' ? s.label : localize(s.label?.[ar ? 'ar' : 'en'], lang)) : g.key, g.sum, s ? Math.round(s.net) : null, s ? Math.round(s.collected) : null, s && s.net > 0 ? s.collected / s.net : null]; }); // whole riyals as plain numbers: a file's amounts and the system's are comparable only in one unit, and the file's are often small
           const missed = groups.filter((g) => !matchAmanah(g.key));
           blocks.push(tbl(`cmp${i}`, L('المرفق مقابل بيانات النظام', 'The file against the system data'), [H(L('الأمانة / الجهة', 'Amanah')), H(L(`${measure.header} (الملف)`, `${measure.header} (file)`), 'plain'), H(L('صافي المفوتر (النظام، ريال)', 'Net billed (system, SAR)'), 'plain'), H(L('المحصّل (النظام، ريال)', 'Collected (system, SAR)'), 'plain'), H(L('نسبة التحصيل (النظام)', 'Collection rate (system)'), 'pct')], rows2, { note: L(`نطاق النظام: ${scopeText}. يُفترض أن مبالغ الملف بالريال لأن الملف لا يحدد وحدة؛ تأكد من ذلك قبل الاعتماد على المقارنة.${missed.length ? ` لم تُقابَل مع أمانات النظام: ${missed.slice(0, 8).map((g) => g.key).join('، ')}.` : ''}`, `System scope: ${scopeText}. The file amounts are assumed to be in SAR because the file states no unit; confirm that before relying on the comparison.${missed.length ? ` Not matched to a system Amanah: ${missed.slice(0, 8).map((g) => g.key).join(', ')}.` : ''}`) }));
         }
@@ -172,7 +173,7 @@ export function buildAttachmentModel({ atts, refs, resolved = null, snapshot = n
   /* ---- 4. documents (text) */
   const docs = atts.filter((a) => !a.tables?.length && a.text && a.status !== 'unread');
   if (docs.length) {
-    sections.push({ key: 'docs', title: L('مقتطفات المستندات', 'Document excerpts'), purpose: L('أول أسطر كل مستند كما وردت؛ هذه مقتطفات وليست تلخيصاً.', 'The first lines of each document as written; these are excerpts, not a summary.'), blocks: docs.flatMap((a) => [{ type: 'text', text: `${a.name} — ${kindLabel(a.kind, ar)} · ${a.pageCount} ${a.kind === 'pptx' ? L('شريحة', 'slides') : L('صفحة', 'pages')} · ${a.text.length.toLocaleString('en-US')} ${L('حرفاً', 'characters')}` }, { type: 'list', items: a.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 6).map((l) => (l.length > 220 ? `${l.slice(0, 219)}…` : l)) }]) });
+    sections.push({ key: 'docs', title: L('مقتطفات المستندات', 'Document excerpts'), purpose: L('أول أسطر كل مستند كما وردت؛ هذه مقتطفات وليست تلخيصاً.', 'The first lines of each document as written; these are excerpts, not a summary.'), blocks: docs.flatMap((a) => [{ type: 'text', text: `${a.name} — ${kindLabel(a.kind, lang)} · ${a.pageCount} ${a.kind === 'pptx' ? L('شريحة', 'slides') : L('صفحة', 'pages')} · ${a.text.length.toLocaleString('en-US')} ${L('حرفاً', 'characters')}` }, { type: 'list', items: a.text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 6).map((l) => (l.length > 220 ? `${l.slice(0, 219)}…` : l)) }]) });
   }
 
   /* ---- 5. limits, always stated */

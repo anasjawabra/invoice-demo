@@ -66,6 +66,7 @@ const EN_MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 
 export function fmtDateText(iso, lang = 'ar', { year = true } = {}) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return iso || '—';
   const y = iso.slice(0, 4); const m = Number(iso.slice(5, 7)) - 1; const d = Number(iso.slice(8, 10));
+  if (lang === 'zh') return `${year ? `${y}年` : ''}${m + 1}月${d}日`;
   return lang === 'ar' ? `${d} ${AR_MONTH_NAMES[m]}${year ? ` ${y}` : ''}` : `${d} ${EN_MONTH_NAMES[m]}${year ? ` ${y}` : ''}`;
 }
 export function fmtRangeText(from, to, lang = 'ar') {
@@ -73,7 +74,8 @@ export function fmtRangeText(from, to, lang = 'ar') {
   if (from === to) return fmtDateText(from, lang);
   const sameYear = from.slice(0, 4) === to.slice(0, 4); const sameMonth = sameYear && from.slice(5, 7) === to.slice(5, 7);
   const d = (iso, o) => fmtDateText(iso, lang, o);
+  if (lang === 'zh') return `${d(from)} – ${d(to, { year: !sameYear })}`;
   if (sameMonth) return lang === 'ar' ? `${Number(from.slice(8, 10))} – ${d(to)}` : `${Number(from.slice(8, 10))} – ${d(to)}`;
   return `${d(from, { year: !sameYear })} – ${d(to)}`;
 }
-export const fmtMonthText = (ym, lang = 'ar') => { const m = /^(\d{4})-(\d{2})/.exec(ym || ''); return m ? `${(lang === 'ar' ? AR_MONTH_NAMES : EN_MONTH_NAMES)[Number(m[2]) - 1]} ${m[1]}` : ym; };
+export const fmtMonthText = (ym, lang = 'ar') => { const m = /^(\d{4})-(\d{2})/.exec(ym || ''); return m ? lang === 'zh' ? `${m[1]}年${Number(m[2])}月` : `${(lang === 'ar' ? AR_MONTH_NAMES : EN_MONTH_NAMES)[Number(m[2]) - 1]} ${m[1]}` : ym; };

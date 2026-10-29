@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { RecordLink as Link } from '../utils/returnContext';
@@ -27,7 +28,7 @@ export default function ProductPage() {
   const { data: cd } = useAsync(() => (isFuras ? rev.data.contracts({ amanah: e.amanah, source: 'investment', from: '2000-01-01', to: rev.cfg.cutoff }) : Promise.resolve(null)), [rev.data, isFuras, e.amanah, rev.cfg.cutoff]);
   if (!valid) return <Navigate to="/products" replace />;
 
-  const T = snap ? (item ? catalogTotals(snap, item) : groupTotals(snap.byProduct, keys)) : null; const name = item ? (ar ? item.name.ar : item.name.en) : groupName(keys, lang);
+  const T = snap ? (item ? catalogTotals(snap, item) : groupTotals(snap.byProduct, keys)) : null; const name = item ? (ar ? item.name.ar : localize(item.name.en, lang)) : groupName(keys, lang);
   // challenges: each one is computed from the product's own figures
   const challenges = [];
   if (T && T.count > 0) {
@@ -69,7 +70,7 @@ export default function ProductPage() {
           </section>
 
           {isFuras && (
-            <section className="card card-pad" aria-label={L('Contracts and receivables', 'العقود والمستحقات')}>
+            <section className="card card-pad ui-section-stack" aria-label={L('Contracts and receivables', 'العقود والمستحقات')}>
               <h2 className="h3" style={{ marginTop: 0 }}>{L('Contracts and receivables (central invoices only)', 'العقود والمستحقات (الفواتير المركزية فقط)')}</h2>
               <div className="rv-tiles">
                 <MetricTile label={L('Contract values', 'قيم العقود')} value={short(sum((t) => t.contractValue))} sub={L(`${count(cards.length)} contracts`, `${count(cards.length)} عقود`)} />
@@ -92,7 +93,7 @@ export default function ProductPage() {
                 <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Origin', 'مصدر الفاتورة')}</th><th className="num">{L('Uncollected (SAR)', 'غير المحصّل (ريال)')}</th><th>{L('Exclusion reason', 'سبب الاستبعاد')}</th></tr></thead>
                 <tbody>
                   {(lst?.rows || []).map((r) => (
-                    <tr key={r.id}><td><Link to={invoicePath(r.id)} dir="ltr">{r.id}</Link></td><td>{ar ? r.amanahAr : r.amanahEn}</td><td>{ar ? ORIGIN_AR[r.origin] : ORIGIN_EN[r.origin]}</td><td className="num" dir="ltr">{sar(r.outstanding + r.exclusionAmount)}</td><td>{r.exclusionReason ? (ar ? r.exclusionReason.reasonAr : r.exclusionReason.reasonEn) : '—'}</td></tr>
+                    <tr key={r.id}><td><Link to={invoicePath(r.id)} dir="ltr">{r.id}</Link></td><td>{ar ? r.amanahAr : localize(r.amanahEn, lang)}</td><td>{ar ? ORIGIN_AR[r.origin] : ORIGIN_EN[r.origin]}</td><td className="num" dir="ltr">{sar(r.outstanding + r.exclusionAmount)}</td><td>{r.exclusionReason ? (ar ? r.exclusionReason.reasonAr : localize(r.exclusionReason.reasonEn, lang)) : '—'}</td></tr>
                   ))}
                   {!(lst?.rows || []).length && <tr><td colSpan={5}><div className="rv-empty">{L('No uncollected invoices in this selection.', 'لا فواتير غير محصّلة في هذا الاختيار.')}</div></td></tr>}
                 </tbody>

@@ -1,8 +1,10 @@
+import { localize } from '../utils/zh';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
 import { ORGS } from '../data/mock';
+import BrandMark from '../components/BrandMark';
 
 export default function Login() {
   const { t, lang, setLang, T } = useI18n();
@@ -50,17 +52,7 @@ export default function Login() {
         </div>
       </section>
 
-      <section className="login-panel">
-        <div className="card login-card">
-          <div className="brand-row">
-            <div className="brand-left">
-              <div className="brand-logo">IB</div>
-              <div className="brand-name">
-                <b>INTELLIBILL</b>
-                <small>{t('brand_tagline')}</small>
-              </div>
-            </div>
-
+      <div className="login-utilities">
             <div className="pill" aria-label="Language">
               <button
                 type="button"
@@ -72,21 +64,31 @@ export default function Login() {
               <button
                 type="button"
                 className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
                 onClick={() => setLang('zh')}
               >
                 中文
               </button>
               <button
                 type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
+                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : localize('btn-ghost', lang)}`}
                 onClick={() => setLang('ar')}
               >
                 العربية
               </button>
             </div>
-          </div>
+      </div>
 
+      <section className="login-panel">
+        <div className="card login-card">
+          <div className="brand-row">
+            <div className="brand-left">
+              <BrandMark className="brand-logo" />
+              <div className="brand-name">
+                <b>INTELLIBILL</b>
+                <small>{t('brand_tagline')}</small>
+              </div>
+            </div>
+          </div>
           <h2 style={{ fontSize: 20, fontWeight: 700 }}>{t('welcome')}</h2>
           <div className="lead">{t('login_lead')}</div>
 
@@ -113,8 +115,9 @@ export default function Login() {
 
               <div className={`org-collapse ${scopeByOrg ? 'org-collapse--open' : ''}`} aria-hidden={!scopeByOrg}>
                 <div className="org-collapse__inner">
-                  <label className="org-select-label">{t('org_label')}</label>
+                  <label className="org-select-label" htmlFor="login-organization">{t('org_label')}</label>
                   <select
+                    id="login-organization"
                     className="select"
                     value={orgId}
                     onChange={(e) => setOrgId(e.target.value)}
@@ -144,8 +147,9 @@ export default function Login() {
 
             <div className="row">
               <div className="field">
-                <label>{t('label_user')}</label>
+                <label htmlFor="login-username">{t('label_user')}</label>
                 <input
+                  id="login-username"
                   className="input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -154,8 +158,9 @@ export default function Login() {
                 />
               </div>
               <div className="field">
-                <label>{t('label_pass')}</label>
+                <label htmlFor="login-password">{t('label_pass')}</label>
                 <input
+                  id="login-password"
                   className="input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

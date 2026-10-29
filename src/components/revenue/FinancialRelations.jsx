@@ -6,7 +6,7 @@ import { useL, ratioText } from '../../utils/bi';
 import { unitOfValues } from '../../utils/money';
 
 export default function FinancialRelations({ totals: T }) {
-  const { L, ar, money, sar } = useL();
+  const { L, ar, money, sar , lang } = useL();
   const [sel, setSel] = useState(null); // the segment whose name and figures are open
   const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); // the five amounts share ONE unit
   const short = (v) => money(v, u);
@@ -38,9 +38,9 @@ export default function FinancialRelations({ totals: T }) {
         {T.exclusions > 0 && <Seg id="excl" cls="excl" w={T.exclusions} title={L('Exclusions', 'الاستبعادات')} amount={T.exclusions} />}
         <Seg id="net" cls="net" w={T.net} title={L('Net billed', 'صافي المفوتر')} amount={T.net} />
       </div>
-      <div className="rv-rel__row" aria-label={L('Net billed splits into collected and uncollected', 'صافي المفوتر = المحصّل + غير المحصّل')}>
+      <div className="rv-rel__row" role="group" aria-label={L('Net billed splits into collected and uncollected', 'صافي المفوتر = المحصّل + غير المحصّل')}>
         {T.exclusions > 0 && <Seg id="gap" cls="gap" w={T.exclusions} title="" amount={T.exclusions} />}
-        <Seg id="coll" cls="coll" w={T.collected} title={L('Collected', 'المحصّل')} amount={T.collected} extra={ratioText(T.collectedOverNet, ar)} />
+        <Seg id="coll" cls="coll" w={T.collected} title={L('Collected', 'المحصّل')} amount={T.collected} extra={ratioText(T.collectedOverNet, lang)} />
         <Seg id="unc" cls="unc" w={T.outstanding} title={L('Uncollected', 'غير المحصّل')} amount={T.outstanding} />
       </div>
       <ul className="rv-rel__legend" aria-label={L('Every segment of the bars', 'كل أجزاء الشريطين')}>
@@ -56,8 +56,8 @@ export default function FinancialRelations({ totals: T }) {
       )}
       <div className="rv-rel__cap">
         <span>{L('Net billed', 'صافي المفوتر')} <b dir="ltr">{short(T.net)}</b> = {L('collected', 'المحصّل')} <b dir="ltr">{short(T.collected)}</b> + {L('uncollected', 'غير المحصّل')} <b dir="ltr">{short(T.outstanding)}</b></span>
-        <span>{L('Collection rate', 'نسبة التحصيل')} <b dir="ltr">{ratioText(T.collectedOverNet, ar)}</b></span>
-        <span>{L('Exclusion rate', 'نسبة الاستبعاد')} <b dir="ltr">{ratioText(T.exclusionRate, ar)}</b></span>
+        <span>{L('Collection rate', 'نسبة التحصيل')} <b dir="ltr">{ratioText(T.collectedOverNet, lang)}</b></span>
+        <span>{L('Exclusion rate', 'نسبة الاستبعاد')} <b dir="ltr">{ratioText(T.exclusionRate, lang)}</b></span>
       </div>
     </div>
   );

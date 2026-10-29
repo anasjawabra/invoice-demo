@@ -1,3 +1,6 @@
+import { localize } from '../../utils/zh';
+import { localizedObject } from '../../utils/zh';
+import UISymbol from '../UISymbol';
 // Pieces of the Decision Room: one expandable item (what, how much, evidence, cause, recommendation, the person's actions and the history).
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,7 +15,7 @@ export const scoreTone = (s) => (s >= 0.6 ? 'high' : s >= 0.35 ? 'mid' : 'low');
 
 export function useFmt() {
   const { L, ar, lang, short, count } = useAr();
-  const B = (o) => (o == null ? '' : typeof o === 'string' ? o : o[ar ? 'ar' : 'en']);
+  const B = (o) => (localizedObject(o, lang));
   const fig = (f) => {
     if (f.value == null || (typeof f.value === 'number' && !Number.isFinite(f.value))) return L('غير متاح', 'n/a');
     if (f.kind === 'money') return short(f.value);
@@ -36,7 +39,7 @@ export function ItemRow({ it, D, open, onToggle }) {
       <button type="button" className="dr-item__head" aria-expanded={open} onClick={onToggle}>
         <span className={`dr-score dr-score--${scoreTone(it.score)}`} title={L('درجة الأولوية', 'Priority score')} dir="ltr">{it.resolvedByData ? '—' : it.score.toFixed(2)}</span>
         <span className="dr-item__main"><b>{B(it.title)}</b>
-          <small>{B(CATEGORIES[it.category])}{it.amanah ? ` · ${D.labels.amanah(it.amanah)[ar ? 'ar' : 'en']}` : ''}{it.source ? ` · ${D.labels.source(it.source)[ar ? 'ar' : 'en']}` : ''}</small></span>
+          <small>{B(CATEGORIES[it.category])}{it.amanah ? ` · ${localize(D.labels.amanah(it.amanah)[ar ? 'ar' : 'en'], lang)}` : ''}{it.source ? ` · ${localize(D.labels.source(it.source)[ar ? 'ar' : 'en'], lang)}` : ''}</small></span>
         <span className="dr-item__amt" dir="ltr">{it.amount != null ? short(it.amount) : '—'}</span>
         <span className={`dr-status dr-status--${it.status}`}>{B(STATUSES[it.status])}</span>
         <span className="dr-item__owner">{it.state?.owner ? <>{roleName(it.state.owner)}{it.state.due ? <small className={it.overdueAction ? 'is-late' : ''}> · {dateText(it.state.due)}</small> : null}</> : <small className="muted">{L('بلا مسؤول', 'No owner')}</small>}</span>
@@ -78,7 +81,7 @@ export function ItemRow({ it, D, open, onToggle }) {
 
           {(it.state?.history || []).length > 0 && (
             <div className="dr-block"><b>{L('السجل', 'History')}</b>
-              <ol className="dr-hist">{[...it.state.history].reverse().map((h, i) => <li key={i}><span className="muted">{dateText(h.at)} · {h.by}</span> — {h.action === 'assign' ? L(`إسناد إلى ${roleName(h.owner)}، الاستحقاق ${dateText(h.due)}`, `assigned to ${roleName(h.owner)}, due ${dateText(h.due)}`) : h.action === 'status' ? <>{L('الحالة', 'status')}: {B(STATUSES[h.from])} ← {B(STATUSES[h.to])}{h.reason ? ` (${h.reason})` : ''}</> : h.text}</li>)}</ol>
+              <ol className="dr-hist">{[...it.state.history].reverse().map((h, i) => <li key={i}><span className="muted">{dateText(h.at)} · {h.by}</span> — {h.action === 'assign' ? L(`إسناد إلى ${roleName(h.owner)}، الاستحقاق ${dateText(h.due)}`, `assigned to ${roleName(h.owner)}, due ${dateText(h.due)}`) : h.action === 'status' ? <>{L('الحالة', 'status')}: {B(STATUSES[h.from])}<UISymbol name="left" />{B(STATUSES[h.to])}{h.reason ? ` (${h.reason})` : ''}</> : h.text}</li>)}</ol>
             </div>
           )}
         </div>

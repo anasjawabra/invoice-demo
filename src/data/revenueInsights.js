@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ============================================================================
 // Insights derived from the shared revenue snapshot: worklists, executive
 // decision cards, gap contributors, and the standard AI analysis result.
@@ -15,10 +16,11 @@ import { CATEGORY_LABELS, formatRatio, pct1, EXCLUSION_RULES, NOT_CALCULABLE_LAB
 import { caseSummary } from './enforcementMatching';
 import { fmtBn } from '../utils/money';
 import { municipalitiesOf } from './catalog';
+import { localizedObject } from '../utils/zh';
 
 const cnt = (n) => Number(n || 0).toLocaleString('en-US');
 export const bi = (en, ar) => ({ en, ar });
-export const pickBi = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
+export const pickBi = (o, lang) => localizedObject(o, lang);
 
 // All amounts in text use ONE appropriate unit each (SAR · ألف · مليون · مليار); the stored/calculated values stay in SAR.
 export const money = (n) => fmtBn(n, { lang: 'en' });
@@ -264,12 +266,12 @@ function indicator(label, value, kind = 'calculated', note = null) {
 }
 
 export function describeScope(scope, lang = 'en') {
-  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات والجهات' : 'All Amanahs') : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
-  const s = scope.source === 'all' ? (lang === 'ar' ? 'جميع مصادر الإيراد' : 'All revenue sources') : (REVENUE_SOURCES[scope.source]?.[lang === 'ar' ? 'ar' : 'en'] || scope.source);
+  const a = scope.amanah === 'all' ? (lang === 'ar' ? 'جميع الأمانات والجهات' : localize('All Amanahs', lang)) : Array.isArray(scope.amanah) ? scope.amanah.join(', ') : scope.amanah;
+  const s = scope.source === 'all' ? (lang === 'ar' ? 'جميع مصادر الإيراد' : localize('All revenue sources', lang)) : (localize(REVENUE_SOURCES[scope.source]?.[lang === 'ar' ? 'ar' : 'en'], lang) || scope.source);
   const ar = lang === 'ar';
   const extra = [];
-  if (scope.scopeType && scope.scopeType !== 'all') extra.push(scope.scopeType === 'internal' ? (ar ? 'داخلي' : 'Internal') : (ar ? 'مركزي' : 'Central'));
-  if (scope.muni && scope.muni !== 'all') { const [ent] = String(scope.muni).split('|'); const m = municipalitiesOf(ent).find((x) => x && x.key === scope.muni); extra.push(m ? (ar ? m.ar : m.en) : scope.muni); }
+  if (scope.scopeType && scope.scopeType !== 'all') extra.push(scope.scopeType === 'internal' ? (ar ? 'داخلي' : localize('Internal', lang)) : (ar ? 'مركزي' : localize('Central', lang)));
+  if (scope.muni && scope.muni !== 'all') { const [ent] = String(scope.muni).split('|'); const m = municipalitiesOf(ent).find((x) => x && x.key === scope.muni); extra.push(m ? (ar ? m.ar : localize(m.en, lang)) : scope.muni); }
   return `${scope.from} → ${scope.to} · ${a} · ${s}${extra.length ? ` · ${extra.join(' · ')}` : ''}`;
 }
 

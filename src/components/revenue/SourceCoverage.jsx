@@ -9,7 +9,7 @@ import { ASSUMPTIONS } from '../../data/sourceAssumptions';
 // counts (invoices, item rows, payment rows) and amounts from the same metric layer as every other screen.
 export default function SourceCoverage() {
   const rev = useRevenue();
-  const { L, B, ar, short, count, sar } = useL();
+  const { L, B, ar, short, count, sar , lang } = useL();
   const [showAssume, setShowAssume] = useState(false);
   const { data, error } = useAsync(() => rev.data.sources ? rev.data.sources() : Promise.resolve(null), [rev.data, rev.dataVersion]);
   if (error) return <div className="rv-callout rv-callout--bad" role="alert">{String(error.message || error)}</div>;
@@ -42,7 +42,7 @@ export default function SourceCoverage() {
                   <td style={{ fontSize: 12 }} dir="ltr">{(s.profile?.keys || []).join(' · ')}</td>
                   <td style={{ fontSize: 12, maxWidth: 200 }} dir="auto">{s.profile ? B(s.profile.supplier) : '—'}</td>
                   <td className="num" dir="ltr">{count(s.ytd.invoices)}</td><td className="num" dir="ltr">{count(s.ytd.lines)}</td><td className="num" dir="ltr">{count(s.ytd.payments)}</td>
-                  <td className="num" dir="ltr" title={sar(f.gross)}>{short(f.gross)}</td><td className="num" dir="ltr" title={sar(f.collected)}>{short(f.collected)}</td><td className="num">{ratioText(f.rate, ar, 0)}</td>
+                  <td className="num" dir="ltr" title={sar(f.gross)}>{short(f.gross)}</td><td className="num" dir="ltr" title={sar(f.collected)}>{short(f.collected)}</td><td className="num">{ratioText(f.rate, lang, 0)}</td>
                   <td className="num" dir="ltr">{count(s.prior.invoices)}</td>
                 </tr>
               );
@@ -50,7 +50,7 @@ export default function SourceCoverage() {
             <tr style={{ fontWeight: 700 }}>
               <td>{L('Total', 'الإجمالي')}</td><td /><td /><td /><td />
               <td className="num" dir="ltr">{count(tot.count)}</td><td className="num" dir="ltr">{count(data.sources.reduce((t, s) => t + s.ytd.lines, 0))}</td><td className="num" dir="ltr">{count(data.sources.reduce((t, s) => t + s.ytd.payments, 0))}</td>
-              <td className="num" dir="ltr" title={sar(tot.gross)}>{short(tot.gross)}</td><td className="num" dir="ltr" title={sar(tot.collected)}>{short(tot.collected)}</td><td className="num">{ratioText(tot.collectedOverNet, ar, 0)}</td><td className="num" dir="ltr">{count(data.totals.prior.count)}</td>
+              <td className="num" dir="ltr" title={sar(tot.gross)}>{short(tot.gross)}</td><td className="num" dir="ltr" title={sar(tot.collected)}>{short(tot.collected)}</td><td className="num">{ratioText(tot.collectedOverNet, lang, 0)}</td><td className="num" dir="ltr">{count(data.totals.prior.count)}</td>
             </tr>
           </tbody>
         </table>

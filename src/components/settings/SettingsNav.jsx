@@ -10,6 +10,9 @@ export const SETTINGS_PAGES = [
 export default function SettingsNav({ current }) {
   const { L, B } = useL();
   const page = SETTINGS_PAGES.find((p) => p.to === current);
+  // A single section is already identified by the main navigation and page heading.
+  // Keep sub-navigation available if settings grows to include sibling sections.
+  if (page && SETTINGS_PAGES.length === 1) return null;
   return (
     <div className="ss-nav">
       <nav className="rp-crumbs" aria-label={L('Breadcrumb', 'مسار التنقل')}>

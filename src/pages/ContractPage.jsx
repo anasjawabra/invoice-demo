@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 import React, { useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
@@ -16,7 +17,7 @@ import { amanahName, itemName } from './Contracts';
 export default function ContractPage() {
   const { no: raw } = useParams(); const no = decodeURIComponent(raw || '');
   const rev = useRevenue();
-  const { L, B, ar, short, sar } = useL();
+  const { L, B, ar, short, sar , lang } = useL();
   const [reload, setReload] = useState(0);
   const ret = useReturnTarget({ path: '/contracts', label: L('Contracts', 'العقود') });
   const { data: c, loading, error } = useAsync(() => rev.data.contract(no), [rev.data, no, reload]);
@@ -41,7 +42,7 @@ export default function ContractPage() {
         { label: L('Future installments', 'الدفعات المستقبلية'), value: short(t.futureNotInvoiced), note: L('not arrears', 'ليست متأخرات') }
       ]} />
       <section className="rp-section"><Facts items={[
-        { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : c.tenantEn }, { k: L('Amanah', 'الأمانة / الجهة'), v: amanahName(c.amanahEn, ar) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) }, { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }
+        { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : localize(c.tenantEn, lang) }, { k: L('Amanah', 'الأمانة / الجهة'), v: amanahName(c.amanahEn, lang) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) }, { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }
       ]} /></section>
 
       <Section id="relation" title={L('Enforcement relationship — three different facts', 'علاقة الإنفاذ — ثلاث حقائق مختلفة')}>

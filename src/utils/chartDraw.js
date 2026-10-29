@@ -1,3 +1,4 @@
+import { localize } from './zh';
 // Draws a report-model chart block (bar · hbar · line · pie) as SVG — used by the PDF export (printed page) and, rasterised, by the Word export.
 // One drawing, one scale: every tick and label names a value the chart reaches; amounts use the ONE unit of the chart (see reportFormat.chartInfo).
 import { chartInfo } from '../data/reportFormat';
@@ -19,7 +20,7 @@ export function chartSvg(b, { lang = 'ar', w = 900, h = 420 } = {}) {
   };
   const head = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${esc(b.title)}"><rect width="${w}" height="${h}" fill="#fff"/>`;
   const vals = series.flatMap((s) => s.values).filter((v) => v != null && Number.isFinite(v));
-  if (!vals.length) return `${head}<text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="14" fill="#666" ${FONT}>${ar ? 'لا بيانات' : 'No data'}</text></svg>`;
+  if (!vals.length) return `${head}<text x="${w / 2}" y="${h / 2}" text-anchor="middle" font-size="14" fill="#666" ${FONT}>${ar ? 'لا بيانات' : localize('No data', lang)}</text></svg>`;
 
   if (kind === 'pie') {
     const s = series[0]; const pairs = s.values.map((v, i) => ({ v: Math.max(0, v || 0), l: b.labels[i] })).filter((p) => p.v > 0); const tot = pairs.reduce((t, p) => t + p.v, 0) || 1;

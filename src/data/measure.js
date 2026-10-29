@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ONE measurement rule for every view (Dashboard, Fixed reports, Smart reports, Planning) — EQ1, approved.
 //
 //   HEADLINE basis  : collections are counted up to the END OF THE PERIOD (a closed period is measured at its own end; a period that is still open
@@ -27,6 +28,6 @@ export const measure = (data, scope, cfg, basis = BASIS.PERIOD_END) => data.snap
 
 export function basisLabel(scope, basis, today, lang = 'ar') {
   const d = fmtDateText(asOfDate(scope, basis, today), lang); const ar = lang === 'ar';
-  if (basis === BASIS.TO_DATE) return ar ? `المحصّل حتى اليوم ${d}` : `Collected up to today ${d}`;
-  return scope.to < today ? (ar ? `المحصّل حتى نهاية الفترة ${d}` : `Collected up to the period end ${d}`) : (ar ? `المحصّل حتى ${d} (نهاية الفترة المفتوحة = اليوم)` : `Collected up to ${d} (the open period ends today)`);
+  if (basis === BASIS.TO_DATE) return ar ? `المحصّل حتى اليوم ${d}` : localize(`Collected up to today ${d}`, lang);
+  return scope.to < today ? (ar ? `المحصّل حتى نهاية الفترة ${d}` : localize(`Collected up to the period end ${d}`, lang)) : (ar ? `المحصّل حتى ${d} (نهاية الفترة المفتوحة = اليوم)` : localize(`Collected up to ${d} (the open period ends today)`, lang));
 }

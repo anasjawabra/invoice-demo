@@ -1,3 +1,5 @@
+import { localize } from '../../utils/zh';
+import { useI18n } from '../../context/I18nContext';
 // The invoice page's own building blocks: a money panel (invoice value, collection status, payment date), a payment panel (the payment date, how it
 // compares with the due date, and a timeline from issue to the reference date), grouped facts, and an in-page section navigation.
 import React from 'react';
@@ -11,6 +13,7 @@ const pc = (v) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)}%`;
 // IIM-13 — the financial summary shows ONLY: invoice value (قيمة الفاتورة), collection status and the payment date. The remaining balance and the separate collected figure are
 // not shown here; the bar is the collected share of the invoice value. An excluded invoice shows the reason (and the excluded amount as small print).
 export function MoneyPanel({ der, rec, sar, L, ar }) {
+  const { lang } = useI18n();
   const value = der.gross; const share = value > 0 ? Math.min(der.collected / value, 1) : 0;
   const late = der.outstanding > 0 && der.daysOverdue > 0;
   const status = der.cancelled ? { ar: 'ملغاة', en: 'Cancelled', tone: 'neutral' } : der.collected >= value && value > 0 ? { ar: 'محصلة', en: 'Collected', tone: 'ok' } : der.collected > 0 ? { ar: 'محصلة جزئيًا', en: 'Partially collected', tone: 'warn' } : { ar: 'غير محصلة', en: 'Not collected', tone: late ? 'late' : 'neutral' };
@@ -20,13 +23,13 @@ export function MoneyPanel({ der, rec, sar, L, ar }) {
       <h2 className="ip-h">{L('Financial summary', 'الملخص المالي')}</h2>
       <div className="ip-money__row">
         <div><span className="ip-k">{L('Invoice value', 'قيمة الفاتورة')}</span><b className="ip-big" dir="ltr">{sar(value)}</b></div>
-        <div><span className="ip-k">{L('Collection status', 'حالة التحصيل')}</span><b className={`ip-big${status.tone === 'late' ? ' ip-bad' : ''}`}>{ar ? status.ar : status.en}</b></div>
-        <div><span className="ip-k">{L('Payment date', 'تاريخ السداد')}</span><b className="ip-big" dir="ltr">{paid ? fmtDateText(paid, ar ? 'ar' : 'en') : '—'}</b></div>
+        <div><span className="ip-k">{L('Collection status', 'حالة التحصيل')}</span><b className={`ip-big${status.tone === 'late' ? ' ip-bad' : ''}`}>{ar ? status.ar : localize(status.en, lang)}</b></div>
+        <div><span className="ip-k">{L('Payment date', 'تاريخ السداد')}</span><b className="ip-big" dir="ltr">{paid ? fmtDateText(paid, lang) : '—'}</b></div>
       </div>
       <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of the invoice value`, `المحصّل ${pc(share)} من قيمة الفاتورة`)}>
         <i className="ip-bar__paid" style={{ width: `${share * 100}%`, background: pctColor('share', share) || undefined }} />{value > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
       </div>
-      {ex && <dl className="ip-sub"><div><dt>{L('Exclusion reason', 'سبب الاستبعاد')}</dt><dd>{ar ? ex.reasonAr : ex.reasonEn}</dd></div><div><dt>{L('Excluded amount', 'المبلغ المستبعد')}</dt><dd dir="ltr">{sar(der.exclusionsTotal)}</dd></div></dl>}
+      {ex && <dl className="ip-sub"><div><dt>{L('Exclusion reason', 'سبب الاستبعاد')}</dt><dd>{ar ? ex.reasonAr : localize(ex.reasonEn, lang)}</dd></div><div><dt>{L('Excluded amount', 'المبلغ المستبعد')}</dt><dd dir="ltr">{sar(der.exclusionsTotal)}</dd></div></dl>}
       {der.overpayment > 0 && <dl className="ip-sub"><div><dt>{L('Paid above the invoice value', 'مدفوع فوق قيمة الفاتورة')}</dt><dd dir="ltr">{sar(der.overpayment)}</dd></div></dl>}
     </section>
   );
@@ -34,7 +37,8 @@ export function MoneyPanel({ der, rec, sar, L, ar }) {
 
 // the payment date, stated plainly first; then the dates that explain it and a timeline of the invoice's life
 export function PaymentPanel({ pf, rec, today, ar, sar, L }) {
-  const dt = (d) => fmtDateText(d, ar ? 'ar' : 'en');
+  const { lang } = useI18n();
+  const dt = (d) => fmtDateText(d, lang);
   const days = (n) => L(`${n} day${n === 1 ? '' : 's'}`, `${n} ${n === 1 ? 'يوم' : n === 2 ? 'يومان' : n >= 3 && n <= 10 ? 'أيام' : 'يوماً'}`);
   const off = (n) => (n < 0 ? L(`${days(-n)} before the due date`, `قبل الاستحقاق بـ ${days(-n)}`) : n > 0 ? L(`${days(n)} after the due date`, `بعد الاستحقاق بـ ${days(n)}`) : L('on the due date', 'في يوم الاستحقاق'));
   let head; let tone; let line;

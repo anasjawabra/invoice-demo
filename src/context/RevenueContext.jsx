@@ -1,3 +1,5 @@
+import { localize } from '../utils/zh';
+import { useI18n } from './I18nContext';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from './AuthContext';
 import { ORGS } from '../data/mock';
@@ -326,24 +328,26 @@ export function RevenueProvider({ children }) {
 }
 
 function DataServiceLoading() {
-  const ar = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ib_lang')) !== 'en';
+  const { lang } = useI18n();
+  const ar = lang === 'ar';
   return (
     <div role="status" aria-live="polite" style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }} dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{ar ? 'جارٍ تجهيز البيانات التجريبية…' : 'Preparing the demo data…'}</div>
-        <div style={{ opacity: 0.7, fontSize: 13 }}>{ar ? 'تُحسب المؤشرات في خدمة البيانات؛ لا تُحمَّل الفواتير في المتصفح.' : 'Indicators are computed in the data service; invoices are never loaded into the browser.'}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{ar ? 'جارٍ تجهيز البيانات التجريبية…' : localize('Preparing the demo data…', lang)}</div>
+        <div style={{ opacity: 0.7, fontSize: 13 }}>{ar ? 'تُحسب المؤشرات في خدمة البيانات؛ لا تُحمَّل الفواتير في المتصفح.' : localize('Indicators are computed in the data service; invoices are never loaded into the browser.', lang)}</div>
       </div>
     </div>
   );
 }
 function DataServiceError({ error }) {
-  const ar = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ib_lang')) !== 'en';
+  const { lang } = useI18n();
+  const ar = lang === 'ar';
   return (
     <div role="alert" style={{ minHeight: '60vh', display: 'grid', placeItems: 'center', padding: 24, textAlign: 'center' }} dir={ar ? 'rtl' : 'ltr'}>
       <div>
-        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>{ar ? 'تعذّر الوصول إلى خدمة البيانات' : 'The data service is not reachable'}</div>
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{ar ? 'تعذّر الوصول إلى خدمة البيانات' : localize('The data service is not reachable', lang)}</div>
         <div style={{ opacity: 0.7, fontSize: 13 }}>{String(error.message || error)}</div>
-        <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>{ar ? 'إعادة المحاولة' : 'Retry'}</button>
+        <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>{ar ? 'إعادة المحاولة' : localize('Retry', lang)}</button>
       </div>
     </div>
   );

@@ -1,3 +1,6 @@
+import { useI18n } from '../context/I18nContext';
+import { localize } from '../utils/zh';
+import UISymbol from '../components/UISymbol';
 // «التقارير الذكية» — the ONE reporting experience (it replaces the former report centre and the former smart-reports page).
 // A conversation: the user asks for a report or asks a question, or attaches files; the assistant answers from the shared data layer and the files.
 // Follow-ups act on the latest result («change the chart», «show the tables only», «turn it into a presentation»); see src/data/chatIntents.js.
@@ -16,6 +19,8 @@ import { buildReportModel, SECTION_META, SECTION_ORDER } from '../data/reportMod
 import { sourceAr, sourceEn } from '../data/insightsEngine';
 import ReportView from '../components/smart/ReportView';
 import { exportModel, reportFileName, EXPORT_FORMATS } from '../utils/exportReportModel';
+import useReportExport from '../utils/useReportExport';
+import ReportExportFeedback from '../components/smart/ReportExportFeedback';
 import { interpretChat, CHART_NAME } from '../data/chatIntents';
 import { applyView, mergeView, emptyView, hasCharts, hasTables } from '../data/reportView';
 import { readAttachment, previewOf, kindLabel, noteText, sizeText, ACCEPT, MAX_FILES } from '../data/chatFiles';
@@ -27,6 +32,7 @@ import { measure, headlineCfg } from '../data/measure';
 import { usePersistOnChange } from '../utils/usePersistOnChange';
 import LocalDataPanel from '../components/LocalDataPanel';
 import { PRESETS, detectPreset } from '../data/periodPresets';
+import SmartReportingIcon from '../components/smart/SmartReportingIcon';
 
 const STORE_KEY = 'ib_smart_convs_v1';
 const loadConvs = () => { try { const v = JSON.parse(window.localStorage.getItem(STORE_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; } };
@@ -48,6 +54,7 @@ const SUGGESTIONS = [
 const STEPS = { scope: ['أحدد النطاق والتصفية', 'Setting the scope and filters'], read: ['أقرأ بيانات الفواتير والتحصيل', 'Reading invoice and collection data'], compare: ['أحسب المقارنة بالفترة المكافئة', 'Computing the equivalent-period comparison'], build: ['أُعدّ الجداول والرسوم والنتائج', 'Preparing tables, charts and findings'], check: ['أراجع المطابقة المالية', 'Checking the financial reconciliation'] };
 
 function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
+  const { lang } = useI18n();
   const sp = spec || defaultSpec(today); const sc = sp.scope;
   const [d, setD] = useState({ from: sc.from, to: sc.to, amanah: Array.isArray(sc.amanah) ? '__multi' : sc.amanah, muni: sc.muni, source: sc.source, status: sc.status || 'all', scopeType: sc.scopeType || 'all', compare: sp.compare });
   const munis = d.amanah !== 'all' && d.amanah !== '__multi' ? municipalitiesOf(d.amanah).filter(Boolean) : [];
@@ -58,13 +65,13 @@ function FilterPanel({ spec, today, ar, L, sourceName, onApply }) {
     <div className="sr-filters card" role="region" aria-label={L('التصفية', 'Filters')}>
       <div className="sr-filters__row">
         <span className="rv-scope__lbl">{L('الفترة', 'Period')}</span>
-        {PRESETS.map((p) => <button key={p.key} type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = p.range(today); preset(r.from, r.to); }}>{ar ? p.ar : p.en}</button>)}
-        <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={ar ? 'ar' : 'en'} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
+        {PRESETS.map((p) => <button key={p.key} type="button" className="btn btn-sm btn-ghost" onClick={() => { const r = p.range(today); preset(r.from, r.to); }}>{ar ? p.ar : localize(p.en, lang)}</button>)}
+        <DateRangeFields key={rk} from={d.from} to={d.to} today={today} lang={lang} idPrefix="sr" onChange={(r) => { setBadRange(!r); if (r) setD((x) => ({ ...x, from: r.from, to: r.to })); }} />
       </div>
       <div className="sr-filters__row">
         <label className="rv-scope__lbl" htmlFor="sr-am">{L('الأمانة / الجهة', 'Amanah')}</label>
-        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات والجهات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : x.en) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}</select>
-        {munis.length > 0 && <><label className="rv-scope__lbl" htmlFor="sr-mu">{L('البلدية', 'Municipality')}</label><select id="sr-mu" className="select" value={d.muni} onChange={(e) => setD({ ...d, muni: e.target.value })}><option value="all">{L('كل البلديات', 'All municipalities')}</option>{munis.map((m) => <option key={m.key} value={m.key}>{ar ? m.ar : m.en}</option>)}</select></>}
+        <select id="sr-am" className="select" value={d.amanah} onChange={(e) => setD({ ...d, amanah: e.target.value, muni: 'all' })}><option value="all">{L('كل الأمانات والجهات', 'All Amanahs')}</option>{Array.isArray(sc.amanah) && <option value="__multi">{sc.amanah.map((k) => { const x = ams.find((y) => y.key === k); return x ? (ar ? x.ar : localize(x.en, lang)) : k; }).join(L('، ', ', '))}</option>}{ams.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : localize(a.en, lang)}</option>)}</select>
+        {munis.length > 0 && <><label className="rv-scope__lbl" htmlFor="sr-mu">{L('البلدية', 'Municipality')}</label><select id="sr-mu" className="select" value={d.muni} onChange={(e) => setD({ ...d, muni: e.target.value })}><option value="all">{L('كل البلديات', 'All municipalities')}</option>{munis.map((m) => <option key={m.key} value={m.key}>{ar ? m.ar : localize(m.en, lang)}</option>)}</select></>}
         <label className="rv-scope__lbl" htmlFor="sr-src">{L('المصدر', 'Source')}</label>
         <select id="sr-src" className="select" value={d.source} onChange={(e) => setD({ ...d, source: e.target.value })}><option value="all">{L('كل المصادر', 'All sources')}</option>{REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{sourceName(k)}</option>)}</select>
       </div>
@@ -110,6 +117,7 @@ function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel
 /* ---------------- attachments in the composer ---------------- */
 const ICON = { pdf: 'PDF', docx: 'DOC', sheet: 'XLS', csv: 'CSV', pptx: 'PPT', image: 'IMG', doc: 'DOC', ppt: 'PPT', unknown: '?' };
 function FilePreview({ f, ar, L }) {
+  const { lang } = useI18n();
   const pv = previewOf(f);
   return (
     <div className="sr-filepv" role="region" aria-label={`${L('معاينة', 'Preview')} ${f.name}`}>
@@ -123,20 +131,21 @@ function FilePreview({ f, ar, L }) {
       )}
       {pv.type === 'text' && <ol className="sr-filepv__lines">{pv.lines.map((l, i) => <li key={i} dir="auto">{l.length > 200 ? `${l.slice(0, 199)}…` : l}</li>)}</ol>}
       {pv.type === 'none' && <div className="muted">{L('لا معاينة متاحة لهذا الملف.', 'No preview is available for this file.')}</div>}
-      {f.note && <div className="sr-filepv__note" role="note">{noteText(f.note, ar)}</div>}
+      {f.note && <div className="sr-filepv__note" role="note">{noteText(f.note, lang)}</div>}
     </div>
   );
 }
 function FileChip({ f, ar, L, open, onToggle, onRemove }) {
+  const { lang } = useI18n();
   const state = f.reading ? L('جارٍ القراءة…', 'Reading…') : f.status === 'ready' ? L('جاهز', 'Ready') : f.status === 'partial' ? L('قُرئ جزئياً', 'Partly read') : f.kind === 'image' ? L('معاينة فقط', 'Preview only') : L('لم يُقرأ', 'Not read');
   return (
     <div className={`sr-file sr-file--${f.reading ? 'busy' : f.status}`} role="listitem">
       <span className="sr-file__ico" aria-hidden="true">{f.kind === 'image' && f.preview ? <img src={f.preview} alt="" /> : ICON[f.kind] || '?'}</span>
       <button type="button" className="sr-file__main" aria-expanded={!!open} disabled={!!f.reading} onClick={onToggle} title={L('معاينة', 'Preview')}>
         <b dir="auto">{f.name}</b>
-        <small>{kindLabel(f.kind, ar)} · {sizeText(f.size)} · {f.reading ? <><span className="sr-spin" aria-hidden="true" /> {state}</> : state}</small>
+        <small>{kindLabel(f.kind, lang)} · {sizeText(f.size)} · {f.reading ? <><span className="sr-spin" aria-hidden="true" /> {state}</> : state}</small>
       </button>
-      <button type="button" className="sr-file__x" aria-label={`${L('إزالة', 'Remove')} ${f.name}`} onClick={onRemove}>×</button>
+      <button type="button" className="sr-file__x" aria-label={`${L('إزالة', 'Remove')} ${f.name}`} onClick={onRemove}><SmartReportingIcon name="close" size={16} /></button>
     </div>
   );
 }
@@ -150,7 +159,7 @@ function AgentSteps({ order, current, textOf, L, onStop }) {
   return (
     <div className="sr-steps" role="status" aria-live="polite">
       <div className="sr-steps__head"><TypingDots label={L('المساعد يعمل', 'The assistant is working')} /><b>{L('المساعد يعمل على طلبك…', 'The assistant is working on your request…')}</b>{onStop && <button type="button" className="btn btn-sm btn-ghost" onClick={onStop}>{L('إيقاف', 'Stop')}</button>}</div>
-      <ol className="sr-steps__list">{order.map((k, i) => <li key={k} className={i < idx ? 'is-done' : i === idx ? 'is-now' : ''}><span className="sr-steps__mark" aria-hidden="true">{i < idx ? '✓' : i === idx ? <span className="sr-spin" /> : '○'}</span>{textOf(k)}</li>)}</ol>
+      <ol className="sr-steps__list">{order.map((k, i) => <li key={k} className={i < idx ? 'is-done' : i === idx ? 'is-now' : ''}><span className="sr-steps__mark" aria-hidden="true">{i < idx ? <SmartReportingIcon name="check" size={16} /> : i === idx ? <span className="sr-spin" /> : <span className="sr-step-pending" />}</span>{textOf(k)}</li>)}</ol>
     </div>
   );
 }
@@ -167,7 +176,7 @@ const summarize = (model) => { const k = model.headline.find((b) => b.type === '
 export default function SmartReports({ embedded = false, initialQuery = null, onQueryConsumed = null }) {
   const rev = useRevenue();
   const { lang, ar } = useL();
-  const L = useCallback((a, e) => (ar ? a : e), [ar]); // Arabic first, English second (the shared useL().L is English first)
+  const L = useCallback((a, e) => (ar ? a : localize(e, lang)), [ar, lang]); // Arabic first, English second (the shared useL().L is English first)
   const today = rev.cfg.cutoff;
   const [convs, setConvs] = useState(loadConvs);
   const [activeId, setActiveId] = useState(() => loadConvs()[0]?.id || null);
@@ -175,7 +184,10 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const [busy, setBusy] = useState(null); // { msgId, step, token }
   const [showHistory, setShowHistory] = useState(false);
   const [editOpen, setEditOpen] = useState(false); const [editPendingId, setEditPendingId] = useState(null);
-  const [exporting, setExporting] = useState('');
+  const reportExport = useReportExport(exportModel);
+  const [conversationExporting, setExporting] = useState('');
+  const exporting = conversationExporting || reportExport.exporting;
+  const { download: doExport } = reportExport;
   const [models, setModels] = useState({}); // msgId -> model (in memory; a system report is regenerated from its spec when a stored conversation is reopened)
   const [collapsed, setCollapsed] = useState({});
   const [files, setFiles] = useState([]); // attachments waiting in the composer: { id, name, size, kind, status, note, reading, … }
@@ -191,7 +203,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const sharedSpec = useMemo(() => { const e = rev.scopeEff; return { ...defaultSpec(today), preset: rev.scope.preset, scope: { from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType || 'all', muni: e.muni || 'all', status: e.status || 'all', product: e.product, mainClass: e.mainClass } }; }, [rev.scopeEff, rev.scope.preset, today]);
   const conv = convs.find((c) => c.id === activeId) || null;
   const spec = conv?.spec || null;
-  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; }, [ar]);
+  const labelOfAmanah = useCallback((k) => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : localize(a.en, lang)) : k; }, [ar, lang]);
 
   usePersistOnChange(convs, saveConvs); // written only after a user action, never when the page loads or a stored conversation is reopened
   // follow the conversation only when it GROWS while it is open (never on arrival or when reopening — F-16a)
@@ -252,14 +264,14 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       setModels((m) => ({ ...m, [msgId]: model }));
       // the conversation is named after its FIRST report (what it is about), unless the person renamed it
       const firstId = (c) => c.messages.find((m) => m.role === 'assistant' && m.spec)?.id;
-      const nameOf = () => { const sc = sp.scope; const am = sc.amanah === 'all' ? null : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [model.title, fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en'), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : sourceEn(sc.source)) : null].filter(Boolean).join(' · ').slice(0, 80); };
+      const nameOf = () => { const sc = sp.scope; const am = sc.amanah === 'all' ? null : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [model.title, fmtRangeText(sc.from, sc.to, lang), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : localize(sourceEn(sc.source), lang)) : null].filter(Boolean).join(' · ').slice(0, 80); };
       patchConv(convId, (c) => { const t = c.titleSource !== 'user' && firstId(c) === msgId ? nameOf() : c.title; return c.messages.some((m) => m.id === msgId && m.status === 'done' && m.title === model.title) && t === c.title ? c : { ...c, title: t, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: 'done', title: model.title } : m)) }; });
     } catch (e) {
       const stopped = token.cancelled || e.stopped;
       if (!stopped) console.error('[smart-reports] the report could not be prepared:', e);
       patchConv(convId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === msgId ? { ...m, status: stopped ? 'stopped' : 'error' } : m)) }));
     } finally { setBusy((b) => (b && b.msgId === msgId ? null : b)); }
-  }, [generate, patchConv, labelOfAmanah, ar]);
+  }, [generate, patchConv, labelOfAmanah, ar, lang]);
 
   const stop = () => { if (!busy) return; if (busy.step === 'think') { busy.token.finish?.(); return; } busy.token.cancelled = true; if (busy.token.taskId) rev.cancelTask(busy.token.taskId); };
 
@@ -271,7 +283,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   }, [conv?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------------- attached files: read, match with the system data, answer ---------------- */
-  const scopeTextOf = useCallback((sp) => { const sc = sp.scope; const am = sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en'), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : sourceEn(sc.source)) : null].filter(Boolean).join(' · '); }, [L, ar, labelOfAmanah]);
+  const scopeTextOf = useCallback((sp) => { const sc = sp.scope; const am = sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، '); return [fmtRangeText(sc.from, sc.to, lang), am, sc.source !== 'all' ? (ar ? sourceAr(sc.source) : localize(sourceEn(sc.source), lang)) : null].filter(Boolean).join(' · '); }, [L, ar, labelOfAmanah, lang]);
   const buildAttModel = useCallback((data, { groupTerm = null, question = '' } = {}) => buildAttachmentModel({ atts: data.recs, refs: data.refs, resolved: data.resolved, snapshot: data.snapshot, scopeText: data.scopeText, lang, groupTerm, cutoff: today, question }), [lang, today]);
 
   const runAttach = useCallback(async (convId, msgId, recs, { groupTerm = null, question = '', sp }) => {
@@ -315,7 +327,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       placeholders.forEach((p) => { readAttachment(p._file).then((rec) => setFiles((fs) => fs.map((x) => (x.id === p.id ? { ...rec, id: p.id, reading: false } : x)))).catch(() => setFiles((fs) => fs.map((x) => (x.id === p.id ? { ...x, reading: false, note: { ar: 'تعذّرت قراءة الملف.', en: 'The file could not be read.' } } : x)))); });
       return [...cur, ...placeholders];
     });
-  }, [L]);
+  }, [L, lang]);
   const removeFile = (id) => { setFiles((fs) => fs.filter((f) => f.id !== id)); setPreviewId((p) => (p === id ? null : p)); setFileNote(''); };
   const onDrop = (e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); };
 
@@ -345,7 +357,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       if (chat.type === 'attach') { aMsg = { id: asId, role: 'assistant', kind: 'attachments', status: 'working', groupTerm: chat.groupTerm || null }; after = () => runAttach(c.id, asId, sendFiles, { groupTerm: chat.groupTerm || null, question: q0, sp: c.spec || sharedSpec }); }
       else if (chat.type === 'need') aMsg = { id: asId, role: 'assistant', kind: 'clarify', question: chat.question, options: chat.options, status: 'done' };
       else if (chat.type === 'chart') {
-        const r = applyView(lr.model, { chartKind: chat.kind }); const nm = CHART_NAME[chat.kind][ar ? 'ar' : 'en'];
+        const r = applyView(lr.model, { chartKind: chat.kind }); const nm = localize(CHART_NAME[chat.kind][ar ? 'ar' : 'en'], lang);
         if (r.changed) aMsg = { id: asId, role: 'assistant', kind: 'view', baseId: lr.rootId, view: mergeView(lr.view, { chartKind: chat.kind }), note: L(`غيّرتُ ${r.changed === 1 ? 'الرسم' : `${r.changed} رسوم`} إلى ${nm}${r.skipped ? `؛ و${r.skipped} رسماً فيه أكثر من سلسلة لا يصلح دائرياً فبقي كما هو` : ''}.`, `Changed ${r.changed === 1 ? 'the chart' : `${r.changed} charts`} to ${nm}${r.skipped ? `; ${r.skipped} multi-series chart(s) cannot be a pie and stay as they were` : ''}.`), status: 'done' };
         else aMsg = r.skipped ? say('الرسم الدائري يعرض سلسلة واحدة، والرسوم الحالية فيها أكثر من سلسلة فلم أغيّرها. جرّب «خطي» أو «أعمدة».', 'A pie chart shows one series and the current charts have several, so I left them. Try “line” or “bars”.') : say(`الرسم ${nm} بالفعل.`, `The chart is already a ${nm} chart.`);
       } else if (chat.type === 'only') {
@@ -413,13 +425,6 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     send(L('طبّق التصفية: ', 'Apply filters: ') + changes.map((c) => describeChange(c, lang, { amanahLabel: labelOfAmanah })).join('، '), { spec: next, changes });
   };
 
-  // download the file of a result: the SAME model and view the conversation shows
-  async function doExport(kind, model) {
-    if (exporting) return;
-    setExporting(kind);
-    try { await exportModel(kind, model); } catch (e) { console.error('[smart-reports] export failed:', e); } finally { setExporting(''); }
-  }
-
   // deep links: /smart-reports?r=<standard report key> opens that report; ?q=<request> sends a request (old /reports links land here too)
   const deepRef = useRef(false);
   useEffect(() => {
@@ -433,24 +438,25 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
   const onKey = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); if (canSend) send(input); } };
 
   /* ---------------- pieces ---------------- */
-  const sourceName = (k) => (k === 'all' ? L('كل المصادر', 'All sources') : ar ? sourceAr(k) : sourceEn(k));
+  const promptText = (text) => { const item = SUGGESTIONS.find(s => s.en === text || s.ar === text || s.en.slice(0, 48) === text); return item ? localize(item[ar ? 'ar' : 'en'], lang) : text; };
+  const sourceName = (k) => (k === 'all' ? L('كل المصادر', 'All sources') : ar ? sourceAr(k) : localize(sourceEn(k), lang));
   const specChips = useCallback((sp) => {
     const sc = sp.scope;
     const amLabel = sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join('، ');
-    const mu = sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : (municipalitiesOf(String(sc.muni).split('|')[0]).find((m) => m && m.key === sc.muni)?.[ar ? 'ar' : 'en'] || sc.muni);
-    const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'];
+    const mu = sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : (localize(municipalitiesOf(String(sc.muni).split('|')[0]).find((m) => m && m.key === sc.muni)?.[ar ? 'ar' : 'en'], lang) || sc.muni);
+    const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: lang === 'zh' ? '未结' : L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('جزئية', 'Partial'), not_due: L('لم تستحق', 'Not due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'];
     const cmp = { none: null, prev_month: L('مقارنة بالشهر الماضي', 'vs last month'), prev_year: L('مقارنة بالعام الماضي', 'vs last year') }[sp.compare];
     return [
-      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, ar ? 'ar' : 'en') }, { k: 'amanah', label: L('الأمانة / الجهة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
+      { k: 'period', label: L('الفترة', 'Period'), value: fmtRangeText(sc.from, sc.to, lang) }, { k: 'amanah', label: L('الأمانة / الجهة', 'Amanah'), value: amLabel }, { k: 'muni', label: L('البلدية', 'Municipality'), value: mu },
       { k: 'source', label: L('المصدر', 'Source'), value: sourceName(sc.source) }, { k: 'status', label: L('الحالة', 'Status'), value: st },
       ...(sc.scopeType && sc.scopeType !== 'all' ? [{ k: 'st', label: L('النطاق', 'Scope'), value: sc.scopeType === 'internal' ? L('داخلي', 'Internal') : L('مركزي', 'Central') }] : []),
       { k: 'basis', label: L('الأساس', 'Basis'), value: L(`فواتير الفترة · التحصيل حتى ${fmtDateText(sc.to < today ? sc.to : today, 'ar')}`, `Period invoices · collections to ${fmtDateText(sc.to < today ? sc.to : today, 'en')}`) }, ...(cmp ? [{ k: 'cmp', label: L('المقارنة', 'Comparison'), value: cmp }] : [])
     ];
-  }, [today, ar, L, labelOfAmanah]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [today, ar, L, labelOfAmanah, lang]); // eslint-disable-line react-hooks/exhaustive-deps
   const chips = useMemo(() => specChips(spec || sharedSpec), [specChips, spec, sharedSpec]);
 
   const scopeDiffers = !!spec && ['from', 'to', 'amanah', 'source', 'scopeType', 'muni', 'status'].some((k) => JSON.stringify(spec.scope[k] ?? 'all') !== JSON.stringify(sharedSpec.scope[k] ?? 'all'));
-  const stepText = (k) => (STEPS[k] || CHAT_STEPS[k])?.[ar ? 0 : 1] || '';
+  const stepText = (k) => localize((STEPS[k] || CHAT_STEPS[k])?.[ar ? 0 : 1], lang) || '';
   const empty = !conv || conv.messages.length === 0;
   const followUps = useMemo(() => {
     if (!latest) return [];
@@ -468,38 +474,43 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
     return out;
   }, [latest, conv]);
 
-  const exportButtons = (model) => (
+  const exportButtons = (model, owner) => (
     <div className="sr-card__actions" role="group" aria-label={L('تنزيل النتيجة', 'Download the result')}>
-      {EXPORT_FORMATS.map(({ key, name }) => <button key={key} type="button" className="btn btn-sm" disabled={model.empty || !!exporting} title={key === 'pdf' ? L('يفتح مربع الطباعة: اختر «حفظ بصيغة PDF»', 'Opens the print dialog: choose “Save as PDF”') : undefined} onClick={() => doExport(key, model)}>{exporting === key ? L('جارٍ التصدير…', 'Exporting…') : `${name}`}</button>)}
+      {EXPORT_FORMATS.map(({ key, name }) => <button key={key} type="button" className="btn btn-sm" disabled={model.empty || !!exporting} title={key === 'pdf' ? L('يفتح مربع الطباعة: اختر «حفظ بصيغة PDF»', 'Opens the print dialog: choose “Save as PDF”') : undefined} onClick={() => doExport(key, model, owner)}>{exporting === key ? L('جارٍ التصدير…', 'Exporting…') : `${name}`}</button>)}
     </div>
   );
 
   return (
-    <div className={`sr-page${drag ? ' is-drag' : ''}`} dir={ar ? 'rtl' : 'ltr'} onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDrag(false); }} onDrop={onDrop}>
+    <div className={`sr-page sr-workspace sr-workspace--original${drag ? ' is-drag' : ''}`} dir={ar ? 'rtl' : 'ltr'} onDragOver={(e) => { if (e.dataTransfer?.types?.includes('Files')) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDrag(false); }} onDrop={onDrop}>
       <div className="sr-top">
         {!embedded && <div><h1 className="page-title" style={{ margin: 0 }}>{L('التقارير الذكية', 'Smart reports')}</h1></div>}
         <div className="sr-top__actions">
-          <button type="button" className="btn btn-sm" onClick={newConv} disabled={!!busy}>＋ {L('محادثة جديدة', 'New conversation')}</button>
+          <button type="button" className="btn btn-sm" onClick={newConv} disabled={!!busy}><SmartReportingIcon name="add" size={18} /> {L('محادثة جديدة', 'New conversation')}</button>
           <button type="button" className="btn btn-sm btn-ghost" aria-expanded={showHistory} onClick={() => setShowHistory((v) => !v)}>{L('السجل', 'History')} ({convs.length})</button>
         </div>
       </div>
       {drag && <div className="sr-dropzone" role="status">{L('أفلت الملفات هنا لإرفاقها', 'Drop the files here to attach them')}</div>}
 
+      <div className={`sr-layout${showHistory ? ' sr-layout--history' : ''}`}>
       {showHistory && (
         <div className="sr-history card" role="region" aria-label={L('سجل المحادثات', 'Conversation history')}>
+          <div className="sr-history__heading"><b>{L('السجل', 'History')}</b><span className="muted">{convs.length}</span></div>
+          <div className="sr-history__list" role="list" tabIndex={0} aria-label={L('سجل المحادثات', 'Conversation history')}>
           {!convs.length && <div className="muted">{L('لا محادثات بعد.', 'No conversations yet.')}</div>}
           {convs.map((c) => (
-            <div key={c.id} className={`sr-history__item ${c.id === activeId ? 'is-active' : ''}`}>
+            <div key={c.id} role="listitem" className={`sr-history__item ${c.id === activeId ? 'is-active' : ''}`}>
               {renaming?.id === c.id
                 ? <input id={`sr-rni-${c.id}`} className="input" autoFocus maxLength={80} aria-label={L('اسم المحادثة', 'Conversation name')} value={renaming.text} onChange={(e) => setRenaming({ id: c.id, text: e.target.value })} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); renameConv(c.id, renaming.text); } if (e.key === 'Escape') { setRenaming(null); window.setTimeout(() => document.getElementById(`sr-rn-${c.id}`)?.focus(), 0); } }} onBlur={() => renaming && renameConv(c.id, renaming.text)} />
-                : <button type="button" onClick={() => { if (!busy) { setActiveId(c.id); setShowHistory(false); } }}><b>{c.title}</b><small>{fmtRiyadh(c.updatedAt)} · {c.messages.filter((m) => m.role === 'user').length} {L('طلب', 'requests')}</small></button>}
-              <button type="button" id={`sr-rn-${c.id}`} className="btn btn-sm btn-ghost" aria-label={L('إعادة تسمية المحادثة', 'Rename the conversation')} onClick={() => setRenaming({ id: c.id, text: c.title })}>✎</button>
-              <button type="button" className="btn btn-sm btn-ghost" aria-label={L('حذف', 'Delete')} onClick={() => removeConv(c.id)}>×</button>
+                : <button type="button" onClick={() => { if (!busy) { setActiveId(c.id); setShowHistory(false); } }}><b>{promptText(c.title)}</b><small>{fmtRiyadh(c.updatedAt)} · {c.messages.filter((m) => m.role === 'user').length} {L('طلب', 'requests')}</small></button>}
+              <button type="button" id={`sr-rn-${c.id}`} className="btn btn-sm btn-ghost" aria-label={L('إعادة تسمية المحادثة', 'Rename the conversation')} onClick={() => setRenaming({ id: c.id, text: c.title })}><SmartReportingIcon name="edit" size={16} /></button>
+              <button type="button" className="btn btn-sm btn-danger" aria-label={L('حذف', 'Delete')} onClick={() => removeConv(c.id)}><SmartReportingIcon name="delete" size={16} /></button>
             </div>
           ))}
+          </div>
         </div>
       )}
 
+      <div className="sr-main">
       <div className="sr-context" role="region" aria-label={L('سياق التقرير', 'Report context')}>
         <div className="sr-chips">{chips.map((c) => <span key={c.k} className="sr-chip"><em>{c.label}</em> <bdi>{c.value}</bdi></span>)}</div>
       </div>
@@ -508,7 +519,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       <div className="sr-note" role="note">
         <b>{L('المساعد يعمل بقواعد محددة وليس بنموذج لغوي: راجع «كيف فهمتُ طلبك» قبل الاعتماد على أي نتيجة. الملفات المرفقة تُقرأ داخل متصفحك ولا تُرفع إلى أي خادم؛ وحدها أرقام الفواتير المستخرجة منها تُطابَق مع بيانات النظام.', 'The assistant works with fixed rules, not a language model: check «How I read your request» before relying on any result. Attached files are read inside your browser and are never uploaded; only the invoice numbers found in them are matched with the system data.')}</b>
         <details className="rv-more"><summary>{L('أمثلة، وعن المساعد، وأين تُحفظ بياناتي', 'Examples, about the assistant, where my data is kept')}</summary>
-          <ul className="sr-help">{SUPPORTED_HELP[ar ? 'ar' : 'en'].map((h, k) => <li key={k}>{h}</li>)}
+          <ul className="sr-help">{localize(SUPPORTED_HELP[ar ? 'ar' : 'en'], lang).map((h, k) => <li key={k}>{h}</li>)}
             <li>{L('المرفقات: PDF رقمي، Word (.docx)، Excel وCSV، PowerPoint (.pptx) تُقرأ فعلاً؛ والصور تُعرض معاينةً فقط لأن النظام لا يجري OCR.', 'Attachments: digital PDF, Word (.docx), Excel and CSV, PowerPoint (.pptx) are really read; images are shown as a preview only because the system performs no OCR.')}</li>
             <li>{L('بعد أي نتيجة: «غيّر الرسم إلى خطي»، «اعرض الجداول فقط»، «قارن حسب البلدية»، «لخّص النتيجة»، «حوّله إلى عرض تقديمي / Word / PDF / Excel / CSV».', 'After any result: “change the chart to a line chart”, “show the tables only”, “compare by municipality”, “summarise”, “turn it into a presentation / Word / PDF / Excel / CSV”.')}</li>
           </ul>
@@ -522,28 +533,28 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
           <div className="sr-welcome">
             <h2>{L('ماذا تريد أن تعرف؟', 'What would you like to see?')}</h2>
             <p className="muted sr-welcome__sub">{L('اسأل عن الإيرادات والتحصيل.', 'Ask about revenue and collection.')}</p>
-            <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}<button type="button" className="sr-suggest__btn" onClick={() => fileRef.current?.click()}>📎 {L('إرفاق ملفات للتحليل', 'Attach files to analyse')}</button></div>
+            <div className="sr-suggest">{SUGGESTIONS.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn" onClick={() => send(s[ar ? 'ar' : 'en'])}>{localize(s[ar ? 'ar' : 'en'], lang)}</button>)}<button type="button" className="sr-suggest__btn" onClick={() => fileRef.current?.click()}><SmartReportingIcon name="attach" size={18} /> {L('إرفاق ملفات للتحليل', 'Attach files to analyse')}</button></div>
           </div>
         )}
         {conv?.messages.map((m) => {
           if (m.role === 'user') return (
-            <div key={m.id} className={`sr-msg sr-msg--user${animated.current.has(m.id) ? ' sr-msg--new' : ''}`}><div className="sr-bubble">{m.text}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, ar)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
+            <div key={m.id} className={`sr-msg sr-msg--user${animated.current.has(m.id) ? ' sr-msg--new' : ''}`}><div className="sr-bubble">{promptText(m.text)}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, lang)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
           );
           const model = modelOf(m); const isBusy = busy?.msgId === m.id; const res = resultOf(m, conv.messages); const isLast = !!latest && m.id === latest.msgId;
           const shown = res?.model || null; const isFileResult = m.kind === 'attachments'; const showCard = !!shown && m.kind !== 'export';
           const fresh = animated.current.has(m.id); const tick = () => endRef.current?.scrollIntoView({ block: 'end' });
-          if (typing[m.id]) return <div key={m.id} className="sr-msg sr-msg--ai sr-msg--new"><div className="sr-avatar" aria-hidden="true">ذ</div><div className="sr-ai"><div className="sr-bubble sr-bubble--ai"><TypingDots label={L('المساعد يكتب', 'The assistant is typing')} /></div></div></div>;
+          if (typing[m.id]) return <div key={m.id} className="sr-msg sr-msg--ai sr-msg--new"><div className="sr-avatar" aria-hidden="true"><SmartReportingIcon name="assistant" size={20} /></div><div className="sr-ai"><div className="sr-bubble sr-bubble--ai"><TypingDots label={L('المساعد يكتب', 'The assistant is typing')} /></div></div></div>;
           return (
             <div key={m.id} className={`sr-msg sr-msg--ai${fresh ? ' sr-msg--new' : ''}`}>
-              <div className="sr-avatar" aria-hidden="true">ذ</div>
+              <div className="sr-avatar" aria-hidden="true"><SmartReportingIcon name="assistant" size={20} /></div>
               <div className="sr-ai">
-                {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={m.question[ar ? 'ar' : 'en']} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{o.label[ar ? 'ar' : 'en']}</button>)}</div></div>}
-                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={m.question ? m.question[ar ? 'ar' : 'en'] : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{x[ar ? 'ar' : 'en']}</button>)}</div></div>}
+                {m.kind === 'clarify' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={localize(m.question[ar ? 'ar' : 'en'], lang)} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{(m.options || []).map((o) => <button key={o.text} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(o.text)}>{localize(o.label[ar ? 'ar' : 'en'], lang)}</button>)}</div></div>}
+                {m.kind === 'unsupported' && <div className="sr-bubble sr-bubble--ai"><b><Typewriter text={m.question ? localize(m.question[ar ? 'ar' : 'en'], lang) : L('لم أفهم الطلب. جرّب مثلاً:', 'I did not understand the request. Try for example:')} animate={fresh} onTick={tick} /></b><div className="sr-suggest sr-suggest--inline">{SUGGESTIONS.slice(0, 3).map((x) => <button key={x.ar} type="button" className="sr-suggest__btn" disabled={!!busy} onClick={() => send(x[ar ? 'ar' : 'en'])}>{localize(x[ar ? 'ar' : 'en'], lang)}</button>)}</div></div>}
                 {m.kind === 'text' && <div className="sr-bubble sr-bubble--ai" style={{ whiteSpace: 'pre-line' }}><Typewriter text={m.plain} animate={fresh} onTick={tick} /></div>}
                 {m.kind === 'confirm' && (
                   <div className="sr-bubble sr-bubble--ai" role="group" aria-label={L('تأكيد فهم الطلب', 'Confirm how the request was read')}>
                     <b>{L('قبل أن أُعدّ التقرير: هل هذا ما قصدته؟', 'Before I build the report: is this what you meant?')}</b>
-                    <div className="muted" style={{ fontSize: 13 }}>{L('يستدعي التأكيد: ', 'Needs confirmation: ')}{m.confirm.map((c) => (ar ? c.ar : c.en)).join(L('؛ ', '; '))}.</div>
+                    <div className="muted" style={{ fontSize: 13 }}>{L('يستدعي التأكيد: ', 'Needs confirmation: ')}{m.confirm.map((c) => (ar ? c.ar : localize(c.en, lang))).join(L('؛ ', '; '))}.</div>
                     <InterpretationSummary pending sections={m.pending.spec.sections} msg={{ changeKeys: m.pending.changeKeys, firstReport: m.pending.firstReport }} chips={specChips(m.pending.spec)} L={L} editable={m.status === 'pending' && !busy} editing={m.status === 'pending' && editPendingId === m.id} onEdit={() => setEditPendingId((v) => (v === m.id ? null : m.id))} panel={<FilterPanel key={`${m.id}${JSON.stringify(m.pending.spec.scope)}`} spec={m.pending.spec} today={today} ar={ar} L={L} sourceName={sourceName} onApply={(p) => { setEditPendingId(null); applyFilters(p, m.pending.spec); }} />} />
                     {m.status === 'pending' && <div className="sr-suggest sr-suggest--inline"><button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => confirmPending(m)}>{L('تأكيد وإعداد التقرير', 'Confirm and build the report')}</button><button type="button" className="btn btn-sm btn-ghost" onClick={() => cancelPending(m)}>{L('إلغاء', 'Cancel')}</button></div>}
                     {m.status === 'cancelled' && <div className="muted">{L('أُلغي الطلب ولم يُعدّ تقرير.', 'Cancelled — no report was built.')}</div>}
@@ -557,9 +568,10 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.status === 'done' && res && <>
                       <div><b>{m.format === 'pdf' ? L('جاهز للطباعة / الحفظ PDF', 'Ready to print / save as PDF') : L('أنشأتُ الملف ونزّلته', 'The file was created and downloaded')}</b></div>
                       <div className="sr-filecard__row"><span className="sr-file__ico" aria-hidden="true">{m.format.toUpperCase()}</span><bdi>{m.fileName || reportFileName(res.model, m.format)}</bdi>
-                        <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => doExport(m.format, res.model)}>{L('تنزيل مرة أخرى', 'Download again')}</button></div>
+                        <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => doExport(m.format, res.model, m.id)}>{L('تنزيل مرة أخرى', 'Download again')}</button></div>
                       <div className="muted" style={{ fontSize: 12 }}>{m.format === 'pdf' ? L('فُتح مربع الطباعة: اختر «حفظ بصيغة PDF». ', 'The print dialog opened: choose “Save as PDF”. ') : ''}{L('يحتوي الملف النتيجة المعروضة الآن كما هي (بما فيها نوع الرسم والأجزاء المعروضة).', 'The file holds the result exactly as it is shown now (including the chart type and the parts shown).')}</div>
                     </>}
+                    <ReportExportFeedback state={{ ...reportExport, exporting }} owner={m.id} L={L} />
                     {m.status === 'error' && <div className="sr-warn" role="alert">{L('تعذّر إنشاء الملف.', 'The file could not be created.')} {res && <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => { patchMsg(conv.id, m.id, { status: 'working' }); runExport(conv.id, m.id, m.format, res.model); }}>{L('إعادة المحاولة', 'Retry')}</button>}</div>}
                     {!res && m.status !== 'working' && m.status !== 'error' && <div className="muted">{L('النتيجة التي بُني منها هذا الملف لم تعد محملة؛ اطلب التقرير من جديد.', 'The result this file was built from is no longer loaded; ask for the report again.')}</div>}
                   </div>
@@ -586,12 +598,13 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                 {showCard && (
                   <div className={`sr-card card${fresh ? ' sr-reveal' : ''}`}>
                     <div className="sr-card__bar">
-                      <button type="button" className="btn btn-sm btn-ghost" onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}>{(collapsed[m.id] ?? !isLast) ? `▸ ${L('عرض', 'Show')} — ${shown.title}` : `▾ ${L('إغلاق', 'Close')}`}</button>
+                      <button type="button" className="btn btn-sm btn-ghost" aria-expanded={!(collapsed[m.id] ?? !isLast)} onClick={() => setCollapsed((c) => ({ ...c, [m.id]: !(c[m.id] ?? !isLast) }))}><UISymbol name={(collapsed[m.id] ?? !isLast) ? 'expand' : 'down'} />{(collapsed[m.id] ?? !isLast) ? `${L('عرض', 'Show')} — ${shown.title}` : lang === 'zh' ? '收起报告' : L('إغلاق', 'Close')}</button>
                       {isLast && <>
-                        {exportButtons(shown)}
-                        {!isFileResult && m.spec && m.kind !== 'view' && <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}>↻ {L('إعادة', 'Regenerate')}</button>}
+                        {exportButtons(shown, m.id)}
+                        {!isFileResult && m.spec && m.kind !== 'view' && <button type="button" className="btn btn-sm btn-ghost" disabled={!!busy} onClick={() => retry(m)}><UISymbol name="refresh" /> {L('إعادة', 'Regenerate')}</button>}
                       </>}
                     </div>
+                    <ReportExportFeedback state={{ ...reportExport, exporting }} owner={m.id} L={L} />
                     {!(collapsed[m.id] ?? !isLast) && (shown.empty ? <div className="rv-empty">{isFileResult ? L('لم يمكن قراءة أي ملف من المرفقات؛ راجع الملاحظات أعلاه.', 'None of the attached files could be read; see the notes above.') : L('لا فواتير في هذا الاختيار؛ البيانات غير متاحة وليست صفراً. وسّع الفترة أو التصفية.', 'No invoices in this selection; the data is unavailable, not zero. Widen the period or filters.')}</div> : <ReportView model={shown} />)}
                   </div>
                 )}
@@ -604,20 +617,22 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
       </div>
 
       <div className="sr-dock">
-        {!empty && followUps.length > 0 && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{followUps.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} title={s.why ? s.why[ar ? 'ar' : 'en'] : undefined} onClick={() => send(s[ar ? 'ar' : 'en'])}>{s[ar ? 'ar' : 'en']}</button>)}</div>}
+        {!empty && followUps.length > 0 && <div className="sr-suggest sr-suggest--inline" aria-label={L('طلبات متابعة', 'Follow-ups')}>{followUps.map((s) => <button key={s.ar} type="button" className="sr-suggest__btn sr-suggest__btn--sm" disabled={!!busy} title={s.why ? localize(s.why[ar ? 'ar' : 'en'], lang) : undefined} onClick={() => send(s[ar ? 'ar' : 'en'])}>{localize(s[ar ? 'ar' : 'en'], lang)}</button>)}</div>}
         {files.length > 0 && <div className="sr-files" role="list" aria-label={L('المرفقات', 'Attachments')}>{files.map((f) => <FileChip key={f.id} f={f} ar={ar} L={L} open={previewId === f.id} onToggle={() => setPreviewId((p) => (p === f.id ? null : f.id))} onRemove={() => removeFile(f.id)} />)}</div>}
         {previewId && files.find((f) => f.id === previewId && !f.reading) && <FilePreview f={files.find((f) => f.id === previewId)} ar={ar} L={L} />}
         {fileNote && <div className="sr-warn" role="status">{fileNote}</div>}
         <div className="sr-composer">
           <input ref={fileRef} id="sr-file" type="file" multiple accept={ACCEPT} hidden onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
           <button type="button" className="sr-composer__attach" onClick={() => fileRef.current?.click()} disabled={!!busy || files.length >= MAX_FILES} aria-label={L('إرفاق ملفات', 'Attach files')} title={L('إرفاق PDF أو Word أو Excel أو CSV أو PowerPoint أو صور', 'Attach PDF, Word, Excel, CSV, PowerPoint or images')}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+            <SmartReportingIcon name="attach" size={22} />
           </button>
           <textarea ref={taRef} id="sr-input" rows={1} className="sr-composer__input" value={input} onChange={(e) => onInput(e.target.value)} onKeyDown={onKey} aria-label={L('طلب تقرير أو سؤال', 'Report request or question')} placeholder={files.length ? L('ماذا تريد من الملفات؟ أو أرسل للتحليل', 'What do you want from the files? Or just send') : L('اطلب تقريرًا أو اسأل، أو أرفق ملفات…', 'Ask for a report or a question, or attach files…')} />
-          {busy ? <button type="button" className="sr-composer__btn sr-composer__btn--stop" onClick={stop} aria-label={L('إيقاف الإعداد', 'Stop generation')}>■</button>
-            : <button type="button" className="sr-composer__btn" onClick={() => send(input)} disabled={!canSend} aria-label={L('إرسال', 'Send')}>{ar ? '↰' : '➤'}</button>}
+          {busy ? <button type="button" className="sr-composer__btn sr-composer__btn--stop" onClick={stop} aria-label={L('إيقاف الإعداد', 'Stop generation')}><SmartReportingIcon name="stop" size={20} /></button>
+            : <button type="button" className="sr-composer__btn" onClick={() => send(input)} disabled={!canSend} aria-label={L('إرسال', 'Send')}><SmartReportingIcon name="send" size={20} /></button>}
         </div>
         <div className="muted sr-hint">{L('Enter للإرسال · Shift+Enter لسطر جديد · اسحب الملفات إلى هنا لإرفاقها', 'Enter to send · Shift+Enter for a new line · drag files here to attach them')}</div>
+      </div>
+      </div>
       </div>
     </div>
   );

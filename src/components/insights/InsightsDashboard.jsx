@@ -1,3 +1,4 @@
+import { localize } from '../../utils/zh';
 // «لوحة المعلومات» — monitoring view: works immediately, no prompt. ONE copy of the headline indicators; detail lives in the fixed reports
 // (every card links to its report or to the supporting invoices).
 import React, { useMemo } from 'react';
@@ -32,7 +33,7 @@ export default function InsightsDashboard() {
     const col = ser.values.map((v) => { cc += v; return cc; });
     return { months: ser.months, net, col };
   }, [ser, snapshot]);
-  const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
+  const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, lang) : '';
   const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
   if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
 
@@ -40,7 +41,7 @@ export default function InsightsDashboard() {
   const months = snapshot.byMonth;
 
   return (
-    <div className="st-page" style={{ gap: 14 }}>
+    <div className="st-page" style={{ gap: 16 }}>
       <p className="rv-line" role="status">{L(`${fmtInt(T.count)} فاتورة صدرت في هذه الفترة. `, `${fmtInt(T.count)} invoices issued in this period. `)}<b>{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</b></p>
 
       <div className="rv-tiles">
@@ -58,16 +59,14 @@ export default function InsightsDashboard() {
 
       <div className="card st-card">
         <b>{L('الأداء الشهري للإيرادات', 'Monthly revenue performance')}</b> <small className="muted">{L('تراكمي منذ بداية الفترة', 'cumulative from the start of the period')}</small>
-        {perf ? <UnitLines labels={perf.months.map((m) => fmtMonthText(m, ar ? 'ar' : 'en'))} series={[{ label: L('صافي المفوتر (تراكمي)', 'Net billed (cumulative)'), values: perf.net }, { label: L('المحصّل (تراكمي)', 'Collected (cumulative)'), values: perf.col }]} label={L('الأداء الشهري للإيرادات', 'Monthly revenue performance')} /> : <div className="muted" role="status">{L('جارٍ الحساب…', 'Calculating…')}</div>}
+        {perf ? <UnitLines labels={perf.months.map((m) => fmtMonthText(m, lang))} series={[{ label: L('صافي المفوتر (تراكمي)', 'Net billed (cumulative)'), values: perf.net }, { label: L('المحصّل (تراكمي)', 'Collected (cumulative)'), values: perf.col }]} label={L('الأداء الشهري للإيرادات', 'Monthly revenue performance')} /> : <div className="muted" role="status">{L('جارٍ الحساب…', 'Calculating…')}</div>}
         <div className="muted" style={{ fontSize: 12 }}>{L('الأشهر المنتهية ثابتة: التحصيل اللاحق يُضاف إلى الشهر الذي حدث فيه ولا يغيّر ما قبله. آخر نقطة تساوي بطاقات الفترة.', 'Closed months stay fixed: a later collection is added to the month it happened in and never changes earlier months. The last point equals the cards of the period.')}</div>
         <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : ''}</div>
       </div>
 
-      <div className="card st-card">
-          <b>{L('الأمانات / الجهات', 'Amanahs')}</b>
-          <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
+      <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah}>
           <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/smart-reports?q=%D9%82%D8%A7%D8%B1%D9%86%20%D8%A3%D8%AF%D8%A7%D8%A1%20%D8%A7%D9%84%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%20%D8%A8%D9%8A%D9%86%20%D8%A7%D9%84%D8%A3%D9%85%D8%A7%D9%86%D8%A7%D8%AA">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
-        </div>
+      </AmanahMap>
 
       <RevenueAnalysis />
     </div>

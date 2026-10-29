@@ -1,3 +1,4 @@
+import { localize, localizedObject } from '../utils/zh';
 // ============================================================================
 // Report model — the ONE structure that is both rendered in the conversation and exported (Word / Excel / PowerPoint), so the
 // exported figures, filters and content are exactly the displayed ones. Pure: built from the shared snapshots only.
@@ -39,12 +40,12 @@ const prevYear = (m) => `${Number(m.slice(0, 4)) - 1}${m.slice(4)}`;
 export const PRESET_LABEL = { ...Object.fromEntries(PRESETS.map((p) => [p.key, [p.ar, p.en]])), custom: ['فترة مخصصة', 'Custom period'] };
 
 export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah, labelOfMuni, prevScope = null, compare = 'none' }) {
-  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const sc = spec.scope;
+  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang)); const sc = spec.scope;
   const src = sc.source === 'all' ? L('كل المصادر', 'All sources') : (ar ? sourceAr(sc.source) : sourceEn(sc.source));
   const asOf = snapshot?.basis?.collectionsAsOf || snapshot?.cutoff;
-  const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('محصّلة جزئياً', 'Partial'), not_due: L('لم يحن استحقاقها', 'Not yet due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'] || sc.status;
+  const st = { all: L('كل الحالات', 'All statuses'), collected: L('محصّلة', 'Collected'), open: lang === 'zh' ? '未结' : L('قائمة', 'Open'), overdue: L('متأخرة', 'Overdue'), partial: L('محصّلة جزئياً', 'Partial'), not_due: L('لم يحن استحقاقها', 'Not yet due'), cancelled: L('ملغاة', 'Cancelled'), excluded: L('مستبعدة', 'Excluded') }[sc.status || 'all'] || sc.status;
   const chips = [
-    { k: 'period', label: L('الفترة', 'Period'), value: `${sc.from} → ${sc.to}${(() => { const pk = detectPreset(sc.from, sc.to, snapshot?.cutoff || sc.to); return pk && PRESET_LABEL[pk] ? ` (${PRESET_LABEL[pk][ar ? 0 : 1]})` : ''; })()}` },
+    { k: 'period', label: L('الفترة', 'Period'), value: `${sc.from} → ${sc.to}${(() => { const pk = detectPreset(sc.from, sc.to, snapshot?.cutoff || sc.to); return pk && PRESET_LABEL[pk] ? ` (${localize(PRESET_LABEL[pk][ar ? 0 : 1], lang)})` : ''; })()}` },
     { k: 'amanah', label: L('الأمانة / الجهة', 'Amanah'), value: sc.amanah === 'all' ? L('كل الأمانات والجهات', 'All Amanahs') : [].concat(sc.amanah).map(labelOfAmanah).join(L('، ', ', ')) },
     { k: 'muni', label: L('البلدية', 'Municipality'), value: sc.muni === 'all' ? L('كل البلديات', 'All municipalities') : labelOfMuni(sc.muni) },
     { k: 'source', label: L('مصدر الإيراد', 'Revenue source'), value: src },
@@ -58,11 +59,11 @@ export function contextChips(spec, { lang, snapshot, snapshotMeta, labelOfAmanah
 }
 
 export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare = 'none', prevScope = null, cash = null, bridge = null, targets, cases = [], meta = null, generatedAt = new Date() }) {
-  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const B = (o) => (o == null ? '' : typeof o === 'string' ? o : (ar ? o.ar : o.en) || o.en || '');
+  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : localize(e, lang)); const B = (o) => (localizedObject(o, lang));
   const snapshot = out.snapshot; const T = snapshot.totals; const comparable = !!prev && prev.totals.count > 0;
   const comparison = comparable ? compareSnapshots(snapshot, prev) : null;
-  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || (() => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; })(); // never a raw key (an Amanah with no invoices in the selection still has a name)
-  const labelOfMuni = (k) => { const m = snapshot.byMunicipality.find((x) => x.municipality?.key === k)?.municipality; return m ? (ar ? m.ar : m.en) : String(k).split('|').pop(); };
+  const labelOfAmanah = (k) => B(snapshot.byAmanah.find((g) => g.key === k)?.label) || (() => { const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : localize(a.en, lang)) : k; })(); // never a raw key (an Amanah with no invoices in the selection still has a name)
+  const labelOfMuni = (k) => { const m = snapshot.byMunicipality.find((x) => x.municipality?.key === k)?.municipality; return m ? (ar ? m.ar : localize(m.en, lang)) : String(k).split('|').pop(); };
   const chips = contextChips(spec, { lang, snapshot, snapshotMeta: meta, labelOfAmanah, labelOfMuni, prevScope, compare });
   const insightsRes = buildInsights({ snapshot, prev: comparable ? prev : null, comparison, forecast: out.forecast, targets });
   const legacy = buildSmartReport({ snapshot, bridge: out.bridge || bridge, forecast: out.forecast, targetPos: out.targetPos, achievement: out.achievement, cards: out.cards || [], anomalies: out.anomalies || [], cases, focus: spec.sections.includes('exclusions') ? 'noncollection' : spec.sections.includes('amanah') ? 'amanah' : 'revenue', lang, request: '' });
@@ -94,7 +95,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   };
   sections.executive = () => {
     return [
-      { type: 'text', text: insightsRes.summary.text[ar ? 'ar' : 'en'] },
+      { type: 'text', text: localize(insightsRes.summary.text[ar ? 'ar' : 'en'], lang) },
       { type: 'relations', totals: ctxTotals },
       ...(comparable ? [tbl('compare', L('المقارنة بالفترة المماثلة', 'Comparison with the equivalent period'), [H(L('المؤشر', 'Measure')), H(L('الفترة الحالية', 'Current'), 'money'), H(L('فترة المقارنة', 'Comparison'), 'money'), H(L('التغير', 'Change'), 'pct')], [
         [L('إجمالي المفوتر', 'Gross billed'), T.gross, prev.totals.gross, ratio(T.gross - prev.totals.gross, prev.totals.gross)],
@@ -129,7 +130,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     const blocks = [
       { type: 'chart', kind: 'bar', title: L('صافي المفوتر والمحصّل حسب الأمانة', 'Net billed and collected by Amanah'), labels: am.map((g) => B(g.label)), series: [{ label: L('صافي المفوتر', 'Net billed'), values: am.map((g) => g.net) }, { label: L('المحصّل', 'Collected'), values: am.map((g) => g.collected) }] },
       tbl('amanah', L('حسب الأمانة / الجهة', 'By Amanah'), heads(L('الأمانة / الجهة', 'Amanah'), comparable), am.map((g) => row(B(g.label), g, comparable)), { total: totalRow(comparable), note: L('«غير محدد الأمانة» فواتير لم يطابقها مكين وتُعرض مستقلة دون توزيع.', '“Amanah not determined” = invoices Makeen could not match; shown apart, never spread over the others.') }),
-      tbl('muni', L('حسب البلدية', 'By municipality'), heads(L('البلدية', 'Municipality'), false), mu.map((g) => row(`${g.municipality ? (ar ? g.municipality.ar : g.municipality.en) : L('بلا بلدية', 'No municipality')} — ${B(g.amanahLabel)}`, g, false)), { total: totalRow(false), note: L('البلديات متاحة للفواتير المركزية ووحدة المبيعات السكنية؛ ما بلا بلدية يُعرض كما هو.', 'Municipalities exist for central invoices and the housing sales unit; invoices without one are listed as such.') }),
+      tbl('muni', L('حسب البلدية', 'By municipality'), heads(L('البلدية', 'Municipality'), false), mu.map((g) => row(`${g.municipality ? (ar ? g.municipality.ar : localize(g.municipality.en, lang)) : L('بلا بلدية', 'No municipality')} — ${B(g.amanahLabel)}`, g, false)), { total: totalRow(false), note: L('البلديات متاحة للفواتير المركزية ووحدة المبيعات السكنية؛ ما بلا بلدية يُعرض كما هو.', 'Municipalities exist for central invoices and the housing sales unit; invoices without one are listed as such.') }),
       tbl('fair', L('مقارنة عادلة: الأداء المعدّل بمزيج الإيرادات', 'Fair comparison: performance adjusted for revenue mix'), [H(L('الأمانة / الجهة', 'Amanah')), H(L('الفواتير', 'Invoices'), 'count'), H(L('صافي المفوتر', 'Net billed'), 'money'), H(L('معدل التحصيل', 'Collection rate'), 'pct'), H(L('المتوقع بحسب المزيج', 'Expected by mix'), 'pct'), H(L('الفرق (نقطة مئوية)', 'Index (pp)')), H(L('المتأخر من الصافي', 'Overdue share'), 'pct'), H(L('حصة من غير المحصّل', 'Share of uncollected'), 'pct')],
         fairComparison(snapshot).filter((r) => r.net > 0).sort((x, y) => (x.smallSample - y.smallSample) || ((y.index ?? -999) - (x.index ?? -999))).map((r) => [B(r.label) + (r.smallSample ? L(' (عينة صغيرة)', ' (small sample)') : ''), r.count, r.net, r.rate, r.expectedRate, r.index == null ? '—' : `${r.index >= 0 ? '+' : ''}${r.index.toFixed(1)}`, r.overdueShare, r.gapShare]),
         { note: L('المؤشر = معدل الأمانة − المعدل المتوقع إذا حقق كل مصدر من مصادرها معدله العام؛ يعزل أثر اختلاف المزيج وحجم الفواتير. الأمانات الأقل من 10 فواتير موسومة «عينة صغيرة» ولا تُرتَّب فوق غيرها.', 'Index = Amanah rate − the rate expected if each of its sources achieved that source’s overall rate; it removes the effect of different mixes and volumes. Amanahs with fewer than 10 invoices are flagged “small sample” and not ranked above others.') }),
@@ -167,7 +168,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     const rows = [...by.entries()].sort((a, b) => b[1].total - a[1].total).map(([k, v]) => [labelOfAmanah(k), ...cols.map((c) => v.cells[c] ?? null), v.total]);
     return [
       { type: 'relations', totals: ctxTotals },
-      tbl('exclusions', L('الفواتير المستثناة حسب الأمانة والسبب', 'Excluded invoices by Amanah and reason'), [H(L('الأمانة / الجهة', 'Amanah')), ...cols.map((c) => H((RULE[c] || R[c] || [c, c])[ar ? 0 : 1], 'money')), H(L('إجمالي الاستبعادات', 'Total exclusions'), 'money')], rows,
+      tbl('exclusions', L('الفواتير المستثناة حسب الأمانة والسبب', 'Excluded invoices by Amanah and reason'), [H(L('الأمانة / الجهة', 'Amanah')), ...cols.map((c) => H(localize((RULE[c] || R[c] || [c, c])[ar ? 0 : 1], lang), 'money')), H(L('إجمالي الاستبعادات', 'Total exclusions'), 'money')], rows,
         { total: [L('الإجمالي', 'Total'), ...cols.map((c) => snapshot.matrix.amanahReasons.filter((r) => r.reason === c).reduce((t, r) => t + r.amount, 0)), T.exclusions], note: L('تظهر كل فاتورة مرة واحدة تحت سببها الرئيسي (الملغاة لها الأسبقية) فيساوي الإجمالي الاستبعادات ولا يتكرر الخصم عند تعدد الأسباب.', 'Each invoice appears once under its primary reason (cancelled takes precedence), so the total equals the exclusions and several reasons never deduct twice.') }),
       { type: 'callout', tone: 'info', text: L(`الاستبعاد ليس حكماً بعدم القابلية للتحصيل. قواعد معتمدة: ${snapshot.exclusionsApproval.approvedAmount > 0 ? fmtMoney(snapshot.exclusionsApproval.approvedAmount, { lang }) : '0'}؛ قواعد غير معتمدة: ${fmtMoney(snapshot.exclusionsApproval.unapprovedAmount, { lang })}.`, `Exclusion does not mean uncollectible. Approved rules: ${snapshot.exclusionsApproval.approvedAmount > 0 ? fmtMoney(snapshot.exclusionsApproval.approvedAmount, { lang }) : '0'}; unapproved rules: ${fmtMoney(snapshot.exclusionsApproval.unapprovedAmount, { lang })}.`) }
     ];
@@ -216,11 +217,11 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
   };
   sections.channels = () => {
     const rows = Object.entries(snapshot.receivedInPeriod.byChannel || {}).sort((a, b) => b[1] - a[1]); const tot = rows.reduce((t, [, v]) => t + v, 0);
-    return [tbl('channels', L('قنوات الدفع', 'Payment channels'), [H(L('القناة', 'Channel')), H(L('الإيرادات المحصلة في الفترة (تاريخ الدفع)', 'Received in period (payment date)'), 'money'), H(L('الحصة', 'Share'), 'pct')], rows.map(([k, v]) => [(CHANNEL[k] || [k, k])[ar ? 0 : 1], v, ratio(v, tot)]), { total: [L('الإجمالي (دون مدفوعات الفواتير المستبعدة)', 'Total (excluding payments on excluded invoices)'), tot, 1] })];
+    return [tbl('channels', L('قنوات الدفع', 'Payment channels'), [H(L('القناة', 'Channel')), H(L('الإيرادات المحصلة في الفترة (تاريخ الدفع)', 'Received in period (payment date)'), 'money'), H(L('الحصة', 'Share'), 'pct')], rows.map(([k, v]) => [localize((CHANNEL[k] || [k, k])[ar ? 0 : 1], lang), v, ratio(v, tot)]), { total: [L('الإجمالي (دون مدفوعات الفواتير المستبعدة)', 'Total (excluding payments on excluded invoices)'), tot, 1] })];
   };
 
   const keys = SECTION_ORDER.filter((k) => spec.sections.includes(k));
-  const out2 = keys.map((k) => ({ key: k, title: SECTION_META[k][ar ? 'ar' : 'en'], purpose: SECTION_META[k].purpose[ar ? 'ar' : 'en'], blocks: sections[k]() }));
+  const out2 = keys.map((k) => ({ key: k, title: localize(SECTION_META[k][ar ? 'ar' : 'en'], lang), purpose: localize(SECTION_META[k].purpose[ar ? 'ar' : 'en'], lang), blocks: sections[k]() }));
 
   // findings that complete the report (from the older smart report: records-based findings, risks, forecast limits, recommendations, assumptions)
   const tail = [];
@@ -242,7 +243,7 @@ export function buildReportModel({ spec, lang = 'ar', out, prev = null, compare 
     id: `rpt-${generatedAt.getTime()}`, title, subtitle: chips.find((c) => c.k === 'period').value,
     generatedAt: generatedAt.toISOString(), cutoff: snapshot.cutoff, lang, depth: spec.depth, compare, synthetic: true, context: chips,
     totals: ctxTotals, empty: !(T.count > 0), equationOk: !!snapshot.equation.ok, headline: keys.length && keys.every((k) => k === 'quality') ? [] : headline(), sections: [...out2, ...tail], // F-21: the billing/collection KPI strip is not the headline of a data-quality report
-    summaryText: insightsRes.summary.text[ar ? 'ar' : 'en']
+    summaryText: localize(insightsRes.summary.text[ar ? 'ar' : 'en'], lang)
   };
 }
 

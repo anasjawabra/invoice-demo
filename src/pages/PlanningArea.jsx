@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // «التخطيط المالي والاستراتيجي» — where the year stands against its targets (meeting 19 Oct):
 //   الميزانية المبلغة للأبواب الثلاثة (fixed, communicated by the Ministry of Finance at the start of the year) · نسبة التغطية = المحصّل ÷ الميزانية ·
 //   المستهدفات (entered by a person: coverage, collection rate, billing; coverage × budget = the revenue target, split by month) · أين نحن من الخطة (target · estimate · actual, probability, focus, reasons).
@@ -33,7 +34,7 @@ export default function PlanningArea() {
   const [amanah, setAmanah] = useState('all');
   const [retry, setRetry] = useState(0);
   const options = useMemo(() => amanahFilterOptions().filter((a) => !rev.org.amanahKeys || rev.org.amanahKeys.includes(a.key)), [rev.org]);
-  const nameOf = (k) => { if (k === HQ_KEY) return L('ديوان عام الوزارة (المقر)', 'Ministry headquarters'); const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : a.en) : k; };
+  const nameOf = (k) => { if (k === HQ_KEY) return L('ديوان عام الوزارة (المقر)', 'Ministry headquarters'); const a = amanahFilterOptions().find((x) => x.key === k); return a ? (ar ? a.ar : localize(a.en, lang)) : k; };
   const [tstore, setTstore] = useState(loadTargetStore);
   const canEdit = rev.canReview; const by = actorName(user, lang) || 'user';
 
@@ -96,7 +97,7 @@ export default function PlanningArea() {
         <label className="cg-field" htmlFor="cg-amanah">{L('الأمانة / الجهة', 'Amanah / entity')}
           <select id="cg-amanah" className="input" value={amanah} onChange={(e) => setAmanah(e.target.value)}>
             <option value="all">{L('الوزارة (كل الجهات)', 'The Ministry (all entities)')}</option>
-            {options.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : a.en}</option>)}
+            {options.map((a) => <option key={a.key} value={a.key}>{ar ? a.ar : localize(a.en, lang)}</option>)}
           </select>
         </label>
         <div className="cg-equiv" role="status">
@@ -147,7 +148,7 @@ export default function PlanningArea() {
 
         {ok && DATA.data && (
           <PlanForecast year={year} g={g} selected={selected} monthlyCollected={DATA.data.monthly} billedMonthly={DATA.data.billedMonthly} standingUncollected={DATA.data.standing} cells={DATA.data.cells}
-            targetRate={selected.collectionRate ?? targetRate} L={L} ar={ar} lang={lang} short={short} sourceName={(k) => (ar ? sourceAr(k) : sourceEn(k))} nameOf={nameOf} />
+            targetRate={selected.collectionRate ?? targetRate} L={L} ar={ar} lang={lang} short={short} sourceName={(k) => (ar ? sourceAr(k) : localize(sourceEn(k), lang))} nameOf={nameOf} />
         )}
 
         {(ok || noTarget) && !noBudget && rows.length > 0 && (

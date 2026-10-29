@@ -49,10 +49,10 @@ export function RestoreDocument({ doc, onRestored, compact = false }) {
     <div className="rp-limit rp-limit--warn" role="group" aria-label={L('Original file unavailable', 'الملف الأصلي غير متاح')}>
       <b>{L('The original file is not available in this browser', 'الملف الأصلي غير متاح في هذا المتصفح')}</b>
       {!compact && <div>{L('The extracted references, page numbers, evidence and the confirmed-link history are kept; only the file itself is missing (backups do not include the document files).', 'تبقى المراجع المستخرجة وأرقام الصفحات والأدلة وسجل الروابط المؤكدة؛ والمفقود هو الملف نفسه فقط (النسخ الاحتياطية لا تتضمن ملفات المستندات).')}</div>}
-      <label style={{ display: 'inline-grid', gap: 3, marginTop: 6 }}>{L('Add the file again (its identity is checked)', 'أعد إضافة الملف (يُتحقق من هويته)')}
+      <label style={{ display: 'inline-grid', gap: 4, marginTop: 8 }}>{L('Add the file again (its identity is checked)', 'أعد إضافة الملف (يُتحقق من هويته)')}
         <input ref={ref} className="input" type="file" accept=".pdf,.docx,.doc,.png,.jpg,.jpeg,.tif,.tiff" onChange={(e) => pick(e.target.files?.[0])} />
       </label>
-      {doc.sampleId && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-sm" onClick={restoreSample}>{L('Restore the prepared sample from the catalogue', 'استعادة العينة المعدّة من القائمة')}</button></div>}
+      {doc.sampleId && <div style={{ marginTop: 8 }}><button type="button" className="btn btn-sm" onClick={restoreSample}>{L('Restore the prepared sample from the catalogue', 'استعادة العينة المعدّة من القائمة')}</button></div>}
       {msg && <div role="status" className={msg.bad ? 'rp-bad' : 'rp-ok'} style={{ marginTop: 4 }}>{msg.t}</div>}
     </div>
   );
@@ -101,7 +101,7 @@ function DocxPreview({ doc, page = 1, onRestored, tick = 0 }) {
     <div className="rp-pdf">
       <div className="rp-pdf__bar">
         <b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b>
-        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}>‹</button>
           <span dir="ltr">{Math.min(pg, n)} / {n}</span>
           <button type="button" className="btn btn-sm" disabled={pg >= n} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}>›</button>
@@ -109,7 +109,7 @@ function DocxPreview({ doc, page = 1, onRestored, tick = 0 }) {
       </div>
       {state.status === 'loading' && <div role="status" className="muted">{L('Reading the Word file…', 'جارٍ قراءة ملف Word…')}</div>}
       {state.status === 'error' && <div role="alert" className="rp-bad">{L('The Word file could not be read.', 'تعذّرت قراءة ملف Word.')} {state.msg}</div>}
-      {cur && <pre dir="auto" tabIndex={0} aria-label={`${doc.name} — ${L('page', 'صفحة')} ${Math.min(pg, n)}`} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit', fontSize: 13, margin: 0, padding: 10, border: '1px solid var(--line)', borderRadius: 6, maxHeight: 460, overflow: 'auto' }}>{cur.text}</pre>}
+      {cur && <pre dir="auto" tabIndex={0} aria-label={`${doc.name} — ${L('page', 'صفحة')} ${Math.min(pg, n)}`} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontFamily: 'inherit', fontSize: 13, margin: 0, padding: 12, border: '1px solid var(--line)', borderRadius: 6, maxHeight: 460, overflow: 'auto' }}>{cur.text}</pre>}
       <div className="muted" style={{ fontSize: 12 }}>{L('Text and tables as read from the Word file. A Word file has no exact page numbers (Word paginates when it displays), so evidence names the table / row or paragraph.', 'النص والجداول كما قُرئت من ملف Word. لا يوجد في ملف Word ترقيم صفحات دقيق (يرقّم Word الصفحات عند العرض)، لذا يذكر الدليل الجدول/الصف أو الفقرة.')}</div>
     </div>
   );
@@ -145,7 +145,7 @@ function PdfCanvas({ doc, page = 1, onRestored, tick = 0 }) {
     <div className="rp-pdf">
       <div className="rp-pdf__bar">
         <b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b>
-        <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}>‹</button>
           <span dir="ltr">{pg} / {state.pages || (doc.extraction?.pages?.length ?? '…')}</span>
           <button type="button" className="btn btn-sm" disabled={state.pages ? pg >= state.pages : false} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}>›</button>

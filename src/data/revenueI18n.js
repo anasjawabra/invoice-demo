@@ -1,6 +1,5 @@
 // Navigation / page-title strings for the revenue-intelligence screens.
-// Page bodies use inline English/Arabic text (see utils/bi.js); Chinese falls
-// back to English via I18nContext.t().
+// Chinese display text is resolved through the shared zh-CN catalog.
 export const revenueI18n = {
   en: {
     nav_executive: 'Executive',

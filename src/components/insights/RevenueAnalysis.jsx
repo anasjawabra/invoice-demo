@@ -1,11 +1,14 @@
+import { localize } from '../../utils/zh';
 // «تحليل مصادر الإيرادات» — the first part of the dashboard: where collection concentrates, who needs follow-up, the biggest deviations and whether performance is improving,
 // from entities and revenue sources down to municipalities. Everything comes from the national snapshot of the selected period and the like-for-like previous period (src/data/revenueAnalysis.js),
 // so entities, sources and the Ministry reconcile with the headline indicators. Colours: ONE scale for every percentage (EntityMap: red · orange · yellow · green = 100 % · blue), neutral grey for shares.
 import React, { useMemo, useState } from 'react';
+import UISymbol from '../UISymbol';
 import { Link } from 'react-router-dom';
 import { useRevenue } from '../../context/RevenueContext';
 import { useAsync } from '../../utils/useAsync';
 import { useAr } from '../../utils/useAr';
+import useTabs from '../../utils/useTabs';
 import { AsyncBlock } from '../strategic/AsyncState';
 import ProvinceMap from '../revenue/ProvinceMap';
 import { PCT_COLORS, PCT_CUTS, pctColor, PctBadge } from '../strategic/EntityMap';
@@ -39,12 +42,13 @@ function TrendBars({ rows, L, short, label }) {
       <svg viewBox={`0 0 ${W} ${H + 22}`} role="group" aria-label={label} style={{ width: '100%', height: 'auto', display: 'block' }}>
         <line x1="0" y1={H} x2={W} y2={H} stroke="var(--line-strong, #9ca3af)" />
         {rows.map((r, i) => { const x = i * bw; const h1 = (r.collected / max) * (H - 6); const h2 = ((r.prevCollected || 0) / max) * (H - 6); const on = sel === r.month; return (
-          <g key={r.month} role="button" tabIndex={0} aria-pressed={on} aria-label={`${mText(r.month)}: ${short(r.collected)}`} style={{ cursor: 'pointer', outline: 'none' }}
+          <g key={r.month} role="button" tabIndex={0} aria-pressed={on} aria-label={`${mText(r.month)}: ${short(r.collected)}`} className="ra-trend__month" style={{ cursor: 'pointer' }}
             onClick={() => setSel(on ? null : r.month)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSel(on ? null : r.month); } }}>
             <rect x={x} y="0" width={bw} height={H + 22} fill={on ? 'rgba(74,155,232,.16)' : 'transparent'} />
             {r.prevCollected != null && <rect x={x + bw * 0.12} y={H - h2} width={bw * 0.36} height={h2} fill="var(--line-strong, #9ca3af)" opacity="0.7"><title>{`${mText(r.prevMonth)}: ${short(r.prevCollected)}`}</title></rect>}
             <rect x={x + bw * 0.52} y={H - h1} width={bw * 0.36} height={h1} fill="#4a9be8"><title>{`${mText(r.month)}: ${short(r.collected)}`}</title></rect>
-            <text x={x + bw / 2} y={H + 15} textAnchor="middle" style={{ fontSize: 11, fontWeight: on ? 700 : 400, fill: 'var(--txt-mute, #6b7280)' }}>{r.month.slice(5)}</text>
+            <text x={x + bw / 2} y={H + 15} textAnchor="middle" style={{ fontSize: 12, fontWeight: on ? 700 : 400, fill: 'var(--txt-mute, #6b7280)' }}>{r.month.slice(5)}</text>
+            <rect className="ra-trend__focus" x={x + 2} y="2" width={bw - 4} height={H + 18} rx="3" fill="none" aria-hidden="true" />
           </g>); })}
       </svg>
       {chosen ? (
@@ -86,6 +90,8 @@ export default function RevenueAnalysis() {
   const [openNote, setOpenNote] = useState(null);
   const [panel, setPanel] = useState('details'); // the lower sections are tabs, so the page stays short
 
+  const tabs = useTabs({ keys: ['details', 'deviations', 'matrix', 'notes'], value: panel, onChange: setPanel, idPrefix: 'ra' });
+
   // the national snapshot of the selected period and the like-for-like previous period (the entity and source filters below are the analysis's own focus)
   const DATA = useAsync(async () => {
     const sc = { from: s.from, to: s.to, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' };
@@ -99,9 +105,9 @@ export default function RevenueAnalysis() {
   const region = regions.find((p) => p.iso === iso) || null;
   const focusKeys = entity ? [entity] : region ? region.keys : [];
   const F = useMemo(() => (A ? focusBreakdown(A, focusKeys, source) : null), [A, entity, iso, source]); // eslint-disable-line react-hooks/exhaustive-deps
-  const name = (k) => { const l = entityLabel(k); return ar ? l.ar.replace(/^أمانة\s*/, 'أمانة ') : l.en; };
-  const sname = (k) => { const l = sourceLabel(k); return ar ? l.ar : l.en; };
-  const rname = (p) => (ar ? p.nameAr : p.nameEn);
+  const name = (k) => { const l = entityLabel(k); return ar ? l.ar.replace(/^أمانة\s*/, 'أمانة ') : localize(l.en, lang); };
+  const sname = (k) => { const l = sourceLabel(k); return ar ? l.ar : localize(l.en, lang); };
+  const rname = (p) => (ar ? p.nameAr : localize(p.nameEn, lang));
   const sgn = (v) => { if (!Number.isFinite(v)) return '—'; const sign = v > 0 ? '+' : v < 0 ? '−' : ''; const m = short(Math.abs(v)).match(/^([\d.,]+)\s*(.*)$/); return m ? `${isolate(`${sign}${m[1]}`)} ${m[2]}`.trim() : `${sign}${short(Math.abs(v))}`; };
   const back = () => { setIso(null); setEntity(null); setSource(null); };
   const focused = !!(iso || entity || source);
@@ -153,13 +159,13 @@ export default function RevenueAnalysis() {
     if (A.ministryTarget) { const m = A.ministryTarget; out.push({ id: 'target', ar: `المدفوعات المستلمة تعادل ${pct(m.attainment, 0)} من الاعتماد مقابل الإيراد، والمتناسب مع الوقت المنقضي ${pct(m.expected / m.appropriation, 0)}؛ الفرق ${sgn(m.deviation)} (${spct(m.deviationPct)}). التوزيع متساوٍ بتوجيه الأعمال وليس خطة مرحلية معتمدة، فلا يُعدّ الفرق تأخراً مؤكداً.`, en: `Payments received equal ${pct(m.attainment, 0)} of the revenue appropriation against ${pct(m.expected / m.appropriation, 0)} proportional to elapsed time; the gap is ${sgn(m.deviation)} (${spct(m.deviationPct)}). The spread is even by business direction, not an approved milestone plan, so the gap is not confirmed lateness.`, focus: {}, ev: [[L('الاعتماد', 'Appropriation'), short(m.appropriation)], [L('المدفوعات المستلمة', 'Payments received'), short(m.pay)], [L('المتناسب مع الوقت', 'Time-proportional target'), short(m.expected)]] }); }
     if (follow.length) { const f = follow[0]; out.push({ id: 'follow', ar: `${f.level === 'entity' ? name(f.entity) : `${name(f.entity)} › ${sname(f.source)}`}: معدل التحصيل ${pct(f.rate, 0)} مقابل ${pct(A.total.rate, 0)} للوزارة، وغير المحصّل ${short(f.uncollected)}.`, en: `${f.level === 'entity' ? name(f.entity) : `${name(f.entity)} › ${sname(f.source)}`}: collection rate ${pct(f.rate, 0)} against ${pct(A.total.rate, 0)} for the Ministry, with ${short(f.uncollected)} uncollected.`, focus: { entity: f.entity, source: f.source }, ev: follow.map((x) => [x.level === 'entity' ? name(x.entity) : `${name(x.entity)} › ${sname(x.source)}`, `${pct(x.rate, 0)} · ${short(x.uncollected)}`]) }); }
     return out;
-  }, [A, ar, DATA.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [A, ar, DATA.data, lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const muniRows = useMemo(() => {
     if (!A || !entity) return [];
     const key = (g) => g.key; const prev = new Map((A.prev?.byMunicipality || []).map((g) => [key(g), g]));
-    return (A.cur.byMunicipality || []).filter((g) => g.amanah === entity && g.municipality).map((g) => { const p = A.comparable ? prev.get(g.key) : null; return { key: g.key, label: ar ? g.municipality.ar : g.municipality.en, collected: g.collected, net: g.net, rate: g.net > 0 ? g.collected / g.net : null, prev: p ? p.collected : null, change: p ? g.collected - p.collected : null, changePct: p && p.collected > 0 ? g.collected / p.collected - 1 : null }; }).sort((a, b) => b.collected - a.collected);
-  }, [A, entity, ar]);
+    return (A.cur.byMunicipality || []).filter((g) => g.amanah === entity && g.municipality).map((g) => { const p = A.comparable ? prev.get(g.key) : null; return { key: g.key, label: ar ? g.municipality.ar : localize(g.municipality.en, lang), collected: g.collected, net: g.net, rate: g.net > 0 ? g.collected / g.net : null, prev: p ? p.collected : null, change: p ? g.collected - p.collected : null, changePct: p && p.collected > 0 ? g.collected / p.collected - 1 : null }; }).sort((a, b) => b.collected - a.collected);
+  }, [A, entity, ar, lang]);
 
   const heatCols = A ? A.sourceKeys : [];
   const heatRows = A ? A.entities.filter((e) => e.net > 0 || e.hasPrev).sort((a, b) => b.collected - a.collected) : [];
@@ -201,7 +207,7 @@ export default function RevenueAnalysis() {
                 {focused ? <>{L('الاختيار الحالي:', 'Current choice:')} <b>{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</b></> : <span className="muted">{L('العرض العام: كل الجهات وكل المصادر.', 'Overall view: all entities and all sources.')}</span>}
                 <span className="muted" style={{ fontSize: 12 }}> {L('(الفترة من تصفية الصفحة أعلاه)', '(the period comes from the page filters above)')}</span>
               </div>
-              {focused && <button type="button" className="btn btn-sm" onClick={back}>{L('✕ العودة إلى العرض العام', '✕ Back to the overall view')}</button>}
+              {focused && <button type="button" className="btn btn-sm" onClick={back}><UISymbol name="close" />{L('العودة إلى العرض العام', 'Back to the overall view')}</button>}
             </div>
 
             <div className="ra-answers">
@@ -235,12 +241,12 @@ export default function RevenueAnalysis() {
               <div className="card st-card ra-ans">
                 <b>{L('أكبر التغيرات المؤثرة', 'Largest material changes')}</b>
                 {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
-                {topDev.length ? <ul className="ra-list ra-list--dev">{topDev.map((d) => <li key={d.id}><button type="button" className="rv-link" onClick={() => pickDev(d)}>{pathOf(d)}</button><span className="muted" style={{ fontSize: 11 }}>{typeLabel[d.type]}</span><b>{d.type === 'share' ? `${spp(d.value)} ${L('نقطة', 'pp')}` : `${sgn(d.value)}${d.pct != null ? ` · ${spct(d.pct)}` : ''}`}</b></li>)}</ul> : <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا انحرافات مادية في هذا الاختيار، أو لا مقارنة متاحة.', 'No material deviation in this choice, or no comparison available.')}</div>}
+                {topDev.length ? <ul className="ra-list ra-list--dev">{topDev.map((d) => <li key={d.id}><button type="button" className="rv-link" onClick={() => pickDev(d)}>{pathOf(d)}</button><span className="muted" style={{ fontSize: 12 }}>{typeLabel[d.type]}</span><b>{d.type === 'share' ? `${spp(d.value)} ${L('نقطة', 'pp')}` : `${sgn(d.value)}${d.pct != null ? ` · ${spct(d.pct)}` : ''}`}</b></li>)}</ul> : <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>{L('لا انحرافات مادية في هذا الاختيار، أو لا مقارنة متاحة.', 'No material deviation in this choice, or no comparison available.')}</div>}
               </div>
               <div className="card st-card ra-ans">
                 <b>{L('هل الأداء يتحسن أم يتراجع؟', 'Is performance improving or declining?')}</b>
                 {focused && <div className="ra-ctx">{entity ? name(entity) : region ? rname(region) : L('كل الجهات', 'all entities')}{source ? ` · ${sname(source)}` : ''}</div>}
-                {dir.state === 'unknown' ? <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('لا توجد فترة مماثلة للمقارنة.', 'No like-for-like period to compare with.')}</div> : (
+                {dir.state === 'unknown' ? <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>{L('لا توجد فترة مماثلة للمقارنة.', 'No like-for-like period to compare with.')}</div> : (
                   <>
                     <div className="ra-big"><Chip ratio={dir.state === 'improving' ? 1.0 : dir.state === 'declining' ? 0.3 : dir.state === 'mixed' ? 0.8 : null}>{{ improving: L('يتحسن', 'Improving'), declining: L('يتراجع', 'Declining'), mixed: L('مختلط', 'Mixed'), stable: L('مستقر', 'Stable') }[dir.state]}</Chip></div>
                     <div className="muted" style={{ fontSize: 12 }}>{L(`المحصّل ${spct(dir.changePct)} (${sgn(dir.change)}) ومعدل التحصيل ${dir.pp == null ? '—' : `${spp(dir.pp)} نقطة`} عن ${compLabel(DATA.data.basis)}`, `Collected ${spct(dir.changePct)} (${sgn(dir.change)}) and collection rate ${dir.pp == null ? '—' : `${spp(dir.pp)} pp`} vs ${compLabel(DATA.data.basis)}`)}</div>
@@ -278,7 +284,7 @@ export default function RevenueAnalysis() {
                     {PCT_COLORS.map((c, i) => <span key={c}><i style={{ background: c }} /><bdi>{i === 0 ? L(`أقل من ${PCT_CUTS[0] * 100}%`, `Below ${PCT_CUTS[0] * 100}%`) : i === PCT_COLORS.length - 1 ? L(`${PCT_CUTS[i - 1] * 100}% فأكثر`, `${PCT_CUTS[i - 1] * 100}% and above`) : L(`من ${PCT_CUTS[i - 1] * 100}% إلى أقل من ${PCT_CUTS[i] * 100}%`, `${PCT_CUTS[i - 1] * 100}% to under ${PCT_CUTS[i] * 100}%`)}</bdi></span>)}
                     <span><i style={{ background: NONE }} /><bdi>{L('لا بيانات / غير متاح (ليس صفراً)', 'no data / n/a (not zero)')}</bdi></span>
                   </div>
-                  <div className="muted" style={{ fontSize: 11 }}>{L('الأخضر من 80% فأكثر، و100% = المرجع (معدل التحصيل الكامل، أو الاعتماد، أو الفترة المماثلة). المنطقة = مجموع أماناتها. جهات بلا منطقة: قطاع الإسكان و«غير محدد الأمانة».', 'Green from 80%; 100% = the reference (full collection, the appropriation, or the like-for-like period). A region is the sum of its Amanahs. Entities with no region: housing sector and Unassigned.')}</div>
+                  <div className="muted" style={{ fontSize: 12 }}>{L('الأخضر من 80% فأكثر، و100% = المرجع (معدل التحصيل الكامل، أو الاعتماد، أو الفترة المماثلة). المنطقة = مجموع أماناتها. جهات بلا منطقة: قطاع الإسكان و«غير محدد الأمانة».', 'Green from 80%; 100% = the reference (full collection, the appropriation, or the like-for-like period). A region is the sum of its Amanahs. Entities with no region: housing sector and Unassigned.')}</div>
                 </div>
                 <div className="ra-map__side">
                   <div className="cg-geo__card" role="status" aria-live="polite">
@@ -307,11 +313,11 @@ export default function RevenueAnalysis() {
             </div>
 
             <div className="sr-tabs" role="tablist" aria-label={L('تفاصيل التحليل', 'Analysis details')}>
-              {[['details', L('تفاصيل الجهة والمصادر', 'Entity and source details')], ['deviations', L(`التغيرات (${A.deviations.length})`, `Changes (${A.deviations.length})`)], ['matrix', L('المصفوفة الحرارية', 'Heat matrix')], ['notes', L('الملخص التحليلي', 'Analytic summary')]].map(([k, l]) => <button key={k} id={`ra-tab-${k}`} type="button" role="tab" aria-selected={panel === k} aria-controls={`ra-panel-${k}`} className={`sr-tab ${panel === k ? 'is-active' : ''}`} onClick={() => setPanel(k)}>{l}</button>)}
+              {[['details', L('تفاصيل الجهة والمصادر', 'Entity and source details')], ['deviations', L(`التغيرات (${A.deviations.length})`, `Changes (${A.deviations.length})`)], ['matrix', L('المصفوفة الحرارية', 'Heat matrix')], ['notes', L('الملخص التحليلي', 'Analytic summary')]].map(([k, l]) => <button key={k} {...tabs.getTabProps(k)} className={`sr-tab ${panel === k ? 'is-active' : ''}`}>{l}</button>)}
             </div>
 
             {/* the focus: details, sources, municipalities, trend */}
-            {panel === 'details' && <div className="card st-card ra-focus" role="tabpanel" id="ra-panel-details" aria-labelledby="ra-tab-details">
+            {panel === 'details' && <div className="card st-card ra-focus" {...tabs.getPanelProps('details')}>
               <div className="cg-geo__head">
                 <div>
                   <b>{entity ? name(entity) : region ? rname(region) : L('الوزارة — كل الجهات', 'The Ministry — all entities')}{source ? ` · ${sname(source)}` : ''}</b>
@@ -366,7 +372,7 @@ export default function RevenueAnalysis() {
             </div>}
 
             {/* deviations, ranked by value */}
-            {panel === 'deviations' && <div className="card st-card" role="tabpanel" id="ra-panel-deviations" aria-labelledby="ra-tab-deviations">
+            {panel === 'deviations' && <div className="card st-card" {...tabs.getPanelProps('deviations')}>
               <div className="cg-geo__head">
                 <div>
                   <b>{L('التغيرات مرتبة بأثرها المالي', 'Changes ranked by financial impact')}</b>
@@ -394,7 +400,7 @@ export default function RevenueAnalysis() {
             </div>}
 
             {/* the heat matrix */}
-            {panel === 'matrix' && <div className="card st-card" role="tabpanel" id="ra-panel-matrix" aria-labelledby="ra-tab-matrix">
+            {panel === 'matrix' && <div className="card st-card" {...tabs.getPanelProps('matrix')}>
               <div className="cg-geo__head">
                 <div>
                   <b>{L('مصفوفة حرارية: الجهات × مصادر الإيراد', 'Heat matrix: entities × revenue sources')}</b>
@@ -411,7 +417,7 @@ export default function RevenueAnalysis() {
                     <React.Fragment key={e.key}>
                       <div className="ra-heat__r"><button type="button" className="rv-link" onClick={() => { const p = regions.find((r) => r.keys.includes(e.key)); setIso(p ? p.iso : null); setEntity(e.key); }}>{name(e.key)}</button></div>
                       {heatCols.map((k) => { const c = heatCell(e, k); const on = entity === e.key && source === k; return (
-                        <button key={k} type="button" className={`ra-heat__c${on ? ' is-on' : ''}`} style={{ background: c.color, color: c.neutral ? 'var(--heading, #111827)' : c.ratio != null && c.ratio >= 0.6 && c.ratio < 0.8 ? '#111827' : undefined }} title={`${name(e.key)} › ${sname(k)}: ${c.text}${c.title ? ` (${c.title})` : ''}`}
+                        <button key={k} type="button" className={`ra-heat__c${Number.isFinite(c.ratio) ? ` ra-heat__c--level-${PCT_CUTS.filter((cut) => c.ratio >= cut).length}` : ''}${on ? ' is-on' : ''}`} style={Number.isFinite(c.ratio) ? undefined : { background: c.color, color: 'var(--heading, #111827)' }} title={`${name(e.key)} › ${sname(k)}: ${c.text}${c.title ? ` (${c.title})` : ''}`}
                           onClick={() => { const p = regions.find((r) => r.keys.includes(e.key)); setIso(p ? p.iso : null); setEntity(e.key); setSource(k); }}><span dir="ltr">{c.text}</span></button>); })}
                     </React.Fragment>))}
                 </div>
@@ -419,13 +425,13 @@ export default function RevenueAnalysis() {
             </div>}
 
             {/* the analytic summary */}
-            {panel === 'notes' && <div className="card st-card ra-notes" role="tabpanel" id="ra-panel-notes" aria-labelledby="ra-tab-notes">
+            {panel === 'notes' && <div className="card st-card ra-notes" {...tabs.getPanelProps('notes')}>
               <b>{L('ملخص تحليلي من البيانات', 'Analytic summary from the data')}</b>
               <div className="muted" style={{ fontSize: 12 }}>{L('كل ملاحظة محسوبة من الأرقام أعلاه؛ لا تُنسب أسباب دون دليل، وما يحتاج فحصاً مذكور كذلك.', 'Every note is computed from the figures above; no reason is asserted without evidence, and what needs checking is said so.')}</div>
               <ul className="ra-notes__list">
                 {notes.map((n) => (
                   <li key={n.id}>
-                    <div>{ar ? n.ar : n.en}</div>
+                    <div>{ar ? n.ar : localize(n.en, lang)}</div>
                     <div className="ra-notes__act">
                       <button type="button" className="btn btn-sm btn-ghost" aria-expanded={openNote === n.id} onClick={() => setOpenNote(openNote === n.id ? null : n.id)}>{openNote === n.id ? L('إخفاء الأرقام الداعمة', 'Hide supporting figures') : L('عرض الأرقام الداعمة', 'Show supporting figures')}</button>
                       {(n.focus.entity || n.focus.source) && <button type="button" className="btn btn-sm btn-ghost" onClick={() => pickDev({ entity: n.focus.entity, source: n.focus.source })}>{L('فتح في الخريطة والتفاصيل', 'Open in the map and details')}</button>}

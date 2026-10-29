@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // Assistant answer text. Pure: derived ONLY from the completed analysis task's
 // output (shared snapshot / forecast / etc.). Every numeric answer states its
 // scope and data cutoff. No KPI is hard-coded here.
@@ -10,12 +11,12 @@ const cnt = (n) => Number(n || 0).toLocaleString('en-US');
 
 export function scopeLine(scope, cutoff, lang) {
   const ar = lang === 'ar';
-  return `${describeScope(scope, lang)} — ${ar ? 'قطع البيانات' : 'data cutoff'} ${cutoff}`;
+  return `${describeScope(scope, lang)} — ${ar ? 'قطع البيانات' : localize('data cutoff', lang)} ${cutoff}`;
 }
 
 export function answerFor(intent, out, { lang = 'en' } = {}) {
   const ar = lang === 'ar';
-  const L = (en, a) => (ar ? a : en);
+  const L = (en, a) => (ar ? a : localize(en, lang));
   const M = (n) => fmtBn(n || 0, { lang });
   const snap = out.snapshot;
   if (!snap) return { text: L('No analysis output is available.', 'لا يوجد ناتج تحليل.'), facts: [] };

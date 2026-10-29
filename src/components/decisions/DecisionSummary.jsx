@@ -1,3 +1,5 @@
+import { localizedObject } from '../../utils/zh';
+import UISymbol from '../UISymbol';
 // «غرفة القرارات» on the dashboard: the four numbers and the three highest items, with the way into the full room.
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -8,12 +10,12 @@ import { STATUSES } from '../../data/decisionStore';
 import { scoreTone } from './DecisionParts';
 
 export default function DecisionSummary() {
-  const D = useDecisions(); const { L, ar, short, count } = useAr(); const B = (o) => (o == null ? '' : o[ar ? 'ar' : 'en']);
+  const D = useDecisions(); const { L, ar, short, count , lang } = useAr(); const B = (o) => (localizedObject(o, lang));
   if (D.error) return null;
   const S = D.summary; const top = D.items.filter((i) => ['new', 'in_progress'].includes(i.status)).slice(0, 3);
   return (
     <section className="card st-card rv-attention dr-summary" aria-label={L('غرفة القرارات', 'Decision room')}>
-      <div className="dr-summary__head"><h2 className="rv-sec-title" style={{ margin: 0 }}>{L('غرفة القرارات', 'Decision room')}</h2><Link className="btn btn-sm" to="/decisions">{L('فتح غرفة القرارات', 'Open the decision room')} {ar ? '←' : '→'}</Link></div>
+      <div className="dr-summary__head"><h2 className="rv-sec-title" style={{ margin: 0 }}>{L('غرفة القرارات', 'Decision room')}</h2><Link className="btn btn-sm" to="/decisions">{L('فتح غرفة القرارات', 'Open the decision room')} {ar ? <UISymbol name="left" /> : <UISymbol name="right" />}</Link></div>
       {!S ? <div className="muted" role="status">{L('جارٍ تجهيز البنود…', 'Preparing the items…')}</div> : (
         <>
           <div className="dr-summary__nums">

@@ -10,8 +10,8 @@ export default function SmartReportsPage() {
   const rev = useRevenue(); const { L } = useAr();
   const [sp, setSp] = useSearchParams();
   return (
-    <div className="st-page">
-      <header className="st-head">
+    <div className="st-page sr-route">
+      <header className="st-head sr-heading">
         <div>
           <h1 className="page-title" style={{ margin: 0 }}>{L('التقارير الذكية', 'Smart reports')}</h1>
           <div className="muted" style={{ fontSize: 13 }}>{L('اسأل أو اطلب تقريراً أو أرفق ملفات؛ وحسّن النتيجة بكلام عادي ثم نزّلها.', 'Ask, request a report or attach files; refine the result in plain words, then download it.')}</div>

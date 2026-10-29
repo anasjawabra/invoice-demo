@@ -1,3 +1,4 @@
+import { localize } from '../utils/zh';
 // ONE registry of the period presets (EQ7): the scope bar, the Smart-report filter panel, the stored scope and the report labels all read it.
 // Every preset is defined by a function of today (Asia/Riyadh), so the meaning is the same everywhere and testable.
 import { startOfMonth, startOfYear, prevMonthEnd, lastCompleteMonths } from './clock';
@@ -15,6 +16,6 @@ export const PRESETS = [
   { key: 'all', ar: 'كل البيانات', en: 'All data', range: (t) => ({ from: DATA_START, to: t }) }
 ];
 export const presetRange = (key, today) => PRESETS.find((p) => p.key === key)?.range(today) || null;
-export const presetLabel = (key, lang) => { const p = PRESETS.find((x) => x.key === key); return p ? (lang === 'ar' ? p.ar : p.en) : null; };
+export const presetLabel = (key, lang) => { const p = PRESETS.find((x) => x.key === key); return p ? (lang === 'ar' ? p.ar : localize(p.en, lang)) : null; };
 // which preset a range is (the first that matches), or 'custom'
 export const detectPreset = (from, to, today) => PRESETS.find((p) => { const r = p.range(today); return r.from === from && r.to === to; })?.key || 'custom';
