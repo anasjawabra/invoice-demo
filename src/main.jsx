@@ -23,6 +23,7 @@ import './styles/record.css';
 import './styles/smart-reporting.css';
 import './styles/app-foundation.css';
 import './styles/ui-completion.css';
+import './styles/app-sidebar.css';
 import './styles/chart-theme';
 
 ReactDOM.createRoot(document.getElementById('root')).render(

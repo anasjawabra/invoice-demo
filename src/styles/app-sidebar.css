@@ -1,0 +1,49 @@
+/* Primary navigation: preserve module order, with operations directly visible. */
+.app-shell { --sidebar-width: 244px; }
+.app-shell .app-header { display: block; position: sticky; inset-block-start: 0; z-index: 30; background: var(--surface); }
+.app-shell .app-header > .topbar { position: static; }
+.app-shell .topbar-right { flex-wrap: wrap; }
+.app-shell .content, .app-shell .app-footer { margin-inline-start: var(--sidebar-width); margin-inline-end: 0; }
+.app-shell .content { width: calc(100% - var(--sidebar-width)); }
+.app-shell .sidebar-toggle { display: none; width: 40px; height: 40px; padding: 8px; border-radius: 10px; flex-shrink: 0; }
+.app-sidebar {
+  position: fixed;
+  inset-block-start: var(--ui-header-height, 80px);
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  width: var(--sidebar-width);
+  min-width: 0;
+  background: var(--surface);
+  color: var(--txt);
+  border-inline-end: 1px solid var(--line);
+  z-index: 21;
+}
+.app-sidebar__nav { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.app-sidebar__sections { overflow-y: auto; min-height: 0; padding: 18px 12px; scrollbar-width: thin; overscroll-behavior: contain; }
+.app-sidebar__group { display: grid; gap: 4px; }
+.app-sidebar__group + .app-sidebar__group { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.app-sidebar__label { padding: 0 12px 8px; color: var(--txt-mute-2); font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; }
+.app-sidebar__link { position: relative; display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 10px 12px; border: 1px solid transparent; border-radius: 8px; color: var(--txt-dim); font-size: 13px; line-height: 20px; font-weight: 500; transition: background .15s ease, color .15s ease; }
+.app-sidebar__link .ui-icon { width: 19px; height: 19px; flex-shrink: 0; }
+.app-sidebar__link span { min-width: 0; overflow-wrap: anywhere; }
+.app-sidebar__link:hover { background: var(--bg-2); color: var(--heading); }
+.app-sidebar__link.active { background: var(--ui-tint); color: var(--ui-green-text); font-weight: 600; border-color: color-mix(in srgb, var(--primary) 18%, var(--line)); }
+.app-sidebar__link.active::before { content: ''; position: absolute; inset-inline-start: -1px; inset-block: 10px; width: 3px; background: var(--primary); border-radius: 3px; }
+.app-sidebar__footer { margin-top: auto; padding: 12px; border-top: 1px solid var(--line); flex-shrink: 0; }
+.app-sidebar__heading { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.app-sidebar__close { width: 36px; height: 36px; padding: 0; font-size: 26px; line-height: 1; }
+.app-sidebar--drawer { padding: 0; margin: 0; inset-block: 0; inset-inline-start: 0; inset-inline-end: auto; width: min(300px, calc(100vw - 40px)); max-width: none; height: 100dvh; max-height: none; border: 0; border-inline-end: 1px solid var(--line); box-shadow: 10px 0 40px rgb(0 0 0 / 12%); }
+.app-sidebar--drawer[open] { display: flex; flex-direction: column; }
+.app-sidebar--drawer .app-sidebar__nav { flex: 1; }
+.app-sidebar--drawer::backdrop { background: rgb(16 24 40 / 36%); }
+@media (max-width: 1100px) and (min-width: 901px) { .app-shell { --sidebar-width: 224px; } }
+@media (max-width: 900px) {
+  .app-shell { --sidebar-width: 0px; }
+  .app-shell .sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .app-shell .topbar-left { gap: 10px; }
+}
+@media print {
+  .app-shell .app-header { position: static; }
+  .app-sidebar, .app-shell .sidebar-toggle { display: none !important; }
+  .app-shell .content, .app-shell .app-footer { margin-inline: 0; width: 100%; }
+}

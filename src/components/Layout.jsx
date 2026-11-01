@@ -16,6 +16,7 @@ import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
 import { useFitTables } from '../utils/fitTables';
 import AppIcon from './AppIcon';
+import AppSidebar from './AppSidebar';
 
 function Icon({ name }) { return <AppIcon name={name} />; }
 
@@ -25,6 +26,7 @@ function LayoutInner() {
   // D-12: «today» is read once when the page loads; a tab left open past midnight (Riyadh) says so instead of silently showing yesterday
   const [dayChanged, setDayChanged] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false); // phones: language, theme, organisation, notifications and the account sit behind one button
+  const [navigationOpen, setNavigationOpen] = useState(false);
   useEffect(() => { const check = () => { if (!IS_TIME_TRAVEL && riyadhToday() !== DEMO_TODAY) setDayChanged(true); }; check(); const id = setInterval(check, 300000); document.addEventListener('visibilitychange', check); window.addEventListener('focus', check); return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); }; }, []);
   const { user, orgScoped, logout, switchOrg } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -61,20 +63,6 @@ function LayoutInner() {
   );
   // system configuration and administration (metric definitions) is its own, rarely used area — not one of the daily operational pages
   const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
-  const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
-
-  const primaryTabs = tabs.slice(0, 6); const opsTabs = tabs.slice(6); // the management areas: dashboards & reports · planning · enforcement · exclusions · products
-  const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
-  const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
-  useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
-  useEffect(() => {
-    if (!opsOpen) return undefined;
-    const onDoc = (e) => { if (opsRef.current && !opsRef.current.contains(e.target)) setOpsOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') { setOpsOpen(false); opsBtn.current?.focus(); } };
-    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [opsOpen]);
-  const opsLabel = lang === 'ar' ? 'وحدات تشغيلية' : lang === 'zh' ? '运营模块' : 'Operations';
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
@@ -110,6 +98,9 @@ function LayoutInner() {
         <AppHeader>
         <header className="topbar">
           <div className="topbar-left">
+            <button type="button" className="btn sidebar-toggle" aria-label={lang === 'ar' ? 'فتح التنقل' : lang === 'zh' ? '打开导航' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="app-navigation" onClick={() => setNavigationOpen(true)}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
             <NavLink to="/insights" className="side-brand">
               <BrandMark className="side-brand__logo" />
               <div className="side-brand__text">
@@ -256,33 +247,8 @@ function LayoutInner() {
           </div>
         </header>
 
-        <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : localize('Main navigation', lang)}>
-          {primaryTabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) || (tab.to === '/insights' && loc.pathname.startsWith('/decisions')) ? ' active' : ''}`}>
-              <span className="tab__icon"><Icon name={tab.icon} /></span>
-              <span className="tab__text">{tab.label}</span>
-            </NavLink>
-          ))}
-          <div className="tab-menu" ref={opsRef}>
-            <button type="button" ref={opsBtn} className={`tab${opsActive ? ' active' : ''}`} aria-expanded={opsOpen} aria-controls="ops-menu" onClick={() => setOpsOpen((v) => !v)}>
-              <span className="tab__icon"><Icon name="invoices" /></span>
-              <span className="tab__text">{opsLabel}</span>
-              <span aria-hidden="true" className="tab__chev"><UISymbol name="down" /></span>
-            </button>
-            {opsOpen && (
-              <ul id="ops-menu" className="tab-menu__list">
-                {opsTabs.map((tab) => (
-                  <li key={tab.to}><NavLink to={tab.to} className={({ isActive }) => `tab-menu__item${isActive ? ' active' : ''}`}>{tab.label}</NavLink></li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <NavLink to={settingsTab.to} className={`tab tab--settings${settingsActive ? ' active' : ''}`} aria-current={settingsActive ? 'page' : undefined}>
-            <span className="tab__icon"><Icon name={settingsTab.icon} /></span>
-            <span className="tab__text">{settingsTab.label}</span>
-          </NavLink>
-        </nav>
         </AppHeader>
+        <AppSidebar tabs={tabs} settingsTab={settingsTab} open={navigationOpen} setOpen={setNavigationOpen} />
 
         <section className="content" id="main-content" tabIndex={-1}>
           <div><Outlet /></div>

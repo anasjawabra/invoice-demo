@@ -80,7 +80,7 @@ button, input, select, textarea { font-family: inherit; }
 .topbar-left, .topbar-right { gap: 8px; }
 .side-brand__logo, .brand-logo { background: #1B8354; border-radius: var(--radius); box-shadow: none; }
 .pill { border-radius: var(--radius-pill); box-shadow: none; }
-.tabbar { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; padding-inline: 32px; background: var(--surface); }
+.tabbar { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding-inline: 32px; background: var(--surface); }
 .tab { min-width: 0; min-height: 44px; justify-content: center; white-space: normal; padding: 8px; font-size: 12px; border-radius: var(--radius); box-shadow: none; }
 .tab__text { min-width: 0; }
 .tab-menu > .tab { width: 100%; height: 100%; }
@@ -112,11 +112,9 @@ button, input, select, textarea { font-family: inherit; }
   .app-shell .tab__icon, .app-shell .tab__icon > .ui-icon { width: 16px; height: 16px; }
 }
 @media (max-width: 720px) { .app-shell .tab { height: 72px; min-height: 72px; } }
-/* Desktop navigation sizes each item to its label instead of eight equal columns. */
-@media (min-width: 1440px) {
-  .app-shell .tabbar { grid-template-columns: repeat(8, max-content); justify-content: space-between; gap: 4px; }
-  .app-shell .tab { height: 48px; min-height: 48px; padding-inline: 6px; gap: 6px; white-space: nowrap; }
-  .app-shell .tab__text { white-space: nowrap; text-wrap: nowrap; }
+/* All daily-work links stay visible. Two rows on laptops, one on wide screens. */
+@media (min-width: 1800px) {
+  .app-shell .tabbar { grid-template-columns: repeat(10, minmax(0, 1fr)); }
 }
 .content { padding: 32px; max-width: 1440px; margin-inline: auto; }
 /* One page gutter: page-specific max-width wrappers must not add a second inset. */
