@@ -85,7 +85,7 @@ export default function TraceBlock({ block, running, done, onDone }) {
       case 'thought':
         return (
           <div className="trace-thought">
-            <span className="trace-block__icon" aria-hidden="true">✦</span>
+            <span className="trace-block__icon" aria-hidden="true"><UISymbol name="sparkles" /></span>
             <div className="trace-thought__text">
               {active ? <Typewriter text={L(block.text, lang)} onDone={typewriterDone} /> : <span>{L(block.text, lang)}</span>}
             </div>

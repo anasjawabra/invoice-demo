@@ -1264,7 +1264,7 @@ html[dir='rtl'] .ingest-arrow { transform: scaleX(-1); }
 }
 
 .row-view__chev { font-weight: 700; font-size: 14px; line-height: 1; }
-html[dir='rtl'] .row-view__chev { transform: scaleX(-1); }
+/* Direction is supplied by the shared Hugeicons component. */
 
 .row-clickable:hover .row-view__link,
 .row-clickable:focus-visible .row-view__link { text-decoration: underline; }

@@ -1,6 +1,7 @@
 import { useI18n } from '../context/I18nContext';
 import { localize } from '../utils/zh';
 import UISymbol from '../components/UISymbol';
+import FileTypeIcon from '../components/FileTypeIcon';
 // «التقارير الذكية» — the ONE reporting experience (it replaces the former report centre and the former smart-reports page).
 // A conversation: the user asks for a report or asks a question, or attaches files; the assistant answers from the shared data layer and the files.
 // Follow-ups act on the latest result («change the chart», «show the tables only», «turn it into a presentation»); see src/data/chatIntents.js.
@@ -115,7 +116,6 @@ function InterpretationSummary({ msg, chips, L, editable, editing, onEdit, panel
 }
 
 /* ---------------- attachments in the composer ---------------- */
-const ICON = { pdf: 'PDF', docx: 'DOC', sheet: 'XLS', csv: 'CSV', pptx: 'PPT', image: 'IMG', doc: 'DOC', ppt: 'PPT', unknown: '?' };
 function FilePreview({ f, ar, L }) {
   const { lang } = useI18n();
   const pv = previewOf(f);
@@ -140,7 +140,7 @@ function FileChip({ f, ar, L, open, onToggle, onRemove }) {
   const state = f.reading ? L('جارٍ القراءة…', 'Reading…') : f.status === 'ready' ? L('جاهز', 'Ready') : f.status === 'partial' ? L('قُرئ جزئياً', 'Partly read') : f.kind === 'image' ? L('معاينة فقط', 'Preview only') : L('لم يُقرأ', 'Not read');
   return (
     <div className={`sr-file sr-file--${f.reading ? 'busy' : f.status}`} role="listitem">
-      <span className="sr-file__ico" aria-hidden="true">{f.kind === 'image' && f.preview ? <img src={f.preview} alt="" /> : ICON[f.kind] || '?'}</span>
+      <span className="sr-file__ico" aria-hidden="true">{f.kind === 'image' && f.preview ? <img src={f.preview} alt="" /> : <FileTypeIcon kind={f.kind} />}</span>
       <button type="button" className="sr-file__main" aria-expanded={!!open} disabled={!!f.reading} onClick={onToggle} title={L('معاينة', 'Preview')}>
         <b dir="auto">{f.name}</b>
         <small>{kindLabel(f.kind, lang)} · {sizeText(f.size)} · {f.reading ? <><span className="sr-spin" aria-hidden="true" /> {state}</> : state}</small>
@@ -538,7 +538,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
         )}
         {conv?.messages.map((m) => {
           if (m.role === 'user') return (
-            <div key={m.id} className={`sr-msg sr-msg--user${animated.current.has(m.id) ? ' sr-msg--new' : ''}`}><div className="sr-bubble">{promptText(m.text)}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, lang)}><em>{ICON[a.kind] || '?'}</em> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
+            <div key={m.id} className={`sr-msg sr-msg--user${animated.current.has(m.id) ? ' sr-msg--new' : ''}`}><div className="sr-bubble">{promptText(m.text)}{m.attachments?.length > 0 && <div className="sr-bubble__files">{m.attachments.map((a) => <span key={a.id} className="sr-chip sr-chip--file" title={noteText(a.note, lang)}><FileTypeIcon kind={a.kind} size={18} /> <bdi>{a.name}</bdi></span>)}</div>}</div></div>
           );
           const model = modelOf(m); const isBusy = busy?.msgId === m.id; const res = resultOf(m, conv.messages); const isLast = !!latest && m.id === latest.msgId;
           const shown = res?.model || null; const isFileResult = m.kind === 'attachments'; const showCard = !!shown && m.kind !== 'export';
@@ -567,7 +567,7 @@ export default function SmartReports({ embedded = false, initialQuery = null, on
                     {m.status === 'working' && <div className="sr-progress" role="status"><TypingDots label={L('أُجهّز الملف', 'Preparing the file')} /> {L('أُجهّز الملف…', 'Preparing the file…')}</div>}
                     {m.status === 'done' && res && <>
                       <div><b>{m.format === 'pdf' ? L('جاهز للطباعة / الحفظ PDF', 'Ready to print / save as PDF') : L('أنشأتُ الملف ونزّلته', 'The file was created and downloaded')}</b></div>
-                      <div className="sr-filecard__row"><span className="sr-file__ico" aria-hidden="true">{m.format.toUpperCase()}</span><bdi>{m.fileName || reportFileName(res.model, m.format)}</bdi>
+                      <div className="sr-filecard__row"><span className="sr-file__ico" aria-hidden="true"><FileTypeIcon kind={m.format} /></span><bdi>{m.fileName || reportFileName(res.model, m.format)}</bdi>
                         <button type="button" className="btn btn-sm" disabled={!!exporting} onClick={() => doExport(m.format, res.model, m.id)}>{L('تنزيل مرة أخرى', 'Download again')}</button></div>
                       <div className="muted" style={{ fontSize: 12 }}>{m.format === 'pdf' ? L('فُتح مربع الطباعة: اختر «حفظ بصيغة PDF». ', 'The print dialog opened: choose “Save as PDF”. ') : ''}{L('يحتوي الملف النتيجة المعروضة الآن كما هي (بما فيها نوع الرسم والأجزاء المعروضة).', 'The file holds the result exactly as it is shown now (including the chart type and the parts shown).')}</div>
                     </>}

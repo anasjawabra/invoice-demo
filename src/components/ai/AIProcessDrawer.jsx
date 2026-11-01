@@ -49,7 +49,7 @@ function LegacyStep({ step, lang, running, done, onDone }) {
       </div>
 
       {step.handoff ? (
-        <div className="ai-step__handoff">↳ {L(step.handoff, lang)}</div>
+        <div className="ai-step__handoff"><UISymbol name="handoff" /> {L(step.handoff, lang)}</div>
       ) : null}
 
       <div className="ai-step__detail">
@@ -112,7 +112,7 @@ function BlockStep({ step, lang, running, done, onDone }) {
       </div>
 
       {step.handoff ? (
-        <div className="ai-step__handoff">↳ {L(step.handoff, lang)}</div>
+        <div className="ai-step__handoff"><UISymbol name="handoff" /> {L(step.handoff, lang)}</div>
       ) : null}
 
       <div className="trace-blocks">

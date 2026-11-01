@@ -1,2 +1,2 @@
 # Keep generated PDF byte offsets intact during checkout on Windows.
-*.pdf binary
+dist/**/*.pdf binary

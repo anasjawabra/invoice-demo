@@ -207,7 +207,7 @@ export default function Invoices() {
                   <td dir="ltr" title={r.dueDate}>{fmtDateText(r.dueDate, lang)}</td>
                   <td dir="ltr">{r.daysOverdue > 0 ? r.daysOverdue : '—'}</td>
                   <td className="row-view">
-                    <span className="row-view__link">{viewLabel}<UISymbol name="expand" /></span>
+                    <span className="row-view__link">{viewLabel}<span className="row-view__chev" aria-hidden="true"><UISymbol name="expand" /></span></span>
                   </td>
                 </tr>
               ))}

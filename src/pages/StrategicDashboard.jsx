@@ -1,4 +1,5 @@
 import { localize } from '../utils/zh';
+import UISymbol from '../components/UISymbol';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Chart as ChartJS,
@@ -447,9 +448,9 @@ export default function StrategicDashboard() {
           <div className="strategic-thinking-orb" aria-hidden="true"><span></span><span></span><span></span></div>
           <h2>{c.thinking}<span className="strategic-thinking-ellipsis" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></h2>
           <p>{c.thinkingDesc}</p>
-          <ul className="strategic-thinking-steps">{c.thinkingSteps.map((label, i) => i <= step ? <li key={label} className={i < step ? 'is-done' : 'is-active'}>{label}</li> : null)}</ul>
+          <ul className="strategic-thinking-steps">{c.thinkingSteps.map((label, i) => i <= step ? <li key={label} className={i < step ? 'is-done' : 'is-active'}>{i < step && <UISymbol name="check" />}{label}</li> : null)}</ul>
           <div className="strategic-thinking-bars" aria-hidden="true"><div></div><div></div><div></div></div>
-        </div> : !result ? <div className="card strategic-empty"><div className="strategic-empty-icon" aria-hidden="true">◎</div><h2>{c.ready}</h2><p>{c.readyDesc}</p><div className="strategic-preview-tags">{[c.targetType, c.sensitivity, c.actions, c.roadmap].map(label => <span className="badge" key={label}>{label}</span>)}</div></div> : <>
+        </div> : !result ? <div className="card strategic-empty"><div className="strategic-empty-icon" aria-hidden="true"><UISymbol name="target" size={52} /></div><h2>{c.ready}</h2><p>{c.readyDesc}</p><div className="strategic-preview-tags">{[c.targetType, c.sensitivity, c.actions, c.roadmap].map(label => <span className="badge" key={label}>{label}</span>)}</div></div> : <>
           {stale && <div className="strategic-stale" role="status">{c.stale}</div>}
           <section className={`card card-pad strategic-verdict ${result.meetsTarget ? 'met' : result.achievable ? 'possible' : 'impossible'}`}>
             <div className="strategic-eyebrow">{c.results} · {run.input.days} {c.days} · {c.targetAmount}: {money(result.targetAmount)}</div>

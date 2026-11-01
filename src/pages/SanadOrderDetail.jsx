@@ -222,8 +222,8 @@ export default function SanadOrderDetail() {
             <div className="ai-conclusion__label">{t('ai_conclusion')}</div>
             <div className="ai-conclusion__text">
               {scan.invoices.length
-                ? `✓ ${scan.invoices.length > 1 ? t('sanad_order_matched_prefix_multi') : t('sanad_order_matched_prefix')}`
-                : `✗ ${t('sanad_order_notfound')}`}
+                ? <><UISymbol name="check" /> {scan.invoices.length > 1 ? t('sanad_order_matched_prefix_multi') : t('sanad_order_matched_prefix')}</>
+                : <><UISymbol name="close" /> {t('sanad_order_notfound')}</>}
             </div>
             {scan.invoices.length > 0 && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
@@ -236,7 +236,7 @@ export default function SanadOrderDetail() {
                     onClick={() => nav(`/invoices?co=${inv.co}`)}
                     title={t('dash_sanad_view_invoice')}
                   >
-                    {inv.id} · {fmtMoney(inv.amount)} SAR →
+                    {inv.id} · {fmtMoney(inv.amount)} SAR <DirectionalIcon />
                   </button>
                 ))}
               </div>
