@@ -270,7 +270,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
   const linesFor = (r) => { const x = r.next(); return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3); };
 
   // contract numbers come in several real-looking forms (CT-yyyy-nnnn, CN-nnnnn, ECN-nnnnn, EDROCN-nnnnn): derived from the contract index only, so no random draw moves
-  const contractNoOf = (c, startY) => ['CT-' + startY + '-' + pad(c * 7 + 13, 4), 'CN-' + (10007 + c * 13), 'ECN-' + (30011 + c * 11), 'EDROCN-' + (50021 + c * 17)][c % 4];
+  // The first two contracts keep the original CT-yyyy-nnnn numbers: the sample order documents (public/samples: EN-6007 and EN-6098 name CT-2023-0020) and the docs refer to them.
+  const contractNoOf = (c, startY) => (c < 2 ? 'CT-' + startY + '-' + pad(c * 7 + 13, 4) : ['CT-' + startY + '-' + pad(c * 7 + 13, 4), 'CN-' + (10007 + c * 13), 'ECN-' + (30011 + c * 11), 'EDROCN-' + (50021 + c * 17)][c % 4]);
   // contract schedule is needed month by month, so build contracts first (parameters only)
   const contracts = st.contracts;
   const horizonN = todayN + 370;

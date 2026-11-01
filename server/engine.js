@@ -4,6 +4,7 @@
 // loops over typed arrays, so a scope change over a million invoices takes tens of
 // milliseconds instead of seconds and the browser never holds the invoices.
 // ============================================================================
+import { overdueDays } from '../src/data/lateness.js';
 import { ENTITIES, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
 import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
@@ -193,7 +194,7 @@ export function derive(ctx, i, asOfN) {
   const overpayment = Math.max(0, received - base);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
   const exclAmt = excluded ? Math.max(0, billed - received) : 0;
-  const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
+  const daysOverdue = overdueDays(ctx.cutoffN, st.due[i], ctx.graceDays); // the single rule: src/data/lateness.js (reported only while an amount is owed)
   D.gross = billed; D.adj = adj; D.billed = billed; D.received = received; D.cancelled = cancelled; D.sourceCancelled = sourceCancelled; D.referredStays = stays; D.enfConflict = conflict; D.overlaps = overlaps; D.cancelledAmount = cancelledAmount;
   // every exclusion (cancelled or rule-excluded) leaves gross exactly once, whatever the number of reasons: exclTotal = billed - net
   D.mask = m; D.nReasons = m ? popcount(m) : 0; D.primaryBit = primaryBit; D.primaryApproved = primaryApproved; D.excluded = excluded;

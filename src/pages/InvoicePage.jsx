@@ -8,6 +8,7 @@ import PdfPreview, { useDocFiles } from '../components/record/PdfPreview';
 import SourceRecordSection from '../components/revenue/SourceRecordSection';
 import { MoneyPanel, PaymentPanel, InfoGroups, SectionNav } from '../components/record/InvoiceParts';
 import { paymentFacts } from '../data/invoicePayments';
+import { contractStatusText } from '../data/contracts';
 import { PayStatusChip, OrderStatusChip, Chip, EnforcementChips, LINK_STATUS_LABEL, CONFLICT_LABEL, SOURCE_LABEL, Enf1Explainer } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { orderPath, contractPath, invoicePath } from '../utils/paths';
@@ -68,7 +69,7 @@ export default function InvoicePage() {
   const reasons = RULE_IDS.filter((_, b) => der.reasonMask & (1 << b)).sort((a, b) => (a === der.primaryRuleId ? -1 : b === der.primaryRuleId ? 1 : 0));
   const records = exclusionRecordsOf(rec);
   const today = rev.cfg.cutoff;
-  const pf = paymentFacts({ payments: rec.payments, dueDate: rec.dueDate, issueDate: rec.issueDate, net: der.net, payStatus: der.payStatus, today });
+  const pf = paymentFacts({ payments: rec.payments, dueDate: rec.dueDate, issueDate: rec.issueDate, net: der.net, payStatus: der.payStatus, today, overdueDays: der.daysOverdue, graceDays: rev.cfg.graceDays || 0 });
   const pendingEx = EXCLUSIONS_AUTO_APPLY ? [] : records.filter((e) => e.reviewStatus === 'pending' || !e.reviewStatus); // S6: reasons apply automatically (a reviewer can still reject one)
   const proposedLinks = enf.proposed;
   const decide = (ruleId, d) => { const r = rev.decideExclusion(id, d, '', ruleId); setMsg(r.ok ? { ok: true, t: L('Analysis decision recorded. It does not imply payment or legal approval.', 'سُجّل القرار التحليلي. ولا يعني سداداً ولا اعتماداً قانونياً.') } : { ok: false, t: B(ERR[r.error] || ERR.no_permission) }); };
@@ -164,7 +165,7 @@ export default function InvoicePage() {
         // IIM-33 — one block per source system, shown only when the invoice has data from it (empty fields are hidden)
         (rec.revenueSource === 'investment' || im.mainClass === MAIN.investment) && { title: L('Furas data', 'بيانات فرص'), items: [
           rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
-          rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
+          rec.co && card && { k: L('Contract status', 'حالة العقد'), v: contractStatusText(card.status, B, L) },
           !rec.co && rec.contract?.status && rec.contract.status !== 'not_applicable' && { k: L('Contract in Furas', 'العقد في فرص'), v: L(CONTRACT_STATE[rec.contract.status]?.en || rec.contract.status, CONTRACT_STATE[rec.contract.status]?.ar || rec.contract.status) },
           rec.co && myPay && card && { k: L('Instalment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Instalment ${myPay.no} of ${card.schedule.length}` },
           rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true },
@@ -331,7 +332,7 @@ export default function InvoicePage() {
           <Facts items={[
             { k: L('Linked to a contract', 'مرتبطة بعقد'), v: rec.co ? L('Yes', 'نعم') : L('No', 'لا') },
             rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
-            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : card.tenantEn }, rec.co && card && { k: L('Contract status', 'حالة العقد'), v: card.status },
+            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : card.tenantEn }, rec.co && card && { k: L('Contract status', 'حالة العقد'), v: contractStatusText(card.status, B, L) },
             rec.co && myPay && card && { k: L('Payment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Payment ${myPay.no} of ${card.schedule.length}` },
             rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true }
           ].filter(Boolean)} />

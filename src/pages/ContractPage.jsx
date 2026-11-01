@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
-import { INSTALLMENT_STATES, INSTALLMENT_STATE_HELP, TIMELINE_SEGMENTS, DATA_STATE } from '../data/contracts';
+import { INSTALLMENT_STATES, INSTALLMENT_STATE_HELP, TIMELINE_SEGMENTS, DATA_STATE, contractStatusText } from '../data/contracts';
 import { ProvenanceBadge } from '../components/revenue/RevenueUI';
 import { ratioText } from '../utils/bi';
 import Pager from '../components/Pager';
@@ -47,7 +47,7 @@ export default function ContractPage() {
   return (
     <div className="rp">
       <RecordHeader crumbs={crumbs} ret={ret} kind={L('Contract', 'عقد')} title={c.contractNo}
-        statuses={<><StatusGroup label={L('Contract status (source)', 'حالة العقد (المصدر)')}>{c.status ? <span className="rv-tag">{c.status}</span> : <span className="muted">{B(DATA_STATE.unknown)}</span>}</StatusGroup>
+        statuses={<><StatusGroup label={L('Contract status (source)', 'حالة العقد (المصدر)')}><span className={c.status ? 'rv-tag' : 'muted'}>{contractStatusText(c.status, B, L)}</span></StatusGroup>
           {c.termEnded && <StatusGroup label={L('Term', 'مدة العقد')}><span className="rv-tag">{L(`Term ended on ${c.end}`, `انتهت المدة في ${c.end}`)}</span></StatusGroup>}
           <ProvenanceBadge kind="demo" /></>} />
       <Figures label={L('Contract summary', 'ملخص العقد')} items={[
@@ -72,7 +72,7 @@ export default function ContractPage() {
           {segDef.map((g) => <button key={g.key} type="button" className={`btn btn-sm${g.key === active.key ? ' btn-primary' : ''}`} aria-pressed={g.key === active.key} disabled={!g.n} onClick={() => { setSeg(g.key); setPage(0); }}>{B(g)} · {count(g.n)}</button>)}
         </div>
         <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Payments and invoices', 'الدفعات والفواتير')}>
-          <thead><tr><th>{L('Installment', 'الدفعة')}</th><th>{L('Due date', 'الاستحقاق')}</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Invoice issued', 'تاريخ إصدار الفاتورة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th className="num">{L('Collected', 'المحصّل')}</th><th className="num">{L('Remaining', 'المتبقي')}</th><th>{L('Paid', 'السداد')}</th><th>{L('State', 'الحالة')}</th></tr></thead>
+          <thead><tr><th>{L('Installment', 'الدفعة')}</th><th>{L('Due date', 'الاستحقاق')}</th><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Invoice issued', 'تاريخ إصدار الفاتورة')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th className="num" title={L('Read from the installment’s invoice (Tahseel in production; illustrative in this demo)', 'تُقرأ من فاتورة الدفعة (تحصيل في الإنتاج؛ توضيحية في هذا العرض)')}>{L('Collected (from the invoice)', 'المحصّل (من الفاتورة)')}</th><th className="num" title={L('Invoice amount still owed; not a Furas field', 'مبلغ الفاتورة المتبقي؛ وليس حقلاً من فرص')}>{L('Remaining (from the invoice)', 'المتبقي (من الفاتورة)')}</th><th>{L('Paid', 'السداد')}</th><th>{L('State', 'الحالة')}</th></tr></thead>
           <tbody>{shown.map((p) => {
             const e = p.invoiceNo ? idx.get(p.invoiceNo) : null; const isOpen = openRows.has(p.no);
             return (
@@ -86,12 +86,12 @@ export default function ContractPage() {
                   <td className="num" dir="ltr">{val(p.collected, p)}</td>
                   <td className="num" dir="ltr">{val(p.outstanding, p)}</td>
                   <td>{p.paidInFullOn ? <>{L('Paid in full', 'سُدّدت كاملة')} <span dir="ltr">{p.paidInFullOn}</span></> : p.lastPaymentOn ? <>{L('Last payment', 'آخر سداد')} <span dir="ltr">{p.lastPaymentOn}</span></> : p.invoiced ? <span className="muted">{L('no payment yet', 'لا سداد بعد')}</span> : <span className="muted">{p.dataState === 'not_applicable' ? '—' : B(DATA_STATE.unknown)}</span>}</td>
-                  <td><span className={`rv-badge rv-badge--sm rv-badge--${INSTALLMENT_STATES[p.state]?.tone || 'mute'}`}>{INSTALLMENT_STATES[p.state] ? B(INSTALLMENT_STATES[p.state]) : `${L('Unrecognised state', 'حالة غير معروفة')}: ${p.state}`}</span>{p.daysOverdue > 0 && <div className="muted" style={{ fontSize: 12 }}>{L(`${p.daysOverdue} day(s) late`, `متأخرة ${p.daysOverdue} يوماً`)}</div>}{e && e.orders.length > 0 && <div style={{ fontSize: 12 }}>{e.orders.map((o) => <div key={o.enforceNum}><RecordLink to={orderPath(o.enforceNum)} dir="ltr">{o.enforceNum}</RecordLink> <OrderStatusChip status={o.orderStatus} />{e.proposed.some((x) => x.enforceNum === o.enforceNum) && <span className="rv-tag rv-tag--warn">{L('proposed', 'مقترح')}</span>}</div>)}</div>}</td>
+                  <td><span className={`rv-badge rv-badge--sm rv-badge--${INSTALLMENT_STATES[p.state]?.tone || 'mute'}`}>{INSTALLMENT_STATES[p.state] ? B(INSTALLMENT_STATES[p.state]) : `${L('Unrecognised state', 'حالة غير معروفة')}: ${p.state}`}</span>{p.daysOverdue > 0 && <div className="muted" style={{ fontSize: 12 }}>{L(`${p.daysOverdue} day(s) overdue unpaid`, `غير مسددة منذ ${p.daysOverdue} يوماً بعد الاستحقاق`)}</div>}{e && e.orders.length > 0 && <div style={{ fontSize: 12 }}>{e.orders.map((o) => <div key={o.enforceNum}><RecordLink to={orderPath(o.enforceNum)} dir="ltr">{o.enforceNum}</RecordLink> <OrderStatusChip status={o.orderStatus} />{e.proposed.some((x) => x.enforceNum === o.enforceNum) && <span className="rv-tag rv-tag--warn">{L('proposed', 'مقترح')}</span>}</div>)}</div>}</td>
                 </tr>
                 {isOpen && <tr><td colSpan={9}>
                   {p.payments.length ? (
                     <table aria-label={L(`Payments of installment ${p.no}`, `مدفوعات الدفعة ${p.no}`)}><thead><tr><th>{L('Payment date', 'تاريخ السداد')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Channel', 'القناة')}</th><th className="num">{L('Cumulative', 'التراكمي')}</th><th>{L('Against the due date', 'مقارنة بالاستحقاق')}</th></tr></thead>
-                      <tbody>{p.payments.map((x, k) => <tr key={k}><td dir="ltr">{x.date}</td><td className="num" dir="ltr">{sar(x.amount)}</td><td>{x.channel}</td><td className="num" dir="ltr">{sar(x.cumulative)}</td><td>{dayText(x.daysAfterDue)}</td></tr>)}</tbody></table>
+                      <tbody>{p.payments.map((x, k) => <tr key={k}><td dir="ltr">{x.date}</td><td className="num" dir="ltr">{sar(x.amount)}</td><td>{x.channel}</td><td className="num" dir="ltr">{sar(x.cumulative)}</td><td>{dayText(x.daysAfterDue)}{rev.cfg.graceDays > 0 && x.lateBy > 0 ? ` · ${L(`${x.lateBy} day(s) beyond the grace period`, `${x.lateBy} يوماً بعد مهلة السماح`)}` : ''}</td></tr>)}</tbody></table>
                   ) : <div className="muted">{L('No payment is recorded for this invoice up to the reference date.', 'لا سداد مسجّل لهذه الفاتورة حتى التاريخ المرجعي.')}</div>}
                   {p.exclusion > 0 && <div className="muted" style={{ fontSize: 12 }}>{L(`Excluded amount ${sar(p.exclusion)} — it stays visible and is not counted in net invoiced.`, `المبلغ المستبعد ${sar(p.exclusion)} — يبقى ظاهراً ولا يُحسب في صافي المفوتر.`)}</div>}
                 </td></tr>}

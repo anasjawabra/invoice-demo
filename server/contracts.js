@@ -7,6 +7,7 @@
 // No date is derived as «due − 10»: an invoice date is the invoice's own issue date, otherwise «not invoiced».
 import { ENTITIES, ITEMS, CR_STATUS, CHANNELS, isoOf, municipalityOf } from '../src/data/catalog.js';
 import { ratio } from '../src/data/revenueMetrics.js';
+import { openOverdueDays, paymentLateness } from '../src/data/lateness.js';
 import { makeCtx, derive, idOf } from './engine.js';
 import { payerName, sadadOf, beneficiaryIdOf } from './names.js';
 
@@ -22,12 +23,13 @@ function stateOf(D) {
 }
 
 // the payment events of an invoice up to the reference date, with the running total and the position against the due date
-function paymentEvents(st, inv, dueN, asOfN) {
+function paymentEvents(st, inv, dueN, asOfN, grace) {
   const out = []; let cum = 0;
   for (let p = st.payStart[inv]; p < st.payStart[inv] + st.payCount[inv]; p += 1) {
     if (st.pDay[p] > asOfN) continue;
     cum += st.pAmt[p];
-    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: st.pDay[p] - dueN });
+    const late = paymentLateness(st.pDay[p], dueN, grace);
+    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: late.offset, lateBy: late.lateBy }); // payment lateness (src/data/lateness.js): the plain offset and the days beyond the grace period
   }
   return out;
 }
@@ -36,15 +38,15 @@ function cardOf(st, ctx, ct) {
   const D = ctx.D; const today = ctx.cutoffN; const dataStart = st.dataStartN || 0;
   const schedule = ct.sched.map((d) => {
     const yearOf = Number(isoOf(d.due).slice(0, 4));
-    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance };
+    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount }; // no scheduled-balance column: no confirmed source supports one yet (review D4, deferred)
     if (d.inv >= 0) {
       derive(ctx, d.inv, today);
-      const events = paymentEvents(st, d.inv, st.due[d.inv], today);
+      const events = paymentEvents(st, d.inv, st.due[d.inv], today, ctx.graceDays);
       const net = D.net; const full = D.outstanding <= 0 && !D.excluded && !D.cancelled && D.billed > 0 && D.received >= D.billed;
       const paidInFull = full ? events.find((e) => e.cumulative >= D.billed - 0.5) : null;
       return { ...base, dueDate: isoOf(st.due[d.inv]), issueDate: isoOf(st.issue[d.inv]), invoiced: true, invoiceNo: idOf(st, d.inv), sadadNo: sadadOf(st.idKey[d.inv]), state: stateOf(D), dataState: 'known',
         gross: D.billed, exclusion: D.exclTotal, net, collected: D.collected, outstanding: D.outstanding,
-        daysOverdue: D.excluded || D.cancelled || D.outstanding <= 0 ? null : D.daysOverdue, // days late only for an open, non-excluded invoice
+        daysOverdue: openOverdueDays(D), // overdue UNPAID days: only while an amount is owed and the invoice is neither excluded nor cancelled
         payments: events, firstPaymentOn: events.length ? events[0].date : null, lastPaymentOn: events.length ? events[events.length - 1].date : null, paidInFullOn: paidInFull ? paidInFull.date : null };
     }
     const hist = d.hist || d.due < dataStart;

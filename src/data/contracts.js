@@ -55,3 +55,12 @@ export const DATA_STATE = {
   not_applicable: { ar: 'لا ينطبق بعد', en: 'Not applicable yet' },
   unknown: { ar: 'غير متاح من المصدر', en: 'Not available from source' }
 };
+
+// The contract status is the SOURCE's own value, shown verbatim in the language it was recorded in; the two values of the demo feed get a plain-language label and anything else is shown as received and marked unrecognised.
+// Nothing is inferred from dates (a term that has ended is a separate fact, «term ended on …»).
+export const CONTRACT_STATUS_LABEL = { 'ساري': { ar: 'ساري', en: 'Active' }, 'موقوف': { ar: 'موقوف', en: 'Suspended' } };
+export const contractStatusText = (status, B, L) => {
+  if (!status) return L('Not provided by source', 'غير متاح من المصدر');
+  const m = CONTRACT_STATUS_LABEL[status];
+  return m ? B(m) : `${status} (${L('unrecognised source value', 'قيمة مصدر غير معروفة')})`;
+};

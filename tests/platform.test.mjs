@@ -29,6 +29,10 @@ import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/re
 import { list, exportChunks, worklist, anomalies, resolveSearch } from '../server/lists.js';
 import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
 import { paymentFacts } from '../src/data/invoicePayments.js';
+import { overdueDays, paymentLateness } from '../src/data/lateness.js';
+import { handleApi } from '../server/api.js';
+import { ENTITIES as ENT_LIST } from '../src/data/catalog.js';
+const ENT_NAME = (i) => ENT_LIST[i % ENT_LIST.length].en;
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
 import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
@@ -57,7 +61,7 @@ import { SOURCE_FIELDS, SOURCE_STATUSES, DEBTOR_TYPES, EXECUTION_TYPES, statusBy
 import { migrateIdScheme, restoreLegacyRecord, ID_SCHEME, isGeneratedRangeId } from '../src/data/orderMatching.js';
 import { loadEnforcement } from '../src/data/enforcementStore.js';
 import { reviewStatusOf, REVIEW_LABEL, orderAlerts, nextActionOf, statusGroupCounts, orderSearchBlob, normalizeSearch } from '../src/data/orderSummary.js';
-import { contractCards } from '../server/contracts.js';
+import { contractCards, contractRollup } from '../server/contracts.js';
 import { SOURCES, dayNum } from '../src/data/catalog.js';
 import { amanahOptionsOf } from '../src/data/revenueLedger.js';
 
@@ -282,6 +286,59 @@ await test('payment events: each invoiced installment lists its own events in da
     if (p.state === 'paid' || p.state === 'excluded' || p.state === 'cancelled') assert.equal(p.daysOverdue, null, 'days late only for an open invoice');
   }
   assert.ok(events > 100 && full > 100);
+});
+await test('lateness has ONE definition: overdue unpaid days (grace included, open invoices only) and payment lateness (offset and days beyond grace) are different things', () => {
+  assert.equal(overdueDays(10, 5, 0), 5); assert.equal(overdueDays(10, 5, 3), 2); assert.equal(overdueDays(7, 5, 3), 0); assert.equal(overdueDays(3, 5, 0), 0);
+  assert.deepEqual(paymentLateness(8, 5, 3), { offset: 3, lateBy: 0 }); assert.deepEqual(paymentLateness(12, 5, 3), { offset: 7, lateBy: 4 }); assert.deepEqual(paymentLateness(2, 5, 3), { offset: -3, lateBy: 0 });
+  // the payment panel takes the engine's overdue days (grace included) instead of recomputing from the due date
+  const base = { dueDate: '2026-05-01', issueDate: '2026-04-01', net: 100, today: '2026-06-01' };
+  assert.equal(paymentFacts({ ...base, payStatus: 'overdue', payments: [], overdueDays: 27, graceDays: 4 }).daysOverdue, 27);
+  assert.equal(paymentFacts({ ...base, payStatus: 'overdue', payments: [], graceDays: 4 }).daysOverdue, 27, 'fallback uses the same rule with the grace period');
+  assert.equal(paymentFacts({ ...base, payStatus: 'collected', payments: [{ date: '2026-05-10', amount: 100 }], overdueDays: 27, graceDays: 4 }).daysOverdue, 0, 'a settled invoice owes nothing: no overdue days');
+  const row = paymentFacts({ ...base, payStatus: 'collected', payments: [{ date: '2026-05-10', amount: 100 }], graceDays: 4 }).rows[0]; assert.equal(row.offset, 9); assert.equal(row.lateBy, 5);
+  // contract installments: overdue days only for an open invoice; each payment event carries its own lateness
+  const withGrace = contractCards(st, { cfg: { cutoff: TODAY, graceDays: 5 } }, { summary: false }); let open = 0;
+  for (const c of withGrace) for (const p of c.schedule) {
+    if (!p.invoiced) { assert.equal(p.daysOverdue, null); continue; }
+    if (p.outstanding > 0 && p.state !== 'excluded' && p.state !== 'cancelled') { open += 1; assert.equal(p.daysOverdue, Math.max(0, dayNum(TODAY) - (dayNum(p.dueDate) + 5))); } else assert.equal(p.daysOverdue, null);
+    for (const e of p.payments) assert.equal(e.lateBy, Math.max(0, e.daysAfterDue - 5));
+  }
+  assert.ok(open > 0);
+});
+await test('contract access and caching: a scoped request never returns another entity’s contract, and a cached answer for one scope is never served to another', async () => {
+  const cts = st.contracts.filter(Boolean); const ct = cts[2]; const own = ENT_NAME(ct.ent); const other = ENT_NAME((ct.ent + 1) % 18);
+  const call = (path, body, hdrs = {}) => new Promise((resolve) => { const res = { writeHead(c) { this.code = c; }, end(b) { resolve({ code: this.code, body: JSON.parse(b) }); } }; handleApi({ method: 'POST', url: `/api${path}`, headers: { 'x-demo-today': TODAY, ...hdrs }, body: JSON.parse(JSON.stringify(body)) }, res); });
+  const req = (org, extra = {}) => ({ scope: { from: '2000-01-01', to: TODAY, org: org ? { amanahKeys: org } : null }, cfg: { cutoff: TODAY }, no: ct.contractNo, ...extra });
+  const hq = await call('/contract', req(null)); assert.equal(hq.code, 200); assert.equal(hq.body.contractNo, ct.contractNo);
+  const denied = await call('/contract', req([other])); assert.equal(denied.code, 404, 'another entity\'s scope cannot read it (not even after the HQ answer was cached)');
+  const allowed = await call('/contract', req([own])); assert.equal(allowed.code, 200);
+  assert.equal((await call('/contract', req([other]))).code, 404, 'repeat of the denied request, now that two other answers are cached');
+  assert.equal((await call('/contract', req(null))).code, 200); assert.equal((await call('/contract', req([own, other]))).code, 200);
+  const sess = await call('/contract', req(null), { 'x-session': 'another-user' }); assert.equal(sess.code, 200, 'a different session has its own cache entry and the same entitlement');
+  const listOther = await call('/contracts', { scope: { from: '2000-01-01', to: TODAY, org: { amanahKeys: [other] } }, cfg: { cutoff: TODAY } });
+  assert.ok(listOther.body.cards.every((c) => c.amanahEn === other)); assert.ok(!listOther.body.cards.some((c) => c.contractNo === ct.contractNo));
+  const listHq = await call('/contracts', { scope: { from: '2000-01-01', to: TODAY, org: null }, cfg: { cutoff: TODAY } }); assert.ok(listHq.body.cards.some((c) => c.contractNo === ct.contractNo));
+  assert.equal(listHq.body.rollup.contracts, listHq.body.cards.length); assert.ok(listHq.body.cards.length > listOther.body.cards.length);
+});
+await test('contract totals and the rate match the invoice CSV export of the same contract (independent code path), and the list roll-up is the sum of its cards', () => {
+  const cards = contractCards(st, { cfg }, { summary: false }).filter((c) => c.totals.invoicedInstallments > 0);
+  const scope = { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all' };
+  for (const c of cards.slice(0, 30)) {
+    const text = [...exportChunks(st, { scope, cfg, filters: { search: c.contractNo, allPeriods: true } }, 4000)].join('');
+    const lines = text.split('\n').filter((l) => l && !l.startsWith('\ufeff#') && !l.startsWith('# ')); const cols = lines[0].split(','); const ci = (n) => cols.indexOf(n);
+    const sum = (n) => lines.slice(1).reduce((t, l) => t + Number(l.split(',')[ci(n)] || 0), 0);
+    assert.equal(lines.length - 1, c.totals.invoicedInstallments, `${c.contractNo}: the export lists exactly the contract's invoices`);
+    for (const [col, key] of [['amount_sar', 'gross'], ['exclusions_sar', 'exclusions'], ['net_billed_sar', 'net'], ['collected_sar', 'collected'], ['uncollected_sar', 'uncollected']]) assert.ok(Math.abs(sum(col) - c.totals[key]) < 0.5, `${c.contractNo} ${key}: export ${sum(col)} vs card ${c.totals[key]}`);
+    const rate = sum('net_billed_sar') > 0 ? sum('collected_sar') / sum('net_billed_sar') : null; assert.ok(rate == null ? !c.totals.collectionRateOnNet.calculable : Math.abs(rate - c.totals.collectionRateOnNet.value) < 1e-9);
+  }
+  const all = contractCards(st, { cfg }); const ru = contractRollup(all);
+  for (const k of ['gross', 'exclusions', 'net', 'collected', 'uncollected', 'arrears', 'notDue']) assert.ok(Math.abs(ru[k] - all.reduce((t, c) => t + (c.totals[k] ?? 0), 0)) < 0.5, k);
+  assert.ok(Math.abs(ru.collectionRateOnNet.value - ru.collected / ru.net) < 1e-9);
+});
+await test('the sample order documents keep pointing at a real contract: the numbers they name exist, the deliberate «not found» fixture does not', () => {
+  const ct = contractByNumber(st, 'CT-2023-0020'); assert.ok(ct && ct.invs.length > 0, 'EN-6007 / EN-6098 (public/samples/enforcement-orders) name CT-2023-0020');
+  assert.equal(contractByNumber(st, 'CT-2026-0087'), null, 'CT-2026-0087 is the number the sample PDFs and extraction tests use for «not in the contract data»');
+  const compact = loadStore(TODAY, { size: 'compact' }); assert.ok(contractByNumber(compact, 'CT-2023-0020'), 'the compact demo too'); assert.equal(contractByNumber(compact, 'CT-2026-0087'), null);
 });
 await test('contract numbers come in several forms and each is found by an exact lookup (no format is assumed); an unknown number finds no contract', () => {
   const cts = st.contracts.filter(Boolean); const prefixes = new Set(cts.map((c) => c.contractNo.split('-')[0])); assert.ok(prefixes.size >= 3, [...prefixes].join(','));
