@@ -269,6 +269,8 @@ export function generateWorld(today, { scale = 1 } = {}) {
   const finesItems = ['building_violations', 'signage_violations', 'health_violations'].map((k) => ITEM_INDEX[k]);
   const linesFor = (r) => { const x = r.next(); return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3); };
 
+  // contract numbers come in several real-looking forms (CT-yyyy-nnnn, CN-nnnnn, ECN-nnnnn, EDROCN-nnnnn): derived from the contract index only, so no random draw moves
+  const contractNoOf = (c, startY) => ['CT-' + startY + '-' + pad(c * 7 + 13, 4), 'CN-' + (10007 + c * 13), 'ECN-' + (30011 + c * 11), 'EDROCN-' + (50021 + c * 17)][c % 4];
   // contract schedule is needed month by month, so build contracts first (parameters only)
   const contracts = st.contracts;
   const horizonN = todayN + 370;
@@ -290,7 +292,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const crRoll = r.next(); const crSt = crRoll < 0.9 ? 1 : crRoll < 0.94 ? 2 : crRoll < 0.97 ? 3 : 4;
     const status = r.next() < 0.06 ? 'موقوف' : 'ساري';
     const end = start + Math.round(term * 365);
-    const ct = { future: start > todayN, idx: c, contractNo: `CT-${startY}-${pad(c * 7 + 13, 4)}`, ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), crNo: `10${pad(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], invs: [], totalValue: 0 };
+    const ct = { future: start > todayN, idx: c, contractNo: contractNoOf(c, startY), ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), annualValue: Math.round(annual), crNo: `10${pad(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], sched: [], invs: [], totalValue: 0 };
     let y = startY; let m = startMonth; let no = 0;
     for (let g = 0; g < 600; g += 1) {
       if ((((m - anchor) % mixMonths) + mixMonths) % mixMonths === 0) {
@@ -299,18 +301,20 @@ export function generateWorld(today, { scale = 1 } = {}) {
           const yearsIn = Math.floor((dueN - start) / 365);
           const amount = Math.round(((annual * mixMonths) / 12) * Math.pow(1.03, yearsIn) / 10) * 10;
           no += 1; ct.totalValue += amount;
+          let d = { no, due: dueN, amount, inv: -1 };
           if (dueN - 10 >= startN - 10 && dueN <= horizonN) {
-            const d = { no, due: dueN, amount, inv: -1 };
-            ct.dues.push(d);
+            ct.dues.push(d); // the invoicing window: only these installments can have an invoice in the generated ledger
             const issueN = dueN - 10;
+            if (issueN < startN) d.hist = true; // its invoice would fall before the generated ledger starts: outside the data range
             if (issueN >= startN && issueN <= todayN + 40) { const ym = isoOf(issueN).slice(0, 7); if (!instByMonth.has(ym)) instByMonth.set(ym, []); instByMonth.get(ym).push([c, ct.dues.length - 1]); }
           }
+          ct.sched.push(d); // the WHOLE schedule, from the first installment to the contract end (no random draw, no effect on invoices)
         }
       }
       m += 1; if (m > 12) { m = 1; y += 1; }
-      if (dayNum(`${y}-${pad(m, 2)}-01`) > horizonN) break;
+      if (dayNum(`${y}-${pad(m, 2)}-01`) > end) break;
     }
-    if (ct.dues.length) { let rem = ct.totalValue; for (const d of ct.dues) { rem -= d.amount; d.balance = Math.max(0, rem); } }
+    if (ct.sched.length) { let rem = ct.totalValue; for (const d of ct.sched) { rem -= d.amount; d.balance = Math.max(0, rem); } }
     contracts.push(ct);
   }
 
@@ -519,6 +523,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
     for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) { twin(i, st.issue[i], true); made += 1; }
     let rep = 0; for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) { twin(i, st.issue[i] + 365, false); rep += 1; } }
   st.nGen = st.n;
+  st.dataStartN = startN; // first day of the generated ledger: installments due before it have no invoice in the data range
 
   /* ===================== D. Sanad execution requests (contract level) + CR extraction ===================== */
   let reqCount = 0;

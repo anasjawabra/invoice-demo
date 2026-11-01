@@ -148,9 +148,8 @@ export default function InvoicePage() {
         ] },
         { title: L('Beneficiary', 'المستفيد'), items: [
           im.beneficiary?.id && { k: L('ID type', 'نوع هوية المستفيد'), v: ar ? im.beneficiary.idType.ar : im.beneficiary.idType.en },
-          im.beneficiary?.id && { k: L('Beneficiary ID', 'هوية المستفيد'), v: im.beneficiary.id, ltr: true },
-          { k: L('Beneficiary name', 'اسم المستفيد'), v: ar ? im.beneficiary?.name?.ar : im.beneficiary?.name?.en },
-          im.beneficiary?.mobile && { k: L('Beneficiary mobile', 'جوال المستفيد'), v: im.beneficiary.mobile, ltr: true }
+          im.beneficiary?.id && { k: L('Beneficiary ID (masked)', 'هوية المستفيد (مقنّعة)'), v: String(im.beneficiary.id).length > 4 ? '•'.repeat(String(im.beneficiary.id).length - 4) + String(im.beneficiary.id).slice(-4) : '••••', ltr: true },
+          { k: L('Beneficiary name', 'اسم المستفيد'), v: ar ? im.beneficiary?.name?.ar : im.beneficiary?.name?.en }
         ] },
         { title: L('Dates and amounts', 'التواريخ والمبالغ'), items: [
           { k: L('Issue date', 'تاريخ إصدار الفاتورة'), v: fmtDateText(rec.issueDate, ar ? 'ar' : 'en') },

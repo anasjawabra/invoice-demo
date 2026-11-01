@@ -1,5 +1,12 @@
 // Furas contracts ↔ invoices ↔ Sanad execution requests, computed from the columnar store.
-import { ENTITIES, ITEMS, CR_STATUS, isoOf, municipalityOf } from '../src/data/catalog.js';
+// The schedule is the WHOLE contract (first installment to the contract end). An installment is in one of four data situations — never a silent zero:
+//   · invoiced     → its invoice is linked: amounts, dates and payment events are read from that invoice (dataState 'known')
+//   · upcoming     → due after the reference date and not invoiced yet (dataState 'not_applicable')
+//   · due, no linked invoice → due on or before the reference date and no invoice is linked to this contract (dataState 'unknown': collection cannot be read)
+//   · before the data range → due before the generated ledger starts: nothing is recorded (dataState 'unknown')
+// No date is derived as «due − 10»: an invoice date is the invoice's own issue date, otherwise «not invoiced».
+import { ENTITIES, ITEMS, CR_STATUS, CHANNELS, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ratio } from '../src/data/revenueMetrics.js';
 import { makeCtx, derive, idOf } from './engine.js';
 import { payerName, sadadOf, beneficiaryIdOf } from './names.js';
 
@@ -14,55 +21,89 @@ function stateOf(D) {
   return 'not_due';
 }
 
+// the payment events of an invoice up to the reference date, with the running total and the position against the due date
+function paymentEvents(st, inv, dueN, asOfN) {
+  const out = []; let cum = 0;
+  for (let p = st.payStart[inv]; p < st.payStart[inv] + st.payCount[inv]; p += 1) {
+    if (st.pDay[p] > asOfN) continue;
+    cum += st.pAmt[p];
+    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: st.pDay[p] - dueN });
+  }
+  return out;
+}
+
 function cardOf(st, ctx, ct) {
-  const D = ctx.D; const today = ctx.cutoffN;
-  const schedule = ct.dues.map((d) => {
-    const issueN = d.due - 10;
-    if (d.inv < 0) return { no: d.no, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance, invoiceNo: null, sadadNo: null, state: issueN <= today ? 'unlinked' : 'future', invoiced: false, collected: 0, outstanding: 0 };
-    derive(ctx, d.inv, today);
-    return { no: d.no, dueDate: isoOf(st.due[d.inv]), issueDate: isoOf(st.issue[d.inv]), amount: d.amount, remainingContractBalance: d.balance, invoiceNo: idOf(st, d.inv), sadadNo: sadadOf(st.idKey[d.inv]), invoiceIdx: d.inv, state: stateOf(D), invoiced: true, collected: D.collected, outstanding: D.outstanding, daysOverdue: D.daysOverdue };
+  const D = ctx.D; const today = ctx.cutoffN; const dataStart = st.dataStartN || 0;
+  const schedule = ct.sched.map((d) => {
+    const yearOf = Number(isoOf(d.due).slice(0, 4));
+    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance };
+    if (d.inv >= 0) {
+      derive(ctx, d.inv, today);
+      const events = paymentEvents(st, d.inv, st.due[d.inv], today);
+      const net = D.net; const full = D.outstanding <= 0 && !D.excluded && !D.cancelled && D.billed > 0 && D.received >= D.billed;
+      const paidInFull = full ? events.find((e) => e.cumulative >= D.billed - 0.5) : null;
+      return { ...base, dueDate: isoOf(st.due[d.inv]), issueDate: isoOf(st.issue[d.inv]), invoiced: true, invoiceNo: idOf(st, d.inv), sadadNo: sadadOf(st.idKey[d.inv]), state: stateOf(D), dataState: 'known',
+        gross: D.billed, exclusion: D.exclTotal, net, collected: D.collected, outstanding: D.outstanding,
+        daysOverdue: D.excluded || D.cancelled || D.outstanding <= 0 ? null : D.daysOverdue, // days late only for an open, non-excluded invoice
+        payments: events, firstPaymentOn: events.length ? events[0].date : null, lastPaymentOn: events.length ? events[events.length - 1].date : null, paidInFullOn: paidInFull ? paidInFull.date : null };
+    }
+    const hist = d.hist || d.due < dataStart;
+    const state = hist ? 'history' : d.due > today ? 'future' : 'unlinked';
+    return { ...base, issueDate: null, invoiced: false, invoiceNo: null, sadadNo: null, state, dataState: state === 'future' ? 'not_applicable' : 'unknown',
+      gross: null, exclusion: null, net: null, collected: null, outstanding: null, daysOverdue: null, payments: [], firstPaymentOn: null, lastPaymentOn: null, paidInFullOn: null };
   });
-  const sum = (f) => schedule.reduce((s, x) => s + f(x), 0);
+  const sum = (f) => schedule.reduce((s, x) => s + (f(x) || 0), 0);
+  const count = (f) => schedule.filter(f).length;
   const reqs = st.requests.filter((q) => q.contractIdx === ct.idx).map((q) => {
     const ids = q.identified.map((i) => idOf(st, i));
-    return { enforceNum: q.enforceNum, system: 'sanad', amount: q.amount, openedDate: isoOf(q.openedDay), status: q.status, contractNo: ct.contractNo, identifiedInvoices: ids, identified: ids.length > 0, crViewStatusRaw: CR_STATUS[ct.crSt], addedToNetUncollected: false, documents: [{ type: 'فاتورة', item: `بند ١ — ${payerName(ct.payer).ar}`, crNo: q.crNo, method: METHOD[q.method], confidence: q.confidence }] };
+    return { enforceNum: q.enforceNum, system: 'sanad', amount: q.amount, openedDate: isoOf(q.openedDay), closedDate: null, closedDateStatus: 'not_recorded', status: q.status, contractNo: ct.contractNo, identifiedInvoices: ids, identified: ids.length > 0, crViewStatusRaw: CR_STATUS[ct.crSt], addedToNetUncollected: false, documents: [{ type: 'فاتورة', item: `بند ١ — ${payerName(ct.payer).ar}`, crNo: q.crNo, method: METHOD[q.method], confidence: q.confidence }] };
   });
   const linkedDebt = reqs.reduce((s, q) => s + q.identifiedInvoices.reduce((t, id) => t + (schedule.find((x) => x.invoiceNo === id)?.outstanding || 0), 0), 0);
   const arrears = sum((x) => (x.state === 'overdue' || x.state === 'partial' ? x.outstanding : 0));
   const notDue = sum((x) => (x.state === 'not_due' ? x.outstanding : 0));
+  const gross = sum((x) => x.gross); const exclusions = sum((x) => x.exclusion); const net = sum((x) => x.net); const collected = sum((x) => x.collected); const uncollected = sum((x) => x.outstanding);
+  // «due to the reference date» counts only installments inside the data range: invoiced ones and those due with no linked invoice (history rows are unknown, upcoming ones are not due yet)
+  const dueRows = (x) => x.dueDate <= ctx.cfg.cutoff && (x.invoiced || x.state === 'unlinked');
+  const dueToDate = sum((x) => (dueRows(x) ? x.amount : 0));
+  const termEnded = ct.end < today;
   return {
     contractNo: ct.contractNo, idx: ct.idx, amanahEn: ENTITIES[ct.ent].en, amanahAr: ENTITIES[ct.ent].ar, municipalityKey: municipalityOf(ct.ent, ct.muni)?.key, municipalityAr: municipalityOf(ct.ent, ct.muni)?.ar,
     tenantAr: payerName(ct.payer).ar, tenantEn: payerName(ct.payer).en, itemKey: ITEMS[ct.item].key, itemAr: ITEMS[ct.item].ar, itemEn: ITEMS[ct.item].en, start: isoOf(ct.start), end: isoOf(ct.end), intervalMonths: ct.intervalMonths,
-    status: ct.status, crNo: ct.crNo, crStatusRaw: CR_STATUS[ct.crSt] || null, annualValue: ct.annualValue, totalValue: ct.totalValue,
+    status: ct.status, termEnded, crNo: ct.crNo, crStatusRaw: CR_STATUS[ct.crSt] || null, annualValue: ct.annualValue, totalValue: ct.totalValue,
     schedule,
-    invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo), // kept in the summary: which invoices belong to the contract (never inferred — taken from the contract's own schedule)
+    invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo), // which invoices belong to the contract (never inferred — taken from the contract's own schedule)
     totals: {
-      contractValue: ct.totalValue, installments: schedule.length, invoiced: sum((x) => (x.invoiced ? x.amount : 0)), collected: sum((x) => x.collected), arrears, notDue,
-      futureNotInvoiced: sum((x) => (x.state === 'future' ? x.amount : 0)), netUncollected: arrears + notDue,
-      dueToDate: sum((x) => (x.dueDate <= ctx.cfg.cutoff ? x.amount : 0)), remainingOfDue: sum((x) => (x.invoiced && x.dueDate <= ctx.cfg.cutoff ? x.outstanding : 0)),
-      overdueInstallments: schedule.filter((x) => x.state === 'overdue' || x.state === 'partial').length, futureInstallments: schedule.filter((x) => x.state === 'future').length,
-      unlinkedInstallments: schedule.filter((x) => x.state === 'unlinked').length
+      contractValue: ct.totalValue, installments: schedule.length, invoicedInstallments: count((x) => x.invoiced),
+      invoiced: gross, gross, exclusions, net, collected, uncollected, collectionRateOnNet: ratio(collected, net), // net invoiced = gross − exclusions; uncollected = net − collected; rate = collected ÷ net (zero or unknown denominator → not calculable)
+      arrears, notDue, futureNotInvoiced: sum((x) => (x.state === 'future' ? x.amount : 0)), netUncollected: arrears + notDue,
+      dueToDate, collectedOfDueToDate: ratio(collected, dueToDate), remainingOfDue: sum((x) => (x.invoiced && x.dueDate <= ctx.cfg.cutoff ? x.outstanding : 0)),
+      overdueInstallments: count((x) => x.state === 'overdue' || x.state === 'partial'), futureInstallments: count((x) => x.state === 'future'),
+      unlinkedInstallments: count((x) => x.state === 'unlinked'), unlinkedAmount: sum((x) => (x.state === 'unlinked' ? x.amount : 0)), historyInstallments: count((x) => x.state === 'history'),
+      coverage: { installments: schedule.length, known: count((x) => x.dataState === 'known'), notApplicable: count((x) => x.dataState === 'not_applicable'), unknown: count((x) => x.dataState === 'unknown') }
     },
     requests: reqs,
     execution: {
       amount: reqs.reduce((s, q) => s + q.amount, 0), linkedDebt, unidentifiedAmount: reqs.filter((q) => !q.identified).reduce((s, q) => s + q.amount, 0), invoicesIdentified: reqs.some((q) => q.identified), addedToNetUncollected: false,
       note: reqs.length && !reqs.some((q) => q.identified)
         ? { ar: 'طلب التنفيذ مرتبط بالعقد دون فواتير محددة — يُعرض على مستوى العقد ولا يُضاف إلى صافي غير المحصل مرة ثانية.', en: 'Execution request is linked to the contract with no invoices identified — shown at contract level and not added to net uncollected again.' }
-        : reqs.length ? { ar: 'فواتير محددة ضمن طلب التنفيذ تبقى غير محصلة ولا تُحتسب مرتين.', en: 'Invoices identified in the request stay uncollected and are not counted twice.' } : null
+        : reqs.length ? { ar: 'الفواتير المحددة في طلب التنفيذ تُعرض بحالتها الفعلية (قد تكون مستبعدة بقاعدة سند)؛ والطلب نفسه لا يغيّر أي مبلغ ولا يعني تحصيلاً.', en: 'Invoices named in the execution request show their own status (they may be excluded under the Sanad rule); the request itself changes no amount and does not mean collection.' } : null
     },
     crChain: reqs.map((q) => ({ sanadRequest: q.enforceNum, document: `${q.documents[0].type} — ${q.documents[0].item}`, crNo: q.crNo || ct.crNo, method: q.documents[0].method, confidence: q.documents[0].confidence, crViewStatusRaw: CR_STATUS[ct.crSt] || null }))
   };
 }
 
-export function contractCards(st, req, { summary = true } = {}) {
-  const ctx = makeCtx(st, req);
+// scope = the same Amanah / organisation restriction for the list and for a single contract
+const inScope = (req, ct) => {
   const allowed = req.scope?.org?.amanahKeys || req.scope?.orgKeys || null;
   const am = req.scope?.amanah; const picked = am && am !== 'all' ? new Set([].concat(am)) : null;
+  const en = ENTITIES[ct.ent].en;
+  return !(allowed && !allowed.includes(en)) && !(picked && !picked.has(en));
+};
+export function contractCards(st, req, { summary = true } = {}) {
+  const ctx = makeCtx(st, req);
   const out = [];
   for (const ct of st.contracts) {
-    if (!ct) continue;
-    if (allowed && !allowed.includes(ENTITIES[ct.ent].en)) continue;
-    if (picked && !picked.has(ENTITIES[ct.ent].en)) continue;
+    if (!ct || !inScope(req, ct)) continue;
     const c = cardOf(st, ctx, ct);
     if (summary) { c.schedule = undefined; }
     out.push(c);
@@ -72,12 +113,17 @@ export function contractCards(st, req, { summary = true } = {}) {
 export function contractCard(st, req, no) {
   const ctx = makeCtx(st, req);
   const ct = st.contracts.find((c) => c && c.contractNo === no);
-  return ct ? cardOf(st, ctx, ct) : null;
+  return ct && inScope(req, ct) ? cardOf(st, ctx, ct) : null;
 }
 export function contractRollup(cards) {
+  const add = (f) => cards.reduce((s, c) => s + f(c.totals), 0);
+  const gross = add((t) => t.gross); const exclusions = add((t) => t.exclusions); const net = add((t) => t.net); const collected = add((t) => t.collected);
   return {
     contracts: cards.length, multiPayment: cards.filter((c) => c.totals.installments > 1).length,
-    arrears: cards.reduce((s, c) => s + c.totals.arrears, 0), notDue: cards.reduce((s, c) => s + c.totals.notDue, 0), futureNotInvoiced: cards.reduce((s, c) => s + c.totals.futureNotInvoiced, 0),
+    arrears: add((t) => t.arrears), notDue: add((t) => t.notDue), futureNotInvoiced: add((t) => t.futureNotInvoiced),
+    gross, exclusions, net, collected, uncollected: add((t) => t.uncollected), collectionRateOnNet: ratio(collected, net),
+    unlinkedInstallments: add((t) => t.unlinkedInstallments), unlinkedAmount: add((t) => t.unlinkedAmount), historyInstallments: add((t) => t.historyInstallments),
+    coverage: { installments: add((t) => t.coverage.installments), known: add((t) => t.coverage.known), notApplicable: add((t) => t.coverage.notApplicable), unknown: add((t) => t.coverage.unknown) },
     executionAtContractLevel: cards.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0)
   };
 }

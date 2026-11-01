@@ -61,7 +61,7 @@ export function iimDetail(st, i, rec, D) {
   const full = D.collected > 0 && D.outstanding <= 0 && !D.cancelled ? last : null;
   const settle = full ? isoOf(Math.round((Date.parse(full) / 86400000) + 1 + (idKey % 3))) : null; // settlement follows the payment by 1–3 days
   const out = { ...im, exclusion: exclusionOf(D), referenceNo: gen ? subscriptionOf(idKey) : null, requestNo: gen && ['municipal_fees', 'licenses', 'white_lands'].includes(rec.revenueSource) ? REQUEST.of(idKey) : null,
-    beneficiary: { idType: company ? { ar: 'سجل تجاري', en: 'Commercial registration' } : { ar: 'هوية وطنية', en: 'National ID' }, id: rec.beneficiaryId || null, name: { ar: rec.entityAr, en: rec.entityEn }, mobile: gen && !(st.flags[i] & 2) ? mobileOf(st.payer[i]) : null },
+    beneficiary: { idType: company ? { ar: 'سجل تجاري', en: 'Commercial registration' } : { ar: 'هوية وطنية', en: 'National ID' }, id: rec.beneficiaryId || null, name: { ar: rec.entityAr, en: rec.entityEn }, mobile: null /* personal contact data is never sent to the page */ },
     paidDate: full, settlementDate: settle, cancelDate: rec.cancelled?.date || null, revenueAmount: Math.max(0, rec.grossAmount - (rec.vatAmount || 0)),
     disclosure: null, investment: null };
   if (im.invoiceKind) { // tobacco / accommodation (D16)
@@ -70,6 +70,6 @@ export function iimDetail(st, i, rec, D) {
   }
   const outcome = investmentOutcome(st, i, im);
   if (outcome) out.investment = { outcome, causes: outcome === 'not_linked' ? INVESTMENT_NO_CONTRACT_CAUSES : [] };
-  void personName; void nationalIdOf; void payerName; void beneficiaryIdOf; void pk;
+  void personName; void nationalIdOf; void payerName; void beneficiaryIdOf; void mobileOf; void pk;
   return out;
 }

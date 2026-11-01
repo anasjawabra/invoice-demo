@@ -5,7 +5,7 @@ import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { REFERRED_CANCELLED_STAYS_BILLED, OBJECTION_STATUS_OF } from '../src/data/iim.js';
 import { materialize } from './materialize.js';
 import { iimFields, exclusionOf, investmentOutcome, INVOICE_KIND_SHORT_AR } from './iimRow.js';
-import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK, objectionStatusKey } from './engine.js';
+import { makeCtx, resolveScope, derive, recordRiskFlags, inScope, idOf, lookupId, lookupKey, lookupSadad, lowerBound, CLASSES, CLASS_INDEX, agingBucket, TopK, objectionStatusKey, contractByNumber } from './engine.js';
 import { idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerPool, payerName, sadadOf, violationOf, subscriptionOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, parseFacilityKey } from './names.js';
 import { HOUSING_PAYER_BASE, WL_PAYER_BASE } from './world.js';
 import { grpOf, GRP } from '../src/data/catalog.js';
@@ -20,7 +20,7 @@ export function resolveSearch(st, q) {
   // exact invoice id
   const exact = lookupId(st, s); if (exact >= 0) return { list: Int32Array.of(exact) };
   const upper = s.toUpperCase();
-  if (/^CT-\d{4}-\d{4}$/.test(upper)) { const ct = st.contracts.find((c) => c && c.contractNo === upper); return { list: Int32Array.from(ct ? ct.invs : []) }; }
+  { const ct = contractByNumber(st, s); if (ct) return { list: Int32Array.from(ct.invs) }; } // a contract number is found by exact (trimmed, case-folded) match with a known contract: no format is assumed
   if (/^\d{10}$/.test(s)) { const ct = st.contracts.find((c) => c && c.crNo === s); if (ct) return { list: Int32Array.from(ct.invs) }; }
   if (/^\d{12}$/.test(s)) { const l = lookupSadad(st, s); if (l.length) return { list: Int32Array.from(l) }; } // a Sadad number can repeat across billers: every invoice that carries it is returned
   if (/^\d{10}$/.test(s)) { const k = idKeyFromSubscription(s); if (k != null) { const i = lookupKey(st, k); if (i >= 0) return { list: Int32Array.of(i) }; } }

@@ -46,7 +46,7 @@ export function useDecisions() {
     if (!inputs.data || !rev.snapshot) return null;
     const { entityRows, reporting, plan, contracts, noContract, quality } = inputs.data;
     const cards = contracts?.cards || [];
-    const cs = cards.length ? { count: cards.length, arrears: cards.reduce((t, c) => t + c.totals.arrears, 0), overdueInstallments: cards.reduce((t, c) => t + c.totals.overdueInstallments, 0), futureNotInvoiced: cards.reduce((t, c) => t + c.totals.futureNotInvoiced, 0) } : null;
+    const cs = cards.length ? { count: cards.length, arrears: cards.reduce((t, c) => t + c.totals.arrears, 0), overdueInstallments: cards.reduce((t, c) => t + c.totals.overdueInstallments, 0), futureNotInvoiced: cards.reduce((t, c) => t + c.totals.futureNotInvoiced, 0), unlinkedInstallments: cards.reduce((t, c) => t + c.totals.unlinkedInstallments, 0), unlinkedAmount: cards.reduce((t, c) => t + c.totals.unlinkedAmount, 0) } : null;
     const suspended = (rev.cases || []).filter((c) => c.orderStatus === 'suspended' && (sc.amanah === 'all' || [].concat(sc.amanah).includes(c.amanahEn)));
     const rateByKey = new Map(entityRows.map((r) => [r.key, r.collectionRate]));
     const planSec = plan ? planSectionOf({ year, reportingDate: reporting, entityRows, collectedByKey: plan.byAmanah, collectedTotal: plan.total, monthly: plan.monthly, billedMonthly: plan.billedMonthly, standing: plan.standing, yearEnded: reporting === `${year}-12-31` }) : null;

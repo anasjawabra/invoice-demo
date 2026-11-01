@@ -89,7 +89,7 @@ export function materialize(st, i, ctx = null) {
     workflowStatus: 'normal',
     objection: flags & F.OBJECTION ? { open: true, ref: `OBJ-${String(idKey % 1e7).padStart(7, '0')}`, system: 'momtathil', status: objectionStatusKey(st, i), statusAr: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].ar, statusEn: OBJECTION_STATUS_OF[objectionStatusKey(st, i)].en } : null,
     enforcementLinks: [], contract: { required: src.key === 'investment', status: CSTAT[st.cstat[i]], ref: ct && st.cstat[i] === 1 ? ct.contractNo : null },
-    contractPaymentNo: st.inst[i] || null, contractPaymentTotal: ct ? ct.dues.length : null,
+    contractPaymentNo: st.inst[i] || null, contractPaymentTotal: ct ? ct.sched.length : null,
     exclusion: exclusions[0] || null, exclusions, cancelled,
     violationNumber: src.key === 'fines' ? violationOf(idKey) : null, subscriptionNo: subscriptionOf(idKey), sadadNo: sadadOf(idKey),
     crNo: ct && st.crSt[i] ? ct.crNo : null, crStatusRaw: CR_STATUS[st.crSt[i]] || null,

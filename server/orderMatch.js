@@ -4,7 +4,7 @@
 // candidate: a reference either resolves exactly, resolves to several invoices (ambiguous), or does not resolve.
 import { SOURCES, isoOf } from '../src/data/catalog.js';
 import { ENTITIES } from '../src/data/catalog.js';
-import { makeCtx, derive, lookupId, lookupKey, lookupSadad, idOf } from './engine.js';
+import { makeCtx, derive, lookupId, lookupKey, lookupSadad, idOf, contractByNumber } from './engine.js';
 import { idKeyFromViolation, payerName, beneficiaryIdOf } from './names.js';
 import { parseInvoiceKey } from '../src/data/iim.js';
 
@@ -49,7 +49,7 @@ export function resolveReferences(st, req) {
     } else if (kind === 'violation_no') {
       const key = idKeyFromViolation(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupKey(st, key); if (i >= 0) idx = [i];
     } else if (kind === 'contract_no') { // a contract number MENTIONED by an order: only says whether such a contract exists (never a referral by itself)
-      const ct = (st.contracts || []).find((c) => c && c.contractNo === value.toUpperCase());
+      const ct = contractByNumber(st, value);
       out.push({ ref, status: ct ? 'contract_found' : 'contract_not_found', weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null }); continue;
     } else { out.push({ ref, status: 'not_invoice_reference', weak: false, normalized: null, candidates: [] }); continue; }
     idx = idx.filter((i) => i >= 0 && st.issue[i] <= ctx.cutoffN);

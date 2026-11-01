@@ -5,7 +5,7 @@ import { fmtBn, fmtSar, fmtInt, fmtInvoices, scaled, unitOfValues, chartUnit, UN
 import { parsePeriod, routeQuestion, classify } from '../src/data/assistantRouter.js';
 import { startOfYear, startOfMonth, prevMonthEnd } from '../src/data/clock.js';
 import { loadStore } from '../server/store.js';
-import { snapshot, series, bridge, makeCtx, lookupId, checkEquation, derive, idOf } from '../server/engine.js';
+import { snapshot, series, bridge, makeCtx, lookupId, checkEquation, derive, idOf, contractByNumber } from '../server/engine.js';
 import { formatRatio, ratio } from '../src/data/revenueMetrics.js';
 import { answerFor } from '../src/data/assistantAnswers.js';
 import { buildProtocolAnswer } from '../src/data/assistantProtocol.js';
@@ -26,7 +26,7 @@ import { checkRange, rangeMessage } from '../src/data/dateRange.js';
 import { fmtRiyadh, riyadhDateOf, lastCompleteMonths } from '../src/data/clock.js';
 import { measure, headlineCfg, cfgFor, BASIS, asOfDate, hasToDateVariant, basisLabel } from '../src/data/measure.js';
 import { previousScope, compareSnapshots, DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
-import { list, exportChunks, worklist, anomalies } from '../server/lists.js';
+import { list, exportChunks, worklist, anomalies, resolveSearch } from '../server/lists.js';
 import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '../src/data/appropriations.js';
 import { paymentFacts } from '../src/data/invoicePayments.js';
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
@@ -244,7 +244,49 @@ await test('the net-uncollected bridge lands exactly on the standing balance and
 await test('future contract installments are only in the schedule: never collected, never arrears', () => {
   const cards = contractCards(st, { cfg }, { summary: false });
   const withFuture = cards.filter((c) => c.totals.futureInstallments > 0); assert.ok(withFuture.length > 0);
-  for (const c of withFuture.slice(0, 40)) for (const p of c.schedule) if (p.state === 'future') { assert.equal(p.collected, 0); assert.equal(p.outstanding, 0); assert.equal(p.invoiced, false); }
+  for (const c of withFuture.slice(0, 40)) for (const p of c.schedule) if (p.state === 'future') { assert.equal(p.collected, null); assert.equal(p.outstanding, null); assert.equal(p.invoiced, false); assert.equal(p.dataState, 'not_applicable'); } // not applicable yet: never a zero
+});
+await test('the contract schedule is the WHOLE contract: its installments add up to the contract value and start at no. 1', () => {
+  const cards = contractCards(st, { cfg }, { summary: false });
+  for (const c of cards) {
+    assert.equal(c.schedule[0].no, 1, c.contractNo); assert.ok(Math.abs(c.schedule.reduce((t, p) => t + p.amount, 0) - c.totalValue) <= 10, c.contractNo);
+    for (let k = 1; k < c.schedule.length; k += 1) assert.ok(c.schedule[k].dueDate >= c.schedule[k - 1].dueDate && c.schedule[k].no === c.schedule[k - 1].no + 1, `${c.contractNo} order`);
+    assert.equal(c.totals.installments, c.schedule.length); assert.equal(c.totals.coverage.known + c.totals.coverage.notApplicable + c.totals.coverage.unknown, c.totals.installments);
+  }
+});
+await test('contract totals follow the agreed identities: gross − exclusions = net · net − collected = uncollected · rate = collected ÷ net (not calculable when net is zero)', () => {
+  const cards = contractCards(st, { cfg }, { summary: false });
+  for (const c of cards) {
+    const t = c.totals; assert.ok(Math.abs(t.gross - t.exclusions - t.net) <= 0.5, `${c.contractNo} gross`); assert.ok(Math.abs(t.net - t.collected - t.uncollected) <= 0.5, `${c.contractNo} net`);
+    assert.equal(t.collectionRateOnNet.calculable, t.net > 0); if (t.net > 0) assert.ok(Math.abs(t.collectionRateOnNet.value - t.collected / t.net) < 1e-9); else assert.equal(t.collectionRateOnNet.value, null);
+  }
+});
+await test('an installment with no readable invoice is never shown as zero: collected and remaining are unknown, no date is derived from «due − 10»', () => {
+  const cards = contractCards(st, { cfg }, { summary: false }); let unknown = 0;
+  for (const c of cards) for (const p of c.schedule) {
+    if (p.invoiced) { assert.equal(p.dataState, 'known'); assert.ok(p.issueDate); continue; }
+    assert.equal(p.issueDate, null); assert.equal(p.collected, null); assert.equal(p.outstanding, null); assert.equal(p.payments.length, 0);
+    assert.ok(['history', 'future', 'unlinked'].includes(p.state)); if (p.state !== 'future') unknown += 1;
+  }
+  assert.ok(unknown > 0);
+});
+await test('payment events: each invoiced installment lists its own events in date order, with a running total; «paid in full on» is the event that reaches the invoice', () => {
+  const cards = contractCards(st, { cfg }, { summary: false }); let events = 0; let full = 0;
+  for (const c of cards) for (const p of c.schedule) {
+    if (!p.invoiced) continue;
+    let prev = ''; let cum = 0;
+    for (const e of p.payments) { events += 1; assert.ok(e.date >= prev); prev = e.date; cum += e.amount; assert.ok(Math.abs(e.cumulative - cum) < 0.01); assert.ok(e.amount > 0); }
+    assert.equal(p.firstPaymentOn, p.payments.length ? p.payments[0].date : null); assert.equal(p.lastPaymentOn, p.payments.length ? p.payments[p.payments.length - 1].date : null);
+    if (p.paidInFullOn) { full += 1; assert.equal(p.state, 'paid'); assert.ok(p.paidInFullOn >= p.firstPaymentOn && p.paidInFullOn <= p.lastPaymentOn); }
+    if (p.state === 'paid') assert.ok(p.paidInFullOn, 'a paid installment states when it was paid in full');
+    if (p.state === 'paid' || p.state === 'excluded' || p.state === 'cancelled') assert.equal(p.daysOverdue, null, 'days late only for an open invoice');
+  }
+  assert.ok(events > 100 && full > 100);
+});
+await test('contract numbers come in several forms and each is found by an exact lookup (no format is assumed); an unknown number finds no contract', () => {
+  const cts = st.contracts.filter(Boolean); const prefixes = new Set(cts.map((c) => c.contractNo.split('-')[0])); assert.ok(prefixes.size >= 3, [...prefixes].join(','));
+  for (const pfx of prefixes) { const ct = cts.find((c) => c.contractNo.startsWith(pfx + '-') && c.invs.length); const r = resolveSearch(st, ` ${ct.contractNo.toLowerCase()} `); assert.equal(r.list.length, ct.invs.length, ct.contractNo); }
+  assert.equal(contractByNumber(st, 'CN-000000'), null);
 });
 await test('execution amounts are not added to the debt (contract level)', () => {
   const cards = contractCards(st, { cfg });

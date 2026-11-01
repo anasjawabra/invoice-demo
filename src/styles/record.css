@@ -207,3 +207,10 @@ button.oj-card:hover, button.oj-card:focus-visible { border-color: var(--primary
 .ip-nav a:hover, .ip-nav a:focus-visible { border-color: var(--primary); color: var(--primary); }
 .rp-section { scroll-margin-top: 64px; }
 @media (max-width: 900px) { .ip-top { grid-template-columns: minmax(0, 1fr); } }
+
+/* contract timeline: the segment buttons and the legend under the installments */
+.rv-seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.rp-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 6px 16px; margin: 10px 0 0; font-size: 12px; }
+.rp-legend > div { display: flex; gap: 8px; align-items: baseline; }
+.rp-legend dt { margin: 0; flex: none; }
+.rp-legend dd { margin: 0; color: var(--txt-mute); }

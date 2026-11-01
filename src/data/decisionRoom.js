@@ -42,7 +42,7 @@ export function planSectionOf({ year, reportingDate, entityRows, collectedByKey,
 /**
  * @param {object} inp
  *  today, snapshot (period scope), labels { amanah(key) → {ar,en}, source(key) → {ar,en} }, targetRate(amanahKey) → 0..1,
- *  plan (planSectionOf | null), contracts { count, arrears, overdueInstallments, futureNotInvoiced } | null, noContractCount,
+ *  plan (planSectionOf | null), contracts { count, arrears, overdueInstallments, futureNotInvoiced, unlinkedInstallments, unlinkedAmount } | null, noContractCount,
  *  orders { suspendedCount, suspendedAmount } | null, matching { amountConflicts, missingFields } | null
  * @returns {{ items: object[], summary: object }}
  */
@@ -136,8 +136,13 @@ export function buildDecisionItems(inp) {
       figures: [{ label: bi('المتأخرات', 'Arrears'), value: C.arrears, kind: 'money' }, { label: bi('أقساط متأخرة', 'Overdue installments'), value: C.overdueInstallments, kind: 'count' }, { label: bi('عدد العقود', 'Contracts'), value: C.count, kind: 'count' }],
       evidence: [{ label: bi('العقود الاستثمارية', 'Investment contracts'), to: '/contracts' }], recommendation: bi('متابعة الأقساط المتأخرة لكل عقد وتحديث حالته.', 'Follow up each contract’s overdue installments and update its status.'), decisionNeeded: null, role: 'investment', dueDays: 30, actionability: 0.9, evidenceQuality: 0.85 });
   }
+  if (C?.unlinkedInstallments > 0) {
+    add({ key: 'contracts:unlinked', category: 'contracts', lane: 'action', basis: 'contracts', title: bi('أقساط مستحقة بلا فاتورة مرتبطة بالعقد', 'Installments due with no invoice linked to the contract'), problem: bi('أقساط حلّ موعدها ولا توجد فاتورة مرتبطة بعقدها؛ قاعدة مرشَّحة بانتظار الاعتماد.', 'Installments that are due and have no invoice linked to their contract; a candidate rule pending confirmation.'), amount: C.unlinkedAmount ?? null,
+      figures: [{ label: bi('أقساط مستحقة بلا فاتورة', 'Due, no invoice linked'), value: C.unlinkedInstallments, kind: 'count' }, { label: bi('قيمتها', 'Value'), value: C.unlinkedAmount ?? 0, kind: 'money' }], cause: { status: 'hypothesis', text: bi('فرضية: فاتورة غير مصدرة أو غير مطابقة لرقم العقد؛ يلزم التحقق من مالك البيانات. لا تُنشئ المنصة فواتير.', 'Hypothesis: an invoice not issued or not matched to the contract number; the data owner must verify. The platform never creates invoices.') },
+      evidence: [{ label: bi('العقود الاستثمارية', 'Investment contracts'), to: '/contracts' }], recommendation: bi('مراجعة كل قسط ورفع الفجوة إلى الجهة المسؤولة.', 'Review each installment and raise the gap with the responsible entity.'), decisionNeeded: null, role: 'data_owner', dueDays: 30, actionability: 0.7, evidenceQuality: 0.6 });
+  }
   if (inp.noContractCount > 0) {
-    add({ key: 'contracts:no_contract', category: 'contracts', lane: 'action', basis: 'contracts', title: bi('فواتير استثمار مركزية بلا عقد مطابق', 'Central investment invoices with no matched contract'), problem: bi('فواتير استثمارية مركزية لا يعرفها نظام العقود.', 'Central investment invoices the contract data does not know.'),
+    add({ key: 'contracts:no_contract', category: 'contracts', lane: 'action', basis: 'period', title: bi('فواتير استثمار مركزية بلا عقد مطابق', 'Central investment invoices with no matched contract'), problem: bi('فواتير استثمارية مركزية لا يعرفها نظام العقود.', 'Central investment invoices the contract data does not know.'),
       amount: null, figures: [{ label: bi('عدد الفواتير', 'Invoices'), value: inp.noContractCount, kind: 'count' }],
       cause: { status: 'hypothesis', text: bi('فرضية: عقد غير مسجّل أو رقم عقد غير مطابق؛ يلزم تأكيد مالك البيانات (لا يُستبعد من الصافي إلا بتأكيد مكتوب).', 'Hypothesis: an unregistered contract or a contract number that does not match; the data owner must confirm (it is excluded from net only with written confirmation).') },
       evidence: [{ label: bi('قائمة الفواتير', 'Invoice list'), to: '/invoices' }], recommendation: bi('طلب تأكيد مالك البيانات لكل فاتورة: وجود عقد أم لا.', 'Ask the data owner to confirm for each invoice whether a contract exists.'), decisionNeeded: null, role: 'data_owner', dueDays: 30, actionability: 0.8, evidenceQuality: 0.7 });
