@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import { loadStore } from '../server/store.js';
+import { list, exportChunks, EXPORT_COLUMNS, bumpEpoch } from '../server/lists.js';
+import { appendRecord } from '../server/fixtures.js';
+import { importRows, parseCsv } from '../src/data/ledgerImport.js';
+import { csvCell, csvDownloadName } from '../src/utils/csv.js';
+import { buildCsv } from '../src/utils/exportReportModel.js';
+const st = loadStore('2026-10-25', { size: 'compact' }); const scope = { from: '2026-01-01', to: '2026-10-25', amanah: 'all', source: 'all' }; const cfg = { cutoff: '2026-10-25' };
+const alternate = loadStore('2026-10-25', { scale: 0.0006 });
+const sameRequest = { scope, cfg, filters: { state: 'all' }, sort: { key: 'id', dir: 'desc' } };
+const compactTotal = list(st, sameRequest).total;
+assert.ok(list(alternate, sameRequest).total > compactTotal, 'different stores cannot reuse the same cached list');
+assert.equal(list(st, sameRequest).total, compactTotal, 'returning to the original store keeps its own cache');
+const csvRows = (req) => parseCsv([...exportChunks(st, req, 7)].join('')).filter((r) => !r[0].startsWith('#'));
+for (const key of ['id','issue','gross','outstanding','collected','daysOverdue']) for (const dir of ['asc','desc']) {
+  const req = { scope, cfg, filters: { state: 'all' }, sort: { key, dir } }; const parsed = csvRows(req); const expected = [];
+  for (let page = 0; ; page++) { const result = list(st, { ...req, page, pageSize: 37 }); expected.push(...result.rows.map((r) => r.id)); if (expected.length >= result.total) break; }
+  assert.deepEqual(parsed[0], EXPORT_COLUMNS); assert.deepEqual(parsed.slice(1).map((r) => r[0]), expected, `${key}/${dir}`);
+}
+const imported = importRows([['invoice_id','amanah','issue_date','amount','sadad_no'], ['EXPORT-Z','Riyadh Amanah','2026-01-01','1234.56','000012345678'], ['EXPORT-A','Riyadh Amanah','2026-01-01','0.01','000000000001']]).accepted;
+for (const rec of imported) appendRecord(st, rec, { owner: 42, kind: 'upload' }); bumpEpoch();
+const req = { scope, cfg, owner: 42, filters: { state: 'all', search: 'EXPORT-' }, sort: { key: 'id', dir: 'asc' } }; const parsed = csvRows(req);
+const metadataOf = (request) => JSON.parse(parseCsv([...exportChunks(st, request, 7)].join(''))[0][1]);
+const metadata = metadataOf(req);
+assert.equal(metadata.referenceDate, cfg.cutoff); assert.equal(metadata.currency, 'SAR'); assert.equal(metadata.timezone, 'Asia/Riyadh');
+assert.equal(metadata.scope.from, scope.from); assert.equal(metadata.filters.search, 'EXPORT-'); assert.deepEqual(metadata.sort, req.sort);
+assert.equal(metadata.rowCount, 2); assert.ok(metadata.ruleVersion); assert.match(metadata.contextSha256, /^[a-f0-9]{64}$/);
+assert.equal(metadata.calculation.graceDays, 0); assert.equal(metadata.effectiveInvoicePeriod.selectedPeriodApplied, true);
+const allPeriods = metadataOf({ ...req, filters: { ...req.filters, allPeriods: true }, sort: undefined });
+assert.equal(allPeriods.effectiveInvoicePeriod.selectedPeriodApplied, false); assert.deepEqual(allPeriods.sort, { key: 'issue', dir: 'desc' });
+const unusual = { ...req, filters: { state: 'all', search: 'a,"\r\n=1+1' } };
+assert.equal(metadataOf(unusual).filters.search, unusual.filters.search, 'metadata must stay one safe CSV record');
+const huge = { ...req, scope: { ...scope, muni: 'طويل'.repeat(5000) } };
+const preamble = exportChunks(st, huge, 7).next().value;
+assert.ok(Buffer.byteLength(preamble) <= 8192); assert.ok(metadataOf(huge).contextOmitted);
+assert.equal(preamble.split('\n').length, 3, 'preamble remains two physical lines');
+assert.deepEqual(parsed.slice(1).map((r) => r[0]), ['EXPORT-A','EXPORT-Z']); assert.equal(parsed[1][1], '000000000001'); assert.equal(parsed[2][EXPORT_COLUMNS.indexOf('amount_sar')], '1234.56');
+assert.equal(csvRows({ ...req, owner: 43 }).length, 1); assert.equal(csvRows({ ...req, scope: { ...scope, org: { amanahKeys: [] } } }).length, 1);
+for (const text of ['a,b','a"b','a\rb','a\nb','مرحبا']) assert.equal(parseCsv(csvCell(text))[0][0], text);
+for (const text of ['=1+1','+SUM(A1)','-cmd','@SUM(A1)','  =1','\t=1','\r=1']) assert.equal(parseCsv(csvCell(text))[0][0], "'" + text);
+assert.equal(csvCell(-12.34), '-12.34'); assert.equal(csvCell('000123'), '000123');
+assert.equal(csvDownloadName('attachment; filename="invoices-2026-10-25.csv"'), 'invoices-2026-10-25.csv'); assert.equal(csvDownloadName("attachment; filename*=UTF-8''%D8%AA%D9%82%D8%B1%D9%8A%D8%B1.csv"), 'تقرير.csv'); assert.equal(csvDownloadName('attachment; filename="a/b.csv"'), 'a-b.csv');
+const model = { title: 'Audit', subtitle: 'Context', lang: 'en', label: 'demo', context: [{ label: 'Scope', value: 'Riyadh' }], cutoff: '2026-10-25', generatedAt: '2026-10-25T12:00:00Z', headline: [{ type: 'text', text: 'HEADLINE-NOTE' }], sections: [{ title: 'SECTION-TITLE', purpose: 'SECTION-PURPOSE', blocks: [{ type: 'callout', text: 'LIMITATION-TEXT' }, { type: 'list', items: ['RECOMMENDATION-TEXT'] }, { type: 'text', text: 'CR\rTEXT' }] }] };
+const report = buildCsv(model); for (const value of ['HEADLINE-NOTE','SECTION-TITLE','SECTION-PURPOSE','LIMITATION-TEXT','RECOMMENDATION-TEXT','Riyadh']) assert.ok(report.includes(value), value); assert.ok(parseCsv(report).some((r) => r[0] === 'CR\rTEXT'));
+console.log('Export data passed: all sort directions and pages, inserted identifiers, scoped rows, exact amounts and zero-prefixed IDs, CSV control characters and formula text, filenames and complete report text.');

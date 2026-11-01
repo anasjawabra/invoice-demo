@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { sanitizeListMemory, validOrigin, canReturnInHistory } from '../src/utils/navigationState.js';
+for (const value of [null, [], 'bad', 5]) assert.equal(sanitizeListMemory('invoices', value), null);
+assert.deepEqual(sanitizeListMemory('invoices', { search: {}, page: -1, sort: { key: 'invalid', dir: 'asc' }, collectionFilter: [] }), {});
+assert.deepEqual(sanitizeListMemory('invoices_all', { search: '١٢٣', page: 2, sort: { key: 'gross', dir: 'desc' } }), { search: '١٢٣', page: 2, sort: { key: 'gross', dir: 'desc' } });
+for (const page of [NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1]) assert.deepEqual(sanitizeListMemory('contracts', { q: null, page }), {});
+assert.deepEqual(sanitizeListMemory('orders', { q: 'A', sort: 'amount' }), { q: 'A', sort: 'amount' });
+for (const value of [null, {}, { path: '//outside' }, { path: '/bad\\path' }, { path: '/bad path' }, { path: '/invoices', search: {} }, { path: '/invoices', search: 'src=x' }]) assert.equal(validOrigin(value), null);
+const from = validOrigin({ path: '/invoices', search: '?view=all', label: 'All invoices', index: 4 });
+assert.equal(canReturnInHistory(from, 5), true);
+for (const index of [4, 6, null, undefined, 5.5]) assert.equal(canReturnInHistory(from, index), false);
+assert.equal(canReturnInHistory(validOrigin({ path: '/invoices' }), 1), false);
+assert.equal(validOrigin({ path: '/contracts', label: {}, index: -1 }).label, '/contracts');
+console.log('Navigation data passed: malformed snapshots, safe page and sort, valid restored values, internal origin shape and adjacent-history return decisions.');
