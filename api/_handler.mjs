@@ -2274,7 +2274,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     const x = r.next();
     return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3);
   };
-  const contractNoOf = (c, startY) => ["CT-" + startY + "-" + pad(c * 7 + 13, 4), "CN-" + (10007 + c * 13), "ECN-" + (30011 + c * 11), "EDROCN-" + (50021 + c * 17)][c % 4];
+  const contractNoOf = (c, startY) => c < 2 ? "CT-" + startY + "-" + pad(c * 7 + 13, 4) : ["CT-" + startY + "-" + pad(c * 7 + 13, 4), "CN-" + (10007 + c * 13), "ECN-" + (30011 + c * 11), "EDROCN-" + (50021 + c * 17)][c % 4];
   const contracts = st.contracts;
   const horizonN = todayN + 370;
   const nContracts = Math.max(8, Math.round(CONTRACT_COUNT * scale));
@@ -3133,6 +3133,11 @@ function currentStore(override2, size) {
   return loadStore(today, { size });
 }
 
+// src/data/lateness.js
+var overdueDays = (refN, dueN, grace = 0) => Math.max(0, refN - (dueN + (grace || 0)));
+var paymentLateness = (payN, dueN, grace = 0) => ({ offset: payN - dueN, lateBy: Math.max(0, payN - (dueN + (grace || 0))) });
+var openOverdueDays = (D) => D.outstanding > 0 && !D.excluded && !D.cancelled ? D.daysOverdue : null;
+
 // src/data/appropriations.js
 var APPROPRIATION_YEAR = 2026;
 var M = 1e6;
@@ -3706,7 +3711,7 @@ function derive(ctx, i, asOfN) {
   const overpayment = Math.max(0, received - base);
   const outstanding = excluded || cancelled ? 0 : Math.max(0, billed - received);
   const exclAmt = excluded ? Math.max(0, billed - received) : 0;
-  const daysOverdue = Math.max(0, ctx.cutoffN - (st.due[i] + ctx.graceDays));
+  const daysOverdue = overdueDays(ctx.cutoffN, st.due[i], ctx.graceDays);
   D.gross = billed;
   D.adj = adj;
   D.billed = billed;
@@ -5696,13 +5701,14 @@ function stateOf(D) {
   if (D.daysOverdue > 0) return "overdue";
   return "not_due";
 }
-function paymentEvents(st, inv2, dueN, asOfN) {
+function paymentEvents(st, inv2, dueN, asOfN, grace) {
   const out = [];
   let cum = 0;
   for (let p = st.payStart[inv2]; p < st.payStart[inv2] + st.payCount[inv2]; p += 1) {
     if (st.pDay[p] > asOfN) continue;
     cum += st.pAmt[p];
-    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: st.pDay[p] - dueN });
+    const late = paymentLateness(st.pDay[p], dueN, grace);
+    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: late.offset, lateBy: late.lateBy });
   }
   return out;
 }
@@ -5712,10 +5718,10 @@ function cardOf(st, ctx, ct) {
   const dataStart = st.dataStartN || 0;
   const schedule = ct.sched.map((d) => {
     const yearOf = Number(isoOf(d.due).slice(0, 4));
-    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance };
+    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount };
     if (d.inv >= 0) {
       derive(ctx, d.inv, today);
-      const events = paymentEvents(st, d.inv, st.due[d.inv], today);
+      const events = paymentEvents(st, d.inv, st.due[d.inv], today, ctx.graceDays);
       const net2 = D.net;
       const full = D.outstanding <= 0 && !D.excluded && !D.cancelled && D.billed > 0 && D.received >= D.billed;
       const paidInFull = full ? events.find((e) => e.cumulative >= D.billed - 0.5) : null;
@@ -5733,8 +5739,8 @@ function cardOf(st, ctx, ct) {
         net: net2,
         collected: D.collected,
         outstanding: D.outstanding,
-        daysOverdue: D.excluded || D.cancelled || D.outstanding <= 0 ? null : D.daysOverdue,
-        // days late only for an open, non-excluded invoice
+        daysOverdue: openOverdueDays(D),
+        // overdue UNPAID days: only while an amount is owed and the invoice is neither excluded nor cancelled
         payments: events,
         firstPaymentOn: events.length ? events[0].date : null,
         lastPaymentOn: events.length ? events[events.length - 1].date : null,
