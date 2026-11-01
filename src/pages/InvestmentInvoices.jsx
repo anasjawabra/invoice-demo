@@ -1,3 +1,4 @@
+import DirectionalIcon from '../components/DirectionalIcon';
 import { localize } from '../utils/zh';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -25,7 +26,7 @@ export default function InvestmentInvoices() {
           <div className="page-sub">{pick(lang, 'Investment invoices with no linked Furas contract, each with an AI risk assessment', 'الفواتير الاستثمارية غير المرتبطة بعقد فرص، مع تقييم مخاطر بالذكاء الاصطناعي لكل فاتورة', '未关联 Furas 合同的投资类发票，每张均附带 AI 风险评估')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
-          {isRtl ? `${pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')} ←` : `${pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')} →`}
+          <DirectionalIcon back /> {pick(lang, 'Back to Dashboard', 'العودة إلى لوحة التحكم', '返回控制台')}
         </button>
       </div>
 

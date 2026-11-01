@@ -1,3 +1,4 @@
+import DirectionalIcon from '../components/DirectionalIcon';
 import { localize } from '../utils/zh';
 import UISymbol from '../components/UISymbol';
 import React, { useMemo, useState } from 'react';
@@ -675,7 +676,7 @@ export default function Dashboard() {
               <div className="page-sub">{t('dash_amanah_sub')}</div>
             </div>
             <button className="btn btn-sm btn-ghost" type="button" onClick={() => nav('/invoices')}>
-              {isRtl ? `${t('link_details')} ←` : `${t('link_details')} →`}
+              {t('link_details')} <DirectionalIcon />
             </button>
           </div>
           <div className="table-wrap">
@@ -1155,7 +1156,7 @@ export default function Dashboard() {
           })}
           <div style={{ marginTop: 12 }}>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-              {lang === 'ar' ? 'تصفّح الفواتير الاستثمارية غير المرتبطة ←' : lang === 'zh' ? '浏览未关联的投资类发票 →' : 'Browse unlinked investment invoices →'}
+              {lang === 'ar' ? 'تصفّح الفواتير الاستثمارية غير المرتبطة' : lang === 'zh' ? '浏览未关联的投资类发票' : 'Browse unlinked investment invoices'} <DirectionalIcon />
             </button>
           </div>
         </div>

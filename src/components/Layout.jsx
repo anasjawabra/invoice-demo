@@ -99,7 +99,7 @@ function LayoutInner() {
         <header className="topbar">
           <div className="topbar-left">
             <button type="button" className="btn sidebar-toggle" aria-label={lang === 'ar' ? 'فتح التنقل' : lang === 'zh' ? '打开导航' : 'Open navigation'} aria-expanded={navigationOpen} aria-controls="app-navigation" onClick={() => setNavigationOpen(true)}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <UISymbol name="menu" size={20} />
             </button>
             <NavLink to="/insights" className="side-brand">
               <BrandMark className="side-brand__logo" />

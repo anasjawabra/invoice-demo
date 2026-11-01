@@ -66,7 +66,7 @@ export function TargetSliders({
             <div key={s.id} className="pill" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
               <span>{s.name}</span>
               <span style={{ display: 'flex', gap: 6 }}>
-                <button type="button" className="btn btn-sm btn-ghost" onClick={() => onLoadScenario(s)}>↺</button>
+                <button type="button" className="btn btn-sm btn-ghost" onClick={() => onLoadScenario(s)} aria-label={`${t('cfo_load')}: ${s.name}`}><UISymbol name="refresh" /></button>
                 <button type="button" className="btn btn-sm btn-ghost" onClick={() => onDeleteScenario(s.id)} aria-label="Delete scenario"><UISymbol name="close" /></button>
               </span>
             </div>

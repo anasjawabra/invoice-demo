@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import AppIcon from './AppIcon';
+import UISymbol from './UISymbol';
 
 const MOBILE_NAV = '(max-width: 900px)';
 
@@ -46,7 +47,7 @@ export default function AppSidebar({ tabs, settingsTab, open, setOpen }) {
   };
 
   const contents = <>
-    {mobile && <div className="app-sidebar__heading"><b>{navigationLabel}</b><button type="button" className="btn app-sidebar__close" aria-label={label('Close navigation', '关闭导航', 'إغلاق التنقل')} onClick={() => setOpen(false)} autoFocus><span aria-hidden="true">×</span></button></div>}
+    {mobile && <div className="app-sidebar__heading"><b>{navigationLabel}</b><button type="button" className="btn app-sidebar__close" aria-label={label('Close navigation', '关闭导航', 'إغلاق التنقل')} onClick={() => setOpen(false)} autoFocus><UISymbol name="close" size={20} /></button></div>}
     <nav className="app-sidebar__nav" aria-label={navigationLabel}>
       <div className="app-sidebar__sections">
         <div className="app-sidebar__group">

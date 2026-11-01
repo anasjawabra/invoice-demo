@@ -1,3 +1,4 @@
+import DirectionalIcon from '../components/DirectionalIcon';
 import { localize } from '../utils/zh';
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -29,7 +30,7 @@ export default function SanadOrders() {
           <div className="page-sub">{t('sanad_orders_sub')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/dashboard')}>
-          {isRtl ? `${t('back_to_dashboard')} ←` : `${t('back_to_dashboard')} →`}
+          <DirectionalIcon back /> {t('back_to_dashboard')}
         </button>
       </div>
 
@@ -86,11 +87,11 @@ export default function SanadOrders() {
         {pageCount > 1 && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 12 }}>
             <button type="button" className="btn btn-sm btn-ghost" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
-              {isRtl ? `→ ${t('pagination_prev')}` : `← ${t('pagination_prev')}`}
+              <DirectionalIcon back /> {t('pagination_prev')}
             </button>
             <span className="muted" style={{ fontSize: 12 }} dir="ltr">{page + 1} / {pageCount}</span>
             <button type="button" className="btn btn-sm btn-ghost" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}>
-              {isRtl ? `${t('pagination_next')} ←` : `${t('pagination_next')} →`}
+              {t('pagination_next')} <DirectionalIcon />
             </button>
           </div>
         )}

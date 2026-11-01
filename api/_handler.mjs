@@ -5671,47 +5671,6 @@ function anomalies(st, req) {
   });
   return { total, counts, rows };
 }
-var VALUE_ANOMALY_MULTIPLE = 10;
-function risk(st, req) {
-  const ctx = makeCtx(st, req);
-  const sc = resolveScope(ctx, req.scope);
-  const D = ctx.D;
-  const limit = req.limit || 60;
-  const sum = new Float64Array(ENTITIES.length * SOURCES.length);
-  const cnt = new Float64Array(ENTITIES.length * SOURCES.length);
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const g = st.ent[i] * SOURCES.length + st.src[i];
-    sum[g] += st.gross[i];
-    cnt[g] += 1;
-  }
-  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const rf = recordRiskFlags(st, ctx, i);
-    for (const [c, state] of Object.entries(rf)) if (state === "open") {
-      cat[c].n += 1;
-      cat[c].amt += st.gross[i];
-      cat[c].top.push(i, c === "duplicate" ? 90 : 85);
-    }
-    const g = st.ent[i] * SOURCES.length + st.src[i];
-    if (cnt[g] >= 30) {
-      const avg = (sum[g] - st.gross[i]) / (cnt[g] - 1);
-      const ratio2 = avg > 0 ? st.gross[i] / avg : 0;
-      if (ratio2 >= VALUE_ANOMALY_MULTIPLE) {
-        cat.value_anomaly.n += 1;
-        cat.value_anomaly.amt += st.gross[i];
-        cat.value_anomaly.top.push(i, Math.min(99, 60 + (ratio2 - VALUE_ANOMALY_MULTIPLE) * 2));
-      }
-    }
-  }
-  const out = {};
-  for (const [k, v] of Object.entries(cat)) out[k] = { count: v.n, amount: v.amt, rows: v.top.sorted().map(([i, score]) => {
-    derive(ctx, i, ctx.cutoffN);
-    return { ...rowOut(st, ctx, i, D), score: Math.round(score) };
-  }) };
-  return { categories: out, valueAnomalyMultiple: VALUE_ANOMALY_MULTIPLE };
-}
 
 // server/contracts.js
 var METHOD = ["structured", "ocr"];
@@ -6350,8 +6309,6 @@ async function handleApi(req, res) {
         return send(res, 200, memoize(key("wl"), () => worklist(st, body)));
       case "/anomalies":
         return send(res, 200, memoize(key("an"), () => anomalies(st, body)));
-      case "/risk":
-        return send(res, 200, memoize(key("risk"), () => risk(st, body)));
       case "/sources":
         return send(res, 200, memoize(key("src"), () => sourcesReport(st, body)));
       case "/quality":

@@ -1,3 +1,4 @@
+import DirectionalIcon from '../components/DirectionalIcon';
 import { localize } from '../utils/zh';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -93,7 +94,7 @@ export default function InvestmentInvoiceDetail() {
           <div className="page-title">{pick(lang, 'Record not found', 'لم يتم العثور على هذا السجل', '未找到该记录')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-          {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
+          <DirectionalIcon back /> {pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')}
         </button>
       </div>
     );
@@ -107,7 +108,7 @@ export default function InvestmentInvoiceDetail() {
           <div className="page-sub">{pick(lang, 'Investment contract-linkage detail', 'تفاصيل ربط العقد الاستثماري', '投资合同关联详情')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/investment-invoices')}>
-          {isRtl ? `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} ←` : `${pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')} →`}
+          <DirectionalIcon back /> {pick(lang, 'Back to list', 'العودة إلى القائمة', '返回列表')}
         </button>
       </div>
 

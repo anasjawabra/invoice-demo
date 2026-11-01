@@ -163,7 +163,7 @@ button, input, select, textarea { font-family: inherit; }
   padding-inline-start: 14px !important;
   padding-inline-end: 40px !important;
   /* Hugeicons ArrowDown01Icon, with a 14px visible stroke inset. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9'/%3E%3C/svg%3E");
+  background-image: url('../assets/arrow-down-01.svg');
   background-repeat: no-repeat;
   background-size: 24px 24px;
   background-position: right 8px center;

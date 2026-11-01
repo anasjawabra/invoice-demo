@@ -3,8 +3,7 @@
 .rp-head { display: grid; gap: 10px; }
 .rp-crumbs { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
 .rp-crumbs ol { display: flex; flex-wrap: wrap; gap: 4px 0; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--txt-mute); }
-.rp-crumbs li + li::before { content: '›'; margin-inline: 8px; color: var(--txt-mute-2); }
-[dir='rtl'] .rp-crumbs li + li::before { content: '‹'; }
+.rp-crumbs__separator { margin-inline: 8px; color: var(--txt-mute-2); }
 .rp-crumbs a { color: var(--primary-2); text-decoration: none; font-weight: 600; }
 .rp-crumbs a:hover, .rp-crumbs a:focus-visible { text-decoration: underline; }
 .rp-return { white-space: nowrap; }
@@ -42,9 +41,7 @@
 .rp-section--secondary { padding: 0; }
 .rp-section--secondary summary { cursor: pointer; padding: 12px 16px; display: flex; align-items: center; gap: 8px; list-style: none; }
 .rp-section--secondary summary::-webkit-details-marker { display: none; }
-.rp-section--secondary summary::before { content: '▸'; color: var(--txt-mute); font-size: 12px; }
-[dir='rtl'] .rp-section--secondary summary::before { content: '◂'; }
-.rp-section--secondary details[open] summary::before { content: '▾'; }
+.rp-section--secondary summary::before { color: var(--txt-mute); flex: none; }
 .rp-section--secondary summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; border-radius: var(--radius); }
 .rp-section--secondary .rp-body { padding: 0 16px 14px; }
 

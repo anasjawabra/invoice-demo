@@ -102,7 +102,7 @@ export function PpDelta({ change, comparable = true, label }) {
   const dir = v > 0 ? 'up' : v < 0 ? 'down' : 'flat';
   return (
     <div className={`rv-delta rv-delta--${dir}`} dir="auto" title={L('Each period is measured at its own end date (same age), so the comparison is like for like.', 'تُقاس كل فترة عند نهايتها (العمر نفسه) فالمقارنة مماثلة.')}>
-      {v > 0 ? '▲' : v < 0 ? '▼' : '■'} {v > 0 ? '+' : ''}{v.toFixed(1)} {L('pp', 'نقطة مئوية')} {label ? <span className="rv-delta__lbl">{label}</span> : null}
+      <UISymbol name={v > 0 ? 'up' : v < 0 ? 'down' : 'minus'} /> {v > 0 ? '+' : ''}{v.toFixed(1)} {L('pp', 'نقطة مئوية')} {label ? <span className="rv-delta__lbl">{label}</span> : null}
     </div>
   );
 }

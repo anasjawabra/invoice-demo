@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import DirectionalIcon from '../DirectionalIcon';
 import { useL } from '../../utils/bi';
 import { loadPdfLib, sha256Hex } from '../../data/pdfText';
 import { detectFormat, FORMAT_LABEL, UNREAD_REASON } from '../../data/docText';
@@ -102,9 +103,9 @@ function DocxPreview({ doc, page = 1, onRestored, tick = 0 }) {
       <div className="rp-pdf__bar">
         <b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}>‹</button>
+          <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}><DirectionalIcon back /></button>
           <span dir="ltr">{Math.min(pg, n)} / {n}</span>
-          <button type="button" className="btn btn-sm" disabled={pg >= n} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}>›</button>
+          <button type="button" className="btn btn-sm" disabled={pg >= n} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}><DirectionalIcon /></button>
         </span>
       </div>
       {state.status === 'loading' && <div role="status" className="muted">{L('Reading the Word file…', 'جارٍ قراءة ملف Word…')}</div>}
@@ -146,9 +147,9 @@ function PdfCanvas({ doc, page = 1, onRestored, tick = 0 }) {
       <div className="rp-pdf__bar">
         <b dir="ltr" style={{ overflowWrap: 'anywhere' }}>{doc.name}</b>
         <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}>‹</button>
+          <button type="button" className="btn btn-sm" disabled={pg <= 1} onClick={() => setPg((x) => Math.max(1, x - 1))} aria-label={L('Previous page', 'الصفحة السابقة')}><DirectionalIcon back /></button>
           <span dir="ltr">{pg} / {state.pages || (doc.extraction?.pages?.length ?? '…')}</span>
-          <button type="button" className="btn btn-sm" disabled={state.pages ? pg >= state.pages : false} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}>›</button>
+          <button type="button" className="btn btn-sm" disabled={state.pages ? pg >= state.pages : false} onClick={() => setPg((x) => x + 1)} aria-label={L('Next page', 'الصفحة التالية')}><DirectionalIcon /></button>
         </span>
       </div>
       {state.status === 'loading' && <div role="status" className="muted">{L('Drawing the page…', 'جارٍ عرض الصفحة…')}</div>}

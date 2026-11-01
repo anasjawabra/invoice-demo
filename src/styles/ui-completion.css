@@ -22,6 +22,12 @@ html { scroll-padding-block-start: var(--ui-header-clearance, 224px); scroll-pad
 /* The document already clears the measured sticky header; sections add only a grid gap. */
 .rp-section, .st-section { scroll-margin-block-start: 8px; }
 .ui-icon { max-width: 100%; }
+/* Keep the native date picker and its hit target; use the shared icon family. */
+input[type='date']::-webkit-calendar-picker-indicator {
+  background: var(--txt-mute);
+  mask: url('../assets/calendar-03.svg') center / contain no-repeat;
+  width: 18px; height: 18px; opacity: 1; cursor: pointer;
+}
 [dir='rtl'] .ui-expand-icon { transform: rotate(180deg); }
 /* The native disclosure remains a native control; only its decorative marker is replaced. */
 summary:not(.select) { list-style: none; cursor: pointer; }
@@ -32,7 +38,7 @@ summary:not(.select)::-webkit-details-marker { display: none; }
 summary:not(.select)::before {
   content: ''; display: inline-block; width: 16px; height: 16px;
   margin-inline-end: 8px; vertical-align: -3px; background: currentColor;
-  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M18 9.00005C18 9.00005 13.5811 15 12 15C10.4188 15 6 9 6 9' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url('../assets/arrow-down-01.svg') center / contain no-repeat;
   transform: rotate(-90deg);
 }
 [dir='rtl'] summary:not(.select)::before { transform: rotate(90deg); }

@@ -1,3 +1,4 @@
+import DirectionalIcon from '../components/DirectionalIcon';
 import { localize } from '../utils/zh';
 import UISymbol from '../components/UISymbol';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -104,7 +105,7 @@ export default function SanadOrderDetail() {
           <div className="page-title">{t('sanad_order_not_found')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
-          {isRtl ? `${t('sanad_orders_back')} ←` : `${t('sanad_orders_back')} →`}
+          <DirectionalIcon back /> {t('sanad_orders_back')}
         </button>
       </div>
     );
@@ -121,7 +122,7 @@ export default function SanadOrderDetail() {
           <div className="page-sub">{t('sanad_order_detail_sub')}</div>
         </div>
         <button type="button" className="btn btn-sm btn-ghost" onClick={() => nav('/sanad-orders')}>
-          {isRtl ? `${t('sanad_orders_back')} ←` : `${t('sanad_orders_back')} →`}
+          <DirectionalIcon back /> {t('sanad_orders_back')}
         </button>
       </div>
 

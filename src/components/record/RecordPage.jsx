@@ -15,7 +15,7 @@ export function RecordHeader({ crumbs = [], title, id = null, kind = null, statu
       <nav className="rp-crumbs" aria-label={L('Breadcrumb', 'مسار التنقل')}>
         <ol>
           {crumbs.map((c, i) => (
-            <li key={i}>{c.to && i < crumbs.length - 1 ? <Link to={c.to}>{c.label}</Link> : <span aria-current={i === crumbs.length - 1 ? 'page' : undefined} dir={c.ltr ? 'ltr' : undefined}>{c.label}</span>}</li>
+            <li key={i}>{i > 0 && <span className="rp-crumbs__separator"><UISymbol name="expand" /></span>}{c.to && i < crumbs.length - 1 ? <Link to={c.to}>{c.label}</Link> : <span aria-current={i === crumbs.length - 1 ? 'page' : undefined} dir={c.ltr ? 'ltr' : undefined}>{c.label}</span>}</li>
           ))}
         </ol>
         {ret && <button type="button" className="btn btn-sm rp-return" onClick={ret.go}><span aria-hidden="true"><UISymbol name={L('left', 'right')} /></span> {L('Back to', 'العودة إلى')} {ret.label}</button>}
