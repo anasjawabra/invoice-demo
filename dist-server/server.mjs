@@ -2280,6 +2280,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     const x = r.next();
     return x < 0.77 ? 1 : x < 0.89 ? 2 : x < 0.95 ? 3 : 4 + r.int(3);
   };
+  const contractNoOf = (c, startY) => ["CT-" + startY + "-" + pad(c * 7 + 13, 4), "CN-" + (10007 + c * 13), "ECN-" + (30011 + c * 11), "EDROCN-" + (50021 + c * 17)][c % 4];
   const contracts = st.contracts;
   const horizonN = todayN + 370;
   const nContracts = Math.max(8, Math.round(CONTRACT_COUNT * scale));
@@ -2311,7 +2312,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     const crSt = crRoll < 0.9 ? 1 : crRoll < 0.94 ? 2 : crRoll < 0.97 ? 3 : 4;
     const status = r.next() < 0.06 ? "\u0645\u0648\u0642\u0648\u0641" : "\u0633\u0627\u0631\u064A";
     const end = start + Math.round(term * 365);
-    const ct = { future: start > todayN, idx: c, contractNo: `CT-${startY}-${pad(c * 7 + 13, 4)}`, ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), crNo: `10${pad(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], invs: [], totalValue: 0 };
+    const ct = { future: start > todayN, idx: c, contractNo: contractNoOf(c, startY), ent, muni, payer, item, start, end, intervalMonths: mixMonths, anchor, dueDay, annual: Math.round(annual), annualValue: Math.round(annual), crNo: `10${pad(Math.floor(mix(7, c) / 43), 8).slice(-8)}`, crSt, status, dues: [], sched: [], invs: [], totalValue: 0 };
     let y = startY;
     let m = startMonth;
     let no = 0;
@@ -2323,16 +2324,18 @@ function generateWorld(today, { scale = 1 } = {}) {
           const amount = Math.round(annual * mixMonths / 12 * Math.pow(1.03, yearsIn) / 10) * 10;
           no += 1;
           ct.totalValue += amount;
+          let d = { no, due: dueN, amount, inv: -1 };
           if (dueN - 10 >= startN - 10 && dueN <= horizonN) {
-            const d = { no, due: dueN, amount, inv: -1 };
             ct.dues.push(d);
             const issueN = dueN - 10;
+            if (issueN < startN) d.hist = true;
             if (issueN >= startN && issueN <= todayN + 40) {
               const ym = isoOf(issueN).slice(0, 7);
               if (!instByMonth.has(ym)) instByMonth.set(ym, []);
               instByMonth.get(ym).push([c, ct.dues.length - 1]);
             }
           }
+          ct.sched.push(d);
         }
       }
       m += 1;
@@ -2340,11 +2343,11 @@ function generateWorld(today, { scale = 1 } = {}) {
         m = 1;
         y += 1;
       }
-      if (dayNum(`${y}-${pad(m, 2)}-01`) > horizonN) break;
+      if (dayNum(`${y}-${pad(m, 2)}-01`) > end) break;
     }
-    if (ct.dues.length) {
+    if (ct.sched.length) {
       let rem = ct.totalValue;
-      for (const d of ct.dues) {
+      for (const d of ct.sched) {
         rem -= d.amount;
         d.balance = Math.max(0, rem);
       }
@@ -2652,6 +2655,7 @@ function generateWorld(today, { scale = 1 } = {}) {
     }
   }
   st.nGen = st.n;
+  st.dataStartN = startN;
   let reqCount = 0;
   for (const ct of contracts) {
     if (!ct || ct.invs.length < 2) continue;
@@ -3516,6 +3520,10 @@ function lookupKey(st, key) {
   }
   return -1;
 }
+var contractByNumber = (st, no) => {
+  const k = String(no || "").trim().toUpperCase();
+  return k ? (st.contracts || []).find((c) => c && String(c.contractNo).toUpperCase() === k) || null : null;
+};
 function lookupId(st, id) {
   const s = String(id || "").trim();
   if (st.fixtureById.has(s)) return st.fixtureById.get(s);
@@ -4481,7 +4489,13 @@ function iimDetail(st, i, rec, D) {
     exclusion: exclusionOf(D),
     referenceNo: gen ? subscriptionOf(idKey) : null,
     requestNo: gen && ["municipal_fees", "licenses", "white_lands"].includes(rec.revenueSource) ? REQUEST.of(idKey) : null,
-    beneficiary: { idType: company ? { ar: "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A", en: "Commercial registration" } : { ar: "\u0647\u0648\u064A\u0629 \u0648\u0637\u0646\u064A\u0629", en: "National ID" }, id: rec.beneficiaryId || null, name: { ar: rec.entityAr, en: rec.entityEn }, mobile: gen && !(st.flags[i] & 2) ? mobileOf(st.payer[i]) : null },
+    beneficiary: {
+      idType: company ? { ar: "\u0633\u062C\u0644 \u062A\u062C\u0627\u0631\u064A", en: "Commercial registration" } : { ar: "\u0647\u0648\u064A\u0629 \u0648\u0637\u0646\u064A\u0629", en: "National ID" },
+      id: rec.beneficiaryId || null,
+      name: { ar: rec.entityAr, en: rec.entityEn },
+      mobile: null
+      /* personal contact data is never sent to the page */
+    },
     paidDate: full,
     settlementDate: settle,
     cancelDate: rec.cancelled?.date || null,
@@ -5158,7 +5172,7 @@ function materialize(st, i, ctx = null) {
     enforcementLinks: [],
     contract: { required: src.key === "investment", status: CSTAT[st.cstat[i]], ref: ct && st.cstat[i] === 1 ? ct.contractNo : null },
     contractPaymentNo: st.inst[i] || null,
-    contractPaymentTotal: ct ? ct.dues.length : null,
+    contractPaymentTotal: ct ? ct.sched.length : null,
     exclusion: exclusions[0] || null,
     exclusions,
     cancelled,
@@ -5219,9 +5233,9 @@ function resolveSearch(st, q2) {
   const exact = lookupId(st, s);
   if (exact >= 0) return { list: Int32Array.of(exact) };
   const upper = s.toUpperCase();
-  if (/^CT-\d{4}-\d{4}$/.test(upper)) {
-    const ct = st.contracts.find((c) => c && c.contractNo === upper);
-    return { list: Int32Array.from(ct ? ct.invs : []) };
+  {
+    const ct = contractByNumber(st, s);
+    if (ct) return { list: Int32Array.from(ct.invs) };
   }
   if (/^\d{10}$/.test(s)) {
     const ct = st.contracts.find((c) => c && c.crNo === s);
@@ -5677,47 +5691,6 @@ function anomalies(st, req) {
   });
   return { total, counts, rows };
 }
-var VALUE_ANOMALY_MULTIPLE = 10;
-function risk(st, req) {
-  const ctx = makeCtx(st, req);
-  const sc = resolveScope(ctx, req.scope);
-  const D = ctx.D;
-  const limit = req.limit || 60;
-  const sum = new Float64Array(ENTITIES.length * SOURCES.length);
-  const cnt = new Float64Array(ENTITIES.length * SOURCES.length);
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const g = st.ent[i] * SOURCES.length + st.src[i];
-    sum[g] += st.gross[i];
-    cnt[g] += 1;
-  }
-  const cat = { duplicate: { n: 0, amt: 0, top: new TopK(limit) }, struck_off_registry: { n: 0, amt: 0, top: new TopK(limit) }, value_anomaly: { n: 0, amt: 0, top: new TopK(limit) } };
-  for (let i = 0; i < st.n; i += 1) {
-    if (st.issue[i] > ctx.cutoffN || !inScope(st, sc, i) || st.issue[i] < sc.fromN || st.issue[i] > sc.toN) continue;
-    const rf = recordRiskFlags(st, ctx, i);
-    for (const [c, state] of Object.entries(rf)) if (state === "open") {
-      cat[c].n += 1;
-      cat[c].amt += st.gross[i];
-      cat[c].top.push(i, c === "duplicate" ? 90 : 85);
-    }
-    const g = st.ent[i] * SOURCES.length + st.src[i];
-    if (cnt[g] >= 30) {
-      const avg = (sum[g] - st.gross[i]) / (cnt[g] - 1);
-      const ratio2 = avg > 0 ? st.gross[i] / avg : 0;
-      if (ratio2 >= VALUE_ANOMALY_MULTIPLE) {
-        cat.value_anomaly.n += 1;
-        cat.value_anomaly.amt += st.gross[i];
-        cat.value_anomaly.top.push(i, Math.min(99, 60 + (ratio2 - VALUE_ANOMALY_MULTIPLE) * 2));
-      }
-    }
-  }
-  const out = {};
-  for (const [k, v] of Object.entries(cat)) out[k] = { count: v.n, amount: v.amt, rows: v.top.sorted().map(([i, score]) => {
-    derive(ctx, i, ctx.cutoffN);
-    return { ...rowOut(st, ctx, i, D), score: Math.round(score) };
-  }) };
-  return { categories: out, valueAnomalyMultiple: VALUE_ANOMALY_MULTIPLE };
-}
 
 // server/contracts.js
 var METHOD = ["structured", "ocr"];
@@ -5729,23 +5702,90 @@ function stateOf(D) {
   if (D.daysOverdue > 0) return "overdue";
   return "not_due";
 }
+function paymentEvents(st, inv2, dueN, asOfN) {
+  const out = [];
+  let cum = 0;
+  for (let p = st.payStart[inv2]; p < st.payStart[inv2] + st.payCount[inv2]; p += 1) {
+    if (st.pDay[p] > asOfN) continue;
+    cum += st.pAmt[p];
+    out.push({ date: isoOf(st.pDay[p]), amount: st.pAmt[p], channel: CHANNELS[st.pCh[p]], cumulative: cum, daysAfterDue: st.pDay[p] - dueN });
+  }
+  return out;
+}
 function cardOf(st, ctx, ct) {
   const D = ctx.D;
   const today = ctx.cutoffN;
-  const schedule = ct.dues.map((d) => {
-    const issueN = d.due - 10;
-    if (d.inv < 0) return { no: d.no, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance, invoiceNo: null, sadadNo: null, state: issueN <= today ? "unlinked" : "future", invoiced: false, collected: 0, outstanding: 0 };
-    derive(ctx, d.inv, today);
-    return { no: d.no, dueDate: isoOf(st.due[d.inv]), issueDate: isoOf(st.issue[d.inv]), amount: d.amount, remainingContractBalance: d.balance, invoiceNo: idOf(st, d.inv), sadadNo: sadadOf(st.idKey[d.inv]), invoiceIdx: d.inv, state: stateOf(D), invoiced: true, collected: D.collected, outstanding: D.outstanding, daysOverdue: D.daysOverdue };
+  const dataStart = st.dataStartN || 0;
+  const schedule = ct.sched.map((d) => {
+    const yearOf = Number(isoOf(d.due).slice(0, 4));
+    const base = { no: d.no, year: yearOf, dueDate: isoOf(d.due), amount: d.amount, remainingContractBalance: d.balance };
+    if (d.inv >= 0) {
+      derive(ctx, d.inv, today);
+      const events = paymentEvents(st, d.inv, st.due[d.inv], today);
+      const net2 = D.net;
+      const full = D.outstanding <= 0 && !D.excluded && !D.cancelled && D.billed > 0 && D.received >= D.billed;
+      const paidInFull = full ? events.find((e) => e.cumulative >= D.billed - 0.5) : null;
+      return {
+        ...base,
+        dueDate: isoOf(st.due[d.inv]),
+        issueDate: isoOf(st.issue[d.inv]),
+        invoiced: true,
+        invoiceNo: idOf(st, d.inv),
+        sadadNo: sadadOf(st.idKey[d.inv]),
+        state: stateOf(D),
+        dataState: "known",
+        gross: D.billed,
+        exclusion: D.exclTotal,
+        net: net2,
+        collected: D.collected,
+        outstanding: D.outstanding,
+        daysOverdue: D.excluded || D.cancelled || D.outstanding <= 0 ? null : D.daysOverdue,
+        // days late only for an open, non-excluded invoice
+        payments: events,
+        firstPaymentOn: events.length ? events[0].date : null,
+        lastPaymentOn: events.length ? events[events.length - 1].date : null,
+        paidInFullOn: paidInFull ? paidInFull.date : null
+      };
+    }
+    const hist = d.hist || d.due < dataStart;
+    const state = hist ? "history" : d.due > today ? "future" : "unlinked";
+    return {
+      ...base,
+      issueDate: null,
+      invoiced: false,
+      invoiceNo: null,
+      sadadNo: null,
+      state,
+      dataState: state === "future" ? "not_applicable" : "unknown",
+      gross: null,
+      exclusion: null,
+      net: null,
+      collected: null,
+      outstanding: null,
+      daysOverdue: null,
+      payments: [],
+      firstPaymentOn: null,
+      lastPaymentOn: null,
+      paidInFullOn: null
+    };
   });
-  const sum = (f) => schedule.reduce((s, x) => s + f(x), 0);
+  const sum = (f) => schedule.reduce((s, x) => s + (f(x) || 0), 0);
+  const count = (f) => schedule.filter(f).length;
   const reqs = st.requests.filter((q2) => q2.contractIdx === ct.idx).map((q2) => {
     const ids = q2.identified.map((i) => idOf(st, i));
-    return { enforceNum: q2.enforceNum, system: "sanad", amount: q2.amount, openedDate: isoOf(q2.openedDay), status: q2.status, contractNo: ct.contractNo, identifiedInvoices: ids, identified: ids.length > 0, crViewStatusRaw: CR_STATUS[ct.crSt], addedToNetUncollected: false, documents: [{ type: "\u0641\u0627\u062A\u0648\u0631\u0629", item: `\u0628\u0646\u062F \u0661 \u2014 ${payerName(ct.payer).ar}`, crNo: q2.crNo, method: METHOD[q2.method], confidence: q2.confidence }] };
+    return { enforceNum: q2.enforceNum, system: "sanad", amount: q2.amount, openedDate: isoOf(q2.openedDay), closedDate: null, closedDateStatus: "not_recorded", status: q2.status, contractNo: ct.contractNo, identifiedInvoices: ids, identified: ids.length > 0, crViewStatusRaw: CR_STATUS[ct.crSt], addedToNetUncollected: false, documents: [{ type: "\u0641\u0627\u062A\u0648\u0631\u0629", item: `\u0628\u0646\u062F \u0661 \u2014 ${payerName(ct.payer).ar}`, crNo: q2.crNo, method: METHOD[q2.method], confidence: q2.confidence }] };
   });
   const linkedDebt = reqs.reduce((s, q2) => s + q2.identifiedInvoices.reduce((t, id) => t + (schedule.find((x) => x.invoiceNo === id)?.outstanding || 0), 0), 0);
   const arrears = sum((x) => x.state === "overdue" || x.state === "partial" ? x.outstanding : 0);
   const notDue = sum((x) => x.state === "not_due" ? x.outstanding : 0);
+  const gross = sum((x) => x.gross);
+  const exclusions = sum((x) => x.exclusion);
+  const net = sum((x) => x.net);
+  const collected = sum((x) => x.collected);
+  const uncollected = sum((x) => x.outstanding);
+  const dueRows = (x) => x.dueDate <= ctx.cfg.cutoff && (x.invoiced || x.state === "unlinked");
+  const dueToDate = sum((x) => dueRows(x) ? x.amount : 0);
+  const termEnded = ct.end < today;
   return {
     contractNo: ct.contractNo,
     idx: ct.idx,
@@ -5762,27 +5802,39 @@ function cardOf(st, ctx, ct) {
     end: isoOf(ct.end),
     intervalMonths: ct.intervalMonths,
     status: ct.status,
+    termEnded,
     crNo: ct.crNo,
     crStatusRaw: CR_STATUS[ct.crSt] || null,
     annualValue: ct.annualValue,
     totalValue: ct.totalValue,
     schedule,
     invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo),
-    // kept in the summary: which invoices belong to the contract (never inferred — taken from the contract's own schedule)
+    // which invoices belong to the contract (never inferred — taken from the contract's own schedule)
     totals: {
       contractValue: ct.totalValue,
       installments: schedule.length,
-      invoiced: sum((x) => x.invoiced ? x.amount : 0),
-      collected: sum((x) => x.collected),
+      invoicedInstallments: count((x) => x.invoiced),
+      invoiced: gross,
+      gross,
+      exclusions,
+      net,
+      collected,
+      uncollected,
+      collectionRateOnNet: ratio(collected, net),
+      // net invoiced = gross − exclusions; uncollected = net − collected; rate = collected ÷ net (zero or unknown denominator → not calculable)
       arrears,
       notDue,
       futureNotInvoiced: sum((x) => x.state === "future" ? x.amount : 0),
       netUncollected: arrears + notDue,
-      dueToDate: sum((x) => x.dueDate <= ctx.cfg.cutoff ? x.amount : 0),
+      dueToDate,
+      collectedOfDueToDate: ratio(collected, dueToDate),
       remainingOfDue: sum((x) => x.invoiced && x.dueDate <= ctx.cfg.cutoff ? x.outstanding : 0),
-      overdueInstallments: schedule.filter((x) => x.state === "overdue" || x.state === "partial").length,
-      futureInstallments: schedule.filter((x) => x.state === "future").length,
-      unlinkedInstallments: schedule.filter((x) => x.state === "unlinked").length
+      overdueInstallments: count((x) => x.state === "overdue" || x.state === "partial"),
+      futureInstallments: count((x) => x.state === "future"),
+      unlinkedInstallments: count((x) => x.state === "unlinked"),
+      unlinkedAmount: sum((x) => x.state === "unlinked" ? x.amount : 0),
+      historyInstallments: count((x) => x.state === "history"),
+      coverage: { installments: schedule.length, known: count((x) => x.dataState === "known"), notApplicable: count((x) => x.dataState === "not_applicable"), unknown: count((x) => x.dataState === "unknown") }
     },
     requests: reqs,
     execution: {
@@ -5791,21 +5843,23 @@ function cardOf(st, ctx, ct) {
       unidentifiedAmount: reqs.filter((q2) => !q2.identified).reduce((s, q2) => s + q2.amount, 0),
       invoicesIdentified: reqs.some((q2) => q2.identified),
       addedToNetUncollected: false,
-      note: reqs.length && !reqs.some((q2) => q2.identified) ? { ar: "\u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0645\u0631\u062A\u0628\u0637 \u0628\u0627\u0644\u0639\u0642\u062F \u062F\u0648\u0646 \u0641\u0648\u0627\u062A\u064A\u0631 \u0645\u062D\u062F\u062F\u0629 \u2014 \u064A\u064F\u0639\u0631\u0636 \u0639\u0644\u0649 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0639\u0642\u062F \u0648\u0644\u0627 \u064A\u064F\u0636\u0627\u0641 \u0625\u0644\u0649 \u0635\u0627\u0641\u064A \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0644 \u0645\u0631\u0629 \u062B\u0627\u0646\u064A\u0629.", en: "Execution request is linked to the contract with no invoices identified \u2014 shown at contract level and not added to net uncollected again." } : reqs.length ? { ar: "\u0641\u0648\u0627\u062A\u064A\u0631 \u0645\u062D\u062F\u062F\u0629 \u0636\u0645\u0646 \u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u062A\u0628\u0642\u0649 \u063A\u064A\u0631 \u0645\u062D\u0635\u0644\u0629 \u0648\u0644\u0627 \u062A\u064F\u062D\u062A\u0633\u0628 \u0645\u0631\u062A\u064A\u0646.", en: "Invoices identified in the request stay uncollected and are not counted twice." } : null
+      note: reqs.length && !reqs.some((q2) => q2.identified) ? { ar: "\u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u0645\u0631\u062A\u0628\u0637 \u0628\u0627\u0644\u0639\u0642\u062F \u062F\u0648\u0646 \u0641\u0648\u0627\u062A\u064A\u0631 \u0645\u062D\u062F\u062F\u0629 \u2014 \u064A\u064F\u0639\u0631\u0636 \u0639\u0644\u0649 \u0645\u0633\u062A\u0648\u0649 \u0627\u0644\u0639\u0642\u062F \u0648\u0644\u0627 \u064A\u064F\u0636\u0627\u0641 \u0625\u0644\u0649 \u0635\u0627\u0641\u064A \u063A\u064A\u0631 \u0627\u0644\u0645\u062D\u0635\u0644 \u0645\u0631\u0629 \u062B\u0627\u0646\u064A\u0629.", en: "Execution request is linked to the contract with no invoices identified \u2014 shown at contract level and not added to net uncollected again." } : reqs.length ? { ar: "\u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0627\u0644\u0645\u062D\u062F\u062F\u0629 \u0641\u064A \u0637\u0644\u0628 \u0627\u0644\u062A\u0646\u0641\u064A\u0630 \u062A\u064F\u0639\u0631\u0636 \u0628\u062D\u0627\u0644\u062A\u0647\u0627 \u0627\u0644\u0641\u0639\u0644\u064A\u0629 (\u0642\u062F \u062A\u0643\u0648\u0646 \u0645\u0633\u062A\u0628\u0639\u062F\u0629 \u0628\u0642\u0627\u0639\u062F\u0629 \u0633\u0646\u062F)\u061B \u0648\u0627\u0644\u0637\u0644\u0628 \u0646\u0641\u0633\u0647 \u0644\u0627 \u064A\u063A\u064A\u0651\u0631 \u0623\u064A \u0645\u0628\u0644\u063A \u0648\u0644\u0627 \u064A\u0639\u0646\u064A \u062A\u062D\u0635\u064A\u0644\u0627\u064B.", en: "Invoices named in the execution request show their own status (they may be excluded under the Sanad rule); the request itself changes no amount and does not mean collection." } : null
     },
     crChain: reqs.map((q2) => ({ sanadRequest: q2.enforceNum, document: `${q2.documents[0].type} \u2014 ${q2.documents[0].item}`, crNo: q2.crNo || ct.crNo, method: q2.documents[0].method, confidence: q2.documents[0].confidence, crViewStatusRaw: CR_STATUS[ct.crSt] || null }))
   };
 }
-function contractCards(st, req, { summary: summary2 = true } = {}) {
-  const ctx = makeCtx(st, req);
+var inScope2 = (req, ct) => {
   const allowed = req.scope?.org?.amanahKeys || req.scope?.orgKeys || null;
   const am = req.scope?.amanah;
   const picked = am && am !== "all" ? new Set([].concat(am)) : null;
+  const en = ENTITIES[ct.ent].en;
+  return !(allowed && !allowed.includes(en)) && !(picked && !picked.has(en));
+};
+function contractCards(st, req, { summary: summary2 = true } = {}) {
+  const ctx = makeCtx(st, req);
   const out = [];
   for (const ct of st.contracts) {
-    if (!ct) continue;
-    if (allowed && !allowed.includes(ENTITIES[ct.ent].en)) continue;
-    if (picked && !picked.has(ENTITIES[ct.ent].en)) continue;
+    if (!ct || !inScope2(req, ct)) continue;
     const c = cardOf(st, ctx, ct);
     if (summary2) {
       c.schedule = void 0;
@@ -5817,15 +5871,30 @@ function contractCards(st, req, { summary: summary2 = true } = {}) {
 function contractCard(st, req, no) {
   const ctx = makeCtx(st, req);
   const ct = st.contracts.find((c) => c && c.contractNo === no);
-  return ct ? cardOf(st, ctx, ct) : null;
+  return ct && inScope2(req, ct) ? cardOf(st, ctx, ct) : null;
 }
 function contractRollup(cards) {
+  const add = (f) => cards.reduce((s, c) => s + f(c.totals), 0);
+  const gross = add((t) => t.gross);
+  const exclusions = add((t) => t.exclusions);
+  const net = add((t) => t.net);
+  const collected = add((t) => t.collected);
   return {
     contracts: cards.length,
     multiPayment: cards.filter((c) => c.totals.installments > 1).length,
-    arrears: cards.reduce((s, c) => s + c.totals.arrears, 0),
-    notDue: cards.reduce((s, c) => s + c.totals.notDue, 0),
-    futureNotInvoiced: cards.reduce((s, c) => s + c.totals.futureNotInvoiced, 0),
+    arrears: add((t) => t.arrears),
+    notDue: add((t) => t.notDue),
+    futureNotInvoiced: add((t) => t.futureNotInvoiced),
+    gross,
+    exclusions,
+    net,
+    collected,
+    uncollected: add((t) => t.uncollected),
+    collectionRateOnNet: ratio(collected, net),
+    unlinkedInstallments: add((t) => t.unlinkedInstallments),
+    unlinkedAmount: add((t) => t.unlinkedAmount),
+    historyInstallments: add((t) => t.historyInstallments),
+    coverage: { installments: add((t) => t.coverage.installments), known: add((t) => t.coverage.known), notApplicable: add((t) => t.coverage.notApplicable), unknown: add((t) => t.coverage.unknown) },
     executionAtContractLevel: cards.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0)
   };
 }
@@ -6109,7 +6178,7 @@ function resolveReferences(st, req) {
       const i = key == null ? -1 : lookupKey(st, key);
       if (i >= 0) idx = [i];
     } else if (kind === "contract_no") {
-      const ct = (st.contracts || []).find((c) => c && c.contractNo === value.toUpperCase());
+      const ct = contractByNumber(st, value);
       out.push({ ref, status: ct ? "contract_found" : "contract_not_found", weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null });
       continue;
     } else {
@@ -6356,8 +6425,6 @@ async function handleApi(req, res) {
         return send(res, 200, memoize(key("wl"), () => worklist(st, body)));
       case "/anomalies":
         return send(res, 200, memoize(key("an"), () => anomalies(st, body)));
-      case "/risk":
-        return send(res, 200, memoize(key("risk"), () => risk(st, body)));
       case "/sources":
         return send(res, 200, memoize(key("src"), () => sourcesReport(st, body)));
       case "/quality":
@@ -6368,7 +6435,7 @@ async function handleApi(req, res) {
           return { cards, rollup: contractRollup(cards) };
         }));
       case "/contract": {
-        const c = contractCard(st, body, body.no);
+        const c = memoize(key("ct1"), () => contractCard(st, body, body.no));
         return c ? send(res, 200, c) : send(res, 404, { error: "contract_not_found" });
       }
       case "/invoice": {
