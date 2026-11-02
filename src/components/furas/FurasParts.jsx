@@ -2,6 +2,7 @@ import React from 'react';
 import { useL } from '../../utils/bi';
 import { NOT_AVAILABLE } from '../../data/contractRules';
 import { Chip, NaCell, BarList, Icon } from './FurasUI';
+import { storedText } from '../../data/furasLabels';
 
 // Shared pieces of the FURAS DATASET MODE pages. Every number comes from the local exports through /api/furas/*; nothing here is generated.
 export function NA({ why }) { const { B } = useL(); return <span className="fu-na" title={why}>{B(NOT_AVAILABLE)}</span>; }
@@ -97,7 +98,7 @@ export function IntegrityChecks({ S }) {
 
 // the overview: what the exports hold, as quiet figures and distribution bars (Overview tab and the Furas product page)
 export function FurasOverview({ S }) {
-  const { L, count, short } = useL();
+  const { L, ar, count, short } = useL();
   if (!S) return null;
   const c = S.contracts; const p = S.payments;
   const Fig = ({ label, value, sub }) => <div className="fu-fig"><span className="fu-fig__label">{label}</span><span className="fu-fig__value" dir="ltr">{value}</span>{sub && <span className="fu-fig__sub">{sub}</span>}</div>;
@@ -111,14 +112,14 @@ export function FurasOverview({ S }) {
       </div>
       <div className="fu-grid">
         <section className="fu-card"><h3>{L('Service type (as stored)', 'نوع الخدمة (كما هو)')}</h3><p>{L('records · distinct numbers', 'سجلات · أرقام مميزة')}</p>
-          <BarList rows={c.byType.map((x) => ({ label: x.value, a: x.records, b: x.numbers }))} format={count} second={count} /></section>
+          <BarList rows={c.byType.map((x) => ({ label: storedText('type', x.value, ar), a: x.records, b: x.numbers }))} format={count} second={count} /></section>
         <section className="fu-card"><h3>{L('Opportunity status (as stored)', 'حالة الفرصة (كما هي)')}</h3><p>{L('Meanings are not confirmed — none is interpreted. records · numbers', 'معانيها غير مؤكدة — ولا يُفسَّر شيء منها. سجلات · أرقام')}</p>
-          <BarList rows={c.byStatus.map((x) => ({ label: x.value, a: x.records, b: x.numbers }))} format={count} second={count} /></section>
+          <BarList rows={c.byStatus.map((x) => ({ label: storedText('status', x.value, ar), a: x.records, b: x.numbers }))} format={count} second={count} /></section>
         <section className="fu-card"><h3>{L('Amanah (source names)', 'الأمانة (الأسماء في المصدر)')}</h3><p>{L('records · distinct numbers', 'سجلات · أرقام مميزة')}</p>
           <BarList rows={c.byMunicipality.map((m) => ({ label: `${m.code} · ${m.sourceName}`, a: m.records, b: m.numbers, chip: m.flag ? <> <Chip tone="warn" icon="alert" title={L('Entity scope to be confirmed', 'نطاق الجهة بانتظار التأكيد')}>{L('confirm', 'تأكيد')}</Chip></> : null }))} format={count} second={count} />
           {flagged && <p className="fu-note">{L('Code 002 is named «أمانة العاصمة المقدسة» in the data, while the generated demo uses «أمانة منطقة مكة المكرمة»: the entity scope is to be confirmed; the source name is kept unchanged.', 'الرمز 002 يُسمّى «أمانة العاصمة المقدسة» في البيانات بينما يستخدم العرض المُولَّد «أمانة منطقة مكة المكرمة»: نطاق الجهة بانتظار التأكيد؛ ويبقى اسم المصدر دون تغيير.')}</p>}</section>
         <section className="fu-card"><h3>{L('Payment status (as stored)', 'حالة الدفعة (كما هي)')}</h3><p>{L('rows · scheduled amount (not collections)', 'صفوف · المبلغ المجدول (ليس تحصيلاً)')}</p>
-          <BarList rows={p.byStatus.map((x) => ({ label: x.value, a: x.rows, b: x.scheduledAmount }))} format={count} second={short} /></section>
+          <BarList rows={p.byStatus.map((x) => ({ label: storedText('payStatus', x.value, ar), a: x.rows, b: x.scheduledAmount }))} format={count} second={short} /></section>
       </div>
       <section className="fu-card"><h3>{L('Not available in the current data', 'غير متاح في البيانات الحالية')}</h3><UnavailableList /></section>
     </>

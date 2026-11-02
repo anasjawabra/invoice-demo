@@ -2166,6 +2166,17 @@ await test('Furas UI · the task comes first: the list is a labelled table behin
   assert.ok(ui.includes('fu-sr') && ui.includes('NOT_AVAILABLE') && list.includes('= Not available in the current data') && one.includes('= Not available in the current data'), 'a dash always has the full wording for screen readers and a legend');
   assert.ok(css.includes('prefers-reduced-motion') && css.includes('inset-inline-start') && css.includes('@media (max-width: 860px)') && !/margin-left|margin-right|padding-left|padding-right|text-align:\s*(left|right)/.test(css), 'responsive, reduced-motion and RTL-safe (logical properties only)');
 });
+import { stored as stored_F, storedOption as storedOption_F, storedText as storedText_F, STORED_KINDS as STORED_KINDS_F } from '../src/data/furasLabels.js';
+await test('Furas UI · stored statuses follow the language setting: English as stored, Arabic a literal translation with the stored value kept beside it, unknown values never invented', () => {
+  assert.deepEqual(stored_F('status', 'Contract-Approved', false), { text: 'Contract-Approved', raw: 'Contract-Approved', translated: false }, 'English: exactly as stored');
+  const a = stored_F('status', 'Contract-Approved', true); assert.equal(a.raw, 'Contract-Approved'); assert.equal(a.translated, true); assert.ok(/[؀-ۿ]/.test(a.text));
+  assert.equal(storedOption_F('status', 'Contract-Approved', true), `${a.text} (Contract-Approved)`, 'the filter option keeps the stored value'); assert.equal(storedOption_F('status', 'Contract-Approved', false), 'Contract-Approved');
+  assert.deepEqual(stored_F('status', 'Some-New-Value', true), { text: 'Some-New-Value', raw: 'Some-New-Value', translated: false }, 'a value without an entry is shown as stored'); assert.equal(storedText_F('payStatus', null, true), '');
+  assert.deepEqual(STORED_KINDS_F.sort(), ['payStatus', 'renewal', 'rental', 'status', 'type']);
+  const src = nodeFs.readFileSync('src/data/furasLabels.js', 'utf8'); assert.ok(!/null,|''\s*[,}]/.test(src.split('const T')[1].split('export')[0]) , 'no empty translation');
+  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); const one = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8'); const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8');
+  assert.ok(list.includes("storedOption('status'") && list.includes("storedOption('type'") && list.includes("chips(r.statuses") && one.includes("STORED_FIELD") && one.includes("'payStatus'") && parts.includes("storedText('payStatus'"), 'list, filters, overview and details all use the stored-value wording');
+});
 await test('Wording · the proposed-rule summary no longer repeats «قاعدة مقترحة» in Arabic', () => {
   const op = nodeFs.readFileSync('src/components/record/OriginParts.jsx', 'utf8'); assert.ok(!op.includes("'لماذا «مستحقة — لا فاتورة مرتبطة» قاعدة مقترحة'")); assert.ok(op.includes('«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه'));
   const summaryAr = '«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه' + ' — ' + PR_A.ar; assert.equal((summaryAr.match(/قاعدة مقترحة/g) || []).length, 1);

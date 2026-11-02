@@ -6,6 +6,7 @@ import { furas } from '../../api/furasClient';
 import { RecordState } from '../../components/record/RecordPage';
 import { DatasetBanner, UnavailableChips } from '../../components/furas/FurasParts';
 import { Chip, Icon, NaCell } from '../../components/furas/FurasUI';
+import { stored, storedText } from '../../data/furasLabels';
 
 const FLAG = { out_of_range: ['to validate (out of range)', 'للتحقق (خارج النطاق)'], epoch: ['to validate (1970)', 'للتحقق (1970)'], hijri_like: ['to validate (Hijri-like year, not converted)', 'للتحقق (سنة تشبه الهجرية، دون تحويل)'], after_extract: ['to validate (after the extract date)', 'للتحقق (بعد تاريخ الاستخراج)'], unreadable: ['unreadable', 'غير مقروء'] };
 const DATE_FLAG_KEY = { awardingDate: 'awardingdate', signingDate: 'signingdate', startDate: 'startdate', endDate: 'enddate' };
@@ -19,6 +20,7 @@ const GROUPS = [
   { g: ['Links', 'الروابط'], rows: [['renewalLink', 'Renewal link', 'رابط التجديد']] }
 ];
 const empty = (v) => v == null || v === '';
+const STORED_FIELD = { contractType: 'type', status: 'status', rentalStatus: 'rental', renewalStatus: 'renewal' };
 
 // One contract NUMBER in FURAS DATASET MODE: the records that carry it side by side (differences lit), the payment rows of the capped extract listed once, and what the exports cannot say.
 export default function FurasContract() {
@@ -38,6 +40,7 @@ export default function FurasContract() {
     if (DATE_FLAG_KEY[k]) return date(v, r.dateFlags[DATE_FLAG_KEY[k]]);
     if (k.startsWith('handover')) return date(v);
     if (empty(v)) return <NaCell />;
+    if (STORED_FIELD[k]) { const s = stored(STORED_FIELD[k], v, ar); return <span dir="auto" title={s.translated ? s.raw : undefined}>{s.text}{s.translated && <span className="fu-rec" dir="ltr">{s.raw}</span>}</span>; }
     if (kind === 'money') return <span dir="ltr">{sar(v)}</span>;
     return <span dir="auto">{String(v)}</span>;
   };
@@ -47,7 +50,7 @@ export default function FurasContract() {
   const diffKeys = GROUPS.flatMap((g) => g.rows).filter(([k]) => differs(k)).map(([k, en, arb]) => B({ en, ar: arb }));
   const uniq = (k) => [...new Set(recs.map((r) => r[k]).filter((x) => !empty(x)))];
   const types = uniq('contractType'); const statuses = uniq('status'); const amanahs = [...new Map(recs.filter((r) => r.municipality).map((r) => [r.municipality.code, r.municipality])).values()];
-  const ch = (arr, warn) => (arr.length ? <span className="fu-chips">{arr.map((x) => <Chip key={x} tone={warn ? 'warn' : 'value'}>{x}</Chip>)}</span> : <NaCell full />);
+  const ch = (arr, warn, kind) => (arr.length ? <span className="fu-chips">{arr.map((x) => <Chip key={x} tone={warn ? 'warn' : 'value'} title={stored(kind, x, ar).translated ? x : undefined}>{storedText(kind, x, ar)}</Chip>)}</span> : <NaCell full />);
 
   return (
     <div className="fu-page">
@@ -59,8 +62,8 @@ export default function FurasContract() {
           <Chip tone="warn" icon="alert" title={L('The data has no created / version column', 'لا يوجد عمود إنشاء أو إصدار في البيانات')}>{L('Current record not determined', 'السجل الحالي غير محدد')}</Chip>
         </div>
         <dl className="fu-hero__facts">
-          <div><dt>{L('Service type', 'نوع الخدمة')}</dt><dd>{ch(types, types.length > 1)}</dd></div>
-          <div><dt>{L('Status (as stored)', 'الحالة (كما هي)')}</dt><dd>{ch(statuses, statuses.length > 1)}</dd></div>
+          <div><dt>{L('Service type', 'نوع الخدمة')}</dt><dd>{ch(types, types.length > 1, 'type')}</dd></div>
+          <div><dt>{L('Status (as stored)', 'الحالة (كما هي)')}</dt><dd>{ch(statuses, statuses.length > 1, 'status')}</dd></div>
           <div><dt>{L('Amanah (source)', 'الأمانة (المصدر)')}</dt><dd>{amanahs.length ? amanahs.map((m) => <div key={m.code}>{m.sourceName} <span className="muted" dir="ltr">{m.code}</span></div>) : <NaCell full />}</dd></div>
           <div><dt>{L('Payment rows in the extract', 'صفوف الدفعات في المستخرج')}</dt><dd><b dir="ltr">{count(c.payments.rowsInExtract)}</b> <span className="muted">{L('limited sample', 'عيّنة محدودة')}</span></dd></div>
           <div><dt>{L('Case rows', 'صفوف الحالات')}</dt><dd><b dir="ltr">{count(c.caseRows.count)}</b></dd></div>
@@ -107,7 +110,7 @@ export default function FurasContract() {
             <tbody>{c.payments.rows.map((p, i) => (
               <tr key={i}>
                 <td data-label={L('Batch', 'الدفعة')}><b dir="ltr">{p.batchNumber ?? '—'}</b><small dir="ltr">{p.batchYear ?? ''}</small></td>
-                <td data-label={L('Status', 'الحالة')}>{p.status ? <Chip>{p.status}</Chip> : <NaCell />}</td>
+                <td data-label={L('Status', 'الحالة')}>{p.status ? <Chip title={stored('payStatus', p.status, ar).translated ? p.status : undefined}>{storedText('payStatus', p.status, ar)}</Chip> : <NaCell />}</td>
                 <td data-label={L('Type · frequency', 'النوع · الدورية')}>{p.paymentType || <NaCell />}<small>{p.method || ''}</small></td>
                 <td data-label={L('Due date', 'الاستحقاق')}>{date(p.dueDate, p.dateFlags.dueDate)}</td>
                 <td data-label={L('Invoice date', 'تاريخ الفاتورة')}>{date(p.invoiceDate, p.dateFlags.invoiceDate)}</td>

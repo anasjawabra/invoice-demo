@@ -8,6 +8,7 @@ import { RecordState } from '../../components/record/RecordPage';
 import { contractPath } from '../../utils/paths';
 import { DatasetBanner, LimitsPanel, IntegrityChecks, FurasOverview } from '../../components/furas/FurasParts';
 import { Chip, Icon, NaCell, StatStrip, Tabs } from '../../components/furas/FurasUI';
+import { stored, storedOption, storedText, LITERAL_NOTE } from '../../data/furasLabels';
 
 const EMPTY = { q: '', type: '', status: '', municipality: '', severalRecords: false, conflicting: false, inPaymentExtract: false };
 const PS = 25;
@@ -24,11 +25,11 @@ export default function FurasContracts() {
   const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
   const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
   const { data: list, loading, error } = useAsync(() => (tab === 'contracts' ? furas.contracts(body) : Promise.resolve(null)), [body, tab]);
-  const active = [f.q && { k: 'q', label: `“${f.q}”` }, f.type && { k: 'type', label: f.type }, f.status && { k: 'status', label: f.status }, f.municipality && { k: 'municipality', label: S?.contracts.byMunicipality.find((m) => m.code === f.municipality)?.sourceName || f.municipality },
+  const active = [f.q && { k: 'q', label: `“${f.q}”` }, f.type && { k: 'type', label: storedText('type', f.type, ar) }, f.status && { k: 'status', label: storedText('status', f.status, ar) }, f.municipality && { k: 'municipality', label: S?.contracts.byMunicipality.find((m) => m.code === f.municipality)?.sourceName || f.municipality },
     f.severalRecords && { k: 'severalRecords', label: L('Several records', 'عدة سجلات') }, f.conflicting && { k: 'conflicting', label: L('Conflicting records', 'سجلات متعارضة') }, f.inPaymentExtract && { k: 'inPaymentExtract', label: L('In the payment extract', 'في مستخرج الدفعات') }].filter(Boolean);
   const reset = (k) => upd({ [k]: EMPTY[k] });
   const c = S?.contracts; const p = S?.payments;
-  const chips = (arr, field) => (arr.length ? <span className="fu-chips" title={arr.map((x) => x.value).join(' · ')}>{arr.slice(0, 2).map((x) => <Chip key={x.value}>{x.value}</Chip>)}{arr.length > 2 && <Chip tone="muted">+{arr.length - 2}</Chip>}{field}</span> : <NaCell />);
+  const chips = (arr, kind) => (arr.length ? <span className="fu-chips" title={arr.map((x) => stored(kind, x.value, false).raw + (x.n ? ` ×${x.n}` : '')).join(' · ')}>{arr.slice(0, 2).map((x) => <Chip key={x.value} title={stored(kind, x.value, ar).translated ? x.value : undefined}>{storedText(kind, x.value, ar)}{x.n ? ` ×${x.n}` : ''}</Chip>)}{arr.length > 2 && <Chip tone="muted">+{arr.length - 2}</Chip>}</span> : <NaCell />);
   return (
     <div className="fu-page">
       <header className="fu-head"><div>
@@ -50,8 +51,8 @@ export default function FurasContracts() {
           <div className="fu-tools" role="search">
             <div className="fu-tools__row">
               <label className="fu-search"><Icon name="search" /><span className="fu-sr">{L('Search a contract number', 'ابحث برقم العقد')}</span><input type="search" value={f.q} onChange={(e) => upd({ q: e.target.value })} placeholder={L('Search a contract number…', 'ابحث برقم العقد…')} dir="ltr" autoComplete="off" /></label>
-              <select className="fu-select" aria-label={L('Service type', 'نوع الخدمة')} value={f.type} onChange={(e) => upd({ type: e.target.value })}><option value="">{L('All service types', 'كل أنواع الخدمة')}</option>{S?.contracts.byType.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select>
-              <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select>
+              <select className="fu-select" aria-label={L('Service type', 'نوع الخدمة')} value={f.type} onChange={(e) => upd({ type: e.target.value })}><option value="">{L('All service types', 'كل أنواع الخدمة')}</option>{S?.contracts.byType.map((x) => <option key={x.value} value={x.value}>{storedOption('type', x.value, ar)}</option>)}</select>
+              <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{storedOption('status', x.value, ar)}</option>)}</select>
               <select className="fu-select" aria-label={L('Amanah (source)', 'الأمانة (المصدر)')} value={f.municipality} onChange={(e) => upd({ municipality: e.target.value })}><option value="">{L('All Amanahs', 'كل الأمانات')}</option>{S?.contracts.byMunicipality.map((m) => <option key={m.code} value={m.code}>{m.code} · {m.sourceName}</option>)}</select>
             </div>
             <div className="fu-tools__row" role="group" aria-label={L('Quick filters', 'تصفية سريعة')}>
@@ -75,8 +76,8 @@ export default function FurasContracts() {
               return (
                 <div key={r.no} className="fu-row" role="row" onClick={(e) => { if (!e.target.closest('a')) nav(contractPath(r.no)); }}>
                   <div role="cell" data-col="no" className="fu-cell"><Link className="fu-no" to={contractPath(r.no)} dir="ltr">{r.no}</Link>{r.records > 1 && <> <Chip tone="info" icon="layers">{L(`${r.records} records`, `${r.records} سجلات`)}</Chip></>}</div>
-                  <div role="cell" data-col="type" className="fu-cell">{chips(r.types)}</div>
-                  <div role="cell" data-col="status" className="fu-cell">{chips(r.statuses.map((s) => ({ value: r.statuses.length > 1 ? `${s.value} ×${s.records}` : s.value })))}</div>
+                  <div role="cell" data-col="type" className="fu-cell">{chips(r.types.map((t) => ({ value: t.value })), 'type')}</div>
+                  <div role="cell" data-col="status" className="fu-cell">{chips(r.statuses.map((s) => ({ value: s.value, n: r.statuses.length > 1 ? s.records : 0 })), 'status')}</div>
                   <div role="cell" data-col="amanah" className="fu-cell">{r.municipalities.length ? r.municipalities.map((m) => <span key={m.code} style={{ display: 'block' }}><bdi>{m.sourceName}</bdi><small dir="ltr">{m.code}</small></span>) : <NaCell />}</div>
                   <div role="cell" data-col="value" className="fu-cell fu-cell--num" dir="ltr">{r.contractValue.state === 'none' ? <NaCell /> : r.contractValue.state === 'conflict' ? <Chip tone="warn" icon="alert" title={L('Records disagree; no value is chosen', 'السجلات متعارضة؛ ولا تُختار قيمة')}>{L(`${r.contractValue.distinct} values`, `${r.contractValue.distinct} قيم`)}</Chip> : sar(r.contractValue.value)}</div>
                   <div role="cell" data-col="signals" className="fu-cell"><span className="fu-chips">
@@ -87,7 +88,7 @@ export default function FurasContracts() {
                 </div>);
             })}
             {list && !list.rows.length && <div className="fu-empty"><b>{L('No contract number matches.', 'لا رقم عقد مطابق.')}</b><div>{L('Try fewer filters or a shorter search.', 'جرّب تصفية أقل أو بحثاً أقصر.')}</div>{active.length > 0 && <button type="button" className="fu-link" onClick={() => { setF(EMPTY); setPage(0); }}>{L('Clear all filters', 'مسح كل الفلاتر')}</button>}</div>}
-            <div className="fu-legend"><NaCell /> {L('= Not available in the current data. “×n” after a status = n records with that status. Values are as stored; nothing is generated.', '= غير متاح في البيانات الحالية. «×n» بعد الحالة = n سجلاً بهذه الحالة. القيم كما هي؛ ولا يُولَّد شيء.')}</div>
+            <div className="fu-legend"><NaCell /> {L('= Not available in the current data. “×n” after a status = n records with that status. Values are as stored; nothing is generated.', `= غير متاح في البيانات الحالية. «×n» بعد الحالة = n سجلاً بهذه الحالة. القيم كما هي؛ ولا يُولَّد شيء. ${LITERAL_NOTE.ar}`)}</div>
           </div>
           <Pager page={page} total={list?.total || 0} size={PS} onPage={setPage} />
         </div>)}
