@@ -227,3 +227,7 @@ button.oj-card:hover, button.oj-card:focus-visible { border-color: var(--primary
 .rp-origin--proposed, .rp-origin--limited_sample { border-color: rgba(181, 71, 8, 0.5); color: var(--txt); }
 .rp-origin--not_available { border-style: dashed; }
 .rp-rulenote li { margin: 4px 0; }
+.rp-furasbanner { display: block; border-style: solid; }
+.rp-furasbanner table { margin-top: 6px; }
+.rp-grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.data-mode { display: inline-flex; gap: 4px; margin-inline-start: 10px; }

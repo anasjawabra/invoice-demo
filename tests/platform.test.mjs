@@ -2064,6 +2064,104 @@ await test('Documentation · the net formula is stated once and consistently («
   const re = nodeFs.readFileSync('docs/furas-export-reassessment.md', 'utf8'); assert.ok(/observed match/i.test(re) && /not verified/i.test(re));
   for (const f of ['src/data/dictionaryDocs.js', 'src/pages/ProductPage.jsx', 'server/contracts.js', 'docs/contracts-lifecycle-phase1.md']) assert.ok(!/gross − exclusions − cancelled/.test(nodeFs.readFileSync(f, 'utf8').replace('= gross − cancelled − rule exclusions', '').replace('«gross − exclusions − cancelled»', '')), `${f}: no stated «gross − exclusions − cancelled» (the doc only quotes it as the corrected wording)`);
 });
+import nodeOs from 'node:os';
+import { execSync as execSync_F } from 'node:child_process';
+import { furasAvailable, loadFuras, resetFuras, furasSummary, furasContracts, furasContract, furasDecisionInput, FURAS_KEEP, maskId as maskId_F, dateFlag as dateFlag_F } from '../server/furasData.js';
+import { furasItems } from '../src/data/furasDecisions.js';
+// ---- FURAS DATASET MODE: tested on SYNTHETIC exports written to a temp directory (no real record is ever used by a test) ----
+const SENT = { name: 'SENTINEL_NAME_ZZ', mail: 'sentinel.zz@example.invalid', mob: '0599999999', nid: '1099999999', cr: '7099999999' };
+const fx = (() => {
+  const dir = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'furas-fx-'));
+  const q = (v) => { const t = String(v ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+  const write = (view, extra, rows) => { const heads = [...FURAS_KEEP[view], ...extra]; const text = [heads.join(','), ...rows.map((r) => heads.map((h) => q({ source_pt: '20261025', etl_time: '2026-10-27 18:00:00', ...r }[h] ?? '')).join(','))].join('\r\n') + '\r\n'; nodeFs.writeFileSync(nodePath.join(dir, `ads_furas_schema_${view}_df_20261102.csv`), '﻿' + text); };
+  const M = 'أمانة العاصمة المقدسة';
+  write('contract', ['opportunityname'], [
+    { pzinskey: 'PZ-1', contractnumber: 'CN-1', opportunitynumber: 'O-1', investorid: 'I-1111111', contracttype: 'T1', opportunitystatus: 'S1', contractvalue: '100.000000000', annualcontractvalue: '10.0', startdate: '20200101', enddate: '20300101', municipalityid: '002', municipality: M, opportunityname: SENT.name },
+    { pzinskey: 'PZ-2', contractnumber: 'CN-1', opportunitynumber: 'O-2', investorid: 'I-2222222', contracttype: 'T1', opportunitystatus: 'S2', contractvalue: '100', annualcontractvalue: '10', enddate: '20310101', municipalityid: '002', municipality: M },
+    { pzinskey: 'PZ-3', contractnumber: 'CN-2', opportunitynumber: 'O-3', investorid: 'I-1111111', contracttype: 'T2', opportunitystatus: 'S1', contractvalue: '50', municipalityid: '002', municipality: M },
+    { pzinskey: 'PZ-4', contractnumber: 'CN-2', opportunitynumber: 'O-3', investorid: 'I-1111111', contracttype: 'T2', opportunitystatus: 'S1', contractvalue: '60', municipalityid: '003', municipality: 'أمانة منطقة المدينة المنورة' },
+    { pzinskey: 'PZ-5', contractnumber: 'CN-3', opportunitynumber: 'O-5', investorid: 'I-9', contracttype: 'T1', opportunitystatus: 'S1' },
+    { pzinskey: 'PZ-6', contractnumber: 'DROCN-9', opportunitynumber: 'O-6', investorid: 'I-1111111', contracttype: 'T3', opportunitystatus: 'S3', contractvalue: '10', renewedcontractid: 'PZ-6' },
+    { pzinskey: 'PZ-7', opportunitynumber: 'O-7', contracttype: 'T1', opportunitystatus: 'S1' }]);
+  const pay = (o) => ({ pyguid: `G${Math.random()}`, amount: '', ...o });
+  write('payment', ['investorname'], [
+    { contractid: 'CN-1', opportunitynumber: 'O-1', batchnumber: '1', batchyear: '2026', batchstatus: 'Paid', paymentamount: '100', balanceamount: '200', paymentduedate: '2026-01-01 00:00:00', invoicedate: '2026-01-02 00:00:00', paymentdate: '2026-01-03 00:00:00', investorname: SENT.name },
+    { contractid: 'CN-1', opportunitynumber: 'O-1', batchnumber: '2', batchyear: '2027', batchstatus: 'New', paymentamount: '100', balanceamount: '100', paymentduedate: '2027-01-01 00:00:00' },
+    { contractid: 'CN-1', opportunitynumber: 'O-2', batchnumber: '3', batchyear: '2028', batchstatus: 'New', paymentamount: '100', balanceamount: '0', paymentduedate: '2090-01-01 00:00:00', invoicedate: '2027-03-01 00:00:00' },
+    { contractid: 'CN-2', opportunitynumber: 'O-3', batchnumber: '1', batchyear: '2026', batchstatus: 'Default', paymentamount: '50', paymentduedate: '1970-01-01 00:00:00', paymentdate: '1445-05-05 00:00:00' },
+    { contractid: 'CN-404', opportunitynumber: 'O-9', batchnumber: '1', batchyear: '2026', batchstatus: 'Paid', paymentamount: '70' },
+    { contractid: 'CN-404', opportunitynumber: 'O-9', batchnumber: '1', batchyear: '2026', batchstatus: 'Paid', paymentamount: '70' }].map(pay));
+  write('contractmanagement', ['pyfullname_1', 'commercialrecordnumber_1', 'nationalid_1'], [{ pyid: 'C1', pylabel: 'Manual Contract', pystatuswork: 'New', opportunitynumber: 'O-1', sadadbillnumber: '10-20-300000', pyfullname_1: SENT.name, commercialrecordnumber_1: SENT.cr, nationalid_1: SENT.nid }, { pyid: 'C2', pylabel: 'Manual Contract', contractnumber: 'CN-1', opportunitynumber: 'O-404' }]);
+  write('entitymanagement', ['unifiedid'], [{ pyid: 'E1', pylabel: 'Entity Contract', unifiedid: SENT.nid }]);
+  write('imsfw_work', [], [{ pzinskey: 'W1', pycasename: 'Appeal' }]);
+  write('investor', ['investorname', 'pyemail1', 'pymobilephone'], [{ investorid: 'I-1111111', investorname: SENT.name, pyemail1: SENT.mail, pymobilephone: SENT.mob }, { investorid: 'I-2222222', pyemail1: SENT.mail }]);
+  return dir;
+})();
+const withFuras = async (fn) => { const old = { d: process.env.FURAS_EXPORT_DIR, v: process.env.VERCEL }; process.env.FURAS_EXPORT_DIR = fx; delete process.env.VERCEL; resetFuras(); try { return await fn(); } finally { if (old.d === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = old.d; if (old.v === undefined) delete process.env.VERCEL; else process.env.VERCEL = old.v; resetFuras(); } };
+await test('Furas mode · available only when the local exports are configured, and never on a deployment', async () => {
+  await withFuras(() => { assert.deepEqual(furasAvailable(), { available: true, reason: null }); process.env.VERCEL = '1'; assert.deepEqual(furasAvailable(), { available: false, reason: 'deployment' }, 'Vercel never serves the real-data mode'); });
+  const was = process.env.FURAS_EXPORT_DIR; process.env.FURAS_EXPORT_DIR = nodePath.join(fx, 'missing'); if (!nodeFs.existsSync('furas-exports.local')) assert.equal(furasAvailable().available, false); if (was === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = was;
+});
+await test('Furas mode · counts and supported totals come from the files: records vs distinct numbers, conflicts compared as numbers, each number counted once, no join multiplication, unmatched and duplicate rows', async () => {
+  await withFuras(async () => {
+    const S = await furasSummary(); const c = S.contracts; const p = S.payments;
+    assert.equal(S.dataset.extract, '2026-10-25'); assert.equal(S.dataset.etl, '2026-10-27 18:00:00'); assert.deepEqual(S.dataset.files.map((f) => f.view), ['Contract', 'Payment', 'ContractManagement', 'EntityManagement', 'IMSFW_Work', 'Investor']);
+    assert.equal(c.records, 7); assert.equal(c.distinctNumbers, 4, 'records and distinct numbers are different figures'); assert.equal(c.recordsWithoutNumber, 1); assert.equal(c.numbersWithSeveralRecords, 2); assert.equal(c.recordsInRepeatedNumbers, 4); assert.equal(c.recordKeyUnique, true);
+    assert.deepEqual(c.conflictsAmongRepeated, { status: 1, type: 0, value: 1, annual: 0, endDate: 1, municipality: 1 }, '100.000000000 vs 100 is the same value; 50 vs 60 conflicts');
+    assert.deepEqual(c.values, { numbersWithSingleValue: 2, sumOfSingleValues: 110, numbersWithConflictingValues: 1, numbersWithoutValue: 1 }, 'conflicting values are never summed or chosen; a number with several equal records counts once');
+    assert.equal(c.dates.startFilled, 1); assert.deepEqual(c.byType.map((x) => [x.value, x.records, x.numbers]).sort(), [['T1', 4, 2], ['T2', 2, 1], ['T3', 1, 1]].sort());
+    assert.deepEqual(c.byMunicipality.map((m) => [m.code, m.sourceName, m.records, m.numbers, m.flag]), [['002', 'أمانة العاصمة المقدسة', 3, 2, 'confirm_entity_scope'], ['003', 'أمانة منطقة المدينة المنورة', 1, 1, null]], 'source names are kept; the Makkah wording is flagged, not renamed');
+    assert.deepEqual(c.renewal, { links: 1, resolved: 1, unresolved: 0, selfReference: 1, sameContractNumber: 1 });
+    assert.equal(p.rows, 6); assert.equal(p.capped, false); assert.equal(p.distinctNumbers, 3); assert.equal(p.numbersFoundInContract, 2); assert.equal(p.numbersNotFound, 1); assert.equal(p.rowsNotFound, 2, 'unmatched payment rows are counted, never dropped silently');
+    assert.equal(p.rowsMatchingSeveralRecords, 4); assert.equal(p.rowsAfterNumberJoin, 8, 'an amount join would give 8 rows for 6 payment rows: payments are never joined'); assert.equal(p.duplicateRows, 1);
+    assert.equal(p.scheduledAmount.total, 490, 'each payment amount is counted once (6 rows), not once per matching contract record'); assert.deepEqual(p.byStatus.map((x) => [x.value, x.rows, x.scheduledAmount]).sort(), [['Default', 1, 50], ['New', 2, 200], ['Paid', 3, 240]].sort());
+    assert.deepEqual(p.dueDateFlags, { epoch: 1 }, 'a future due date (2090) is legitimate; 1970 is flagged'); assert.deepEqual(p.invoiceDateFlags, { after_extract: 1 }); assert.deepEqual(p.paymentDateFlags, { hijri_like: 1 }, 'a Hijri-like year is flagged and not converted');
+    assert.equal(p.contractsWithThreePlusRows, 1); assert.equal(p.contractsWithContiguousBatches, 1); assert.equal(p.collectedFieldFilled, 0);
+    assert.equal(S.cases.sadadBillNumberFilled.contractManagement, 1);
+    const L = await furasContracts({}); assert.equal(L.total, 4); const row = L.rows.find((r) => r.no === 'CN-2'); assert.equal(row.records, 2); assert.equal(row.contractValue.state, 'conflict'); assert.equal(row.contractValue.value, null, 'no value is chosen'); assert.equal(L.rows.find((r) => r.no === 'CN-1').contractValue.value, 100);
+    assert.equal(L.rows.find((r) => r.no === 'CN-3').contractValue.state, 'none'); assert.equal((await furasContracts({ filter: { severalRecords: true } })).total, 2); assert.equal((await furasContracts({ filter: { inPaymentExtract: true } })).total, 2); assert.equal((await furasContracts({ q: 'dro' })).total, 1);
+  });
+});
+await test('Furas mode · a contract number lists its records and its payment rows once; no schedule, date, invoice link, collected or unpaid amount is generated', async () => {
+  await withFuras(async () => {
+    const d = await furasContract('cn-1'); assert.equal(d.contractNumber, 'CN-1'); assert.equal(d.recordCount, 2); assert.equal(d.currentRecordDetermined, false, 'no record is declared current');
+    assert.deepEqual(d.differingFields.sort(), ['endDate', 'investorId', 'opportunityNumber', 'startDate', 'status'], 'a date present on one record and missing on the other counts as a difference'); assert.equal(d.records.length, 2);
+    assert.equal(d.payments.rowsInExtract, 3, 'three payment rows, listed once — not six (3 rows × 2 records)'); assert.deepEqual(d.payments.rows.map((r) => r.batchNumber), [1, 2, 3]); assert.deepEqual(d.payments.rows.map((r) => r.amount), [100, 100, 100]);
+    assert.deepEqual(d.payments.rows[2].dateFlags, { invoiceDate: 'after_extract' }); assert.equal(d.payments.rows[0].paymentDate, '2026-01-03'); assert.equal(d.payments.rows[1].invoiceDate, null, 'a missing date stays missing');
+    const keys = JSON.stringify(Object.keys(d)) + JSON.stringify(Object.keys(d.payments)) + JSON.stringify(Object.keys(d.payments.rows[0])) + JSON.stringify(Object.keys(d.records[0]));
+    assert.ok(!/collected|unpaid|outstanding|schedule|nOfN|invoiceNo|sadad|total|rate/i.test(keys), 'nothing generated: ' + keys);
+    assert.equal(d.caseRows.count, 2, 'case rows are counted by contract number or opportunity number (not payments)'); assert.equal((await furasContract('DROCN-9')).records[0].renewalLink.selfReference, true); assert.equal(await furasContract('NOPE'), null);
+    assert.equal((await furasContract('CN-404')), null, 'a payment-only number has no contract record page'); assert.equal(d.records[0].investorId.startsWith('••'), true, 'investor ids are masked'); assert.equal(maskId_F('I-1111111'), '•••••1111'); assert.equal(dateFlag_F('2090-01-01 00:00:00', '2026-10-25'), null);
+  });
+});
+await test('Furas mode · no personal data leaves the loader: names, e-mail, mobile, national ids and commercial-record numbers are never read, held or returned', async () => {
+  await withFuras(async () => {
+    const D = await loadFuras(); for (const [v, view] of Object.entries(D.views)) for (const col of Object.keys(view.cols)) assert.ok(FURAS_KEEP[v].includes(col), `${v}.${col} is a whitelisted column`);
+    const bag = JSON.stringify([await furasSummary(), await furasContracts({ pageSize: 100 }), await furasContract('CN-1'), await furasContract('CN-2'), await furasDecisionInput(), D.byNo.size]);
+    for (const v of Object.values(SENT)) assert.ok(!bag.includes(v), `no value of a personal column in any answer (${v.slice(0, 8)}…)`); assert.ok(!/I-1111111|I-2222222/.test(bag), 'raw investor ids are masked');
+    assert.ok(!/pyemail|pymobile|nationalid|unifiedid|investorname|fullname|commercialrecord/i.test(JSON.stringify(FURAS_KEEP)), 'the whitelist holds no personal column');
+  });
+});
+await test('Furas mode · local only: nothing is written, logged, committed, built or deployed', () => {
+  const src = nodeFs.readFileSync('server/furasData.js', 'utf8') + nodeFs.readFileSync('server/furasCsv.js', 'utf8'); assert.ok(!/writeFile|appendFile|createWriteStream|copyFile|mkdir\(/.test(src), 'the loader writes nothing'); assert.ok(!/process\.env\.VERCEL/.test(src) === false && /process\.env\.VERCEL/.test(src), 'always off on Vercel');
+  assert.equal((src.match(/console\.(log|info|warn|error)/g) || []).length, 1, 'one fixed log line, no value'); assert.ok(src.includes("console.log('[furas] local exports loaded')"));
+  const tracked = execSync_F('git ls-files', { encoding: 'utf8' }).split('\n'); assert.ok(!tracked.some((f) => /\.csv$/i.test(f) || /furas-exports\.local/.test(f) || /ads_furas_schema_\w+_df_\d+/.test(f)), 'no export file and no local config is tracked by Git');
+  assert.ok(/^\*\.local$/m.test(nodeFs.readFileSync('.gitignore', 'utf8')), 'the local config is git-ignored');
+  if (nodeFs.existsSync('furas-exports.local')) { const dir = nodeFs.readFileSync('furas-exports.local', 'utf8').trim(); const outs = ['api/_handler.mjs', 'dist-server/server.mjs', ...nodeFs.readdirSync('dist/assets').map((f) => `dist/assets/${f}`), 'dist/index.html']; for (const f of outs) assert.ok(!nodeFs.readFileSync(f, 'utf8').includes(dir), `${f} holds no local path`); }
+  const api = nodeFs.readFileSync('server/api.js', 'utf8'); assert.ok(api.includes("path.startsWith('/furas/')") && api.includes("furas_unavailable"), 'the endpoints answer 404 when the mode is off');
+});
+await test('Furas mode · the pages use the selected dataset consistently: contracts, contract number, product and Decision Room switch together; other pages are marked not available; no generated engine is used', () => {
+  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); for (const r of ['path="contracts" element={<ModeRoute', 'path="contracts/:no" element={<ModeRoute', 'path="decisions" element={<ModeRoute', 'path="products/:key" element={<ProductRoute']) assert.ok(app.includes(r), r);
+  const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); assert.ok(lay.includes('dm.isFuras && !furasSupported ? <FurasUnavailable />') && lay.includes('contracts|decisions') && lay.includes('products\\/foras'));
+  for (const f of nodeFs.readdirSync('src/pages/furas').map((x) => `src/pages/furas/${x}`).concat(nodeFs.readdirSync('src/components/furas').map((x) => `src/components/furas/${x}`))) { const t = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/useRevenue|rev\.data|contractCards|buildDecisionItems|\/api\/client/.test(t), `${f}: no generated-demo source`); }
+  const di = { dataset: {}, repeated: { numbers: 2, records: 4, conflicts: { status: 1 } }, conflictingValues: 1, payments: { rows: 10000, capped: true, distinctNumbers: 5, rowsMatchingSeveralRecords: 2, rowsNotFound: 1, contractsWithThreePlusRows: 3, contiguous: 1 }, dateIssues: { due: 1, invoice: 1, payment: 1 }, startDateFilled: 1, records: 7, statusValues: 3, renewal: { links: 1, selfReference: 1, sameContractNumber: 1 } };
+  const keys = furasItems(di).map((i) => i.key); assert.deepEqual(keys.sort(), ['furas:capped', 'furas:dates', 'furas:renewal', 'furas:repeated', 'furas:startdate', 'furas:status', 'furas:unmatched']); assert.ok(furasItems(di).every((i) => i.amount === null && !/overdue|aged|target|unlinked/.test(i.key)), 'no generated insight and no money amount');
+  const ui = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(ui.includes('NOT_AVAILABLE') && ui.includes('Not available in the current data') === false || ui.includes('UnavailableList'));
+});
+await test('Wording · the proposed-rule summary no longer repeats «قاعدة مقترحة» in Arabic', () => {
+  const op = nodeFs.readFileSync('src/components/record/OriginParts.jsx', 'utf8'); assert.ok(!op.includes("'لماذا «مستحقة — لا فاتورة مرتبطة» قاعدة مقترحة'")); assert.ok(op.includes('«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه'));
+  const summaryAr = '«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه' + ' — ' + PR_A.ar; assert.equal((summaryAr.match(/قاعدة مقترحة/g) || []).length, 1);
+});
 await test('Group A · the 20-row findings are marked superseded in the active documentation, with a link to the reassessment; the historical text is kept', () => {
   const doc = nodeFs.readFileSync('docs/contracts-lifecycle-phase1.md', 'utf8');
   assert.ok(doc.includes('7 of 10 raw') && doc.includes('fits 2 of 20 raw rows'), 'the historical evidence is preserved');

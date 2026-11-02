@@ -93,3 +93,6 @@ The agreed formula is **Net invoiced = Gross invoiced − Exclusions**, with **U
 2. *Tahseel* — the authoritative collected and unpaid amounts and the invoice/payment match.
 3. *Business decisions* — grace period; approval of «due — no invoice linked», «term ended» and the overdue rule; meaning of the status and service-type values; the contract-counting rule; calendar basis of schedules; meaning of zero paid installments.
 4. *Not started* — Group B (service-type facet, municipality reference table, record-versus-business identity display, renewal-link checks, per-field date rules) and any contract report or export.
+
+## Furas dataset mode
+A separate local-only mode reads the six exports and shows only what they contain; the generated demo above is unchanged. See `docs/furas-dataset-mode.md`.

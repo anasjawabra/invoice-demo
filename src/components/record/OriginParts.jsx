@@ -34,7 +34,7 @@ export function CandidateRuleNote({ open = false }) {
   const { B, L } = useL();
   return (
     <details className="rp-rulenote" open={open}>
-      <summary>{L('Why “Due — no invoice linked” is a proposed rule', 'لماذا «مستحقة — لا فاتورة مرتبطة» قاعدة مقترحة')} — {B(PROPOSED_RULE)}</summary>
+      <summary>{L('“Due — no invoice linked”: what the rule is and what it needs', '«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه')} — {B(PROPOSED_RULE)}</summary>
       <p>{B(UNLINKED_RULE.statement)}</p>
       <p>{L('It could become a finding only when all of these exist:', 'لا تصبح نتيجة إلا عند توفر كل ما يلي:')}</p>
       <ul>{UNLINKED_RULE.prerequisites.map((p) => <li key={p.key}>{B(p)}</li>)}</ul>

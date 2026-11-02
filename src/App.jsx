@@ -20,6 +20,16 @@ import InvoicePage from './pages/InvoicePage';
 import ContractPage from './pages/ContractPage';
 import AnalysisResultPage from './pages/AnalysisResultPage';
 import NotFound from './pages/NotFound';
+import { useDataMode } from './context/DataModeContext';
+import FurasContracts from './pages/furas/FurasContracts';
+import FurasContract from './pages/furas/FurasContract';
+import FurasDecisionRoom from './pages/furas/FurasDecisionRoom';
+import FurasProduct from './pages/furas/FurasProduct';
+import FurasUnavailable from './pages/furas/FurasUnavailable';
+
+// DATA MODE: the generated demo pages stay as they are; in Furas dataset mode the same addresses show the pages built on the local exports
+function ModeRoute({ demo, furas }) { const { isFuras } = useDataMode(); return isFuras ? furas : demo; }
+function ProductRoute() { const { isFuras } = useDataMode(); const { key } = useParams(); if (!isFuras) return <ProductPage />; return key === 'foras' ? <FurasProduct /> : <FurasUnavailable />; }
 
 function ProtectedRoute({ children }) {
   const { user } = useAuth();
@@ -41,7 +51,7 @@ export default function App() {
         <Route path="dashboard" element={<Navigate to="/insights?view=dashboard" replace />} />
         <Route path="reports" element={<Navigate to="/insights" replace />} />
         <Route path="smart-reports" element={<SmartReportsPage />} />
-        <Route path="decisions" element={<DecisionRoom />} />
+        <Route path="decisions" element={<ModeRoute demo={<DecisionRoom />} furas={<FurasDecisionRoom />} />} />
         <Route path="assistant" element={<Navigate to="/smart-reports" replace />} />
         <Route path="strategic" element={<Navigate to="/planning" replace />} />
         <Route path="decision-room" element={<Navigate to="/planning" replace />} />
@@ -52,16 +62,16 @@ export default function App() {
         <Route path="settings/data-quality" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="settings/metrics" element={<Metrics />} />
         <Route path="data-sources" element={<Navigate to="/settings/metrics" replace />} />
-        <Route path="contracts" element={<Contracts />} />
+        <Route path="contracts" element={<ModeRoute demo={<Contracts />} furas={<FurasContracts />} />} />
         <Route path="metrics" element={<Navigate to="/settings/metrics" replace />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="risk" element={<Navigate to="/insights" replace />} />
         <Route path="collection" element={<Collection />} />
         <Route path="exclusions" element={<Exclusions />} />
         <Route path="products" element={<Products />} />
-        <Route path="products/:key" element={<ProductPage />} />
+        <Route path="products/:key" element={<ProductRoute />} />
         <Route path="invoices/:id" element={<InvoicePage />} />
-        <Route path="contracts/:no" element={<ContractPage />} />
+        <Route path="contracts/:no" element={<ModeRoute demo={<ContractPage />} furas={<FurasContract />} />} />
         <Route path="enforcement" element={<EnforcementHome />} />
         <Route path="enforcement-orders" element={<Navigate to="/enforcement?view=orders" replace />} />
         <Route path="enforcement-orders/:enforceNum" element={<EnforcementOrderPage />} />

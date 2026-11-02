@@ -10,6 +10,7 @@ import { resolveReferences, sameDebtorInvoices } from './orderMatch.js';
 import { detail } from './materialize.js';
 import { appendRecord } from './fixtures.js';
 import { checkExclusionRows } from './exclusionUpload.js';
+import { furasAvailable, furasSummary, furasContracts, furasContract, furasDecisionInput } from './furasData.js';
 
 const memo = new Map();
 const MAX_MEMO = 60;
@@ -35,9 +36,27 @@ function readBody(req) {
 const send = (res, code, obj) => { const body = JSON.stringify(obj); res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(body); };
 const stable = (o) => JSON.stringify(o, (k, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 
+// FURAS DATASET MODE (server/furasData.js): local-only, separate from the generated world; answers 404 whenever the local exports are not configured (always on Vercel)
+async function furasRoute(req, res, path) {
+  const av = furasAvailable();
+  if (path === '/furas/status') return send(res, 200, av);
+  if (!av.available) return send(res, 404, { error: 'furas_unavailable' });
+  try {
+    const body = req.method === 'POST' ? await readBody(req) : {};
+    switch (path) {
+      case '/furas/summary': return send(res, 200, await furasSummary());
+      case '/furas/contracts': return send(res, 200, await furasContracts(body));
+      case '/furas/contract': { const c = await furasContract(body.no); return c ? send(res, 200, c) : send(res, 404, { error: 'contract_not_found' }); }
+      case '/furas/decisions': return send(res, 200, await furasDecisionInput());
+      default: return send(res, 404, { error: 'not_found' });
+    }
+  } catch (e) { return send(res, 500, { error: 'furas_error' }); } // no value from the files is ever put in an error message
+}
+
 export async function handleApi(req, res) {
   const url = new URL(req.url, 'http://x');
   const path = url.pathname.replace(/^\/api/, '') || '/';
+  if (path.startsWith('/furas/')) return furasRoute(req, res, path);
   const hdr = (k) => { const v = req.headers[k]; return Array.isArray(v) ? v[0] : v; };
   const st = currentStore(hdr('x-demo-today') || url.searchParams.get('today'), hdr('x-demo-size') || url.searchParams.get('size'));
   const today = st.meta.today;
