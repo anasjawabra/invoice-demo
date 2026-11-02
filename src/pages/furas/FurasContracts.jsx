@@ -1,63 +1,103 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useL } from '../../utils/bi';
 import { useAsync } from '../../utils/useAsync';
 import { furas } from '../../api/furasClient';
 import Pager from '../../components/Pager';
 import { RecordState } from '../../components/record/RecordPage';
 import { contractPath } from '../../utils/paths';
-import { DatasetBanner, LimitsPanel, IntegrityChecks, FurasOverview, NA, Tag } from '../../components/furas/FurasParts';
+import { DatasetBanner, LimitsPanel, IntegrityChecks, FurasOverview } from '../../components/furas/FurasParts';
+import { Chip, Icon, NaCell, StatStrip, Tabs } from '../../components/furas/FurasUI';
 
-// «Investment contracts» in FURAS DATASET MODE: one row per DISTINCT contract number, with how many records carry it. Values come from the exports; nothing is generated.
+const EMPTY = { q: '', type: '', status: '', municipality: '', severalRecords: false, conflicting: false, inPaymentExtract: false };
+const PS = 25;
+const CONFLICT_LABEL = { status: ['status', 'الحالة'], value: ['contract value', 'قيمة العقد'], annual: ['annual value', 'القيمة السنوية'], type: ['service type', 'نوع الخدمة'], endDate: ['end date', 'تاريخ النهاية'], municipality: ['Amanah', 'الأمانة'] };
+
+// «Investment contracts» in FURAS DATASET MODE. The task comes first: find a contract NUMBER and open it. Evidence (coverage, limits, checks) sits one tab away.
 export default function FurasContracts() {
-  const { L, ar, count, sar } = useL();
-  const [q, setQ] = useState(''); const [page, setPage] = useState(0); const [f, setF] = useState({ type: '', status: '', municipality: '', severalRecords: false, conflicting: false, inPaymentExtract: false });
+  const { L, B, ar, count, sar } = useL();
+  const nav = useNavigate(); const [sp, setSp] = useSearchParams();
+  const tab = ['overview', 'limits'].includes(sp.get('tab')) ? sp.get('tab') : 'contracts';
+  const setTab = (k) => setSp(k === 'contracts' ? {} : { tab: k }, { replace: true });
+  const [f, setF] = useState(EMPTY); const [page, setPage] = useState(0);
+  const upd = (patch) => { setF((x) => ({ ...x, ...patch })); setPage(0); };
   const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
-  const body = useMemo(() => ({ q, page, pageSize: 25, filter: Object.fromEntries(Object.entries(f).filter(([, v]) => v)) }), [q, page, f]);
-  const { data: list, loading, error } = useAsync(() => furas.contracts(body), [body]);
-  useEffect(() => setPage(0), [q, f]);
-  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
+  const { data: list, loading, error } = useAsync(() => (tab === 'contracts' ? furas.contracts(body) : Promise.resolve(null)), [body, tab]);
+  const active = [f.q && { k: 'q', label: `“${f.q}”` }, f.type && { k: 'type', label: f.type }, f.status && { k: 'status', label: f.status }, f.municipality && { k: 'municipality', label: S?.contracts.byMunicipality.find((m) => m.code === f.municipality)?.sourceName || f.municipality },
+    f.severalRecords && { k: 'severalRecords', label: L('Several records', 'عدة سجلات') }, f.conflicting && { k: 'conflicting', label: L('Conflicting records', 'سجلات متعارضة') }, f.inPaymentExtract && { k: 'inPaymentExtract', label: L('In the payment extract', 'في مستخرج الدفعات') }].filter(Boolean);
+  const reset = (k) => upd({ [k]: EMPTY[k] });
+  const c = S?.contracts; const p = S?.payments;
+  const chips = (arr, field) => (arr.length ? <span className="fu-chips" title={arr.map((x) => x.value).join(' · ')}>{arr.slice(0, 2).map((x) => <Chip key={x.value}>{x.value}</Chip>)}{arr.length > 2 && <Chip tone="muted">+{arr.length - 2}</Chip>}{field}</span> : <NaCell />);
   return (
-    <div className="rv-page">
-      <div className="page-head"><div>
-        <h1 className="page-title">{L('Investment contracts', 'العقود الاستثمارية')} <span className="rv-badge rv-badge--sm rv-badge--ok">{L('Furas exports (local)', 'تصديرات فرص (محلية)')}</span></h1>
-        <div className="page-sub">{L('Contract records and the payment rows of the exports, as stored. One row below is one distinct contract number; a number can carry several records and the current record is not determined.', 'سجلات العقود وصفوف الدفعات في التصديرات كما هي. الصف أدناه رقم عقد مميز؛ وقد يحمل الرقم عدة سجلات والسجل الحالي غير محدد.')}</div>
-      </div></div>
-      {(sErr || error) && !S && <RecordState error={sErr || error} onRetry={() => window.location.reload()} kind={L('Contracts', 'العقود')} />}
-      {!S && !sErr && <div className="muted" role="status">{L('Reading the local exports…', 'جارٍ قراءة التصديرات المحلية…')}</div>}
+    <div className="fu-page">
+      <header className="fu-head"><div>
+        <h1 className="fu-title">{L('Investment contracts', 'العقود الاستثمارية')} <Chip tone="ok">{L('Furas exports', 'تصديرات فرص')}</Chip></h1>
+        <p className="fu-sub">{L('Contract numbers as recorded in the exports. A number can carry several records, and the data does not say which one is current.', 'أرقام العقود كما هي مسجّلة في التصديرات. قد يحمل الرقم عدة سجلات، ولا تحدد البيانات أيها الحالي.')}</p>
+      </div></header>
       <DatasetBanner S={S} />
-      <LimitsPanel S={S} />
-      <FurasOverview S={S} />
-      <IntegrityChecks S={S} />
-      {S && (
-        <section className="rp-section" aria-label={L('Contract numbers', 'أرقام العقود')}>
-          <div className="dr-filters" role="search">
-            <label className="cg-field" htmlFor="fc-q">{L('Search a contract number', 'ابحث برقم العقد')}<input id="fc-q" className="input" value={q} onChange={(e) => setQ(e.target.value)} dir="ltr" /></label>
-            <label className="cg-field" htmlFor="fc-type">{L('Service type', 'نوع الخدمة')}<select id="fc-type" className="input" value={f.type} onChange={set('type')}><option value="">{L('All', 'الكل')}</option>{S.contracts.byType.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select></label>
-            <label className="cg-field" htmlFor="fc-status">{L('Status (as stored)', 'الحالة (كما هي)')}<select id="fc-status" className="input" value={f.status} onChange={set('status')}><option value="">{L('All', 'الكل')}</option>{S.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select></label>
-            <label className="cg-field" htmlFor="fc-muni">{L('Amanah (source)', 'الأمانة (المصدر)')}<select id="fc-muni" className="input" value={f.municipality} onChange={set('municipality')}><option value="">{L('All', 'الكل')}</option>{S.contracts.byMunicipality.map((m) => <option key={m.code} value={m.code}>{m.code} · {m.sourceName}</option>)}</select></label>
-            <label className="cg-field" htmlFor="fc-multi"><span><input id="fc-multi" type="checkbox" checked={f.severalRecords} onChange={set('severalRecords')} /> {L('Several records', 'عدة سجلات')}</span></label>
-            <label className="cg-field" htmlFor="fc-conf"><span><input id="fc-conf" type="checkbox" checked={f.conflicting} onChange={set('conflicting')} /> {L('Conflicting records', 'سجلات متعارضة')}</span></label>
-            <label className="cg-field" htmlFor="fc-pay"><span><input id="fc-pay" type="checkbox" checked={f.inPaymentExtract} onChange={set('inPaymentExtract')} /> {L('Has payment rows in the extract', 'لها صفوف دفعات في المستخرج')}</span></label>
+      {(sErr || error) && !S && <RecordState error={sErr || error} onRetry={() => window.location.reload()} kind={L('Contracts', 'العقود')} />}
+      {S && <StatStrip items={[
+        { label: L('Contract records', 'سجلات العقود'), value: count(c.records), sub: L('rows of the Contract view', 'صفوف عرض العقود') },
+        { label: L('Distinct contract numbers', 'أرقام العقود المميزة'), value: count(c.distinctNumbers), sub: L('provisional count', 'عدّ مؤقت'), title: L('A number is not a record key, so this is not a count of current contracts.', 'الرقم ليس مفتاح سجل، فهذا ليس عدّاً للعقود الحالية.') },
+        { label: L('Numbers with several records', 'أرقام لها عدة سجلات'), value: count(c.numbersWithSeveralRecords), sub: L(`${count(c.recordsInRepeatedNumbers)} records · tap to filter`, `${count(c.recordsInRepeatedNumbers)} سجلاً · اضغط للتصفية`), tone: 'warn', onClick: () => { setTab('contracts'); upd({ severalRecords: !f.severalRecords }); }, active: f.severalRecords },
+        { label: L('Payment rows in the extract', 'صفوف الدفعات في المستخرج'), value: count(p.rows), sub: L(`${count(p.distinctNumbers)} numbers · limited sample · tap to filter`, `${count(p.distinctNumbers)} رقماً · عيّنة محدودة · اضغط للتصفية`), onClick: () => { setTab('contracts'); upd({ inPaymentExtract: !f.inPaymentExtract }); }, active: f.inPaymentExtract }
+      ]} />}
+      <Tabs label={L('Sections', 'الأقسام')} value={tab} onChange={setTab} tabs={[{ key: 'contracts', label: L('Contract numbers', 'أرقام العقود'), hint: c ? count(c.distinctNumbers) : null }, { key: 'overview', label: L('Dataset overview', 'نظرة على البيانات') }, { key: 'limits', label: L('Limits and checks', 'الحدود والفحوص') }]} />
+
+      {tab === 'contracts' && (
+        <div role="tabpanel" id="fu-panel-contracts" aria-labelledby="fu-tab-contracts" style={{ display: 'grid', gap: 12 }}>
+          <div className="fu-tools" role="search">
+            <div className="fu-tools__row">
+              <label className="fu-search"><Icon name="search" /><span className="fu-sr">{L('Search a contract number', 'ابحث برقم العقد')}</span><input type="search" value={f.q} onChange={(e) => upd({ q: e.target.value })} placeholder={L('Search a contract number…', 'ابحث برقم العقد…')} dir="ltr" autoComplete="off" /></label>
+              <select className="fu-select" aria-label={L('Service type', 'نوع الخدمة')} value={f.type} onChange={(e) => upd({ type: e.target.value })}><option value="">{L('All service types', 'كل أنواع الخدمة')}</option>{S?.contracts.byType.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select>
+              <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{x.value}</option>)}</select>
+              <select className="fu-select" aria-label={L('Amanah (source)', 'الأمانة (المصدر)')} value={f.municipality} onChange={(e) => upd({ municipality: e.target.value })}><option value="">{L('All Amanahs', 'كل الأمانات')}</option>{S?.contracts.byMunicipality.map((m) => <option key={m.code} value={m.code}>{m.code} · {m.sourceName}</option>)}</select>
+            </div>
+            <div className="fu-tools__row" role="group" aria-label={L('Quick filters', 'تصفية سريعة')}>
+              <button type="button" className="fu-toggle" aria-pressed={f.severalRecords} onClick={() => upd({ severalRecords: !f.severalRecords })}><Icon name="layers" /> {L('Several records', 'عدة سجلات')}</button>
+              <button type="button" className="fu-toggle" aria-pressed={f.conflicting} onClick={() => upd({ conflicting: !f.conflicting })}><Icon name="alert" /> {L('Conflicting records', 'سجلات متعارضة')}</button>
+              <button type="button" className="fu-toggle" aria-pressed={f.inPaymentExtract} onClick={() => upd({ inPaymentExtract: !f.inPaymentExtract })}><Icon name="table" /> {L('In the payment extract', 'في مستخرج الدفعات')}</button>
+            </div>
+            <div className="fu-tools__meta">
+              <span role="status" aria-live="polite"><b>{list ? count(list.total) : '…'}</b> {L('contract numbers', 'رقم عقد')}{active.length > 0 && <> · {L('filtered', 'بعد التصفية')}</>}</span>
+              {active.length > 0 && <span className="fu-chips">{active.map((a) => <button key={a.k} type="button" className="fu-chip fu-chip--info" style={{ cursor: 'pointer' }} onClick={() => reset(a.k)} aria-label={L(`Remove filter ${a.label}`, `إزالة الفلتر ${a.label}`)}>{a.label} <Icon name="x" /></button>)}<button type="button" className="fu-link" onClick={() => { setF(EMPTY); setPage(0); }}>{L('Clear all', 'مسح الكل')}</button></span>}
+            </div>
           </div>
-          <div className="muted" role="status" style={{ fontSize: 12 }}>{list ? L(`${count(list.total)} contract numbers`, `${count(list.total)} رقم عقد`) : loading ? L('Loading…', 'جارٍ التحميل…') : ''}</div>
-          <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Contract numbers', 'أرقام العقود')}>
-            <thead><tr><th>{L('Contract number', 'رقم العقد')}</th><th className="num">{L('Records', 'السجلات')}</th><th>{L('Service type (as stored)', 'نوع الخدمة (كما هو)')}</th><th>{L('Status (as stored)', 'الحالة (كما هي)')}</th><th>{L('Amanah (source)', 'الأمانة (المصدر)')}</th><th className="num">{L('Contract value', 'قيمة العقد')}</th><th className="num">{L('Payment rows in the extract', 'صفوف الدفعات في المستخرج')}</th></tr></thead>
-            <tbody>{(list?.rows || []).map((r) => (
-              <tr key={r.no}>
-                <td><Link to={contractPath(r.no)} dir="ltr"><b>{r.no}</b></Link></td>
-                <td className="num" dir="ltr">{count(r.records)}{r.records > 1 && <> <Tag tone="proposed">{L('several', 'متعدد')}</Tag></>}</td>
-                <td dir="auto">{r.types.map((t) => t.value).join(' · ') || <NA />}{r.conflicts.type && <> <Tag tone="proposed">{L('differs', 'مختلف')}</Tag></>}</td>
-                <td dir="auto">{r.statuses.map((s) => (r.statuses.length > 1 ? `${s.value} (${s.records})` : s.value)).join(' · ') || <NA />}{r.conflicts.status && <> <Tag tone="proposed">{L('differs', 'مختلف')}</Tag></>}</td>
-                <td dir="auto">{r.municipalities.map((m) => `${m.code} · ${m.sourceName}`).join(' · ') || <NA />}</td>
-                <td className="num" dir="ltr">{r.contractValue.state === 'none' ? <NA /> : r.contractValue.state === 'conflict' ? <Tag tone="proposed">{L(`${r.contractValue.distinct} different values across records`, `${r.contractValue.distinct} قيم مختلفة بين السجلات`)}</Tag> : sar(r.contractValue.value)}</td>
-                <td className="num" dir="ltr">{count(r.paymentRowsInExtract)}</td>
-              </tr>))}
-              {list && !list.rows.length && <tr><td colSpan={7}><div className="rv-empty">{L('No contract number matches.', 'لا رقم عقد مطابق.')}</div></td></tr>}</tbody>
-          </table></div>
-          <Pager page={page} total={list?.total || 0} size={25} onPage={setPage} />
-        </section>
-      )}
+
+          <div className="fu-list" role="table" aria-label={L('Contract numbers', 'أرقام العقود')} aria-busy={loading}>
+            <div className="fu-list__head" role="row">
+              {[L('Contract number', 'رقم العقد'), L('Service type', 'نوع الخدمة'), L('Status (as stored)', 'الحالة (كما هي)'), L('Amanah (source)', 'الأمانة (المصدر)'), L('Contract value', 'قيمة العقد'), L('Signals', 'إشارات')].map((h, i) => <div key={h} role="columnheader" style={i === 4 ? { textAlign: 'end' } : undefined}>{h}</div>)}
+            </div>
+            {!list && loading && Array.from({ length: 8 }, (_, i) => <div key={i} className="fu-skel" aria-hidden="true" />)}
+            {list?.rows.map((r) => {
+              const conflictKeys = Object.keys(r.conflicts).filter((k) => r.conflicts[k]);
+              return (
+                <div key={r.no} className="fu-row" role="row" onClick={(e) => { if (!e.target.closest('a')) nav(contractPath(r.no)); }}>
+                  <div role="cell" data-col="no" className="fu-cell"><Link className="fu-no" to={contractPath(r.no)} dir="ltr">{r.no}</Link>{r.records > 1 && <> <Chip tone="info" icon="layers">{L(`${r.records} records`, `${r.records} سجلات`)}</Chip></>}</div>
+                  <div role="cell" data-col="type" className="fu-cell">{chips(r.types)}</div>
+                  <div role="cell" data-col="status" className="fu-cell">{chips(r.statuses.map((s) => ({ value: r.statuses.length > 1 ? `${s.value} ×${s.records}` : s.value })))}</div>
+                  <div role="cell" data-col="amanah" className="fu-cell">{r.municipalities.length ? r.municipalities.map((m) => <span key={m.code} style={{ display: 'block' }}><bdi>{m.sourceName}</bdi><small dir="ltr">{m.code}</small></span>) : <NaCell />}</div>
+                  <div role="cell" data-col="value" className="fu-cell fu-cell--num" dir="ltr">{r.contractValue.state === 'none' ? <NaCell /> : r.contractValue.state === 'conflict' ? <Chip tone="warn" icon="alert" title={L('Records disagree; no value is chosen', 'السجلات متعارضة؛ ولا تُختار قيمة')}>{L(`${r.contractValue.distinct} values`, `${r.contractValue.distinct} قيم`)}</Chip> : sar(r.contractValue.value)}</div>
+                  <div role="cell" data-col="signals" className="fu-cell"><span className="fu-chips">
+                    {conflictKeys.length > 0 && <Chip tone="warn" icon="alert" title={L('Records differ on: ', 'تختلف السجلات في: ') + conflictKeys.map((k) => B({ en: CONFLICT_LABEL[k][0], ar: CONFLICT_LABEL[k][1] })).join(ar ? '، ' : ', ')}>{L('Differ', 'متعارضة')}</Chip>}
+                    {r.paymentRowsInExtract > 0 && <Chip tone="info" icon="table" title={L('Payment rows for this number in the limited extract', 'صفوف دفعات لهذا الرقم في المستخرج المحدود')}>{count(r.paymentRowsInExtract)}</Chip>}
+                    {conflictKeys.length === 0 && r.paymentRowsInExtract === 0 && <span className="fu-na fu-dot">·</span>}
+                  </span></div>
+                </div>);
+            })}
+            {list && !list.rows.length && <div className="fu-empty"><b>{L('No contract number matches.', 'لا رقم عقد مطابق.')}</b><div>{L('Try fewer filters or a shorter search.', 'جرّب تصفية أقل أو بحثاً أقصر.')}</div>{active.length > 0 && <button type="button" className="fu-link" onClick={() => { setF(EMPTY); setPage(0); }}>{L('Clear all filters', 'مسح كل الفلاتر')}</button>}</div>}
+            <div className="fu-legend"><NaCell /> {L('= Not available in the current data. “×n” after a status = n records with that status. Values are as stored; nothing is generated.', '= غير متاح في البيانات الحالية. «×n» بعد الحالة = n سجلاً بهذه الحالة. القيم كما هي؛ ولا يُولَّد شيء.')}</div>
+          </div>
+          <Pager page={page} total={list?.total || 0} size={PS} onPage={setPage} />
+        </div>)}
+
+      {tab === 'overview' && <div role="tabpanel" id="fu-panel-overview" aria-labelledby="fu-tab-overview" style={{ display: 'grid', gap: 16 }}>{S ? <FurasOverview S={S} /> : <div className="muted" role="status">{L('Reading the local exports…', 'جارٍ قراءة التصديرات المحلية…')}</div>}</div>}
+      {tab === 'limits' && S && (
+        <div role="tabpanel" id="fu-panel-limits" aria-labelledby="fu-tab-limits" className="fu-grid" style={{ alignItems: 'start' }}>
+          <section className="fu-card"><h2>{L('What these exports support — and what they do not', 'ما تدعمه هذه التصديرات — وما لا تدعمه')}</h2><LimitsPanel S={S} /></section>
+          <section className="fu-card"><h2>{L('Integrity checks computed from the files', 'فحوص السلامة المحسوبة من الملفات')}</h2><IntegrityChecks S={S} /></section>
+        </div>)}
     </div>
   );
 }
