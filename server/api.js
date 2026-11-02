@@ -66,7 +66,7 @@ export async function handleApi(req, res) {
       case '/sources': return send(res, 200, memoize(key('src'), () => sourcesReport(st, body)));
       case '/quality': return send(res, 200, memoize(key('q'), () => quality(st, body)));
       case '/contracts': return send(res, 200, memoize(key('ct'), () => { const cards = contractCards(st, body); return { cards, rollup: contractRollup(cards) }; }));
-      case '/contract': { const c = memoize(key('ct1'), () => contractCard(st, body, body.no)); return c ? send(res, 200, c) : send(res, 404, { error: 'contract_not_found' }); } // same Amanah / organisation scope as the list; memoised per request body
+      case '/contract': { const c = memoize(key('ct1'), () => contractCard(st, body, body.no)); return c?.ambiguous ? send(res, 409, { error: 'contract_number_ambiguous', matches: c.matches }) : c ? send(res, 200, c) : send(res, 404, { error: 'contract_not_found' }); } // same Amanah / organisation scope as the list; memoised per request body
       case '/invoice': {
         const i = lookupId(st, body.id);
         if (i < 0 || (st.owner[i] !== 0 && st.owner[i] !== owner)) return send(res, 404, { error: 'invoice_not_found' });

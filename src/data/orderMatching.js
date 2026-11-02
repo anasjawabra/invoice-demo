@@ -59,7 +59,9 @@ export function extractFromText(rawText, page = 1) {
     const around = (m) => clip(line.length > 190 ? line.slice(Math.max(0, m.index - 70), m.index + m[0].length + 70) : line); // the words around the match (a long description line is not repeated for each number)
     take(/\bSA\d{22}\b/gi, (m) => out.push({ kind: 'bank_account', value: m[0].toUpperCase(), raw: m[0], label: 'IBAN', page, snippet: around(m) }));
     take(/\b(?:EN|WLX)-\d{4,8}\b/gi, (m) => out.push({ kind: 'order_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
-    take(/\b(?:CT|CNT)-\d{4}-\d{3,6}\b|\bCO-\d{4,6}\b|\b(?:CN|ECN|EDROCN)-\d{3,10}\b/gi, (m) => out.push({ kind: 'contract_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
+    // contract numbers: the demo forms (CT-yyyy-nnnn, CNT-, CO-) and the family «<letters>CN-<digits>» — CN, ECN, DROCN, DRRCN, EDROCN — without a closed list of prefixes. Recognising a number only
+    // PROPOSES a contract: it is accepted by an exact lookup in the contract data (server/engine.js contractsByNumber), and even a found number is not a unique record or an approved link.
+    take(/\b(?:CT|CNT)-\d{4}-\d{3,6}\b|\bCO-\d{4,6}\b|\b[A-Z]{0,6}CN-\d{3,10}\b/gi, (m) => out.push({ kind: 'contract_no', value: m[0].toUpperCase(), raw: m[0], label: 'pattern', page, snippet: around(m) }));
     // an invoice number as people really type it: `{biller id}-{Sadad number}` with any separator (space, dash, slash). The ORIGINAL text is kept (`raw`); the value is the canonical `177-2200000123`
     take(/\b(\d{3,4})[\s_\u2013\u2014\/-]+(\d{6,14})\b/g, (m) => out.push({ kind: 'invoice_no', value: `${m[1]}-${m[2]}`, raw: m[0], label: 'pattern', page, snippet: around(m) }));
     take(/(?<![\d.,])\d{1,3}(?:,\d{3})+(?:\.\d+)?(?![\d])|(?<![\d.,])\d+\.\d{1,2}(?![\d])/g, () => {}); // amounts: consumed, never a reference
@@ -510,10 +512,11 @@ export function orderExceptions(order) {
 //  Decisions already stored in `store.enf1` / `store.enf1History` are kept as history and shown with their policy basis flagged unresolved; they have no effect.)
 
 // A reviewer decides whether a contract number MENTIONED in the description or a document is a direct referral of that contract. The structured field never needs this;
-// a mention alone never establishes a referral. `exists` = the contract number exists in the data (checked by the caller); a number that does not exist cannot be confirmed.
-export function reviewContractReference(store, en, contractNo, { decision, note = '', evidence = null, by, at, orderStatus, exists = false }) {
+// a mention alone never establishes a referral. `exists` = the contract number exists in the data and `unique` = it matches exactly one record (both checked by the caller); a number that does not exist, or that matches several records, cannot be confirmed.
+export function reviewContractReference(store, en, contractNo, { decision, note = '', evidence = null, by, at, orderStatus, exists = false, unique = true }) {
   if (!['confirmed', 'rejected'].includes(decision)) return { store, error: 'bad_decision' };
   if (decision === 'confirmed' && !exists) return { store, error: 'contract_not_found' };
+  if (decision === 'confirmed' && unique === false) return { store, error: 'contract_ambiguous' }; // a number carried by several contract records identifies none of them
   // a document that merely NAMES an existing contract is not enough: the reviewer must point at the document location AND record that it explicitly states the contract itself is referred, with the statement
   if (decision === 'confirmed' && !(evidence && evidence.docId)) return { store, error: 'evidence_required' };
   if (decision === 'confirmed' && !(evidence.statedExplicitly === true && String(evidence.quote || '').trim().length >= 5)) return { store, error: 'explicit_statement_required' };

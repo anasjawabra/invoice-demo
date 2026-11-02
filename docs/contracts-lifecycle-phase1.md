@@ -1,7 +1,7 @@
 # Investment contracts — lifecycle page (Phase 1)
 
 Branch `feat/contracts-lifecycle-phase1` (from `main` at dd2d107). Approved plan: `IIM-Requirements-Handover/02_Investment_Contracts/Investment_Contracts_Review_and_Implementation_Plan` (D1–D21, gaps G1–G20, phases).
-Everything here runs on the **synthetic** demo data; no Furas, Tahseel or SADAD meaning is asserted that the evidence does not support.
+Everything here runs on the **synthetic** demo data (every value on the contract pages is illustrative: see «Group A corrections» below); no Furas, Tahseel or SADAD meaning is asserted that the evidence does not support.
 
 ## What changed
 
@@ -32,7 +32,9 @@ Two questions, never mixed. **Overdue unpaid days** = max(0, reference date − 
 ## Balance and source status — exactly what exists
 * **Displayed amounts:** the «Collected (from the invoice)» and «Remaining (from the invoice)» columns are read from the installment's linked invoice and its payment events in the demo ledger — generated, illustrative data. In production the authoritative collection source is Tahseel (SADAD supports settlement analysis). No Furas field is used for them.
 * **Scheduled contract balance:** NOT displayed and NOT returned. The generator still computes it internally; the API field `remainingContractBalance` was removed from the card. No Databank field supports a displayed balance: BALANCEAMOUNT is unconfirmed (a scheduled running balance in the report, fits 2 of 20 raw rows), BATCHAMOUNTBALANCE (the unpaid amount) is empty in the sample. Review proposal D4 stays deferred.
+  *Superseded (historical evidence kept above):* the «fits 2 of 20 raw rows» observation came from a 20-row raw sample. The six Databank exports of 2 Nov 2026 show BALANCEAMOUNT is filled throughout and behaves like a running balance in most contracts, but its definition is still not given, so the decision is unchanged: the balance stays undisplayed. See [docs/furas-export-reassessment.md](furas-export-reassessment.md).
 * **Furas source status:** NOT implemented — there is no column and no field. It depends on Data Bank (value list of BATCHSTATUS; three vocabularies exist; 7 of 10 raw «Paid» rows show no payment evidence). The page shows only the DERIVED installment state. The contract status is the source's own value (shown verbatim; unknown values marked «unrecognised»; empty → «Not provided by source»).
+  *Superseded (historical evidence kept above):* «7 of 10 raw «Paid» rows show no payment evidence» and «three vocabularies exist» came from a 20-row raw sample. In the larger exports almost every «Paid» row carries a payment date, and the status values are one list per column that still has no approved meaning, so source status stays undisplayed and no status mapping is validated. See [docs/furas-export-reassessment.md](furas-export-reassessment.md).
 
 ## Not in Phase 1 (still open)
 D3 source status (above), D4 balance (above), D5 type / entry mode / facility, D9 source-data panel, D12 raw start/end dates, D13 service type, D14 municipality → Amanah table, D15 sub-batch grain, D20 CR number (rejected), G9 source labels in the invoice source-record view, G10 CR status card vs invoice, G15 Smart-report contract intents, G17 older docs. Databank-dependent items stay dependencies: nothing was mapped to a field the evidence does not support.
@@ -46,3 +48,11 @@ D3 source status (above), D4 balance (above), D5 type / entry mode / facility, D
 
 ## Verify
 `npm test` (platform tests cover the schedule, identities, missing-value states, payment events, contract numbers and fixtures, lateness, scope/cache, and CSV reconciliation) · `npm run build` regenerates `api/`, `dist/`, `dist-server/`.
+
+## Group A corrections (after the six-export reassessment)
+Local commit on this branch; plan in `IIM-Requirements-Handover/02_Investment_Contracts/Furas_v2_Review_and_Plan`. Nothing in Group B, no business rule and no financial figure was changed.
+
+1. **Origin of a value** — `src/data/contractRules.js`. A displayed value is «Illustrative» (generated) or «From source». «From source» needs the card to name the source record the value was read from (`origin.sourceRecord`) and list the field (`origin.sourceBacked`); a verified schema mapping alone does not qualify. The demo loads no source record, so every contract value is illustrative. The contract page shows a note, a tag on each fact and a tag on each section; the list shows the note; the API card and roll-up carry `origin`.
+2. **«Due — no invoice linked» is a candidate rule** over the generated demo ledger — never a finding from a Furas extract. Prerequisites: a complete validated schedule, a reliable contract identity, validated invoice linkage, an agreed due-date and grace rule. Applied to the contracts list (tile, filter, column, note), the contract page (state label, legend, note), the Decision Room item `contracts:unlinked`, the data dictionary and the API (`candidateRules`). No report or export carries the rule.
+3. **Contract-number recognition** — the extraction pattern now reads the family `<letters>CN-<digits>` (CN, ECN, DROCN, DRRCN, EDROCN) plus the existing `CT-yyyy-nnnn`, `CNT-` and `CO-` forms; no closed prefix list. A number is looked up exactly (trimmed, case-folded). A number carried by several contract records is `contract_ambiguous`: no record is opened (HTTP 409 on `/api/contract`), search does not pick one, and a reviewer cannot confirm a referral on it. A found number establishes existence only: never a unique record, never an approved enforcement link.
+4. **20-row findings** — marked superseded where they remained (this file, the earlier review in the handover folder) with a pointer; the original evidence is kept.

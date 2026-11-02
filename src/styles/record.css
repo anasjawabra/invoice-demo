@@ -214,3 +214,13 @@ button.oj-card:hover, button.oj-card:focus-visible { border-color: var(--primary
 .rp-legend > div { display: flex; gap: 8px; align-items: baseline; }
 .rp-legend dt { margin: 0; flex: none; }
 .rp-legend dd { margin: 0; color: var(--txt-mute); }
+
+/* origin of a displayed value (illustrative vs from source) and the candidate-rule note */
+.rp-origin { display: inline-block; font-size: 11px; line-height: 1.5; padding: 0 7px; border-radius: 999px; border: 1px solid var(--line-strong); color: var(--txt-mute); background: var(--bg-0); margin-inline-start: 6px; white-space: nowrap; vertical-align: middle; }
+.rp-origin--source { border-color: rgba(21, 128, 61, 0.55); color: var(--txt); }
+.rp-originnote { display: block; }
+.rp-originnote .rp-origin { margin-inline-start: 0; margin-inline-end: 4px; }
+.rp-rulenote { font-size: 12px; color: var(--txt-mute); border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--bg-0); }
+.rp-rulenote summary { cursor: pointer; color: var(--txt); }
+.rp-rulenote p, .rp-rulenote ul { margin: 6px 0 0; }
+.rp-rulenote ul { padding-inline-start: 18px; }

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
@@ -9,6 +9,7 @@ import { ratioText } from '../utils/bi';
 import Pager from '../components/Pager';
 import { RecordHeader, StatusGroup, Figures, Facts, Section, RecordState } from '../components/record/RecordPage';
 import { OrderStatusChip } from '../components/revenue/EnforcementUI';
+import { OriginNote, OriginTag, CandidateRuleNote } from '../components/record/OriginParts';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { invoicePath, orderPath } from '../utils/paths';
 import { buildIndex, ordersOfContract, CLOSE_REASON_LABEL } from '../data/relations';
@@ -28,6 +29,8 @@ export default function ContractPage() {
   const crumbs = [{ label: L('Dashboards and reports', 'لوحة المعلومات والتقارير'), to: '/insights' }, { label: L('Contracts', 'العقود'), to: '/contracts' }, { label: no, ltr: true }];
   if (!c) {
     const nf = !loading && (error?.status === 404 || error?.message === 'contract_not_found');
+    const amb = !loading && error?.status === 409; // the number matches several contract records: it does not identify one
+    if (amb) return <div className="rp"><RecordHeader crumbs={crumbs} title={no} ret={ret} /><div className="rp-state rp-state--bad" role="alert"><h2 className="rp-h2" style={{ fontSize: 20 }}>{L('This number matches more than one contract record', 'هذا الرقم يطابق أكثر من سجل عقد')}</h2><p>{L('A contract number alone does not identify a single contract record, so no record is opened and none is chosen for you.', 'رقم العقد وحده لا يحدد سجل عقد واحداً، لذا لا يُفتح أي سجل ولا يُختار لك أحدها.')}</p><Link className="btn btn-sm btn-primary" to="/contracts">{L('Back to the contracts', 'العودة إلى العقود')}</Link></div></div>;
     return <div className="rp"><RecordHeader crumbs={crumbs} title={no} ret={ret} /><RecordState loading={loading && !error} error={error && !nf ? error : null} notFound={nf} onRetry={() => setReload((x) => x + 1)} kind={L('Contract', 'العقد')} backTo={{ path: '/contracts', label: L('Back to the contracts', 'العودة إلى العقود') }} /></div>;
   }
   const t = c.totals; const invoiceIds = c.schedule.map((p) => p.invoiceNo).filter(Boolean);
@@ -50,6 +53,7 @@ export default function ContractPage() {
         statuses={<><StatusGroup label={L('Contract status (source)', 'حالة العقد (المصدر)')}><span className={c.status ? 'rv-tag' : 'muted'}>{contractStatusText(c.status, B, L)}</span></StatusGroup>
           {c.termEnded && <StatusGroup label={L('Term', 'مدة العقد')}><span className="rv-tag">{L(`Term ended on ${c.end}`, `انتهت المدة في ${c.end}`)}</span></StatusGroup>}
           <ProvenanceBadge kind="demo" /></>} />
+      <OriginNote origin={c.origin} />
       <Figures label={L('Contract summary', 'ملخص العقد')} items={[
         { label: L('Contract value', 'قيمة العقد'), value: short(t.contractValue), note: `${count(t.installments)} ${L('installments in the whole schedule', 'دفعة في الجدول كاملاً')}` },
         { label: L('Gross invoiced', 'إجمالي المفوتر'), value: short(t.gross), note: `${count(t.invoicedInstallments)} ${L('invoiced', 'مفوترة')}` },
@@ -59,14 +63,14 @@ export default function ContractPage() {
         { label: L('Uncollected', 'غير المحصّل'), value: short(t.uncollected), note: `${L('of which overdue', 'منها متأخر')} ${short(t.arrears)} · ${t.overdueInstallments} ${L('installment(s)', 'دفعة')}`, tone: t.arrears ? 'bad' : undefined },
         { label: L('Collection rate on net invoiced', 'نسبة التحصيل من صافي المفوتر'), value: ratioText(t.collectionRateOnNet, ar), note: L('collected ÷ net invoiced', 'المحصّل ÷ صافي المفوتر') }
       ]} />
-      <div className="rp-limit">{L(`Figures are to the reference date ${todayIso} and cover the installments invoiced in the data range: ${count(cov.known)} of ${count(cov.installments)} installments have data; ${count(cov.notApplicable)} are upcoming (not invoiced yet) and ${count(cov.unknown)} have no readable invoice or collection (before the data range, or no invoice linked). Unknown is never counted as zero. Collected of what is due to date (installments in the data range): ${ratioText(t.collectedOfDueToDate, false)}.`, `الأرقام حتى التاريخ المرجعي ${todayIso} وتشمل الدفعات المفوترة ضمن نطاق البيانات: ${count(cov.known)} من ${count(cov.installments)} دفعة لها بيانات؛ ${count(cov.notApplicable)} قادمة لم تُفوتر بعد؛ و${count(cov.unknown)} بلا فاتورة أو تحصيل يمكن قراءته (قبل نطاق البيانات أو بلا فاتورة مرتبطة). غير المعروف لا يُحسب صفراً. المحصّل من المستحق حتى التاريخ (الدفعات ضمن نطاق البيانات): ${ratioText(t.collectedOfDueToDate, true)}.`)}</div>
+      <div className="rp-limit"><OriginTag origin={c.origin} field="contractValue" /> {L(`Figures are to the reference date ${todayIso} and cover the installments invoiced in the data range: ${count(cov.known)} of ${count(cov.installments)} installments have data; ${count(cov.notApplicable)} are upcoming (not invoiced yet) and ${count(cov.unknown)} have no readable invoice or collection (before the data range, or no invoice linked). Unknown is never counted as zero. Collected of what is due to date (installments in the data range): ${ratioText(t.collectedOfDueToDate, false)}.`, `الأرقام حتى التاريخ المرجعي ${todayIso} وتشمل الدفعات المفوترة ضمن نطاق البيانات: ${count(cov.known)} من ${count(cov.installments)} دفعة لها بيانات؛ ${count(cov.notApplicable)} قادمة لم تُفوتر بعد؛ و${count(cov.unknown)} بلا فاتورة أو تحصيل يمكن قراءته (قبل نطاق البيانات أو بلا فاتورة مرتبطة). غير المعروف لا يُحسب صفراً. المحصّل من المستحق حتى التاريخ (الدفعات ضمن نطاق البيانات): ${ratioText(t.collectedOfDueToDate, true)}.`)}</div>
       <section className="rp-section"><Facts items={[
-        { k: L('Tenant', 'المستأجر'), v: ar ? c.tenantAr : c.tenantEn }, { k: L('Amanah', 'الأمانة / الجهة'), v: amanahName(c.amanahEn, ar) }, { k: L('Revenue item', 'بند الإيراد'), v: itemName(c.itemKey, ar) },
-        { k: L('Starts', 'يبدأ'), v: c.start, ltr: true }, { k: L('Ends', 'ينتهي'), v: c.end, ltr: true },
-        { k: L('Payment interval', 'دورية الدفعات'), v: L(`every ${c.intervalMonths} month(s)`, `كل ${c.intervalMonths} شهر`) }
+        { k: L('Tenant', 'المستأجر'), v: <>{ar ? c.tenantAr : c.tenantEn}<OriginTag origin={c.origin} field="tenant" /></> }, { k: L('Amanah', 'الأمانة / الجهة'), v: <>{amanahName(c.amanahEn, ar)}<OriginTag origin={c.origin} field="amanah" /></> }, { k: L('Revenue item', 'بند الإيراد'), v: <>{itemName(c.itemKey, ar)}<OriginTag origin={c.origin} field="item" /></> },
+        { k: L('Starts', 'يبدأ'), v: <>{c.start}<OriginTag origin={c.origin} field="start" /></>, ltr: true }, { k: L('Ends', 'ينتهي'), v: <>{c.end}<OriginTag origin={c.origin} field="end" /></>, ltr: true },
+        { k: L('Payment interval', 'دورية الدفعات'), v: <>{L(`every ${c.intervalMonths} month(s)`, `كل ${c.intervalMonths} شهر`)}<OriginTag origin={c.origin} field="interval" /></> }
       ]} /></section>
 
-      <Section id="invoices" title={L('Payments and invoices — from created to finished', 'الدفعات والفواتير — من الإنشاء إلى الانتهاء')} count={rows.length}
+      <Section id="invoices" title={L('Payments and invoices — from created to finished', 'الدفعات والفواتير — من الإنشاء إلى الانتهاء')} count={rows.length} aside={<OriginTag origin={c.origin} field="schedule" />}
         note={<div className="rp-limit">{L('One row per scheduled installment, from the first to the last of the contract. Open a row to see its payments. An installment’s own creation date is not recorded by the source: the dates shown are the due date, the invoice’s issue date and the payment dates; “—” means not applicable yet, “Not available from source” means the data does not exist in the recorded range.', 'صفّ لكل دفعة مجدولة، من أول دفعة إلى آخرها. افتح الصف لترى مدفوعاته. لا يسجّل المصدر تاريخ إنشاء الدفعة نفسها: التواريخ المعروضة هي الاستحقاق وتاريخ إصدار الفاتورة وتواريخ السداد؛ «—» تعني لا ينطبق بعد، و«غير متاح من المصدر» تعني أن البيانات غير موجودة ضمن النطاق المسجّل.')}</div>}>
         <div className="rv-seg" role="group" aria-label={L('Show installments', 'عرض الدفعات')}>
           {segDef.map((g) => <button key={g.key} type="button" className={`btn btn-sm${g.key === active.key ? ' btn-primary' : ''}`} aria-pressed={g.key === active.key} disabled={!g.n} onClick={() => { setSeg(g.key); setPage(0); }}>{B(g)} · {count(g.n)}</button>)}
@@ -101,6 +105,7 @@ export default function ContractPage() {
         </table></div>
         <Pager page={page} total={rows.length} size={PS} onPage={setPage} />
         <dl className="rp-legend">{Object.keys(INSTALLMENT_STATES).filter((k) => c.schedule.some((p) => p.state === k)).map((k) => <div key={k}><dt><span className={`rv-badge rv-badge--sm rv-badge--${INSTALLMENT_STATES[k].tone}`}>{B(INSTALLMENT_STATES[k])}</span></dt><dd>{B(INSTALLMENT_STATE_HELP[k])}</dd></div>)}</dl>
+        {c.schedule.some((p) => p.state === 'unlinked') && <CandidateRuleNote />}
       </Section>
 
       <Section id="relation" title={L('Enforcement relationship — three different facts', 'علاقة الإنفاذ — ثلاث حقائق مختلفة')}>
@@ -126,7 +131,7 @@ export default function ContractPage() {
         <div className="rp-limit">{L('None implies another: a mention is not a referral, a contract-level order does not mean all its invoices are referred, and referred invoices do not mean the contract itself is referred.', 'لا تعني إحداها الأخرى: الذكر ليس إحالة، والأمر على مستوى العقد لا يعني أن كل فواتيره محالة، والفواتير المحالة لا تعني أن العقد نفسه محال.')}</div>
       </Section>
 
-      <Section id="orders" title={L('Orders associated with this contract', 'أوامر مرتبطة بهذا العقد')} count={orders.length}
+      <Section id="orders" title={L('Orders associated with this contract', 'أوامر مرتبطة بهذا العقد')} count={orders.length} aside={<OriginTag origin={c.origin} field="orders" />}
         note={<div className="rp-limit">{L('An order appears here only if it names this contract number (contract level) or is linked to one of this contract’s invoices. Nothing is inferred from an amount or a payer name.', 'يظهر الأمر هنا فقط إذا ذكر رقم هذا العقد (على مستوى العقد) أو ارتبط بإحدى فواتيره. ولا يُستنتج شيء من مبلغ أو اسم دافع.')}</div>}>
         {orders.length ? (
           <div className="rp-tablewrap" tabIndex={0}><table>

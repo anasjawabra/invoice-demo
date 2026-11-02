@@ -4,7 +4,7 @@
 // candidate: a reference either resolves exactly, resolves to several invoices (ambiguous), or does not resolve.
 import { SOURCES, isoOf } from '../src/data/catalog.js';
 import { ENTITIES } from '../src/data/catalog.js';
-import { makeCtx, derive, lookupId, lookupKey, lookupSadad, idOf, contractByNumber } from './engine.js';
+import { makeCtx, derive, lookupId, lookupKey, lookupSadad, idOf, contractsByNumber } from './engine.js';
 import { idKeyFromViolation, payerName, beneficiaryIdOf } from './names.js';
 import { parseInvoiceKey } from '../src/data/iim.js';
 
@@ -48,9 +48,9 @@ export function resolveReferences(st, req) {
       idx = lookupSadad(st, value.replace(/\D/g, ''));
     } else if (kind === 'violation_no') {
       const key = idKeyFromViolation(value.replace(/\D/g, '')); const i = key == null ? -1 : lookupKey(st, key); if (i >= 0) idx = [i];
-    } else if (kind === 'contract_no') { // a contract number MENTIONED by an order: only says whether such a contract exists (never a referral by itself)
-      const ct = contractByNumber(st, value);
-      out.push({ ref, status: ct ? 'contract_found' : 'contract_not_found', weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null }); continue;
+    } else if (kind === 'contract_no') { // a contract number MENTIONED by an order: only says whether a contract with that number exists — never a referral, never an approved link, and not a unique record when several carry the number
+      const found = contractsByNumber(st, value); const ct = found.length === 1 ? found[0] : null;
+      out.push({ ref, status: found.length > 1 ? 'contract_ambiguous' : ct ? 'contract_found' : 'contract_not_found', matches: found.length, weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null }); continue;
     } else { out.push({ ref, status: 'not_invoice_reference', weak: false, normalized: null, candidates: [] }); continue; }
     idx = idx.filter((i) => i >= 0 && st.issue[i] <= ctx.cutoffN);
     out.push({ ref, status: idx.length === 0 ? 'unmatched' : idx.length === 1 ? 'matched' : 'ambiguous', weak, normalized, candidates: idx.map((i) => summary(st, ctx, i)) });

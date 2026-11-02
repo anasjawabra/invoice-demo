@@ -10,6 +10,8 @@
 // - Sanad document → CR number → CR View status. The raw CR status is shown as
 //   received; no exclusion happens without an approved, enabled rule.
 // ============================================================================
+import { UNLINKED_RULE, unlinkedPrerequisitesText } from './contractRules.js';
+
 export const CR_CHAIN_LABELS = {
   sanad: { ar: 'مستند سند', en: 'Sanad document' },
   cr: { ar: 'رقم السجل التجاري', en: 'CR number' },
@@ -23,7 +25,7 @@ export const INSTALLMENT_STATES = {
   overdue: { ar: 'متأخرة', en: 'Overdue', tone: 'bad' },
   not_due: { ar: 'مفوترة — لم يحن استحقاقها', en: 'Invoiced — not yet due', tone: 'info' },
   future: { ar: 'قادمة — لم تُفوتر بعد', en: 'Upcoming — not invoiced yet', tone: 'info' },
-  unlinked: { ar: 'مستحقة — لا فاتورة مرتبطة بهذا العقد', en: 'Due — no invoice linked to this contract', tone: 'warn' },
+  unlinked: { ar: UNLINKED_RULE.label.ar, en: UNLINKED_RULE.label.en, tone: 'warn' }, // a CANDIDATE rule over the generated demo ledger (src/data/contractRules.js)
   history: { ar: 'قبل نطاق البيانات', en: 'Before the data range', tone: 'mute' },
   cancelled: { ar: 'ملغاة', en: 'Cancelled', tone: 'mute' },
   excluded: { ar: 'مستبعدة', en: 'Excluded', tone: 'mute' }
@@ -35,7 +37,7 @@ export const INSTALLMENT_STATE_HELP = {
   overdue: { ar: 'فاتورة تجاوزت موعد الاستحقاق ولم يُسدَّد منها شيء.', en: 'An invoice past its due date with nothing paid.' },
   not_due: { ar: 'فاتورة صادرة لم يحن موعد استحقاقها.', en: 'An invoice issued whose due date has not come.' },
   future: { ar: 'موعد استحقاقها بعد التاريخ المرجعي ولا فاتورة بعد — ليست متأخرات.', en: 'Due after the reference date and not invoiced yet — never arrears.' },
-  unlinked: { ar: 'حلّ موعدها ولا توجد فاتورة مرتبطة بهذا العقد؛ قد توجد فاتورة غير مطابقة في النظام. قاعدة مرشَّحة بانتظار الاعتماد.', en: 'Due, and no invoice is linked to this contract; an unmatched invoice may exist elsewhere. A candidate rule pending confirmation.' },
+  unlinked: { ar: `${UNLINKED_RULE.statement.ar} المتطلبات المسبقة: ${unlinkedPrerequisitesText('ar')}.`, en: `${UNLINKED_RULE.statement.en} Prerequisites: ${unlinkedPrerequisitesText('en')}.` },
   history: { ar: 'استحقاقها قبل بداية البيانات المسجلة: لا تتوفر فاتورة ولا تحصيل (غير معروف، وليس صفراً).', en: 'Due before the recorded data starts: no invoice or collection is available (unknown, not zero).' },
   cancelled: { ar: 'فاتورة ملغاة في المصدر.', en: 'An invoice cancelled in the source.' },
   excluded: { ar: 'فاتورة مستبعدة بقاعدة؛ تبقى ظاهرة ولا تُحسب في الصافي.', en: 'An invoice excluded by a rule; it stays visible and is not counted in net invoiced.' }

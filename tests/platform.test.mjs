@@ -1883,4 +1883,87 @@ await test('dictionary · every exclusion reason R1–R11 is documented with wha
   for (const d of docs) { assert.ok(d.what?.ar && d.what?.en && d.basedOn?.length && d.rule && d.notWhen?.ar && d.feed?.ar && d.source?.ar, `${d.ruleId} is fully documented`); assert.equal(d.bit, 1 << RULE_IDS_V3.indexOf(d.ruleId)); assert.ok(Number.isFinite(d.priority)); }
   assert.ok(FG_D.every((g) => g.rows.every((r) => r.f && r.where && r.name?.ar && r.meaning?.ar)));
 });
+
+// ---- Group A corrections: origin of a value · the candidate rule · contract-number recognition · superseded 20-row notes ----
+import { contractsByNumber as ctsByNo_A, contractByNumber as ctByNo_A } from '../server/engine.js';
+import { contractCard as contractCard_A, contractCards as contractCards_A, contractRollup as contractRollup_A } from '../server/contracts.js';
+import { contractPath as contractPath_A } from '../src/utils/paths.js';
+import { ORIGIN as ORIGIN_A, CONTRACT_FIELDS as FIELDS_A, originOf as originOf_A, UNLINKED_RULE as RULE_A, demoOrigin as demoOrigin_A } from '../src/data/contractRules.js';
+import { INSTALLMENT_STATES as STATES_A, INSTALLMENT_STATE_HELP as HELP_A } from '../src/data/contracts.js';
+const withContracts_A = (extra) => Object.assign(Object.create(st), { contracts: [...st.contracts, ...extra] }); // a view of the store with added contract records (the shared store is never mutated)
+const realCts_A = st.contracts.filter((c) => c && c.invs.length);
+await test('Group A · contract numbers: CN, ECN, DROCN, DRRCN, EDROCN and the existing demo forms are all recognised; other references are not taken as contracts', () => {
+  const txt = ['Contract CN-123456 and ECN-30011, drocn-4521;', 'DRRCN-77012 / EDROCN-50021', 'Old forms CT-2023-0020, CNT-2024-0101, CO-20241', 'Order EN-6021, invoice 177-410830121845, plate ABCDEFGCN-123456'].join('\n');
+  const got = extractFromText(txt).filter((r) => r.kind === 'contract_no').map((r) => r.value).sort();
+  assert.deepEqual(got, ['CN-123456', 'CNT-2024-0101', 'CO-20241', 'CT-2023-0020', 'DROCN-4521', 'DRRCN-77012', 'ECN-30011', 'EDROCN-50021'].sort());
+  assert.ok(!extractFromText('Order EN-6021 and WLX-123456').some((r) => r.kind === 'contract_no'), 'an enforcement order number is not a contract number');
+  assert.ok(extractFromText('رقم العقد DROCN-٤٥٢١').some((r) => r.kind === 'contract_no' && r.value === 'DROCN-4521'), 'Arabic-Indic digits are read');
+});
+await test('Group A · exact search, lookup, API-card and navigation work for every contract-number form, case-folded and trimmed', () => {
+  const forms = ['CN-10007', 'ECN-30011', 'DROCN-77001', 'DRRCN-88002', 'EDROCN-50021'];
+  const clones = forms.map((f, i) => ({ ...realCts_A[i], contractNo: f }));
+  const s2 = withContracts_A(clones);
+  forms.forEach((f, i) => {
+    assert.equal(ctsByNo_A(s2, ` ${f.toLowerCase()} `).length, 1, f); assert.equal(ctByNo_A(s2, f).contractNo, f);
+    assert.equal(resolveSearch(s2, ` ${f.toLowerCase()} `).list.length, clones[i].invs.length, `${f}: the search returns the contract's invoices`);
+    const card = contractCard_A(s2, { cfg }, f.toLowerCase()); assert.ok(card && !card.ambiguous && card.contractNo === f, `${f}: the card is the contract`);
+    assert.equal(decodeURIComponent(contractPath_A(f).split('/').pop()), f, `${f}: the link round-trips`);
+    const r = resolveReferences(s2, { refs: [{ kind: 'contract_no', value: f }], cfg }).results[0]; assert.equal(r.status, 'contract_found'); assert.equal(r.matches, 1);
+  });
+  assert.equal(contractCard_A(s2, { cfg }, 'DROCN-00000'), null); assert.equal(ctByNo_A(s2, 'DROCN-00000'), null);
+  assert.ok(ctByNo_A(st, 'CT-2023-0020'), 'the sample PDFs still find their contract'); assert.equal(ctByNo_A(st, 'CT-2026-0087'), null, '«not in the contract data» fixture unchanged');
+});
+await test('Group A · recognising a number does not establish a unique record or approve a link: a number on several records is ambiguous and cannot be confirmed', () => {
+  const dup = [{ ...realCts_A[0], contractNo: 'DROCN-99001' }, { ...realCts_A[1], contractNo: 'drocn-99001' }];
+  const s3 = withContracts_A(dup);
+  assert.equal(ctsByNo_A(s3, 'DROCN-99001').length, 2); assert.equal(ctByNo_A(s3, 'DROCN-99001'), null, 'never «the first one»');
+  const sr = resolveSearch(s3, 'DROCN-99001'); assert.equal(sr.list.length, 0); assert.equal(sr.ambiguousContract, 2, 'search returns no invoices and says why');
+  assert.deepEqual(contractCard_A(s3, { cfg }, 'DROCN-99001'), { ambiguous: true, matches: 2 }, 'no card is chosen');
+  const r = resolveReferences(s3, { refs: [{ kind: 'contract_no', value: 'DROCN-99001' }], cfg }).results[0];
+  assert.equal(r.status, 'contract_ambiguous'); assert.equal(r.matches, 2); assert.equal(r.contract, null); assert.deepEqual(r.candidates, []);
+  const [q0] = [eo('contract_mention', 0)]; const eff0 = buildEffectiveCases([ecase(q0)], emptyStore())[0]; const m0 = contractMentions(eff0, [])[0];
+  const ev = { type: 'document_docx_text', docId: 'h', docName: 'a.docx', pages: [], statedExplicitly: true, quote: 'The contract itself is referred to enforcement' };
+  assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0.contractNo, { ...NOW, decision: 'confirmed', exists: true, unique: false, evidence: ev }).error, 'contract_ambiguous', 'complete evidence still cannot confirm an ambiguous number');
+  assert.equal(reviewContractReference(emptyStore(), q0.enforceNum, m0.contractNo, { ...NOW, decision: 'confirmed', exists: true, unique: true, evidence: ev }).error, null, 'a unique, evidenced mention can be confirmed by a reviewer');
+  // a found number alone changes nothing about the order: still «mentioned», still flagged for review, no link
+  const found = eResolve([{ kind: 'contract_no', value: m0.contractNo }])[0]; assert.equal(found.status, 'contract_found'); assert.deepEqual(found.candidates, []);
+  assert.equal(contractMentions(eff0, [])[0].direct, false); assert.ok(orderExceptions(eff0).includes('contract_mention_unreviewed')); assert.deepEqual(invoiceStatusMap([eff0]), invoiceStatusMap(buildEffectiveCases([ecase(q0)], emptyStore())));
+});
+await test('Group A · every contract value is illustrative: «From source» needs a named source record AND the field, never a mapping alone', () => {
+  const cards = contractCards_A(st, { cfg }); const roll = contractRollup_A(cards);
+  for (const c of [cards[0], cards[cards.length - 1], roll]) { assert.equal(c.origin.sourceRecord, null); assert.deepEqual(c.origin.sourceBacked, []); assert.equal(c.origin.basis, 'generated_demo_ledger'); }
+  for (const f of FIELDS_A) assert.equal(originOf_A(cards[0].origin, f), 'illustrative', f);
+  assert.equal(originOf_A({ sourceRecord: null, sourceBacked: ['contractNo'] }, 'contractNo'), 'illustrative', 'a listed field without a source record is not source-backed');
+  assert.equal(originOf_A({ sourceRecord: 'rec-1', sourceBacked: [] }, 'contractNo'), 'illustrative');
+  assert.equal(originOf_A({ sourceRecord: 'rec-1', sourceBacked: ['contractNo'] }, 'contractNo'), 'source'); assert.equal(originOf_A({ sourceRecord: 'rec-1', sourceBacked: ['contractNo'] }, 'status'), 'illustrative');
+  assert.equal(originOf_A(undefined, 'contractNo'), 'illustrative'); assert.ok(ORIGIN_A.illustrative.ar && ORIGIN_A.source.en && demoOrigin_A().sourceBacked.length === 0);
+  const full = contractCard_A(st, { cfg }, realCts_A[0].contractNo); assert.equal(full.origin.sourceRecord, null);
+});
+await test('Group A · «due — no invoice linked» is a candidate rule over the generated ledger: the API, the labels, the legend and the Decision Room say so, with the four prerequisites', async () => {
+  const cards = contractCards_A(st, { cfg }); const r = cards[0].candidateRules[RULE_A.key];
+  assert.equal(r.status, 'candidate'); assert.equal(r.scope, 'generated_demo_ledger'); assert.deepEqual(r.prerequisites, ['complete_schedule', 'contract_identity', 'invoice_linkage', 'due_grace_rule']); assert.deepEqual(contractRollup_A(cards).candidateRules, cards[0].candidateRules);
+  assert.match(STATES_A.unlinked.en, /candidate rule/i); assert.match(STATES_A.unlinked.ar, /مرشَّحة/);
+  for (const p of RULE_A.prerequisites) { assert.ok(HELP_A.unlinked.en.includes(p.en) && HELP_A.unlinked.ar.includes(p.ar), p.key); }
+  assert.match(HELP_A.unlinked.en, /not a finding from the Furas extract/); assert.match(RULE_A.statement.en, /generated demo ledger|GENERATED demo ledger/);
+  // the Decision Room item reads from the same text
+  const { buildDecisionItems: buildItems_A } = await import('../src/data/decisionRoom.js');
+  const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg });
+  const R = buildItems_A({ today: TODAY, snapshot: sn, labels: { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) }, targetRate: () => 0.6, plan: null, contracts: { count: 3, arrears: 1, overdueInstallments: 1, futureNotInvoiced: 1, unlinkedInstallments: 4, unlinkedAmount: 9e5 }, noContractCount: 0, orders: null, matching: null });
+  const it = R.items.find((x) => x.key === 'contracts:unlinked'); assert.ok(it, 'the item exists');
+  const text = JSON.stringify([it.title, it.problem, it.cause, it.recommendation, it.figures]);
+  assert.match(text, /candidate rule/i); assert.match(text, /مرشَّحة/); assert.match(text, /generated/i); for (const p of RULE_A.prerequisites) assert.ok(text.includes(p.en) && text.includes(p.ar), `Decision Room names «${p.key}»`);
+  assert.ok(it.cause.status === 'hypothesis' && !/found in the Furas extract/i.test(text), 'never presented as an extract finding');
+  // the pages: no page prints the phrase without the candidate-rule wording (they all read it from contractRules)
+  for (const f of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/data/decisionRoom.js', 'src/data/contracts.js']) {
+    const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/L\('Due — no invoice linked'/.test(src), `${f}: the old unlabelled wording is gone`); assert.ok(/UNLINKED_RULE|CandidateRuleNote/.test(src), `${f}: reads the shared candidate-rule text`);
+  }
+});
+await test('Group A · the 20-row findings are marked superseded in the active documentation, with a link to the reassessment; the historical text is kept', () => {
+  const doc = nodeFs.readFileSync('docs/contracts-lifecycle-phase1.md', 'utf8');
+  assert.ok(doc.includes('7 of 10 raw') && doc.includes('fits 2 of 20 raw rows'), 'the historical evidence is preserved');
+  assert.equal((doc.match(/Superseded \(historical evidence kept above\)/g) || []).length, 2); assert.ok(doc.includes('furas-export-reassessment.md'));
+  assert.ok(nodeFs.existsSync('docs/furas-export-reassessment.md')); const re = nodeFs.readFileSync('docs/furas-export-reassessment.md', 'utf8'); assert.ok(re.includes('Furas_v2_Review_and_Plan') && re.includes('Superseded'));
+  assert.ok(!/\d{1,3},\d{3} (?:of|rows|records)/.test(re), 'no real export figure is copied into the repository');
+});
+
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

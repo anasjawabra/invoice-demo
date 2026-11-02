@@ -3519,9 +3519,13 @@ function lookupKey(st, key) {
   }
   return -1;
 }
-var contractByNumber = (st, no) => {
+var contractsByNumber = (st, no) => {
   const k = String(no || "").trim().toUpperCase();
-  return k ? (st.contracts || []).find((c) => c && String(c.contractNo).toUpperCase() === k) || null : null;
+  return k ? (st.contracts || []).filter((c) => c && String(c.contractNo).toUpperCase() === k) : [];
+};
+var contractByNumber = (st, no) => {
+  const m = contractsByNumber(st, no);
+  return m.length === 1 ? m[0] : null;
 };
 function lookupId(st, id) {
   const s = String(id || "").trim();
@@ -5233,6 +5237,10 @@ function resolveSearch(st, q2) {
   if (exact >= 0) return { list: Int32Array.of(exact) };
   const upper = s.toUpperCase();
   {
+    const ms = contractsByNumber(st, s);
+    if (ms.length > 1) return { list: new Int32Array(0), ambiguousContract: ms.length };
+  }
+  {
     const ct = contractByNumber(st, s);
     if (ct) return { list: Int32Array.from(ct.invs) };
   }
@@ -5691,6 +5699,27 @@ function anomalies(st, req) {
   return { total, counts, rows };
 }
 
+// src/data/contractRules.js
+var demoOrigin = () => ({ basis: "generated_demo_ledger", sourceRecord: null, sourceBacked: [] });
+var UNLINKED_RULE = {
+  key: "due_no_invoice_linked",
+  status: "candidate",
+  scope: "generated_demo_ledger",
+  label: { ar: "\u0645\u0633\u062A\u062D\u0642\u0629 \u2014 \u0644\u0627 \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 (\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629)", en: "Due \u2014 no invoice linked (candidate rule)" },
+  short: { ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629 \u0639\u0644\u0649 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u0648\u0636\u064A\u062D\u064A \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F", en: "candidate rule over the generated demo ledger" },
+  statement: {
+    ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629 \u062A\u064F\u0637\u0628\u064E\u0651\u0642 \u0639\u0644\u0649 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u0648\u0636\u064A\u062D\u064A \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0642\u0637: \u0642\u0633\u0637 \u0645\u0646 \u0627\u0644\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u062D\u0644\u0651 \u0645\u0648\u0639\u062F\u0647 \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0641\u064A \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0639\u0642\u062F\u0647. \u0644\u064A\u0633\u062A \u0646\u062A\u064A\u062C\u0629 \u0645\u0646 \u0645\u0633\u062A\u062E\u0631\u062C \u0641\u0631\u0635 (\u0627\u0644\u0645\u0633\u062A\u062E\u0631\u062C \u0645\u062D\u062F\u0648\u062F \u0648\u0644\u0627 \u064A\u062A\u064A\u062D \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062C\u062F\u0627\u0648\u0644)\u060C \u0648\u063A\u064A\u0631 \u0645\u0639\u062A\u0645\u062F\u0629.",
+    en: "A candidate rule applied to the GENERATED demo ledger only: an installment of the generated schedule is due and no invoice is linked to its contract in the generated ledger. It is not a finding from the Furas extract (a capped extract cannot validate schedules) and it is not approved."
+  },
+  prerequisites: [
+    { key: "complete_schedule", ar: "\u062C\u062F\u0648\u0644 \u062F\u0641\u0639\u0627\u062A \u0643\u0627\u0645\u0644 \u0648\u0645\u062A\u062D\u0642\u064E\u0651\u0642 \u0645\u0646\u0647 \u0644\u0644\u0639\u0642\u062F", en: "a complete, validated payment schedule for the contract" },
+    { key: "contract_identity", ar: "\u0647\u0648\u064A\u0629 \u0639\u0642\u062F \u0645\u0648\u062B\u0648\u0642\u0629 (\u0631\u0642\u0645 \u0627\u0644\u0639\u0642\u062F \u0648\u062D\u062F\u0647 \u0644\u0627 \u064A\u062D\u062F\u062F \u0633\u062C\u0644\u0627\u064B \u0648\u0627\u062D\u062F\u0627\u064B)", en: "a reliable contract identity (a contract number alone does not identify one record)" },
+    { key: "invoice_linkage", ar: "\u0631\u0628\u0637 \u0641\u0627\u062A\u0648\u0631\u0629 \u0628\u0642\u0633\u0637 \u0645\u062A\u062D\u0642\u064E\u0651\u0642 \u0645\u0646\u0647", en: "validated linkage between an invoice and an installment" },
+    { key: "due_grace_rule", ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0639\u062A\u0645\u062F\u0629 \u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0627\u0633\u062A\u062D\u0642\u0627\u0642 \u0648\u0641\u062A\u0631\u0629 \u0627\u0644\u0633\u0645\u0627\u062D", en: "an agreed due-date and grace-period rule" }
+  ]
+};
+var candidateRules = () => ({ [UNLINKED_RULE.key]: { status: UNLINKED_RULE.status, scope: UNLINKED_RULE.scope, prerequisites: UNLINKED_RULE.prerequisites.map((p) => p.key) } });
+
 // server/contracts.js
 var METHOD = ["structured", "ocr"];
 function stateOf(D) {
@@ -5807,6 +5836,8 @@ function cardOf(st, ctx, ct) {
     crStatusRaw: CR_STATUS[ct.crSt] || null,
     annualValue: ct.annualValue,
     totalValue: ct.totalValue,
+    origin: demoOrigin(),
+    candidateRules: candidateRules(),
     schedule,
     invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo),
     // which invoices belong to the contract (never inferred — taken from the contract's own schedule)
@@ -5869,9 +5900,10 @@ function contractCards(st, req, { summary: summary2 = true } = {}) {
   return out;
 }
 function contractCard(st, req, no) {
-  const ctx = makeCtx(st, req);
-  const ct = st.contracts.find((c) => c && c.contractNo === no);
-  return ct && inScope2(req, ct) ? cardOf(st, ctx, ct) : null;
+  const found = contractsByNumber(st, no).filter((ct) => inScope2(req, ct));
+  if (!found.length) return null;
+  if (found.length > 1) return { ambiguous: true, matches: found.length };
+  return cardOf(st, makeCtx(st, req), found[0]);
 }
 function contractRollup(cards) {
   const add = (f) => cards.reduce((s, c) => s + f(c.totals), 0);
@@ -5895,7 +5927,9 @@ function contractRollup(cards) {
     unlinkedAmount: add((t) => t.unlinkedAmount),
     historyInstallments: add((t) => t.historyInstallments),
     coverage: { installments: add((t) => t.coverage.installments), known: add((t) => t.coverage.known), notApplicable: add((t) => t.coverage.notApplicable), unknown: add((t) => t.coverage.unknown) },
-    executionAtContractLevel: cards.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0)
+    executionAtContractLevel: cards.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0),
+    origin: demoOrigin(),
+    candidateRules: candidateRules()
   };
 }
 function sanadCases(st) {
@@ -6178,8 +6212,9 @@ function resolveReferences(st, req) {
       const i = key == null ? -1 : lookupKey(st, key);
       if (i >= 0) idx = [i];
     } else if (kind === "contract_no") {
-      const ct = contractByNumber(st, value);
-      out.push({ ref, status: ct ? "contract_found" : "contract_not_found", weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null });
+      const found = contractsByNumber(st, value);
+      const ct = found.length === 1 ? found[0] : null;
+      out.push({ ref, status: found.length > 1 ? "contract_ambiguous" : ct ? "contract_found" : "contract_not_found", matches: found.length, weak: false, normalized: null, candidates: [], contract: ct ? { contractNo: ct.contractNo, amanahEn: ENTITIES[ct.ent]?.en || null } : null });
       continue;
     } else {
       out.push({ ref, status: "not_invoice_reference", weak: false, normalized: null, candidates: [] });
@@ -6436,7 +6471,7 @@ async function handleApi(req, res) {
         }));
       case "/contract": {
         const c = memoize(key("ct1"), () => contractCard(st, body, body.no));
-        return c ? send(res, 200, c) : send(res, 404, { error: "contract_not_found" });
+        return c?.ambiguous ? send(res, 409, { error: "contract_number_ambiguous", matches: c.matches }) : c ? send(res, 200, c) : send(res, 404, { error: "contract_not_found" });
       }
       case "/invoice": {
         const i = lookupId(st, body.id);

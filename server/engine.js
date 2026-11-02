@@ -74,7 +74,10 @@ export function lookupKey(st, key) {
 }
 // An invoice id is `${billerId}-${sadadNumber}`: the Sadad number alone is not unique (the same number can exist under two billers), the pair is.
 // a contract is found by exact (trimmed, case-folded) match with a known contract number: no number format is assumed anywhere
-export const contractByNumber = (st, no) => { const k = String(no || '').trim().toUpperCase(); return k ? (st.contracts || []).find((c) => c && String(c.contractNo).toUpperCase() === k) || null : null; };
+// every contract carrying this number (trimmed, case-folded). A number is NOT proof of one contract record: the same number can sit on several records.
+export const contractsByNumber = (st, no) => { const k = String(no || '').trim().toUpperCase(); return k ? (st.contracts || []).filter((c) => c && String(c.contractNo).toUpperCase() === k) : []; };
+// the contract only when the number identifies EXACTLY ONE record; with several records it returns null (never "the first one"), so nothing is linked by accident
+export const contractByNumber = (st, no) => { const m = contractsByNumber(st, no); return m.length === 1 ? m[0] : null; };
 export function lookupId(st, id) {
   const s = String(id || '').trim();
   if (st.fixtureById.has(s)) return st.fixtureById.get(s);
