@@ -1977,17 +1977,46 @@ await test('Data accuracy · the limits shown are qualitative (no real figure), 
   const keys = LIMITS_A.map((l) => l.key); for (const k of ['contract_number', 'dates', 'schedule', 'frequency', 'collection', 'invoice_link', 'status', 'service_type', 'demo_values']) assert.ok(keys.includes(k), k);
   assert.ok(LIMITS_A.find((l) => l.key === 'frequency').kind === 'limited_sample', 'an observation from a limited sample is not generalised into a rule');
 });
-await test('Data accuracy · «collected of what is due to date» covers invoiced installments only: an installment with no linked invoice is not counted as due-and-uncollected, and the list, the detail and the roll-up agree', () => {
-  const full = contractCards_A(st, { cfg }, { summary: false }); let sawUnlinked = false;
+await test('Data accuracy · «net invoiced due to date» = net (gross − exclusions − cancelled) of the invoiced installments whose due date has come, before collections; the collected share, the remainder, excluded / cancelled / unlinked / future rows and the roll-up are consistent', () => {
+  const full = contractCards_A(st, { cfg }, { summary: false }); let sawUnlinked = false; let sawExcl = false; let sawFuture = false;
   for (const c of full) {
-    const due = c.schedule.filter((p) => p.invoiced && p.dueDate <= cfg.cutoff); const amt = due.reduce((t, p) => t + p.amount, 0); const col = due.reduce((t, p) => t + (p.collected || 0), 0);
-    assert.ok(Math.abs(c.totals.dueToDate - amt) < 0.5, `${c.contractNo}: due to date = invoiced installments whose due date has come`);
-    if (amt > 0) assert.ok(Math.abs(c.totals.collectedOfDueToDate.value - col / amt) < 1e-9, `${c.contractNo}: collected of due = collected of those installments ÷ their amount`); else assert.equal(c.totals.collectedOfDueToDate.calculable, false);
+    const due = c.schedule.filter((p) => p.invoiced && p.dueDate <= cfg.cutoff); const net = due.reduce((t, p) => t + p.net, 0); const col = due.reduce((t, p) => t + (p.collected || 0), 0); const rem = due.reduce((t, p) => t + p.outstanding, 0);
+    assert.ok(Math.abs(c.totals.netDueToDate - net) < 0.5, `${c.contractNo}: net invoiced due to date`); assert.ok(Math.abs(c.totals.collectedOfDue - col) < 0.5);
+    assert.ok(Math.abs(c.totals.netDueToDate - c.totals.collectedOfDue - c.totals.remainingOfDue) < 0.5, `${c.contractNo}: net due − collected = remaining`); assert.ok(Math.abs(c.totals.remainingOfDue - rem) < 0.5);
+    if (net > 0) assert.ok(Math.abs(c.totals.collectedOfDueToDate.value - col / net) < 1e-9); else assert.equal(c.totals.collectedOfDueToDate.calculable, false);
     assert.ok(c.totals.collectedOfDueToDate.value == null || c.totals.collectedOfDueToDate.value <= 1.000001, 'never above 100 %');
-    const unl = c.schedule.filter((p) => p.state === 'unlinked'); assert.equal(c.totals.unlinkedInstallments, unl.length); if (unl.length) sawUnlinked = true;
-    assert.ok(unl.every((p) => p.collected == null && p.dataState === 'unknown'), 'an unlinked installment has an unknown collection, never a zero');
+    assert.ok(c.totals.netDueToDate <= c.totals.net + 0.5, 'the due part of net never exceeds net');
+    for (const p of c.schedule) {
+      if (p.invoiced && (p.state === 'excluded' || p.state === 'cancelled')) { sawExcl = true; assert.ok((p.outstanding || 0) < 0.5, `${c.contractNo} #${p.no}: an excluded / cancelled invoice owes nothing`); if (p.state === 'excluded') { assert.ok(Math.abs(p.net - p.collected) < 0.5, 'exclusions apply only to the uncollected part: what is collected stays in net'); assert.ok(Math.abs(p.gross - p.exclusion - p.net) < 0.5, 'gross = exclusions + net'); } }
+      if (p.state === 'unlinked') { sawUnlinked = true; assert.ok(p.collected == null && p.net == null && p.dataState === 'unknown', 'unknown collection is never a zero and not in net due'); }
+      if (p.state === 'future') { sawFuture = true; assert.ok(p.net == null && p.dueDate > cfg.cutoff, 'a future installment is not due'); }
+    }
+    assert.equal(c.totals.unlinkedInstallments, c.schedule.filter((p) => p.state === 'unlinked').length);
   }
-  assert.ok(sawUnlinked, 'the fixture includes installments with no linked invoice'); const ru = contractRollup_A(full); assert.equal(ru.unlinkedInstallments, full.reduce((t, c) => t + c.totals.unlinkedInstallments, 0));
+  assert.ok(sawUnlinked && sawFuture && sawExcl, 'the fixture has unlinked, future and excluded installments');
+  const ru = contractRollup_A(full); assert.equal(ru.unlinkedInstallments, full.reduce((t, c) => t + c.totals.unlinkedInstallments, 0));
+  const prod = nodeFs.readFileSync('src/pages/ProductPage.jsx', 'utf8'); assert.ok(!/Receivables to date|المستحقات حتى تاريخه/.test(prod), 'the tile no longer calls a before-collections amount «receivables»');
+  assert.ok(prod.includes('Net invoiced and due to date (before collections)') && prod.includes('t.netDueToDate') && !/t\.dueToDate/.test(prod));
+  for (const f of ['src/pages/ContractPage.jsx', 'src/data/dictionaryDocs.js', 'server/contracts.js']) assert.ok(!/\bdueToDate\b/.test(nodeFs.readFileSync(f, 'utf8').replace(/netDueToDate|collectedOfDueToDate/g, '')), `${f}: no stale dueToDate`);
+});
+await test('Data accuracy · API field rename: nothing reads or emits `candidateRules`, in the source or in the built outputs; `proposedRules` is on the card and the roll-up', () => {
+  const files = ['server/contracts.js', 'server/api.js', 'src/data/contractRules.js', 'src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/data/useDecisions.js', 'src/data/decisionRoom.js', 'src/api/client.js', 'api/_handler.mjs', 'dist-server/server.mjs'];
+  for (const f of files) assert.ok(!/candidateRules/.test(nodeFs.readFileSync(f, 'utf8')), `${f}: no candidateRules`);
+  for (const f of nodeFs.readdirSync('dist/assets').filter((x) => x.endsWith('.js'))) assert.ok(!/candidateRules/.test(nodeFs.readFileSync(`dist/assets/${f}`, 'utf8')), `dist/assets/${f}`);
+  for (const f of ['api/_handler.mjs', 'dist-server/server.mjs']) assert.ok(nodeFs.readFileSync(f, 'utf8').includes('proposedRules'), `${f}: emits proposedRules`);
+  const cards = contractCards_A(st, { cfg }); assert.ok(cards[0].proposedRules && !cards[0].candidateRules); assert.ok(contractRollup_A(cards).proposedRules && !contractRollup_A(cards).candidateRules);
+});
+await test('Data accuracy · verification scope: there is no contract report or contract export, so export parity covers the existing invoice outputs only (the only contract column in an export is the invoice\'s contract number)', () => {
+  assert.ok(!FIXED_REPORTS.some((r) => /contract/i.test(JSON.stringify([r.key || r.id, r.title || r.name]))), 'no fixed report is about contracts'); assert.ok(!SECTION_ORDER.some((k) => /contract/i.test(k)), 'no report section is about contracts');
+  const cols = nodeFs.readFileSync('server/lists.js', 'utf8').match(/export const EXPORT_COLUMNS = \[([^\]]+)\]/)[1]; assert.deepEqual(cols.match(/'contract[a-z_]*'/g), ["'contract_no'"], 'the invoice CSV carries only the invoice\'s own contract number');
+  const parity = nodeFs.readFileSync('scripts/export-parity.mjs', 'utf8'); assert.ok(!/contractCards|contractCard|totals\.netDueToDate|proposedRules/.test(parity), 'the parity script does not exercise contract data');
+});
+await test('Data accuracy · the generated schedule details («n of N», the schedule counts, the payment interval) are marked as generated / illustrative wherever they are shown', () => {
+  const page = nodeFs.readFileSync('src/pages/ContractPage.jsx', 'utf8'); const list = nodeFs.readFileSync('src/pages/Contracts.jsx', 'utf8'); const prod = nodeFs.readFileSync('src/pages/ProductPage.jsx', 'utf8'); const sr = nodeFs.readFileSync('server/sourceRecords.js', 'utf8');
+  assert.ok(page.includes("Installment (generated schedule)") && page.includes('field="schedule"') && page.includes('field="interval"') && page.includes('Payment interval (illustrative)'));
+  assert.ok(list.includes('Payments (generated schedule)')); assert.ok(prod.includes('sum of the generated schedules'));
+  assert.ok(sr.includes("'Installment (generated schedule)'") && sr.includes("'Installments (generated schedule)'"));
+  assert.ok(LIMITS_A.find((l) => l.key === 'schedule').en.includes('generated') && LIMITS_A.find((l) => l.key === 'frequency').en.includes('illustrative'));
 });
 await test('Data accuracy · the Decision Room says which contract items are generated, which rule is proposed, and what cannot be checked against the source', async () => {
   const { buildDecisionItems: bi_A } = await import('../src/data/decisionRoom.js');

@@ -5009,8 +5009,8 @@ function sourceRecord(st, i, rec, D, cutoff) {
     out.importVersion = IMPORT_VERSIONS.furas;
     out.views.push(view("FURAS_CONTRACT_PAYMENT", "Furas", BI2("\u062F\u0641\u0639\u0629 \u0639\u0642\u062F \u0641\u0631\u0635", "Furas contract payment"), [
       fld("contract_no", "\u0631\u0642\u0645 \u0627\u0644\u0639\u0642\u062F", "Contract number", rec.co || rec.contract?.ref || null),
-      fld("installment_no", "\u0631\u0642\u0645 \u0627\u0644\u062F\u0641\u0639\u0629", "Installment", rec.contractPaymentNo),
-      fld("installments_total", "\u0639\u062F\u062F \u0627\u0644\u062F\u0641\u0639\u0627\u062A", "Installments", rec.contractPaymentTotal),
+      fld("installment_no", "\u0631\u0642\u0645 \u0627\u0644\u062F\u0641\u0639\u0629 (\u062C\u062F\u0648\u0644 \u0645\u064F\u0648\u0644\u064E\u0651\u062F)", "Installment (generated schedule)", rec.contractPaymentNo),
+      fld("installments_total", "\u0639\u062F\u062F \u0627\u0644\u062F\u0641\u0639\u0627\u062A (\u062C\u062F\u0648\u0644 \u0645\u064F\u0648\u0644\u064E\u0651\u062F)", "Installments (generated schedule)", rec.contractPaymentTotal),
       fld("contract_status", "\u062D\u0627\u0644\u0629 \u0631\u0628\u0637 \u0627\u0644\u0639\u0642\u062F", "Contract link state", rec.contract?.status)
     ]));
   }
@@ -5838,7 +5838,7 @@ function cardOf(st, ctx, ct) {
   const collected = sum((x) => x.collected);
   const uncollected = sum((x) => x.outstanding);
   const dueRows = (x) => x.invoiced && x.dueDate <= ctx.cfg.cutoff;
-  const dueToDate = sum((x) => dueRows(x) ? x.amount : 0);
+  const netDueToDate = sum((x) => dueRows(x) ? x.net : 0);
   const collectedOfDue = sum((x) => dueRows(x) ? x.collected : 0);
   const termEnded = ct.end < today;
   return {
@@ -5883,8 +5883,9 @@ function cardOf(st, ctx, ct) {
       notDue,
       futureNotInvoiced: sum((x) => x.state === "future" ? x.amount : 0),
       netUncollected: arrears + notDue,
-      dueToDate,
-      collectedOfDueToDate: ratio(collectedOfDue, dueToDate),
+      netDueToDate,
+      collectedOfDue,
+      collectedOfDueToDate: ratio(collectedOfDue, netDueToDate),
       remainingOfDue: sum((x) => dueRows(x) ? x.outstanding : 0),
       overdueInstallments: count((x) => x.state === "overdue" || x.state === "partial"),
       futureInstallments: count((x) => x.state === "future"),

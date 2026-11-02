@@ -85,7 +85,7 @@ export default function Contracts() {
         </div>
         <div className="rv-table-wrap" tabIndex={0}>
           <table className="rv-table">
-            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Collection rate on net invoiced', 'نسبة التحصيل من صافي المفوتر')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th>{L('Payments', 'الدفعات')}</th></tr></thead>
+            <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Amanah', 'الأمانة / الجهة')}</th><th className="num">{L('Value', 'القيمة')}</th><th className="num">{L('Collected', 'المحصل')}</th><th className="num">{L('Collection rate on net invoiced', 'نسبة التحصيل من صافي المفوتر')}</th><th className="num">{L('Overdue', 'المتأخر')}</th><th title={L('Counts come from the generated schedules', 'الأعداد من الجداول المُولَّدة')}>{L('Payments (generated schedule)', 'الدفعات (جدول مُولَّد)')}</th></tr></thead>
             <tbody>
               {list.slice(page * PS, (page + 1) * PS).map((c) => (
                 <tr key={c.contractNo}>

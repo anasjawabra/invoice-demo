@@ -69,10 +69,12 @@ function cardOf(st, ctx, ct) {
   const arrears = sum((x) => (x.state === 'overdue' || x.state === 'partial' ? x.outstanding : 0));
   const notDue = sum((x) => (x.state === 'not_due' ? x.outstanding : 0));
   const gross = sum((x) => x.gross); const exclusions = sum((x) => x.exclusion); const net = sum((x) => x.net); const collected = sum((x) => x.collected); const uncollected = sum((x) => x.outstanding);
-  // «due to the reference date» counts only INVOICED installments whose due date has come. An installment with no linked invoice is NOT in it: its collection is unknown and an unknown is never counted as
-  // a collected zero — that group stays separate (`unlinkedInstallments`, a proposed rule). History rows are unknown and upcoming ones are not due yet.
+  // «net invoiced due to the reference date»: the NET invoiced amount (gross − exclusions − cancelled, the same base as the collection rate) of the INVOICED installments whose due date has come, before the
+  // collections matched to them. Excluded and cancelled invoices contribute nothing to net; an installment with no linked invoice is not in it (its collection is unknown and an unknown is never counted as a
+  // collected zero — that group stays separate: `unlinkedInstallments`, a proposed rule); history rows are unknown and upcoming ones are not due yet.
+  // netDueToDate − collectedOfDue = remainingOfDue (invoiced installments only).
   const dueRows = (x) => x.invoiced && x.dueDate <= ctx.cfg.cutoff;
-  const dueToDate = sum((x) => (dueRows(x) ? x.amount : 0));
+  const netDueToDate = sum((x) => (dueRows(x) ? x.net : 0));
   const collectedOfDue = sum((x) => (dueRows(x) ? x.collected : 0));
   const termEnded = ct.end < today;
   return {
@@ -86,7 +88,7 @@ function cardOf(st, ctx, ct) {
       contractValue: ct.totalValue, installments: schedule.length, invoicedInstallments: count((x) => x.invoiced),
       invoiced: gross, gross, exclusions, net, collected, uncollected, collectionRateOnNet: ratio(collected, net), // net invoiced = gross − exclusions; uncollected = net − collected; rate = collected ÷ net (zero or unknown denominator → not calculable)
       arrears, notDue, futureNotInvoiced: sum((x) => (x.state === 'future' ? x.amount : 0)), netUncollected: arrears + notDue,
-      dueToDate, collectedOfDueToDate: ratio(collectedOfDue, dueToDate), remainingOfDue: sum((x) => (dueRows(x) ? x.outstanding : 0)),
+      netDueToDate, collectedOfDue, collectedOfDueToDate: ratio(collectedOfDue, netDueToDate), remainingOfDue: sum((x) => (dueRows(x) ? x.outstanding : 0)),
       overdueInstallments: count((x) => x.state === 'overdue' || x.state === 'partial'), futureInstallments: count((x) => x.state === 'future'),
       unlinkedInstallments: count((x) => x.state === 'unlinked'), unlinkedAmount: sum((x) => (x.state === 'unlinked' ? x.amount : 0)), historyInstallments: count((x) => x.state === 'history'),
       coverage: { installments: schedule.length, known: count((x) => x.dataState === 'known'), notApplicable: count((x) => x.dataState === 'not_applicable'), unknown: count((x) => x.dataState === 'unknown') }

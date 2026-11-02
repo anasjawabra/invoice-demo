@@ -290,7 +290,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
     out.providingSystem = 'فرص (عقود) ثم تحصيل';
     out.importVersion = IMPORT_VERSIONS.furas;
     out.views.push(view('FURAS_CONTRACT_PAYMENT', 'Furas', BI('دفعة عقد فرص', 'Furas contract payment'), [
-      fld('contract_no', 'رقم العقد', 'Contract number', rec.co || rec.contract?.ref || null), fld('installment_no', 'رقم الدفعة', 'Installment', rec.contractPaymentNo), fld('installments_total', 'عدد الدفعات', 'Installments', rec.contractPaymentTotal), fld('contract_status', 'حالة ربط العقد', 'Contract link state', rec.contract?.status)
+      fld('contract_no', 'رقم العقد', 'Contract number', rec.co || rec.contract?.ref || null), fld('installment_no', 'رقم الدفعة (جدول مُولَّد)', 'Installment (generated schedule)', rec.contractPaymentNo), fld('installments_total', 'عدد الدفعات (جدول مُولَّد)', 'Installments (generated schedule)', rec.contractPaymentTotal), fld('contract_status', 'حالة ربط العقد', 'Contract link state', rec.contract?.status)
     ]));
   }
 
