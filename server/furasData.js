@@ -68,7 +68,8 @@ export function loadFuras() {
   if (loading) return loading;
   loading = (async () => {
     const dir = furasDir(); if (!dir) throw new Error('furas_unavailable');
-    const files = findFiles(dir); const D = { loadedAt: new Date().toISOString(), views: {} };
+    const files = findFiles(dir); const D = { loadedAt: new Date().toISOString(), views: {}, subset: null };
+    try { const m = JSON.parse(fs.readFileSync(path.join(dir, 'subset.json'), 'utf8')); if (m && m.kind === 'subset') D.subset = { contracts: m.contracts, scenarios: m.scenarios || null }; } catch { /* a full export has no manifest */ }
     for (const k of Object.keys(KEEP)) {
       const text = await fs.promises.readFile(files[k], 'utf8'); const p = parseCsv(text, KEEP[k]);
       D.views[k] = { name: VIEW_NAME[k], rows: p.n, columns: p.header.length, schemaColumns: SCHEMA_COLS[k], capped: p.n === CAP, cols: p.cols };
@@ -131,7 +132,7 @@ export async function furasSummary() {
   const D = await loadFuras(); if (D.summary) return D.summary;
   const C = D.views.contract.cols; const P = D.views.payment.cols; const nC = D.views.contract.rows; const nP = D.views.payment.rows; const rows = numberRows(D);
   const extract = D.partition;
-  const files = Object.keys(KEEP).map((k) => { const v = D.views[k]; return { key: k, view: v.name, rows: v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: v.capped ? 'capped_sample' : 'not_capped' }; });
+  const files = Object.keys(KEEP).map((k) => { const v = D.views[k]; return { key: k, view: v.name, rows: v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: D.subset ? 'subset' : v.capped ? 'capped_sample' : 'not_capped' }; });
   // contract numbers and records
   const repeated = rows.filter((r) => r.n > 1);
   const conflicts = (k) => repeated.filter((r) => r.conflicts[k]).length;
@@ -164,7 +165,7 @@ export async function furasSummary() {
   const sadadFilled = (v) => D.views[v].cols.sadadbillnumber.filter((x) => x != null).length;
   const pFound = P.investorid.filter((x) => x != null && D.investors.has(x)).length; const pInv = P.investorid.filter((x) => x != null).length;
   D.summary = {
-    dataset: { title: 'Furas Databank exports', schema: 'Furas business schema', extract, etl: D.etl, files, note: 'Read locally at runtime; not in Git, not in any build, not in any log.' },
+    dataset: { title: 'Furas Databank exports', schema: 'Furas business schema', extract, etl: D.etl, files, subset: D.subset, note: 'Read locally at runtime; not in Git, not in any build, not in any log.' },
     contracts: {
       records: nC, distinctNumbers: D.byNo.size, recordsWithoutNumber: D.noNumber, numbersWithSeveralRecords: repeated.length, recordsInRepeatedNumbers: repeated.reduce((t, r) => t + r.n, 0), maxRecordsPerNumber: rows.reduce((m, r) => Math.max(m, r.n), 0),
       recordKeyUnique: D.byPz.size === nC, conflictsAmongRepeated: { status: conflicts('status'), type: conflicts('type'), value: conflicts('value'), annual: conflicts('annual'), endDate: conflicts('endDate'), municipality: conflicts('municipality') },

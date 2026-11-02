@@ -6595,7 +6595,12 @@ function loadFuras() {
     const dir = furasDir();
     if (!dir) throw new Error("furas_unavailable");
     const files = findFiles(dir);
-    const D = { loadedAt: (/* @__PURE__ */ new Date()).toISOString(), views: {} };
+    const D = { loadedAt: (/* @__PURE__ */ new Date()).toISOString(), views: {}, subset: null };
+    try {
+      const m = JSON.parse(fs.readFileSync(path.join(dir, "subset.json"), "utf8"));
+      if (m && m.kind === "subset") D.subset = { contracts: m.contracts, scenarios: m.scenarios || null };
+    } catch {
+    }
     for (const k of Object.keys(KEEP)) {
       const text = await fs.promises.readFile(files[k], "utf8");
       const p = parseCsv(text, KEEP[k]);
@@ -6728,7 +6733,7 @@ async function furasSummary() {
   const extract = D.partition;
   const files = Object.keys(KEEP).map((k) => {
     const v = D.views[k];
-    return { key: k, view: v.name, rows: v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: v.capped ? "capped_sample" : "not_capped" };
+    return { key: k, view: v.name, rows: v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: D.subset ? "subset" : v.capped ? "capped_sample" : "not_capped" };
   });
   const repeated = rows.filter((r) => r.n > 1);
   const conflicts = (k) => repeated.filter((r) => r.conflicts[k]).length;
@@ -6823,7 +6828,7 @@ async function furasSummary() {
   const pFound = P.investorid.filter((x) => x != null && D.investors.has(x)).length;
   const pInv = P.investorid.filter((x) => x != null).length;
   D.summary = {
-    dataset: { title: "Furas Databank exports", schema: "Furas business schema", extract, etl: D.etl, files, note: "Read locally at runtime; not in Git, not in any build, not in any log." },
+    dataset: { title: "Furas Databank exports", schema: "Furas business schema", extract, etl: D.etl, files, subset: D.subset, note: "Read locally at runtime; not in Git, not in any build, not in any log." },
     contracts: {
       records: nC,
       distinctNumbers: D.byNo.size,

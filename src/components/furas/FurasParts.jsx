@@ -12,18 +12,19 @@ export const Tag = ({ children, tone = '' }) => <Chip tone={tone === 'proposed' 
 export function DatasetBanner({ S }) {
   const { L, count } = useL();
   if (!S) return null;
-  const d = S.dataset; const capped = d.files.filter((f) => f.scope === 'capped_sample');
+  const d = S.dataset; const capped = d.files.filter((f) => f.scope === 'capped_sample'); const sub = d.subset;
   return (
     <div className="fu-strip" role="note">
       <span className="fu-strip__dot" aria-hidden="true" />
       <span><b>{L('Furas exports', 'تصديرات فرص')}</b> · {L('extract', 'الاستخراج')} <b dir="ltr">{d.extract}</b> <span className="muted" dir="ltr">(ETL {String(d.etl).slice(0, 10)})</span></span>
       <span>{L('Local copy — not in Git, builds or logs', 'نسخة محلية — ليست في Git ولا الإصدارات ولا السجلات')}</span>
-      {capped.length > 0 && <Chip tone="warn" icon="alert" title={L('The cap rule is not documented', 'قاعدة الحد غير موثّقة')}>{L(`Limited samples: ${capped.map((f) => f.view).join(', ')}`, `عيّنات محدودة: ${capped.map((f) => f.view).join('، ')}`)}</Chip>}
+      {sub && <Chip tone="warn" icon="alert" title={L('Every count and total on these pages describes only these contract numbers and their related rows.', 'كل عدّ وإجمالي في هذه الصفحات يخص هذه الأرقام وصفوفها المرتبطة فقط.')}>{L(`Subset: ${sub.contracts} contract numbers chosen to cover every scenario in the exports`, `عيّنة: ${sub.contracts} رقم عقد مختارة لتغطي كل السيناريوهات في التصديرات`)}</Chip>}
+      {!sub && capped.length > 0 && <Chip tone="warn" icon="alert" title={L('The cap rule is not documented', 'قاعدة الحد غير موثّقة')}>{L(`Limited samples: ${capped.map((f) => f.view).join(', ')}`, `عيّنات محدودة: ${capped.map((f) => f.view).join('، ')}`)}</Chip>}
       <details>
         <summary>{L('Files and coverage', 'الملفات والتغطية')}</summary>
         <table aria-label={L('Files and coverage', 'الملفات والتغطية')}><thead><tr><th>{L('View', 'العرض')}</th><th className="num">{L('Rows', 'الصفوف')}</th><th className="num">{L('Columns', 'الأعمدة')}</th><th>{L('Coverage', 'التغطية')}</th></tr></thead>
           <tbody>{d.files.map((f) => <tr key={f.key}><td dir="ltr">{f.view}</td><td className="num" dir="ltr">{count(f.rows)}</td><td className="num" dir="ltr">{f.columns} ({f.schemaColumns} + 2 ETL)</td>
-            <td>{f.scope === 'capped_sample' ? <Chip tone="warn">{L('Limited sample — exactly 10,000 rows', 'عيّنة محدودة — 10,000 صف بالضبط')}</Chip> : <span className="muted">{L('Not capped at 10,000 rows; completeness not confirmed', 'غير مقيّد بـ10,000 صف؛ الاكتمال غير مؤكد')}</span>}</td></tr>)}</tbody></table>
+            <td>{f.scope === 'subset' ? <Chip tone="warn">{L('Subset of the export', 'جزء من التصدير')}</Chip> : f.scope === 'capped_sample' ? <Chip tone="warn">{L('Limited sample — exactly 10,000 rows', 'عيّنة محدودة — 10,000 صف بالضبط')}</Chip> : <span className="muted">{L('Not capped at 10,000 rows; completeness not confirmed', 'غير مقيّد بـ10,000 صف؛ الاكتمال غير مؤكد')}</span>}</td></tr>)}</tbody></table>
       </details>
     </div>
   );
@@ -34,7 +35,9 @@ export function LimitsPanel({ S }) {
   const { L, count } = useL();
   if (!S) return null;
   const c = S.contracts; const p = S.payments; const cs = S.cases;
+  const sub = S.dataset.subset;
   const items = [
+    ...(sub ? [[L('Subset', 'عيّنة'), L(`This is a subset: ${sub.contracts} contract numbers (with every record that carries them and the related payment, case and investor rows), chosen to contain every scenario found in the full exports${sub.scenarios ? ` (${sub.scenarios.covered} of ${sub.scenarios.total} scenarios)` : ''}. Every count and total here describes the subset only.`, `هذه عيّنة: ${sub.contracts} رقم عقد (مع كل سجل يحملها وصفوف الدفعات والحالات والمستثمر المرتبطة)، مختارة لتشمل كل سيناريو في التصديرات الكاملة${sub.scenarios ? ` (${sub.scenarios.covered} من ${sub.scenarios.total} سيناريو)` : ''}. كل عدّ وإجمالي هنا يخص العيّنة فقط.`)]] : []),
     [L('Payment extract', 'مستخرج الدفعات'), L(`${count(p.rows)} rows (a limited sample) covering ${count(p.distinctNumbers)} contract numbers. Complete schedules, “n of N”, installment totals per contract and “due without invoice” cannot be derived from it, so none is shown.`, `${count(p.rows)} صفاً (عيّنة محدودة) تغطي ${count(p.distinctNumbers)} رقم عقد. لا يمكن اشتقاق جداول كاملة ولا «دفعة س من ص» ولا مجاميع الأقساط لكل عقد ولا «مستحقة بلا فاتورة» منها، فلا يُعرض شيء منها.`)],
     [L('Contract numbers', 'أرقام العقود'), L(`${count(c.records)} contract records carry ${count(c.distinctNumbers)} distinct numbers: ${count(c.numbersWithSeveralRecords)} numbers have several records (${count(c.recordsInRepeatedNumbers)} records, up to ${c.maxRecordsPerNumber} on one number). The data does not say which record is current, so none is chosen and conflicting values are never summed.`, `${count(c.records)} سجل عقد تحمل ${count(c.distinctNumbers)} رقماً مميزاً: ${count(c.numbersWithSeveralRecords)} رقماً له عدة سجلات (${count(c.recordsInRepeatedNumbers)} سجلاً، حتى ${c.maxRecordsPerNumber} على رقم واحد). لا تحدد البيانات أي سجل هو الحالي، فلا يُختار أي سجل ولا تُجمع القيم المتعارضة.`)],
     [L('Payment ↔ contract match', 'مطابقة الدفعة بالعقد'), L(`Every payment contract number (${count(p.numbersFoundInContract)} of ${count(p.distinctNumbers)}) exists in the Contract view, but ${count(p.rowsMatchingSeveralRecords)} payment rows match 2 or more contract records. Joining amounts would give ${count(p.rowsAfterNumberJoin)} rows instead of ${count(p.rows)}; payments are therefore listed once and never joined to contract amounts.`, `كل رقم عقد في الدفعات (${count(p.numbersFoundInContract)} من ${count(p.distinctNumbers)}) موجود في عرض العقود، لكن ${count(p.rowsMatchingSeveralRecords)} صف دفعات يطابق سجلي عقد أو أكثر. ربط المبالغ كان سيعطي ${count(p.rowsAfterNumberJoin)} صفاً بدل ${count(p.rows)}؛ لذا تُعرض الدفعات مرة واحدة ولا تُربط بمبالغ العقود.`)],

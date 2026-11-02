@@ -2142,11 +2142,19 @@ await test('Furas mode · no personal data leaves the loader: names, e-mail, mob
     assert.ok(!/pyemail|pymobile|nationalid|unifiedid|investorname|fullname|commercialrecord/i.test(JSON.stringify(FURAS_KEEP)), 'the whitelist holds no personal column');
   });
 });
+await test('Furas mode · a subset directory (subset.json) is labelled as a subset everywhere: identity, coverage per file and limits', async () => {
+  nodeFs.writeFileSync(nodePath.join(fx, 'subset.json'), JSON.stringify({ kind: 'subset', contracts: 4, scenarios: { total: 10, covered: 10, notCovered: [] } }));
+  try {
+    await withFuras(async () => { const S = await furasSummary(); assert.deepEqual(S.dataset.subset, { contracts: 4, scenarios: { total: 10, covered: 10, notCovered: [] } }); assert.ok(S.dataset.files.every((f) => f.scope === 'subset'), 'no file is called capped or complete when the directory is a subset'); assert.ok(!JSON.stringify(S.dataset.subset).match(/CN-|DROCN/), 'the manifest holds no contract number'); });
+    const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(parts.includes('d.subset') && parts.includes("f.scope === 'subset'") && parts.includes('This is a subset'), 'the banner, the files table and the limits say it is a subset');
+  } finally { nodeFs.rmSync(nodePath.join(fx, 'subset.json')); }
+  await withFuras(async () => assert.equal((await furasSummary()).dataset.subset, null, 'a full export has no subset label'));
+});
 await test('Furas mode · local only: nothing is written, logged, committed, built or deployed', () => {
   const src = nodeFs.readFileSync('server/furasData.js', 'utf8') + nodeFs.readFileSync('server/furasCsv.js', 'utf8'); assert.ok(!/writeFile|appendFile|createWriteStream|copyFile|mkdir\(/.test(src), 'the loader writes nothing'); assert.ok(!/process\.env\.VERCEL/.test(src) === false && /process\.env\.VERCEL/.test(src), 'always off on Vercel');
   assert.equal((src.match(/console\.(log|info|warn|error)/g) || []).length, 1, 'one fixed log line, no value'); assert.ok(src.includes("console.log('[furas] local exports loaded')"));
   const tracked = execSync_F('git ls-files', { encoding: 'utf8' }).split('\n'); assert.ok(!tracked.some((f) => /\.csv$/i.test(f) || /furas-exports\.local/.test(f) || /ads_furas_schema_\w+_df_\d+/.test(f)), 'no export file and no local config is tracked by Git');
-  assert.ok(/^\*\.local$/m.test(nodeFs.readFileSync('.gitignore', 'utf8')), 'the local config is git-ignored');
+  assert.ok(/^\*\.local$/m.test(nodeFs.readFileSync('.gitignore', 'utf8')), 'the local config is git-ignored'); for (const f of ['furas-exports.local', 'furas-subset.local']) { let ignored = true; try { execSync_F(`git check-ignore -q ${f}`); } catch { ignored = false; } assert.ok(ignored, `${f} is git-ignored`); } assert.ok(!tracked.some((f) => /^furas-subset\.local/.test(f)), 'no subset file is tracked');
   if (nodeFs.existsSync('furas-exports.local')) { const dir = nodeFs.readFileSync('furas-exports.local', 'utf8').trim(); const outs = ['api/_handler.mjs', 'dist-server/server.mjs', ...nodeFs.readdirSync('dist/assets').map((f) => `dist/assets/${f}`), 'dist/index.html']; for (const f of outs) assert.ok(!nodeFs.readFileSync(f, 'utf8').includes(dir), `${f} holds no local path`); }
   const api = nodeFs.readFileSync('server/api.js', 'utf8'); assert.ok(api.includes("path.startsWith('/furas/')") && api.includes("furas_unavailable"), 'the endpoints answer 404 when the mode is off');
 });
