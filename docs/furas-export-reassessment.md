@@ -21,3 +21,6 @@ The Payment and IMSFW_Work exports are capped samples; the Contract view repeats
 
 ## Where the demo applies this
 `src/data/contractRules.js` (origin of a value, the candidate rule «due — no invoice linked») and `docs/contracts-lifecycle-phase1.md` (Group A corrections).
+
+## Wording used on the contract pages
+«Not available in the current data» (information the data does not support) · «Proposed rule — requires confirmation» (a rule no business owner has confirmed). See `docs/contracts-lifecycle-phase1.md`, section «Data-accuracy corrections».

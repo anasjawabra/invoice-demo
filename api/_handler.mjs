@@ -5700,16 +5700,18 @@ function anomalies(st, req) {
 }
 
 // src/data/contractRules.js
+var NOT_AVAILABLE = { ar: "\u063A\u064A\u0631 \u0645\u062A\u0627\u062D \u0641\u064A \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062D\u0627\u0644\u064A\u0629", en: "Not available in the current data" };
+var PROPOSED_RULE = { ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0642\u062A\u0631\u062D\u0629 \u2014 \u062A\u062A\u0637\u0644\u0628 \u062A\u0623\u0643\u064A\u062F\u0627\u064B", en: "Proposed rule \u2014 requires confirmation" };
 var demoOrigin = () => ({ basis: "generated_demo_ledger", sourceRecord: null, sourceBacked: [] });
 var UNLINKED_RULE = {
   key: "due_no_invoice_linked",
-  status: "candidate",
+  status: "proposed",
   scope: "generated_demo_ledger",
-  label: { ar: "\u0645\u0633\u062A\u062D\u0642\u0629 \u2014 \u0644\u0627 \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 (\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629)", en: "Due \u2014 no invoice linked (candidate rule)" },
-  short: { ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629 \u0639\u0644\u0649 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u0648\u0636\u064A\u062D\u064A \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F", en: "candidate rule over the generated demo ledger" },
+  label: { ar: "\u0645\u0633\u062A\u062D\u0642\u0629 \u2014 \u0644\u0627 \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629", en: "Due \u2014 no invoice linked" },
+  short: PROPOSED_RULE,
   statement: {
-    ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0631\u0634\u064E\u0651\u062D\u0629 \u062A\u064F\u0637\u0628\u064E\u0651\u0642 \u0639\u0644\u0649 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u0648\u0636\u064A\u062D\u064A \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0642\u0637: \u0642\u0633\u0637 \u0645\u0646 \u0627\u0644\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u062D\u0644\u0651 \u0645\u0648\u0639\u062F\u0647 \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0641\u064A \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0639\u0642\u062F\u0647. \u0644\u064A\u0633\u062A \u0646\u062A\u064A\u062C\u0629 \u0645\u0646 \u0645\u0633\u062A\u062E\u0631\u062C \u0641\u0631\u0635 (\u0627\u0644\u0645\u0633\u062A\u062E\u0631\u062C \u0645\u062D\u062F\u0648\u062F \u0648\u0644\u0627 \u064A\u062A\u064A\u062D \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062C\u062F\u0627\u0648\u0644)\u060C \u0648\u063A\u064A\u0631 \u0645\u0639\u062A\u0645\u062F\u0629.",
-    en: "A candidate rule applied to the GENERATED demo ledger only: an installment of the generated schedule is due and no invoice is linked to its contract in the generated ledger. It is not a finding from the Furas extract (a capped extract cannot validate schedules) and it is not approved."
+    ar: `${PROPOSED_RULE.ar}: \u0642\u0633\u0637 \u0645\u0646 \u0627\u0644\u062C\u062F\u0648\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u062D\u0644\u0651 \u0645\u0648\u0639\u062F\u0647 \u0648\u0644\u0627 \u062A\u0648\u062C\u062F \u0641\u064A \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0627\u062A\u0648\u0631\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0639\u0642\u062F\u0647. \u062A\u064F\u0637\u0628\u064E\u0651\u0642 \u0639\u0644\u0649 \u0627\u0644\u0633\u062C\u0644 \u0627\u0644\u062A\u0648\u0636\u064A\u062D\u064A \u0627\u0644\u0645\u064F\u0648\u0644\u064E\u0651\u062F \u0641\u0642\u0637\u061B \u0648\u0644\u064A\u0633\u062A \u0646\u062A\u064A\u062C\u0629 \u0645\u0646 \u0645\u0633\u062A\u062E\u0631\u062C \u0641\u0631\u0635 (\u0627\u0644\u0645\u0633\u062A\u062E\u0631\u062C \u0645\u062D\u062F\u0648\u062F \u0648\u0644\u0627 \u064A\u062A\u064A\u062D \u0627\u0644\u062A\u062D\u0642\u0642 \u0645\u0646 \u0627\u0644\u062C\u062F\u0627\u0648\u0644)\u060C \u0648\u063A\u064A\u0631 \u0645\u0639\u062A\u0645\u062F\u0629.`,
+    en: `${PROPOSED_RULE.en}: an installment of the generated schedule is due and no invoice is linked to its contract in the generated ledger. It is applied to the GENERATED demo ledger only; it is not a finding from the Furas extract (a capped extract cannot validate schedules) and it is not approved.`
   },
   prerequisites: [
     { key: "complete_schedule", ar: "\u062C\u062F\u0648\u0644 \u062F\u0641\u0639\u0627\u062A \u0643\u0627\u0645\u0644 \u0648\u0645\u062A\u062D\u0642\u064E\u0651\u0642 \u0645\u0646\u0647 \u0644\u0644\u0639\u0642\u062F", en: "a complete, validated payment schedule for the contract" },
@@ -5718,7 +5720,24 @@ var UNLINKED_RULE = {
     { key: "due_grace_rule", ar: "\u0642\u0627\u0639\u062F\u0629 \u0645\u0639\u062A\u0645\u062F\u0629 \u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0627\u0633\u062A\u062D\u0642\u0627\u0642 \u0648\u0641\u062A\u0631\u0629 \u0627\u0644\u0633\u0645\u0627\u062D", en: "an agreed due-date and grace-period rule" }
   ]
 };
-var candidateRules = () => ({ [UNLINKED_RULE.key]: { status: UNLINKED_RULE.status, scope: UNLINKED_RULE.scope, prerequisites: UNLINKED_RULE.prerequisites.map((p) => p.key) } });
+var PROPOSED_RULES = {
+  due_no_invoice_linked: { label: UNLINKED_RULE.label, statement: UNLINKED_RULE.statement },
+  term_ended: {
+    label: { ar: "\u0627\u0646\u062A\u0647\u062A \u0627\u0644\u0645\u062F\u0629", en: "Term ended" },
+    statement: { ar: "\u062A\u064F\u0639\u062F\u0651 \u0627\u0644\u0645\u062F\u0629 \u0645\u0646\u062A\u0647\u064A\u0629 \u0625\u0630\u0627 \u0643\u0627\u0646 \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0623\u0633\u0628\u0642 \u0645\u0646 \u0627\u0644\u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0645\u0631\u062C\u0639\u064A. \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0646\u0647\u0627\u064A\u0629 \u0646\u0641\u0633\u0647 \u063A\u064A\u0631 \u0645\u062A\u0648\u0641\u0631 \u0644\u0643\u062B\u064A\u0631 \u0645\u0646 \u0627\u0644\u0639\u0642\u0648\u062F \u0641\u064A \u0627\u0644\u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u062D\u0627\u0644\u064A\u0629\u060C \u0648\u0644\u0627 \u062A\u064F\u0633\u062A\u0646\u062A\u062C \u0645\u0646\u0647 \u062D\u0627\u0644\u0629 \u0627\u0644\u0639\u0642\u062F.", en: "The term counts as ended when the end date is earlier than the reference date. The end date itself is missing for many contracts in the current data, and no contract status is inferred from it." }
+  },
+  overdue_no_grace: {
+    label: { ar: "\u0645\u062A\u0623\u062E\u0631\u0629", en: "Overdue" },
+    statement: { ar: "\u064A\u064F\u062D\u0633\u0628 \u0627\u0644\u062A\u0623\u062E\u0631 \u0645\u0646 \u062A\u0627\u0631\u064A\u062E \u0627\u0644\u0627\u0633\u062A\u062D\u0642\u0627\u0642 \u062F\u0648\u0646 \u0641\u062A\u0631\u0629 \u0633\u0645\u0627\u062D. \u0641\u062A\u0631\u0629 \u0627\u0644\u0633\u0645\u0627\u062D \u0642\u0631\u0627\u0631 \u0623\u0639\u0645\u0627\u0644 \u0644\u0645 \u064A\u064F\u062A\u062E\u0630\u061B \u0648\u0627\u0644\u062A\u0623\u062E\u0631 \u0627\u0644\u0645\u0644\u062D\u0648\u0638 \u0641\u064A \u0627\u0644\u0633\u062F\u0627\u062F \u0644\u0627 \u064A\u062D\u062F\u0651\u062F\u0647\u0627.", en: "Overdue is counted from the due date with no grace period. The grace period is a business decision not yet taken; observed payment lateness does not set it." }
+  }
+};
+var proposedRules = () => Object.fromEntries(Object.keys(PROPOSED_RULES).map((k) => [k, { status: "proposed", scope: "generated_demo_ledger", ...k === UNLINKED_RULE.key ? { prerequisites: UNLINKED_RULE.prerequisites.map((p) => p.key) } : {} }]));
+var LIMIT_KIND = {
+  not_available: { ar: NOT_AVAILABLE.ar, en: NOT_AVAILABLE.en },
+  proposed: PROPOSED_RULE,
+  limited_sample: { ar: "\u0639\u064A\u0651\u0646\u0629 \u0645\u062D\u062F\u0648\u062F\u0629 \u2014 \u0644\u0627 \u062A\u064F\u0639\u0645\u064E\u0651\u0645", en: "Limited sample \u2014 not generalised" },
+  demo: { ar: "\u0628\u064A\u0627\u0646\u0627\u062A \u062A\u0648\u0636\u064A\u062D\u064A\u0629", en: "Illustrative demo data" }
+};
 
 // server/contracts.js
 var METHOD = ["structured", "ocr"];
@@ -5812,8 +5831,9 @@ function cardOf(st, ctx, ct) {
   const net = sum((x) => x.net);
   const collected = sum((x) => x.collected);
   const uncollected = sum((x) => x.outstanding);
-  const dueRows = (x) => x.dueDate <= ctx.cfg.cutoff && (x.invoiced || x.state === "unlinked");
+  const dueRows = (x) => x.invoiced && x.dueDate <= ctx.cfg.cutoff;
   const dueToDate = sum((x) => dueRows(x) ? x.amount : 0);
+  const collectedOfDue = sum((x) => dueRows(x) ? x.collected : 0);
   const termEnded = ct.end < today;
   return {
     contractNo: ct.contractNo,
@@ -5837,7 +5857,7 @@ function cardOf(st, ctx, ct) {
     annualValue: ct.annualValue,
     totalValue: ct.totalValue,
     origin: demoOrigin(),
-    candidateRules: candidateRules(),
+    proposedRules: proposedRules(),
     schedule,
     invoiceIds: schedule.filter((x) => x.invoiced).map((x) => x.invoiceNo),
     // which invoices belong to the contract (never inferred — taken from the contract's own schedule)
@@ -5858,8 +5878,8 @@ function cardOf(st, ctx, ct) {
       futureNotInvoiced: sum((x) => x.state === "future" ? x.amount : 0),
       netUncollected: arrears + notDue,
       dueToDate,
-      collectedOfDueToDate: ratio(collected, dueToDate),
-      remainingOfDue: sum((x) => x.invoiced && x.dueDate <= ctx.cfg.cutoff ? x.outstanding : 0),
+      collectedOfDueToDate: ratio(collectedOfDue, dueToDate),
+      remainingOfDue: sum((x) => dueRows(x) ? x.outstanding : 0),
       overdueInstallments: count((x) => x.state === "overdue" || x.state === "partial"),
       futureInstallments: count((x) => x.state === "future"),
       unlinkedInstallments: count((x) => x.state === "unlinked"),
@@ -5929,7 +5949,7 @@ function contractRollup(cards) {
     coverage: { installments: add((t) => t.coverage.installments), known: add((t) => t.coverage.known), notApplicable: add((t) => t.coverage.notApplicable), unknown: add((t) => t.coverage.unknown) },
     executionAtContractLevel: cards.reduce((s, c) => s + (c.execution.invoicesIdentified ? 0 : c.execution.amount), 0),
     origin: demoOrigin(),
-    candidateRules: candidateRules()
+    proposedRules: proposedRules()
   };
 }
 function sanadCases(st) {

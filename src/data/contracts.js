@@ -10,7 +10,7 @@
 // - Sanad document → CR number → CR View status. The raw CR status is shown as
 //   received; no exclusion happens without an approved, enabled rule.
 // ============================================================================
-import { UNLINKED_RULE, unlinkedPrerequisitesText } from './contractRules.js';
+import { UNLINKED_RULE, PROPOSED_RULE, NOT_AVAILABLE, unlinkedPrerequisitesText } from './contractRules.js';
 
 export const CR_CHAIN_LABELS = {
   sanad: { ar: 'مستند سند', en: 'Sanad document' },
@@ -25,7 +25,7 @@ export const INSTALLMENT_STATES = {
   overdue: { ar: 'متأخرة', en: 'Overdue', tone: 'bad' },
   not_due: { ar: 'مفوترة — لم يحن استحقاقها', en: 'Invoiced — not yet due', tone: 'info' },
   future: { ar: 'قادمة — لم تُفوتر بعد', en: 'Upcoming — not invoiced yet', tone: 'info' },
-  unlinked: { ar: UNLINKED_RULE.label.ar, en: UNLINKED_RULE.label.en, tone: 'warn' }, // a CANDIDATE rule over the generated demo ledger (src/data/contractRules.js)
+  unlinked: { ar: `${UNLINKED_RULE.label.ar} · ${PROPOSED_RULE.ar}`, en: `${UNLINKED_RULE.label.en} · ${PROPOSED_RULE.en}`, tone: 'warn' }, // «Proposed rule — requires confirmation», over the generated demo ledger (src/data/contractRules.js)
   history: { ar: 'قبل نطاق البيانات', en: 'Before the data range', tone: 'mute' },
   cancelled: { ar: 'ملغاة', en: 'Cancelled', tone: 'mute' },
   excluded: { ar: 'مستبعدة', en: 'Excluded', tone: 'mute' }
@@ -55,14 +55,14 @@ export const TIMELINE_SEGMENTS = [
 export const DATA_STATE = {
   known: null,
   not_applicable: { ar: 'لا ينطبق بعد', en: 'Not applicable yet' },
-  unknown: { ar: 'غير متاح من المصدر', en: 'Not available from source' }
+  unknown: NOT_AVAILABLE
 };
 
-// The contract status is the SOURCE's own value, shown verbatim in the language it was recorded in; the two values of the demo feed get a plain-language label and anything else is shown as received and marked unrecognised.
-// Nothing is inferred from dates (a term that has ended is a separate fact, «term ended on …»).
+// The contract status shown is a DEMO value: the real status lists and their meanings are not confirmed, so this is not presented as a source status. The two values of the demo feed get a
+// plain-language label; anything else is shown as received and marked unrecognised. Nothing is inferred from dates («term ended» is a separate, proposed rule).
 export const CONTRACT_STATUS_LABEL = { 'ساري': { ar: 'ساري', en: 'Active' }, 'موقوف': { ar: 'موقوف', en: 'Suspended' } };
 export const contractStatusText = (status, B, L) => {
-  if (!status) return L('Not provided by source', 'غير متاح من المصدر');
+  if (!status) return L(NOT_AVAILABLE.en, NOT_AVAILABLE.ar);
   const m = CONTRACT_STATUS_LABEL[status];
-  return m ? B(m) : `${status} (${L('unrecognised source value', 'قيمة مصدر غير معروفة')})`;
+  return m ? B(m) : `${status} (${L('value not recognised', 'قيمة غير معروفة')})`;
 };

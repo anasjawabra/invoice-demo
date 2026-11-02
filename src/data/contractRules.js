@@ -6,9 +6,14 @@
 //     A verified schema mapping does NOT make a value source-backed: a field is 'source' only when the card names the source record it was read from
 //     (`origin.sourceRecord`) AND lists the field in `origin.sourceBacked`. The demo loads no real record, so every field here is illustrative.
 //
-// 2 · the CANDIDATE rule «due — no invoice linked»
-//     An installment of the GENERATED schedule that is due on the reference date and has no invoice linked to its contract in the GENERATED ledger.
-//     It is a candidate rule over the demo ledger — not a finding from any Furas extract, and not approved.
+// 2 · PROPOSED rules — «Proposed rule — requires confirmation»
+//     «due — no invoice linked», «term ended», «overdue with no grace period»: each is a rule of this demo that no business owner has confirmed, applied to the GENERATED
+//     schedule and ledger — never a finding from a Furas extract.
+//
+// 3 · «Not available in the current data» — the one wording for information the current data does not support (a field that exists in the schema is not data).
+
+export const NOT_AVAILABLE = { ar: 'غير متاح في البيانات الحالية', en: 'Not available in the current data' };
+export const PROPOSED_RULE = { ar: 'قاعدة مقترحة — تتطلب تأكيداً', en: 'Proposed rule — requires confirmation' };
 
 export const ORIGIN = {
   illustrative: {
@@ -43,16 +48,16 @@ export const ORIGIN_NOTE = {
   en: 'Every value on this page is generated for the demo. A value is marked “From source” only when it is actually read from a source record; a verified mapping of the field to a schema column is not enough. No value here is from a source.'
 };
 
-// ---- the candidate rule «due — no invoice linked» ----
+// ---- the proposed rule «due — no invoice linked» ----
 export const UNLINKED_RULE = {
   key: 'due_no_invoice_linked',
-  status: 'candidate',
+  status: 'proposed',
   scope: 'generated_demo_ledger',
-  label: { ar: 'مستحقة — لا فاتورة مرتبطة (قاعدة مرشَّحة)', en: 'Due — no invoice linked (candidate rule)' },
-  short: { ar: 'قاعدة مرشَّحة على السجل التوضيحي المُولَّد', en: 'candidate rule over the generated demo ledger' },
+  label: { ar: 'مستحقة — لا فاتورة مرتبطة', en: 'Due — no invoice linked' },
+  short: PROPOSED_RULE,
   statement: {
-    ar: 'قاعدة مرشَّحة تُطبَّق على السجل التوضيحي المُولَّد فقط: قسط من الجدول المُولَّد حلّ موعده ولا توجد في السجل المُولَّد فاتورة مرتبطة بعقده. ليست نتيجة من مستخرج فرص (المستخرج محدود ولا يتيح التحقق من الجداول)، وغير معتمدة.',
-    en: 'A candidate rule applied to the GENERATED demo ledger only: an installment of the generated schedule is due and no invoice is linked to its contract in the generated ledger. It is not a finding from the Furas extract (a capped extract cannot validate schedules) and it is not approved.'
+    ar: `${PROPOSED_RULE.ar}: قسط من الجدول المُولَّد حلّ موعده ولا توجد في السجل المُولَّد فاتورة مرتبطة بعقده. تُطبَّق على السجل التوضيحي المُولَّد فقط؛ وليست نتيجة من مستخرج فرص (المستخرج محدود ولا يتيح التحقق من الجداول)، وغير معتمدة.`,
+    en: `${PROPOSED_RULE.en}: an installment of the generated schedule is due and no invoice is linked to its contract in the generated ledger. It is applied to the GENERATED demo ledger only; it is not a finding from the Furas extract (a capped extract cannot validate schedules) and it is not approved.`
   },
   prerequisites: [
     { key: 'complete_schedule', ar: 'جدول دفعات كامل ومتحقَّق منه للعقد', en: 'a complete, validated payment schedule for the contract' },
@@ -63,5 +68,35 @@ export const UNLINKED_RULE = {
 };
 export const unlinkedPrerequisitesText = (lang) => UNLINKED_RULE.prerequisites.map((p) => (lang === 'ar' ? p.ar : p.en)).join(lang === 'ar' ? '؛ ' : '; ');
 
-// the candidate-rule metadata the API returns beside the figures, so no consumer can present the count as a finding
-export const candidateRules = () => ({ [UNLINKED_RULE.key]: { status: UNLINKED_RULE.status, scope: UNLINKED_RULE.scope, prerequisites: UNLINKED_RULE.prerequisites.map((p) => p.key) } });
+// the other rules the contract pages apply. None is confirmed; each is shown with the «Proposed rule — requires confirmation» tag.
+export const PROPOSED_RULES = {
+  due_no_invoice_linked: { label: UNLINKED_RULE.label, statement: UNLINKED_RULE.statement },
+  term_ended: {
+    label: { ar: 'انتهت المدة', en: 'Term ended' },
+    statement: { ar: 'تُعدّ المدة منتهية إذا كان تاريخ النهاية أسبق من التاريخ المرجعي. تاريخ النهاية نفسه غير متوفر لكثير من العقود في البيانات الحالية، ولا تُستنتج منه حالة العقد.', en: 'The term counts as ended when the end date is earlier than the reference date. The end date itself is missing for many contracts in the current data, and no contract status is inferred from it.' }
+  },
+  overdue_no_grace: {
+    label: { ar: 'متأخرة', en: 'Overdue' },
+    statement: { ar: 'يُحسب التأخر من تاريخ الاستحقاق دون فترة سماح. فترة السماح قرار أعمال لم يُتخذ؛ والتأخر الملحوظ في السداد لا يحدّدها.', en: 'Overdue is counted from the due date with no grace period. The grace period is a business decision not yet taken; observed payment lateness does not set it.' }
+  }
+};
+export const proposedRules = () => Object.fromEntries(Object.keys(PROPOSED_RULES).map((k) => [k, { status: 'proposed', scope: 'generated_demo_ledger', ...(k === UNLINKED_RULE.key ? { prerequisites: UNLINKED_RULE.prerequisites.map((p) => p.key) } : {}) }]));
+
+// What the current data can and cannot support — qualitative on purpose (no real figure is copied into the demo). `kind` picks the tag.
+export const LIMIT_KIND = {
+  not_available: { ar: NOT_AVAILABLE.ar, en: NOT_AVAILABLE.en },
+  proposed: PROPOSED_RULE,
+  limited_sample: { ar: 'عيّنة محدودة — لا تُعمَّم', en: 'Limited sample — not generalised' },
+  demo: { ar: 'بيانات توضيحية', en: 'Illustrative demo data' }
+};
+export const DATA_LIMITS = [
+  { key: 'demo_values', kind: 'demo', ar: 'كل قيمة معروضة مُولَّدة، وتتبع البنية المتحقَّق منها (عقد ← دفعات ← فواتير) لا القيم الحقيقية.', en: 'Every displayed value is generated. It follows the verified structure (contract → installments → invoices), not real values.' },
+  { key: 'contract_number', kind: 'not_available', ar: 'قد يتكرر رقم العقد في أكثر من سجل في المصدر، ولا تحدد البيانات الحالية أي سجل هو الحالي. العدّ بالأرقام المميزة تقدير مؤقت.', en: 'A contract number can appear on several source records and the current data does not say which record is current. Counting distinct numbers is a provisional estimate.' },
+  { key: 'dates', kind: 'not_available', ar: 'تاريخ بداية العقد شبه غير معبّأ، وتاريخ النهاية معبّأ لجزء من العقود فقط؛ وتُعرض هنا قيم مُولَّدة لا تاريخ مصدر.', en: 'The contract start date is almost never filled and the end date only for part of the contracts; the dates shown here are generated, not source dates.' },
+  { key: 'schedule', kind: 'limited_sample', ar: 'مستخرج الدفعات عيّنة محدودة: لا يمكن التحقق منه من جداول كاملة ولا «دفعة س من ص» ولا مجاميع الدفعات؛ فالجدول المعروض مُولَّد.', en: 'The payment extract is a limited sample: complete schedules, “n of N” and installment totals cannot be verified from it, so the schedule shown is generated.' },
+  { key: 'frequency', kind: 'limited_sample', ar: 'في العيّنة الدفعات في معظمها سنوية ولم يُلاحَظ تحصيل شهري؛ هذا ملاحظة لا قاعدة، ودورية الدفعات المعروضة قيمة توضيحية.', en: 'In the sample payments are mostly annual and monthly collection was not observed. That is an observation, not a rule; the payment interval shown is an illustrative value.' },
+  { key: 'collection', kind: 'not_available', ar: 'المبلغ المحصّل وغير المسدّد غير موجود في حقول الدفعات في فرص؛ يعتمد على تحصيل ومطابقة فاتورة/دفعة متحقَّق منها.', en: 'Collected and unpaid amounts are not in the Furas payment fields; they depend on Tahseel and validated invoice-to-payment matching.' },
+  { key: 'invoice_link', kind: 'not_available', ar: 'رقم الفاتورة في فرص لا يرتبط بالقسط، ولا تُربط الفواتير بالأقساط من مظهر الرقم؛ الربط المعروض مُولَّد.', en: 'The bill number in Furas is not attached to the installment, and invoices are not linked to installments by how a number looks; the links shown are generated.' },
+  { key: 'status', kind: 'not_available', ar: 'قوائم قيم الحالة موجودة لكن معانيها غير مؤكدة؛ حالة العقد المعروضة قيمة توضيحية.', en: 'Status value lists exist but their meanings are not confirmed; the contract status shown is an illustrative value.' },
+  { key: 'service_type', kind: 'not_available', ar: 'للعقد في المصدر نوع خدمة بست قيم لم تُؤكَّد معانيها؛ «بند الإيراد» هنا تصنيف توضيحي وليس حقلاً منه.', en: 'The source has a contract service type with six values whose meanings are not confirmed; “Revenue item” here is an illustrative classification, not that field.' }
+];

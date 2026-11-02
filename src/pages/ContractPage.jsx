@@ -9,7 +9,8 @@ import { ratioText } from '../utils/bi';
 import Pager from '../components/Pager';
 import { RecordHeader, StatusGroup, Figures, Facts, Section, RecordState } from '../components/record/RecordPage';
 import { OrderStatusChip } from '../components/revenue/EnforcementUI';
-import { OriginNote, OriginTag, CandidateRuleNote } from '../components/record/OriginParts';
+import { OriginNote, OriginTag, ProposedTag, CandidateRuleNote, DataLimitsNote } from '../components/record/OriginParts';
+import { PROPOSED_RULES, NOT_AVAILABLE } from '../data/contractRules';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { invoicePath, orderPath } from '../utils/paths';
 import { buildIndex, ordersOfContract, CLOSE_REASON_LABEL } from '../data/relations';
@@ -50,8 +51,8 @@ export default function ContractPage() {
   return (
     <div className="rp">
       <RecordHeader crumbs={crumbs} ret={ret} kind={L('Contract', 'عقد')} title={c.contractNo}
-        statuses={<><StatusGroup label={L('Contract status (source)', 'حالة العقد (المصدر)')}><span className={c.status ? 'rv-tag' : 'muted'}>{contractStatusText(c.status, B, L)}</span></StatusGroup>
-          {c.termEnded && <StatusGroup label={L('Term', 'مدة العقد')}><span className="rv-tag">{L(`Term ended on ${c.end}`, `انتهت المدة في ${c.end}`)}</span></StatusGroup>}
+        statuses={<><StatusGroup label={L('Contract status (illustrative value)', 'حالة العقد (قيمة توضيحية)')}><span className={c.status ? 'rv-tag' : 'muted'}>{contractStatusText(c.status, B, L)}</span></StatusGroup>
+          {c.termEnded && <StatusGroup label={L('Term', 'مدة العقد')}><span className="rv-tag">{L(`Term ended on ${c.end}`, `انتهت المدة في ${c.end}`)}</span> <ProposedTag rule="term_ended" /></StatusGroup>}
           <ProvenanceBadge kind="demo" /></>} />
       <OriginNote origin={c.origin} />
       <Figures label={L('Contract summary', 'ملخص العقد')} items={[
@@ -63,15 +64,17 @@ export default function ContractPage() {
         { label: L('Uncollected', 'غير المحصّل'), value: short(t.uncollected), note: `${L('of which overdue', 'منها متأخر')} ${short(t.arrears)} · ${t.overdueInstallments} ${L('installment(s)', 'دفعة')}`, tone: t.arrears ? 'bad' : undefined },
         { label: L('Collection rate on net invoiced', 'نسبة التحصيل من صافي المفوتر'), value: ratioText(t.collectionRateOnNet, ar), note: L('collected ÷ net invoiced', 'المحصّل ÷ صافي المفوتر') }
       ]} />
-      <div className="rp-limit"><OriginTag origin={c.origin} field="contractValue" /> {L(`Figures are to the reference date ${todayIso} and cover the installments invoiced in the data range: ${count(cov.known)} of ${count(cov.installments)} installments have data; ${count(cov.notApplicable)} are upcoming (not invoiced yet) and ${count(cov.unknown)} have no readable invoice or collection (before the data range, or no invoice linked). Unknown is never counted as zero. Collected of what is due to date (installments in the data range): ${ratioText(t.collectedOfDueToDate, false)}.`, `الأرقام حتى التاريخ المرجعي ${todayIso} وتشمل الدفعات المفوترة ضمن نطاق البيانات: ${count(cov.known)} من ${count(cov.installments)} دفعة لها بيانات؛ ${count(cov.notApplicable)} قادمة لم تُفوتر بعد؛ و${count(cov.unknown)} بلا فاتورة أو تحصيل يمكن قراءته (قبل نطاق البيانات أو بلا فاتورة مرتبطة). غير المعروف لا يُحسب صفراً. المحصّل من المستحق حتى التاريخ (الدفعات ضمن نطاق البيانات): ${ratioText(t.collectedOfDueToDate, true)}.`)}</div>
+      <div className="rp-limit"><OriginTag origin={c.origin} field="contractValue" /> {L(`Figures are to the reference date ${todayIso} and cover the installments invoiced in the data range: ${count(cov.known)} of ${count(cov.installments)} installments have data; ${count(cov.notApplicable)} are upcoming (not invoiced yet) and ${count(cov.unknown)} have no readable invoice or collection (before the data range, or no invoice linked). Unknown is never counted as zero. Collected of what is due to date (invoiced installments whose due date has come): ${ratioText(t.collectedOfDueToDate, false)}.`, `الأرقام حتى التاريخ المرجعي ${todayIso} وتشمل الدفعات المفوترة ضمن نطاق البيانات: ${count(cov.known)} من ${count(cov.installments)} دفعة لها بيانات؛ ${count(cov.notApplicable)} قادمة لم تُفوتر بعد؛ و${count(cov.unknown)} بلا فاتورة أو تحصيل يمكن قراءته (قبل نطاق البيانات أو بلا فاتورة مرتبطة). غير المعروف لا يُحسب صفراً. المحصّل من المستحق حتى التاريخ (الدفعات المفوترة التي حلّ موعدها): ${ratioText(t.collectedOfDueToDate, true)}.`)}</div>
+      <div className="rp-limit"><ProposedTag rule="overdue_no_grace" /> {B(PROPOSED_RULES.overdue_no_grace.statement)} {L('“Collected of what is due to date” covers invoiced installments only; installments with no linked invoice are counted separately because their collection is unknown.', '«المحصّل من المستحق حتى التاريخ» يشمل الدفعات المفوترة فقط؛ أما الدفعات بلا فاتورة مرتبطة فتُعدّ على حدة لأن تحصيلها غير معروف.')}</div>
       <section className="rp-section"><Facts items={[
-        { k: L('Tenant', 'المستأجر'), v: <>{ar ? c.tenantAr : c.tenantEn}<OriginTag origin={c.origin} field="tenant" /></> }, { k: L('Amanah', 'الأمانة / الجهة'), v: <>{amanahName(c.amanahEn, ar)}<OriginTag origin={c.origin} field="amanah" /></> }, { k: L('Revenue item', 'بند الإيراد'), v: <>{itemName(c.itemKey, ar)}<OriginTag origin={c.origin} field="item" /></> },
+        { k: L('Tenant', 'المستأجر'), v: <>{ar ? c.tenantAr : c.tenantEn}<OriginTag origin={c.origin} field="tenant" /></> }, { k: L('Amanah', 'الأمانة / الجهة'), v: <>{amanahName(c.amanahEn, ar)}<OriginTag origin={c.origin} field="amanah" /></> }, { k: L('Revenue item (illustrative classification)', 'بند الإيراد (تصنيف توضيحي)'), v: <>{itemName(c.itemKey, ar)}<OriginTag origin={c.origin} field="item" /></> },
         { k: L('Starts', 'يبدأ'), v: <>{c.start}<OriginTag origin={c.origin} field="start" /></>, ltr: true }, { k: L('Ends', 'ينتهي'), v: <>{c.end}<OriginTag origin={c.origin} field="end" /></>, ltr: true },
-        { k: L('Payment interval', 'دورية الدفعات'), v: <>{L(`every ${c.intervalMonths} month(s)`, `كل ${c.intervalMonths} شهر`)}<OriginTag origin={c.origin} field="interval" /></> }
+        { k: L('Payment interval (illustrative)', 'دورية الدفعات (توضيحية)'), v: <>{L(`every ${c.intervalMonths} month(s)`, `كل ${c.intervalMonths} شهر`)}<OriginTag origin={c.origin} field="interval" /></> }
       ]} /></section>
+      <DataLimitsNote />
 
       <Section id="invoices" title={L('Payments and invoices — from created to finished', 'الدفعات والفواتير — من الإنشاء إلى الانتهاء')} count={rows.length} aside={<OriginTag origin={c.origin} field="schedule" />}
-        note={<div className="rp-limit">{L('One row per scheduled installment, from the first to the last of the contract. Open a row to see its payments. An installment’s own creation date is not recorded by the source: the dates shown are the due date, the invoice’s issue date and the payment dates; “—” means not applicable yet, “Not available from source” means the data does not exist in the recorded range.', 'صفّ لكل دفعة مجدولة، من أول دفعة إلى آخرها. افتح الصف لترى مدفوعاته. لا يسجّل المصدر تاريخ إنشاء الدفعة نفسها: التواريخ المعروضة هي الاستحقاق وتاريخ إصدار الفاتورة وتواريخ السداد؛ «—» تعني لا ينطبق بعد، و«غير متاح من المصدر» تعني أن البيانات غير موجودة ضمن النطاق المسجّل.')}</div>}>
+        note={<div className="rp-limit">{L(`One row per scheduled installment, from the first to the last of the contract. Open a row to see its payments. An installment’s own creation date is not available in the current data: the dates shown are the due date, the invoice’s issue date and the payment dates; “—” means not applicable yet, “${NOT_AVAILABLE.en}” means the information is not in the data. The schedule, “n of N” and the invoice links are generated for the demo.`, `صفّ لكل دفعة مجدولة، من أول دفعة إلى آخرها. افتح الصف لترى مدفوعاته. تاريخ إنشاء الدفعة نفسها غير متاح في البيانات الحالية: التواريخ المعروضة هي الاستحقاق وتاريخ إصدار الفاتورة وتواريخ السداد؛ «—» تعني لا ينطبق بعد، و«${NOT_AVAILABLE.ar}» تعني أن المعلومة غير موجودة في البيانات. الجدول و«دفعة س من ص» وروابط الفواتير مُولَّدة لهذا العرض..`)}</div>}>
         <div className="rv-seg" role="group" aria-label={L('Show installments', 'عرض الدفعات')}>
           {segDef.map((g) => <button key={g.key} type="button" className={`btn btn-sm${g.key === active.key ? ' btn-primary' : ''}`} aria-pressed={g.key === active.key} disabled={!g.n} onClick={() => { setSeg(g.key); setPage(0); }}>{B(g)} · {count(g.n)}</button>)}
         </div>

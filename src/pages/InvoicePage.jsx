@@ -165,7 +165,7 @@ export default function InvoicePage() {
         // IIM-33 — one block per source system, shown only when the invoice has data from it (empty fields are hidden)
         (rec.revenueSource === 'investment' || im.mainClass === MAIN.investment) && { title: L('Furas data', 'بيانات فرص'), items: [
           rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
-          rec.co && card && { k: L('Contract status', 'حالة العقد'), v: contractStatusText(card.status, B, L) },
+          rec.co && card && { k: L('Contract status (illustrative value)', 'حالة العقد (قيمة توضيحية)'), v: contractStatusText(card.status, B, L) },
           !rec.co && rec.contract?.status && rec.contract.status !== 'not_applicable' && { k: L('Contract in Furas', 'العقد في فرص'), v: L(CONTRACT_STATE[rec.contract.status]?.en || rec.contract.status, CONTRACT_STATE[rec.contract.status]?.ar || rec.contract.status) },
           rec.co && myPay && card && { k: L('Instalment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Instalment ${myPay.no} of ${card.schedule.length}` },
           rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true },
@@ -332,7 +332,7 @@ export default function InvoicePage() {
           <Facts items={[
             { k: L('Linked to a contract', 'مرتبطة بعقد'), v: rec.co ? L('Yes', 'نعم') : L('No', 'لا') },
             rec.co && { k: L('Contract', 'العقد'), v: <RecordLink to={contractPath(rec.co)} dir="ltr">{rec.co}</RecordLink> },
-            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : card.tenantEn }, rec.co && card && { k: L('Contract status', 'حالة العقد'), v: contractStatusText(card.status, B, L) },
+            rec.co && card && { k: L('Tenant', 'المستأجر'), v: ar ? card.tenantAr : card.tenantEn }, rec.co && card && { k: L('Contract status (illustrative value)', 'حالة العقد (قيمة توضيحية)'), v: contractStatusText(card.status, B, L) },
             rec.co && myPay && card && { k: L('Payment', 'الدفعة'), v: ar ? `الدفعة ${myPay.no} من ${card.schedule.length}` : `Payment ${myPay.no} of ${card.schedule.length}` },
             rec.co && card && { k: L('Contract value', 'قيمة العقد'), v: short(card.totals.contractValue), ltr: true }
           ].filter(Boolean)} />

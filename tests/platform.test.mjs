@@ -1888,7 +1888,8 @@ await test('dictionary · every exclusion reason R1–R11 is documented with wha
 import { contractsByNumber as ctsByNo_A, contractByNumber as ctByNo_A } from '../server/engine.js';
 import { contractCard as contractCard_A, contractCards as contractCards_A, contractRollup as contractRollup_A } from '../server/contracts.js';
 import { contractPath as contractPath_A } from '../src/utils/paths.js';
-import { ORIGIN as ORIGIN_A, CONTRACT_FIELDS as FIELDS_A, originOf as originOf_A, UNLINKED_RULE as RULE_A, demoOrigin as demoOrigin_A } from '../src/data/contractRules.js';
+import { ORIGIN as ORIGIN_A, CONTRACT_FIELDS as FIELDS_A, originOf as originOf_A, UNLINKED_RULE as RULE_A, demoOrigin as demoOrigin_A, NOT_AVAILABLE as NA_A, PROPOSED_RULE as PR_A, PROPOSED_RULES as PRS_A, DATA_LIMITS as LIMITS_A, LIMIT_KIND as LKIND_A, proposedRules as proposedRules_A } from '../src/data/contractRules.js';
+import { DATA_STATE as DSTATE_A, contractStatusText as cst_A } from '../src/data/contracts.js';
 import { INSTALLMENT_STATES as STATES_A, INSTALLMENT_STATE_HELP as HELP_A } from '../src/data/contracts.js';
 const withContracts_A = (extra) => Object.assign(Object.create(st), { contracts: [...st.contracts, ...extra] }); // a view of the store with added contract records (the shared store is never mutated)
 const realCts_A = st.contracts.filter((c) => c && c.invs.length);
@@ -1939,10 +1940,10 @@ await test('Group A · every contract value is illustrative: «From source» nee
   assert.equal(originOf_A(undefined, 'contractNo'), 'illustrative'); assert.ok(ORIGIN_A.illustrative.ar && ORIGIN_A.source.en && demoOrigin_A().sourceBacked.length === 0);
   const full = contractCard_A(st, { cfg }, realCts_A[0].contractNo); assert.equal(full.origin.sourceRecord, null);
 });
-await test('Group A · «due — no invoice linked» is a candidate rule over the generated ledger: the API, the labels, the legend and the Decision Room say so, with the four prerequisites', async () => {
-  const cards = contractCards_A(st, { cfg }); const r = cards[0].candidateRules[RULE_A.key];
-  assert.equal(r.status, 'candidate'); assert.equal(r.scope, 'generated_demo_ledger'); assert.deepEqual(r.prerequisites, ['complete_schedule', 'contract_identity', 'invoice_linkage', 'due_grace_rule']); assert.deepEqual(contractRollup_A(cards).candidateRules, cards[0].candidateRules);
-  assert.match(STATES_A.unlinked.en, /candidate rule/i); assert.match(STATES_A.unlinked.ar, /مرشَّحة/);
+await test('Group A · «due — no invoice linked» is a proposed rule over the generated ledger: the API, the labels, the legend and the Decision Room say so, with the four prerequisites', async () => {
+  const cards = contractCards_A(st, { cfg }); const r = cards[0].proposedRules[RULE_A.key];
+  assert.equal(r.status, 'proposed'); assert.equal(r.scope, 'generated_demo_ledger'); assert.deepEqual(r.prerequisites, ['complete_schedule', 'contract_identity', 'invoice_linkage', 'due_grace_rule']); assert.deepEqual(contractRollup_A(cards).proposedRules, cards[0].proposedRules);
+  assert.ok(STATES_A.unlinked.en.includes('Proposed rule — requires confirmation')); assert.ok(STATES_A.unlinked.ar.includes('قاعدة مقترحة — تتطلب تأكيداً'));
   for (const p of RULE_A.prerequisites) { assert.ok(HELP_A.unlinked.en.includes(p.en) && HELP_A.unlinked.ar.includes(p.ar), p.key); }
   assert.match(HELP_A.unlinked.en, /not a finding from the Furas extract/); assert.match(RULE_A.statement.en, /generated demo ledger|GENERATED demo ledger/);
   // the Decision Room item reads from the same text
@@ -1951,12 +1952,52 @@ await test('Group A · «due — no invoice linked» is a candidate rule over th
   const R = buildItems_A({ today: TODAY, snapshot: sn, labels: { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) }, targetRate: () => 0.6, plan: null, contracts: { count: 3, arrears: 1, overdueInstallments: 1, futureNotInvoiced: 1, unlinkedInstallments: 4, unlinkedAmount: 9e5 }, noContractCount: 0, orders: null, matching: null });
   const it = R.items.find((x) => x.key === 'contracts:unlinked'); assert.ok(it, 'the item exists');
   const text = JSON.stringify([it.title, it.problem, it.cause, it.recommendation, it.figures]);
-  assert.match(text, /candidate rule/i); assert.match(text, /مرشَّحة/); assert.match(text, /generated/i); for (const p of RULE_A.prerequisites) assert.ok(text.includes(p.en) && text.includes(p.ar), `Decision Room names «${p.key}»`);
+  assert.ok(text.includes(PR_A.en) && text.includes(PR_A.ar)); assert.match(text, /generated/i); for (const p of RULE_A.prerequisites) assert.ok(text.includes(p.en) && text.includes(p.ar), `Decision Room names «${p.key}»`);
   assert.ok(it.cause.status === 'hypothesis' && !/found in the Furas extract/i.test(text), 'never presented as an extract finding');
   // the pages: no page prints the phrase without the candidate-rule wording (they all read it from contractRules)
   for (const f of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/data/decisionRoom.js', 'src/data/contracts.js']) {
     const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/L\('Due — no invoice linked'/.test(src), `${f}: the old unlabelled wording is gone`); assert.ok(/UNLINKED_RULE|CandidateRuleNote/.test(src), `${f}: reads the shared candidate-rule text`);
   }
+});
+await test('Data accuracy · one wording for what the data does not support («Not available in the current data») and one for unconfirmed rules («Proposed rule — requires confirmation»), used everywhere on the contract surfaces', () => {
+  assert.equal(NA_A.en, 'Not available in the current data'); assert.equal(PR_A.en, 'Proposed rule — requires confirmation'); assert.ok(NA_A.ar && PR_A.ar);
+  assert.deepEqual(DSTATE_A.unknown, NA_A); assert.equal(cst_A(null, (x) => x.en, (en) => en), NA_A.en); assert.equal(cst_A('Contract-X', (x) => x.en, (en) => en), 'Contract-X (value not recognised)');
+  for (const f of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/pages/InvoicePage.jsx', 'src/data/contracts.js', 'src/data/decisionRoom.js', 'src/data/dictionaryDocs.js', 'src/components/record/OriginParts.jsx', 'src/data/contractRules.js']) {
+    const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/Not available from source|Not provided by source|غير متاح من المصدر|candidate rule|قاعدة مرشَّحة|candidate, unapproved/i.test(src), `${f}: no old wording`);
+  }
+  assert.deepEqual(Object.keys(PRS_A).sort(), ['due_no_invoice_linked', 'overdue_no_grace', 'term_ended']);
+  for (const [k, r] of Object.entries(PRS_A)) assert.ok(r.statement.ar && r.statement.en && r.label.en, k);
+  assert.deepEqual(Object.keys(proposedRules_A()).sort(), Object.keys(PRS_A).sort()); assert.ok(Object.values(proposedRules_A()).every((x) => x.status === 'proposed' && x.scope === 'generated_demo_ledger'));
+  const page = nodeFs.readFileSync('src/pages/ContractPage.jsx', 'utf8'); assert.ok(page.includes('rule="term_ended"') && page.includes('rule="overdue_no_grace"') && page.includes('DataLimitsNote'));
+  const list = nodeFs.readFileSync('src/pages/Contracts.jsx', 'utf8'); assert.ok(list.includes('rule="overdue_no_grace"') && list.includes('rule="due_no_invoice_linked"') && list.includes('DataLimitsNote'));
+});
+await test('Data accuracy · the limits shown are qualitative (no real figure), each is tagged not-available / proposed / limited-sample / demo, and they say what the current data cannot support', () => {
+  const kinds = new Set(Object.keys(LKIND_A)); assert.deepEqual([...kinds].sort(), ['demo', 'limited_sample', 'not_available', 'proposed']);
+  for (const l of LIMITS_A) { assert.ok(kinds.has(l.kind) && l.ar && l.en, l.key); assert.ok(!/\d/.test(l.en) && !/[0-9٠-٩]/.test(l.ar), `${l.key}: no figure copied from the exports`); }
+  const keys = LIMITS_A.map((l) => l.key); for (const k of ['contract_number', 'dates', 'schedule', 'frequency', 'collection', 'invoice_link', 'status', 'service_type', 'demo_values']) assert.ok(keys.includes(k), k);
+  assert.ok(LIMITS_A.find((l) => l.key === 'frequency').kind === 'limited_sample', 'an observation from a limited sample is not generalised into a rule');
+});
+await test('Data accuracy · «collected of what is due to date» covers invoiced installments only: an installment with no linked invoice is not counted as due-and-uncollected, and the list, the detail and the roll-up agree', () => {
+  const full = contractCards_A(st, { cfg }, { summary: false }); let sawUnlinked = false;
+  for (const c of full) {
+    const due = c.schedule.filter((p) => p.invoiced && p.dueDate <= cfg.cutoff); const amt = due.reduce((t, p) => t + p.amount, 0); const col = due.reduce((t, p) => t + (p.collected || 0), 0);
+    assert.ok(Math.abs(c.totals.dueToDate - amt) < 0.5, `${c.contractNo}: due to date = invoiced installments whose due date has come`);
+    if (amt > 0) assert.ok(Math.abs(c.totals.collectedOfDueToDate.value - col / amt) < 1e-9, `${c.contractNo}: collected of due = collected of those installments ÷ their amount`); else assert.equal(c.totals.collectedOfDueToDate.calculable, false);
+    assert.ok(c.totals.collectedOfDueToDate.value == null || c.totals.collectedOfDueToDate.value <= 1.000001, 'never above 100 %');
+    const unl = c.schedule.filter((p) => p.state === 'unlinked'); assert.equal(c.totals.unlinkedInstallments, unl.length); if (unl.length) sawUnlinked = true;
+    assert.ok(unl.every((p) => p.collected == null && p.dataState === 'unknown'), 'an unlinked installment has an unknown collection, never a zero');
+  }
+  assert.ok(sawUnlinked, 'the fixture includes installments with no linked invoice'); const ru = contractRollup_A(full); assert.equal(ru.unlinkedInstallments, full.reduce((t, c) => t + c.totals.unlinkedInstallments, 0));
+});
+await test('Data accuracy · the Decision Room says which contract items are generated, which rule is proposed, and what cannot be checked against the source', async () => {
+  const { buildDecisionItems: bi_A } = await import('../src/data/decisionRoom.js');
+  const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg });
+  const R = bi_A({ today: TODAY, snapshot: sn, labels: { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) }, targetRate: () => 0.6, plan: null, contracts: { count: 3, arrears: 5, overdueInstallments: 2, futureNotInvoiced: 7, unlinkedInstallments: 4, unlinkedAmount: 9e5 }, noContractCount: 2, orders: null, matching: null });
+  const by = (k) => R.items.find((x) => x.key === k); const txt = (it) => JSON.stringify([it.title, it.problem, it.cause, it.recommendation]);
+  assert.ok(txt(by('contracts:arrears')).includes('no grace period') && txt(by('contracts:arrears')).includes(PR_A.en) && /generated/i.test(txt(by('contracts:arrears'))));
+  assert.equal(by('contracts:future').cause.status, 'hypothesis', 'a generated schedule is not a confirmed cause'); assert.ok(txt(by('contracts:future')).includes(NA_A.en) && /generated/i.test(txt(by('contracts:future'))));
+  assert.ok(/not proof that no contract exists/.test(txt(by('contracts:no_contract'))) && by('contracts:no_contract').cause.status === 'hypothesis');
+  assert.ok(by('contracts:unlinked').title.en.includes(PR_A.en) && by('contracts:unlinked').title.ar.includes(PR_A.ar));
 });
 await test('Group A · the 20-row findings are marked superseded in the active documentation, with a link to the reassessment; the historical text is kept', () => {
   const doc = nodeFs.readFileSync('docs/contracts-lifecycle-phase1.md', 'utf8');

@@ -7,7 +7,7 @@ import { contractPath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { ProvenanceBadge } from '../components/revenue/RevenueUI';
-import { OriginNote, CandidateRuleNote } from '../components/record/OriginParts';
+import { OriginNote, ProposedTag, CandidateRuleNote, DataLimitsNote } from '../components/record/OriginParts';
 import { UNLINKED_RULE } from '../data/contractRules';
 import { ratioText } from '../utils/bi';
 import { RecordState } from '../components/record/RecordPage';
@@ -57,15 +57,16 @@ export default function Contracts() {
 
       <div className="rp-limit">{L('Scope: ', 'النطاق: ')}{rev.scopeEff.amanah === 'all' ? L('all Amanahs and entities', 'جميع الأمانات والجهات') : [].concat(rev.scopeEff.amanah).map((a) => amanahName(a, ar)).join(ar ? '، ' : ', ')}{L('. Contract schedules are all-time: the period selector does not apply here.', '. جداول العقود كاملة الزمن: لا ينطبق عليها مُحدِّد الفترة.')}</div>
       <OriginNote origin={roll.origin} />
+      <DataLimitsNote />
       {error && !cd && <RecordState error={error} onRetry={() => window.location.reload()} kind={L('Contracts', 'العقود')} />}
       {loading && !cd && <div className="muted" role="status">{L('Loading contracts…', 'جارٍ تحميل العقود…')}</div>}
       <div className="rv-tiles">
-        <div className="rv-tile"><div className="rv-tile__label">{L('Contracts', 'العقود')}</div><div className="rv-tile__value">{count(visible.length)}</div><div className="rv-tile__sub">{roll.multiPayment} {L('with several payments', 'متعددة الدفعات')}</div></div>
+        <div className="rv-tile"><div className="rv-tile__label">{L('Contracts', 'العقود')}</div><div className="rv-tile__value">{count(visible.length)}</div><div className="rv-tile__sub">{roll.multiPayment} {L('with several payments · distinct contract numbers (provisional count)', 'متعددة الدفعات · أرقام عقود مميزة (عدّ مؤقت)')}</div></div>
         <div className="rv-tile"><div className="rv-tile__label">{L('Collected on the payments', 'المحصّل من الدفعات')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.collected, 0))}</div><div className="rv-tile__sub">{L('of the contracts’ payments up to today', 'من دفعات العقود حتى اليوم')}</div></div>
-        <div className="rv-tile rv-tile--bad"><div className="rv-tile__label">{L('Overdue installments', 'دفعات متأخرة')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.arrears, 0))}</div></div>
+        <div className="rv-tile rv-tile--bad"><div className="rv-tile__label">{L('Overdue installments', 'دفعات متأخرة')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.arrears, 0))}</div><div className="rv-tile__sub">{L('no grace period applied', 'دون فترة سماح')} <ProposedTag rule="overdue_no_grace" /></div></div>
         <div className="rv-tile"><div className="rv-tile__label">{L('Invoiced, not yet due', 'مفوترة لم يحن استحقاقها')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.notDue, 0))}</div></div>
-        <div className="rv-tile"><div className="rv-tile__label">{L('Future installments (not arrears)', 'دفعات مستقبلية (ليست متأخرات)')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.futureNotInvoiced, 0))}</div><div className="rv-tile__sub">{L('not invoiced yet', 'لم تُفوتر بعد')}</div></div>
-        <div className="rv-tile rv-tile--warn"><div className="rv-tile__label">{B(UNLINKED_RULE.label)}</div><div className="rv-tile__value">{short(roll.unlinkedAmount)}</div><div className="rv-tile__sub">{count(roll.unlinkedInstallments)} {L('installments of the generated schedule · candidate rule over the generated ledger, not a finding', 'دفعة من الجدول المُولَّد · قاعدة مرشَّحة على السجل المُولَّد وليست نتيجة')}</div></div>
+        <div className="rv-tile"><div className="rv-tile__label">{L('Future installments (not arrears)', 'دفعات مستقبلية (ليست متأخرات)')}</div><div className="rv-tile__value">{short(visible.reduce((s, c) => s + c.totals.futureNotInvoiced, 0))}</div><div className="rv-tile__sub">{L('generated schedule · not invoiced yet', 'جدول مُولَّد · لم تُفوتر بعد')}</div></div>
+        <div className="rv-tile rv-tile--warn"><div className="rv-tile__label">{B(UNLINKED_RULE.label)}</div><div className="rv-tile__value">{short(roll.unlinkedAmount)}</div><div className="rv-tile__sub">{count(roll.unlinkedInstallments)} {L('installments of the generated schedule · generated ledger, not a finding', 'دفعة من الجدول المُولَّد · السجل المُولَّد، وليست نتيجة')} <ProposedTag rule="due_no_invoice_linked" /></div></div>
       </div>
       <CandidateRuleNote />
       <div className="rp-limit">{L(`Figures cover the installments invoiced in the data range: ${count(roll.coverage.known)} of ${count(roll.coverage.installments)} scheduled installments have data; the others are upcoming or have no readable invoice (unknown is not counted as zero).`, `الأرقام تشمل الدفعات المفوترة ضمن نطاق البيانات: ${count(roll.coverage.known)} من ${count(roll.coverage.installments)} دفعة مجدولة لها بيانات؛ والباقي قادم أو بلا فاتورة يمكن قراءتها (غير المعروف لا يُحسب صفراً).`)}</div>
@@ -78,7 +79,7 @@ export default function Contracts() {
               <option value="all">{L('All contracts', 'كل العقود')}</option>
               <option value="arrears">{L('With overdue installments', 'بدفعات متأخرة')}</option>
               <option value="future">{L('With upcoming installments', 'بدفعات قادمة')}</option>
-              <option value="unlinked">{B(UNLINKED_RULE.label)}</option>
+              <option value="unlinked">{`${B(UNLINKED_RULE.label)} · ${B(UNLINKED_RULE.short)}`}</option>
             </select>
           </label>
         </div>
@@ -95,7 +96,7 @@ export default function Contracts() {
                   <td className="num">{short(c.totals.collected)}</td>
                   <td className="num">{c.totals.collectionRateOnNet?.calculable ? <PctBadge v={c.totals.collectionRateOnNet.value} text={ratioText(c.totals.collectionRateOnNet, ar)} /> : <span className="muted" title={L('Net invoiced is zero or unknown', 'صافي المفوتر صفر أو غير معروف')}>{ratioText(c.totals.collectionRateOnNet, ar)}</span>}</td>
                   <td className="num">{c.totals.arrears ? <b className="rv-neg">{short(c.totals.arrears)}</b> : '—'}</td>
-                  <td>{L(`${c.totals.installments} in all · ${c.totals.overdueInstallments} overdue · ${c.totals.futureInstallments} upcoming · ${c.totals.unlinkedInstallments} due, no invoice linked (candidate rule)`, `${c.totals.installments} دفعة · ${c.totals.overdueInstallments} متأخرة · ${c.totals.futureInstallments} قادمة · ${c.totals.unlinkedInstallments} مستحقة بلا فاتورة مرتبطة (قاعدة مرشَّحة)`)}</td>
+                  <td>{L(`${c.totals.installments} in all · ${c.totals.overdueInstallments} overdue · ${c.totals.futureInstallments} upcoming · ${c.totals.unlinkedInstallments} due, no invoice linked (proposed rule)`, `${c.totals.installments} دفعة · ${c.totals.overdueInstallments} متأخرة · ${c.totals.futureInstallments} قادمة · ${c.totals.unlinkedInstallments} مستحقة بلا فاتورة مرتبطة (قاعدة مقترحة)`)}</td>
                 </tr>
               ))}
               {!list.length && <tr><td colSpan={8}><div className="rv-empty">{L('No contract matches.', 'لا عقد مطابق.')}</div></td></tr>}

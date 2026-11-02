@@ -224,3 +224,6 @@ button.oj-card:hover, button.oj-card:focus-visible { border-color: var(--primary
 .rp-rulenote summary { cursor: pointer; color: var(--txt); }
 .rp-rulenote p, .rp-rulenote ul { margin: 6px 0 0; }
 .rp-rulenote ul { padding-inline-start: 18px; }
+.rp-origin--proposed, .rp-origin--limited_sample { border-color: rgba(181, 71, 8, 0.5); color: var(--txt); }
+.rp-origin--not_available { border-style: dashed; }
+.rp-rulenote li { margin: 4px 0; }

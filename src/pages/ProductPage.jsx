@@ -73,7 +73,7 @@ export default function ProductPage() {
               <h2 className="h3" style={{ marginTop: 0 }}>{L('Contracts and receivables (central invoices only)', 'العقود والمستحقات (الفواتير المركزية فقط)')}</h2>
               <div className="rv-tiles">
                 <MetricTile label={L('Contract values', 'قيم العقود')} value={short(sum((t) => t.contractValue))} sub={L(`${count(cards.length)} contracts`, `${count(cards.length)} عقود`)} />
-                <MetricTile label={L('Receivables to date', 'المستحقات حتى تاريخه')} value={short(sum((t) => t.dueToDate))} sub={L('installments due up to the reference date', 'دفعات استحقت حتى تاريخ المرجع')} />
+                <MetricTile label={L('Receivables to date', 'المستحقات حتى تاريخه')} value={short(sum((t) => t.dueToDate))} sub={L('invoiced installments due up to the reference date (installments with no linked invoice are not included: their collection is unknown)', 'دفعات مفوترة استحقت حتى تاريخ المرجع (لا تشمل الدفعات بلا فاتورة مرتبطة: تحصيلها غير معروف)')} />
                 <MetricTile label={L('Collected', 'المحصّل')} value={short(sum((t) => t.collected))} sub={L('on the contract payments', 'من دفعات العقود')} />
                 <MetricTile label={L('Expected collection', 'المتوقع تحصيله')} value={short(sum((t) => t.netUncollected))} sub={L('invoiced and not yet collected (overdue + not yet due)', 'مفوتر ولم يُحصَّل (متأخر + لم يحن)')} />
               </div>
@@ -81,7 +81,7 @@ export default function ProductPage() {
                 <MetricTile label={L('Contracting growth', 'نمو التعاقد')} value={vPrev > 0 ? `${(((vThis - vPrev) / vPrev) * 100).toFixed(1)}%` : '—'} sub={L(`New contracts ${yr}: ${count(nThis.length)} (${short(vThis)}) · ${yr - 1}: ${count(nPrev.length)} (${short(vPrev)})`, `عقود جديدة ${yr}: ${count(nThis.length)} (${short(vThis)}) · ${yr - 1}: ${count(nPrev.length)} (${short(vPrev)})`)} />
                 <MetricTile label={L('Link of Furas to assets', 'ربط الفرص بالأصول')} value="—" sub={L('Awaiting asset valuation data', 'بانتظار بيانات تقييم الأصول')} />
               </div>
-              <div className="muted" style={{ fontSize: 12 }}>{L('The asset link is a placeholder: no asset valuation exists in the demo and none is assumed. Contract figures come from the contract schedules of the demo data.', 'ربط الأصول خانة مؤقتة: لا توجد في الديمو بيانات تقييم للأصول ولا يُفترض أي تقييم. أرقام العقود من جداول عقود البيانات التجريبية.')} <Link to="/contracts">{L('Investment contracts', 'العقود الاستثمارية')}</Link></div>
+              <div className="muted" style={{ fontSize: 12 }}>{L('The asset link is a placeholder: no asset valuation exists in the demo and none is assumed. Contract figures come from the contract schedules of the demo data (generated).', 'ربط الأصول خانة مؤقتة: لا توجد في الديمو بيانات تقييم للأصول ولا يُفترض أي تقييم. أرقام العقود من جداول عقود البيانات التجريبية.')} <Link to="/contracts">{L('Investment contracts', 'العقود الاستثمارية')}</Link></div>
             </section>
           )}
 
