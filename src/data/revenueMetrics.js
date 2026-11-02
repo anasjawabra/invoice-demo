@@ -10,8 +10,9 @@
 // Definitions (full text in METRIC_DEFINITIONS, shown to users in the UI):
 //   Gross billed      = sum of original invoice amounts, invoices ISSUED in the period
 //   Adjustments       = approved credit notes / reductions (negative), dated <= data cutoff
-//   Exclusions        = cancelled + billed amount of invoices carrying an APPROVED exclusion under an
-//                       ENABLED rule (versioned). Exclusion changes the KPI denominator only;
+//   Exclusions        = cancelled + the UNCOLLECTED remainder of invoices carrying an APPROVED exclusion under an
+//                       ENABLED rule (versioned); cancellation is INCLUDED in exclusions and also shown apart. A cancelled or
+//                       excluded invoice loses only what was not collected; an invoice with both is flagged (overlap) and deducted once. Exclusion changes the KPI denominator only;
 //                       it never means "uncollectible".
 //   Net billed        = gross billed - exclusions   (gross already includes approved adjustments)
 //   Collected (B)     = payments, dated <= the collection as-of date, ATTRIBUTED to the

@@ -17,7 +17,8 @@ The Payment and IMSFW_Work exports are capped samples; the Contract view repeats
 | «BALANCEAMOUNT fits 2 of 20 raw rows» | Superseded: filled throughout; its definition is still not given (balance stays undisplayed) |
 | «three status vocabularies exist» | Superseded: one value list per column, none with an approved meaning |
 | Start/end, municipality, invoice/payment dates, amounts «0 of 20 / few of 20 filled» | Superseded: filled to very different degrees in the exports; see the review tables |
-| The contract number as the join key | Confirmed, with a caveat: the number repeats across records, so it is not a record key |
+| Payment → Contract by contract number | **Observed match** (a number match, one-to-many across contract records; not a record key; the current record is not determined) |
+| Installment → invoice | **Not verified**: no key on the Payment rows; never inferred from the contract-number match or from how a number looks |
 
 ## Where the demo applies this
 `src/data/contractRules.js` (origin of a value, the candidate rule «due — no invoice linked») and `docs/contracts-lifecycle-phase1.md` (Group A corrections).

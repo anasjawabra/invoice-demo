@@ -1977,7 +1977,7 @@ await test('Data accuracy · the limits shown are qualitative (no real figure), 
   const keys = LIMITS_A.map((l) => l.key); for (const k of ['contract_number', 'dates', 'schedule', 'frequency', 'collection', 'invoice_link', 'status', 'service_type', 'demo_values']) assert.ok(keys.includes(k), k);
   assert.ok(LIMITS_A.find((l) => l.key === 'frequency').kind === 'limited_sample', 'an observation from a limited sample is not generalised into a rule');
 });
-await test('Data accuracy · «net invoiced due to date» = net (gross − exclusions − cancelled) of the invoiced installments whose due date has come, before collections; the collected share, the remainder, excluded / cancelled / unlinked / future rows and the roll-up are consistent', () => {
+await test('Data accuracy · «net invoiced due to date» = net (gross − exclusions, cancellation included) of the invoiced installments whose due date has come, before collections; the collected share, the remainder, excluded / cancelled / unlinked / future rows and the roll-up are consistent', () => {
   const full = contractCards_A(st, { cfg }, { summary: false }); let sawUnlinked = false; let sawExcl = false; let sawFuture = false;
   for (const c of full) {
     const due = c.schedule.filter((p) => p.invoiced && p.dueDate <= cfg.cutoff); const net = due.reduce((t, p) => t + p.net, 0); const col = due.reduce((t, p) => t + (p.collected || 0), 0); const rem = due.reduce((t, p) => t + p.outstanding, 0);
@@ -2027,6 +2027,42 @@ await test('Data accuracy · the Decision Room says which contract items are gen
   assert.equal(by('contracts:future').cause.status, 'hypothesis', 'a generated schedule is not a confirmed cause'); assert.ok(txt(by('contracts:future')).includes(NA_A.en) && /generated/i.test(txt(by('contracts:future'))));
   assert.ok(/not proof that no contract exists/.test(txt(by('contracts:no_contract'))) && by('contracts:no_contract').cause.status === 'hypothesis');
   assert.ok(by('contracts:unlinked').title.en.includes(PR_A.en) && by('contracts:unlinked').title.ar.includes(PR_A.ar));
+});
+import { FORMULA_GROUPS as FG_C, DEV_REFERENCE as DEVREF_C } from '../src/data/dictionaryDocs.js';
+await test('Net invoiced = Gross invoiced − Exclusions: cancellation is INCLUDED in exclusions and deducted exactly once; only the uncollected remainder is removed; collected never exceeds net (no cap on the rate)', () => {
+  const ctx = makeCtx(st, { cfg }); const bad = { net: 0, parts: 0, both: 0, collGtNet: 0, recv: 0, neg: 0 }; let overlaps = 0;
+  for (let i = 0; i < st.n; i += 1) {
+    if (st.issue[i] > ctx.cutoffN) continue; const D = derive(ctx, i, ctx.cutoffN);
+    if (Math.abs(D.net - (D.billed - D.exclTotal)) > 1e-6) bad.net += 1;                                    // net = gross − exclusions
+    if (Math.abs(D.exclTotal - (D.cancelledAmount + D.exclusionAmount)) > 1e-6) bad.parts += 1;               // exclusions = cancelled + rule exclusions
+    if (D.cancelledAmount > 0 && D.exclusionAmount > 0) bad.both += 1;                                       // never both on the same invoice
+    if (D.overlaps) { overlaps += 1; if (D.exclusionAmount !== 0) bad.both += 1; }                           // cancelled + a rule reason: deducted once, as cancelled, and flagged
+    if (D.collected > D.net + 1e-6) bad.collGtNet += 1;                                                       // the rate is below 100 % by construction, not by a cap on the rate
+    if (Math.abs(D.collected + D.overpayment - D.received) > 1e-6) bad.recv += 1;                             // receipts above the base are kept apart (overpayment), nothing disappears
+    if (D.net < -1e-6 || D.exclTotal < -1e-6) bad.neg += 1;
+  }
+  assert.deepEqual(bad, { net: 0, parts: 0, both: 0, collGtNet: 0, recv: 0, neg: 0 }); assert.ok(overlaps > 0, 'the world contains cancelled invoices that also carry a rule reason (flagged, deducted once)');
+  const T = snapshot(st, { scope: { from: '2000-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg }).totals;
+  assert.ok(Math.abs(T.gross - T.exclusions - T.net) < 1 && Math.abs(T.exclusions - T.cancelled - T.exclusionsRules) < 1, 'totals: gross − exclusions = net; exclusions = cancelled + rule exclusions'); assert.ok(T.collected <= T.net);
+  // constructed cases (the generated data has no invoice cancelled after a payment, so the path is exercised here on a view of the store)
+  const pickBy = (pred) => { for (let i = 0; i < st.nGen; i += 1) { if (st.issue[i] > ctx.cutoffN || st.exec[i] >= 0) continue; const D = derive(ctx, i, ctx.cutoffN); if (pred(D, i)) return i; } return -1; };
+  const cancelAt = (i) => { const cancelDay = Int32Array.from(st.cancelDay); cancelDay[i] = ctx.cutoffN - 1; const st2 = Object.assign(Object.create(st), { cancelDay }); const c2 = makeCtx(st2, { cfg }); return derive(c2, i, c2.cutoffN); };
+  const part = pickBy((D) => !D.cancelled && !D.excluded && D.received > 0 && D.received < D.billed); assert.ok(part >= 0, 'a partly collected invoice exists');
+  { const D = cancelAt(part); assert.equal(D.cancelled, true); assert.ok(Math.abs(D.cancelledAmount - (D.billed - D.received)) < 1e-6, 'only the uncollected remainder is cancelled'); assert.ok(Math.abs(D.net - D.received) < 1e-6 && Math.abs(D.collected - D.received) < 1e-6, 'what was collected before the cancellation stays in net and in collected'); assert.equal(D.outstanding, 0); assert.ok(Math.abs(D.billed - D.exclTotal - D.net) < 1e-6 && Math.abs(D.exclTotal - D.cancelledAmount) < 1e-6); assert.equal(D.collected / D.net, 1, 'collected equals net exactly: no cap, no denominator adjustment'); }
+  const paid = pickBy((D) => !D.cancelled && !D.excluded && D.billed > 0 && D.received >= D.billed);
+  { const D = cancelAt(paid); assert.equal(D.cancelledAmount, 0, 'a fully collected invoice has nothing left to cancel'); assert.ok(Math.abs(D.net - D.billed) < 1e-6 && Math.abs(D.collected - D.billed) < 1e-6 && D.exclTotal === 0); }
+  const exl = pickBy((D) => D.excluded && D.exclusionAmount > 0);
+  { const before = derive(ctx, exl, ctx.cutoffN); const D = cancelAt(exl); assert.equal(D.overlaps, true, 'cancelled + a rule reason is flagged for review'); assert.equal(D.exclusionAmount, 0, 'the rule exclusion is not deducted again'); assert.ok(Math.abs(D.exclTotal - before.exclTotal) < 1e-6 && Math.abs(D.net - before.net) < 1e-6, 'the amount leaves gross once, whichever reason is applied'); }
+});
+await test('Documentation · the net formula is stated once and consistently («cancellation is included in exclusions»), and the two relationships are not confused: the Payment-to-Contract number match is observed, the installment-to-invoice relationship is not verified', () => {
+  const rows = FG_C.flatMap((g) => g.rows); const names = rows.map((r) => r.name.en);
+  assert.ok(names.includes('Exclusions (total)')); const net = rows.find((r) => r.name.en === 'Net billed'); assert.ok(net.f.startsWith('net = gross − exclusions   (= gross − cancelled − rule exclusions)'));
+  assert.ok(!/net = gross − exclusions − cancelled\n/.test(net.f + '\n'), 'no double deduction in the stated formula'); assert.match(rows.find((r) => r.name.en === 'Exclusions (total)').f, /exclusions = cancelled \+ rule exclusions/); assert.match(net.meaning.en, /only its uncollected remainder/);
+  const lim = (k) => LIMITS_A.find((l) => l.key === k).en; assert.ok(/observed/.test(lim('contract_number')) && /number match, not a record key/.test(lim('contract_number')) && /several/.test(lim('contract_number')));
+  assert.ok(/not verified/.test(lim('invoice_link')) && /not inferred from the contract-number match/.test(lim('invoice_link')));
+  const doc = nodeFs.readFileSync('docs/contracts-lifecycle-phase1.md', 'utf8'); assert.ok(doc.includes('Two relationships that must not be confused') && doc.includes('Cancellation, exclusions and collected amounts') && doc.includes('Phase 1 closure'));
+  const re = nodeFs.readFileSync('docs/furas-export-reassessment.md', 'utf8'); assert.ok(/observed match/i.test(re) && /not verified/i.test(re));
+  for (const f of ['src/data/dictionaryDocs.js', 'src/pages/ProductPage.jsx', 'server/contracts.js', 'docs/contracts-lifecycle-phase1.md']) assert.ok(!/gross − exclusions − cancelled/.test(nodeFs.readFileSync(f, 'utf8').replace('= gross − cancelled − rule exclusions', '').replace('«gross − exclusions − cancelled»', '')), `${f}: no stated «gross − exclusions − cancelled» (the doc only quotes it as the corrected wording)`);
 });
 await test('Group A · the 20-row findings are marked superseded in the active documentation, with a link to the reassessment; the historical text is kept', () => {
   const doc = nodeFs.readFileSync('docs/contracts-lifecycle-phase1.md', 'utf8');

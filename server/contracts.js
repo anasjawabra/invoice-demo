@@ -69,7 +69,7 @@ function cardOf(st, ctx, ct) {
   const arrears = sum((x) => (x.state === 'overdue' || x.state === 'partial' ? x.outstanding : 0));
   const notDue = sum((x) => (x.state === 'not_due' ? x.outstanding : 0));
   const gross = sum((x) => x.gross); const exclusions = sum((x) => x.exclusion); const net = sum((x) => x.net); const collected = sum((x) => x.collected); const uncollected = sum((x) => x.outstanding);
-  // «net invoiced due to the reference date»: the NET invoiced amount (gross − exclusions − cancelled, the same base as the collection rate) of the INVOICED installments whose due date has come, before the
+  // «net invoiced due to the reference date»: the NET invoiced amount (gross − exclusions, cancellation included in exclusions — the same base as the collection rate) of the INVOICED installments whose due date has come, before the
   // collections matched to them. Excluded and cancelled invoices contribute nothing to net; an installment with no linked invoice is not in it (its collection is unknown and an unknown is never counted as a
   // collected zero — that group stays separate: `unlinkedInstallments`, a proposed rule); history rows are unknown and upcoming ones are not due yet.
   // netDueToDate − collectedOfDue = remainingOfDue (invoiced installments only).
