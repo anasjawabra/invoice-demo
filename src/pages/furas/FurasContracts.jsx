@@ -10,7 +10,7 @@ import { DatasetBanner, LimitsPanel, IntegrityChecks, FurasOverview } from '../.
 import { Chip, Icon, NaCell, StatStrip, Tabs } from '../../components/furas/FurasUI';
 import { stored, storedOption, storedText, LITERAL_NOTE } from '../../data/furasLabels';
 
-const EMPTY = { q: '', type: '', status: '', municipality: '', severalRecords: false, conflicting: false, inPaymentExtract: false };
+const EMPTY = { q: '', type: '', status: '', municipality: '', shape: '', severalRecords: false, conflicting: false, inPaymentExtract: false };
 const PS = 25;
 const CONFLICT_LABEL = { status: ['status', 'الحالة'], value: ['contract value', 'قيمة العقد'], annual: ['annual value', 'القيمة السنوية'], type: ['service type', 'نوع الخدمة'], endDate: ['end date', 'تاريخ النهاية'], municipality: ['Amanah', 'الأمانة'] };
 
@@ -23,11 +23,13 @@ export default function FurasContracts() {
   const [f, setF] = useState(EMPTY); const [page, setPage] = useState(0);
   const upd = (patch) => { setF((x) => ({ ...x, ...patch })); setPage(0); };
   const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
-  const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
+  const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, shape: f.shape, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
   const { data: list, loading, error } = useAsync(() => (tab === 'contracts' ? furas.contracts(body) : Promise.resolve(null)), [body, tab]);
   const active = [f.q && { k: 'q', label: `“${f.q}”` }, f.type && { k: 'type', label: storedText('type', f.type, ar) }, f.status && { k: 'status', label: storedText('status', f.status, ar) }, f.municipality && { k: 'municipality', label: S?.contracts.byMunicipality.find((m) => m.code === f.municipality)?.sourceName || f.municipality },
+    f.shape && { k: 'shape', label: SHAPE[f.shape] },
     f.severalRecords && { k: 'severalRecords', label: L('Several records', 'عدة سجلات') }, f.conflicting && { k: 'conflicting', label: L('Conflicting records', 'سجلات متعارضة') }, f.inPaymentExtract && { k: 'inPaymentExtract', label: L('In the payment extract', 'في مستخرج الدفعات') }].filter(Boolean);
   const reset = (k) => upd({ [k]: EMPTY[k] });
+  const SHAPE = { single: L('Single record', 'سجل واحد'), versions: L('One opportunity, several records', 'فرصة واحدة بعدة سجلات'), multi: L('Several opportunities', 'عدة فرص') };
   const c = S?.contracts; const p = S?.payments;
   const chips = (arr, kind) => (arr.length ? <span className="fu-chips" title={arr.map((x) => stored(kind, x.value, false).raw + (x.n ? ` ×${x.n}` : '')).join(' · ')}>{arr.slice(0, 2).map((x) => <Chip key={x.value} title={stored(kind, x.value, ar).translated ? x.value : undefined}>{storedText(kind, x.value, ar)}{x.n ? ` ×${x.n}` : ''}</Chip>)}{arr.length > 2 && <Chip tone="muted">+{arr.length - 2}</Chip>}</span> : <NaCell />);
   return (
@@ -41,7 +43,7 @@ export default function FurasContracts() {
       {S && <StatStrip items={[
         { label: L('Contract records', 'سجلات العقود'), value: count(c.records), sub: L('rows of the Contract view', 'صفوف عرض العقود') },
         { label: L('Distinct contract numbers', 'أرقام العقود المميزة'), value: count(c.distinctNumbers), sub: L('provisional count', 'عدّ مؤقت'), title: L('A number is not a record key, so this is not a count of current contracts.', 'الرقم ليس مفتاح سجل، فهذا ليس عدّاً للعقود الحالية.') },
-        { label: L('Numbers with several records', 'أرقام لها عدة سجلات'), value: count(c.numbersWithSeveralRecords), sub: L(`${count(c.recordsInRepeatedNumbers)} records · tap to filter`, `${count(c.recordsInRepeatedNumbers)} سجلاً · اضغط للتصفية`), tone: 'warn', onClick: () => { setTab('contracts'); upd({ severalRecords: !f.severalRecords }); }, active: f.severalRecords },
+        { label: L('Numbers with several records', 'أرقام لها عدة سجلات'), value: count(c.numbersWithSeveralRecords), sub: L(`${count(c.shapes.multi)} several opportunities · ${count(c.shapes.versions)} one opportunity · tap to filter`, `${count(c.shapes.multi)} عدة فرص · ${count(c.shapes.versions)} فرصة واحدة · اضغط للتصفية`), tone: 'warn', onClick: () => { setTab('contracts'); upd({ severalRecords: !f.severalRecords }); }, active: f.severalRecords },
         { label: L('Payment rows in the extract', 'صفوف الدفعات في المستخرج'), value: count(p.rows), sub: L(`${count(p.distinctNumbers)} numbers · limited sample · tap to filter`, `${count(p.distinctNumbers)} رقماً · عيّنة محدودة · اضغط للتصفية`), onClick: () => { setTab('contracts'); upd({ inPaymentExtract: !f.inPaymentExtract }); }, active: f.inPaymentExtract }
       ]} />}
       <Tabs label={L('Sections', 'الأقسام')} value={tab} onChange={setTab} tabs={[{ key: 'contracts', label: L('Contract numbers', 'أرقام العقود'), hint: c ? count(c.distinctNumbers) : null }, { key: 'overview', label: L('Dataset overview', 'نظرة على البيانات') }, { key: 'limits', label: L('Limits and checks', 'الحدود والفحوص') }]} />
@@ -53,6 +55,7 @@ export default function FurasContracts() {
               <label className="fu-search"><Icon name="search" /><span className="fu-sr">{L('Search a contract number', 'ابحث برقم العقد')}</span><input type="search" value={f.q} onChange={(e) => upd({ q: e.target.value })} placeholder={L('Search a contract number…', 'ابحث برقم العقد…')} dir="ltr" autoComplete="off" /></label>
               <select className="fu-select" aria-label={L('Service type', 'نوع الخدمة')} value={f.type} onChange={(e) => upd({ type: e.target.value })}><option value="">{L('All service types', 'كل أنواع الخدمة')}</option>{S?.contracts.byType.map((x) => <option key={x.value} value={x.value}>{storedOption('type', x.value, ar)}</option>)}</select>
               <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{storedOption('status', x.value, ar)}</option>)}</select>
+              <select className="fu-select" aria-label={L('Structure', 'البنية')} value={f.shape} onChange={(e) => upd({ shape: e.target.value })}><option value="">{L('All structures', 'كل البنى')}</option>{['single', 'versions', 'multi'].map((k) => <option key={k} value={k}>{SHAPE[k]}{c ? ` (${count(c.shapes[k])})` : ''}</option>)}</select>
               <select className="fu-select" aria-label={L('Amanah (source)', 'الأمانة (المصدر)')} value={f.municipality} onChange={(e) => upd({ municipality: e.target.value })}><option value="">{L('All Amanahs', 'كل الأمانات')}</option>{S?.contracts.byMunicipality.map((m) => <option key={m.code} value={m.code}>{m.code} · {m.sourceName}</option>)}</select>
             </div>
             <div className="fu-tools__row" role="group" aria-label={L('Quick filters', 'تصفية سريعة')}>
@@ -75,7 +78,7 @@ export default function FurasContracts() {
               const conflictKeys = Object.keys(r.conflicts).filter((k) => r.conflicts[k]);
               return (
                 <div key={r.no} className="fu-row" role="row" onClick={(e) => { if (!e.target.closest('a')) nav(contractPath(r.no)); }}>
-                  <div role="cell" data-col="no" className="fu-cell"><Link className="fu-no" to={contractPath(r.no)} dir="ltr">{r.no}</Link>{r.records > 1 && <> <Chip tone="info" icon="layers">{L(`${r.records} records`, `${r.records} سجلات`)}</Chip></>}</div>
+                  <div role="cell" data-col="no" className="fu-cell"><Link className="fu-no" to={contractPath(r.no)} dir="ltr">{r.no}</Link>{r.shape !== 'single' && <> <Chip tone="info" icon="layers" title={SHAPE[r.shape]}>{r.shape === 'multi' ? L(`${r.opportunities} opportunities · ${r.records} records`, `${r.opportunities} فرص · ${r.records} سجلات`) : L(`1 opportunity · ${r.records} records`, `فرصة واحدة · ${r.records} سجلات`)}</Chip></>}</div>
                   <div role="cell" data-col="type" className="fu-cell">{chips(r.types.map((t) => ({ value: t.value })), 'type')}</div>
                   <div role="cell" data-col="status" className="fu-cell">{chips(r.statuses.map((s) => ({ value: s.value, n: r.statuses.length > 1 ? s.records : 0 })), 'status')}</div>
                   <div role="cell" data-col="amanah" className="fu-cell">{r.municipalities.length ? r.municipalities.map((m) => <span key={m.code} style={{ display: 'block' }}><bdi>{m.sourceName}</bdi><small dir="ltr">{m.code}</small></span>) : <NaCell />}</div>

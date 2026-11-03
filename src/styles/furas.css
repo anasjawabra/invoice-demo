@@ -182,3 +182,18 @@ button.fu-stat[aria-pressed="true"] { background: rgba(22, 106, 69, .08); box-sh
 .fu-cell { min-width: 0; text-align: start; }
 .fu-cell small { unicode-bidi: plaintext; }
 @media (max-width: 860px) { .fu-dot { display: none; } .fu-tabs { scrollbar-width: none; } .fu-tabs::-webkit-scrollbar { display: none; } }
+
+/* ---- structure of a contract number: contract number → opportunities → records ---- */
+.fu-col { display: block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; letter-spacing: .02em; font-weight: 500; color: var(--txt-mute-2); margin-block-start: 1px; overflow-wrap: anywhere; }
+.fu-tree, .fu-tree ol { list-style: none; margin: 0; padding: 0; }
+.fu-tree { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 14px 16px; }
+.fu-tree ol { margin-inline-start: 14px; padding-inline-start: 16px; border-inline-start: 2px solid var(--line); display: grid; gap: 8px; margin-block-start: 8px; }
+.fu-tree li { font-size: 13px; color: var(--txt); }
+.fu-tree__label { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; color: var(--heading); text-decoration: none; }
+a.fu-tree__label:hover { text-decoration: underline; }
+.fu-tree__label .fu-col { margin-block-start: 0; }
+.fu-tree__rec { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--txt-mute); }
+.fu-opp { display: grid; gap: 8px; scroll-margin-top: 64px; }
+.fu-opp + .fu-opp { margin-block-start: 10px; }
+.fu-opp__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.fu-opp__head h3 { margin: 0; font-size: 15px; color: var(--heading); }

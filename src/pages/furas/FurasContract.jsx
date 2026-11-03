@@ -19,6 +19,10 @@ const GROUPS = [
   { g: ['Location', 'الموقع'], rows: [['municipality', 'Amanah (source)', 'الأمانة (المصدر)'], ['subMunicipality', 'Sub-municipality', 'البلدية الفرعية']] },
   { g: ['Links', 'الروابط'], rows: [['renewalLink', 'Renewal link', 'رابط التجديد']] }
 ];
+// the Databank column each field is read from (Contract view); shown beside the label so the page can be checked against the schema
+const COL = { opportunityNumber: 'OPPORTUNITYNUMBER', investorId: 'INVESTORID', contractType: 'CONTRACTTYPE', status: 'OPPORTUNITYSTATUS', rentalStatus: 'RENTALSTATUS', renewalStatus: 'RENEWALSTATUS', awardingDate: 'AWARDINGDATE', signingDate: 'SIGNINGDATE', startDate: 'STARTDATE', endDate: 'ENDDATE',
+  handoverPlanned: 'DATEOFSITEHANDOVER', handoverActual: 'DATEOFSITEHANDOVERACTUAL', contractValue: 'CONTRACTVALUE', calculatedValue: 'CALCULATEDCONTRACTVALUE', annualValue: 'ANNUALCONTRACTVALUE', valueWithVat: 'TOTALCONTRACTVALUEWITHVAT', term: 'CONTRACTTERM',
+  durationMonths: 'CONTRACTDURATIONMONTHS', municipality: 'MUNICIPALITYID', subMunicipality: 'SUBMUNICIPALITY', renewalLink: 'RENEWEDCONTRACTID', recordKey: 'PZINSKEY' };
 const empty = (v) => v == null || v === '';
 const STORED_FIELD = { contractType: 'type', status: 'status', rentalStatus: 'rental', renewalStatus: 'renewal' };
 
@@ -31,7 +35,15 @@ export default function FurasContract() {
   const { data: S } = useAsync(() => furas.summary(), []);
   if (!c) return <div className="fu-page"><nav className="fu-crumb" aria-label="breadcrumb"><Link to="/contracts">{L('Contracts', 'العقود')}</Link> › <span dir="ltr">{no}</span></nav><RecordState loading={loading && !error} error={error && error.status !== 404 ? error : null} notFound={!loading && error?.status === 404} kind={L('Contract number', 'رقم العقد')} backTo={{ path: '/contracts', label: L('Back to the contracts', 'العودة إلى العقود') }} /></div>;
 
-  const recs = c.records; const multi = recs.length > 1;
+  const recs = c.records; const multi = recs.length > 1; const opps = c.groups;
+  const shapeText = c.shape === 'single' ? L('One record carries this number.', 'سجل واحد يحمل هذا الرقم.') : c.shape === 'versions' ? L('Several records carry this number, all under one opportunity number: the same opportunity is stored more than once.', 'عدة سجلات تحمل هذا الرقم كلها تحت رقم فرصة واحد: الفرصة نفسها مخزّنة أكثر من مرة.') : L('The records that carry this number belong to different opportunity numbers.', 'السجلات التي تحمل هذا الرقم تنتمي إلى أرقام فرص مختلفة.');
+  const keyOf = (k) => GROUPS.flatMap((g) => g.rows).find((r) => r[0] === k);
+  const labelOf = (k) => { const r = keyOf(k); return r ? B({ en: r[1], ar: r[2] }) : k; };
+  // differences WITHIN an opportunity (versions of it) and BETWEEN opportunities are different findings; the record key and the opportunity number always differ and are left out
+  const fieldKeys = GROUPS.flatMap((g) => g.rows).map((r) => r[0]).filter((k) => k !== 'opportunityNumber');
+  const withinKeys = fieldKeys.filter((k) => opps.some((g) => g.recordIndexes.length > 1 && new Set(g.recordIndexes.map((i) => JSON.stringify(recs[i][k]))).size > 1));
+  const betweenKeys = opps.length > 1 ? fieldKeys.filter((k) => new Set(opps.map((g) => JSON.stringify([...new Set(g.recordIndexes.map((i) => JSON.stringify(recs[i][k])))].sort()))).size > 1) : [];
+  const hasVersions = opps.some((g) => g.recordIndexes.length > 1);
   const date = (v, flag) => (empty(v) ? <NaCell /> : <><span dir="ltr">{v}</span>{flag && <> <Chip tone="warn" icon="alert">{B({ en: FLAG[flag][0], ar: FLAG[flag][1] })}</Chip></>}</>);
   const cell = (r, k, kind) => {
     const v = r[k];
@@ -44,10 +56,8 @@ export default function FurasContract() {
     if (kind === 'money') return <span dir="ltr">{sar(v)}</span>;
     return <span dir="auto">{String(v)}</span>;
   };
-  const differs = (k) => new Set(recs.map((r) => JSON.stringify(r[k]))).size > 1;
   const allEmpty = (k) => recs.every((r) => empty(r[k]));
   const absent = []; const groups = GROUPS.map((gr) => ({ ...gr, rows: gr.rows.filter(([k, en, arb]) => { if (allEmpty(k)) { absent.push(B({ en, ar: arb })); return false; } return true; }) })).filter((gr) => gr.rows.length);
-  const diffKeys = GROUPS.flatMap((g) => g.rows).filter(([k]) => differs(k)).map(([k, en, arb]) => B({ en, ar: arb }));
   const uniq = (k) => [...new Set(recs.map((r) => r[k]).filter((x) => !empty(x)))];
   const types = uniq('contractType'); const statuses = uniq('status'); const amanahs = [...new Map(recs.filter((r) => r.municipality).map((r) => [r.municipality.code, r.municipality])).values()];
   const ch = (arr, warn, kind) => (arr.length ? <span className="fu-chips">{arr.map((x) => <Chip key={x} tone={warn ? 'warn' : 'value'} title={stored(kind, x, ar).translated ? x : undefined}>{storedText(kind, x, ar)}</Chip>)}</span> : <NaCell full />);
@@ -58,7 +68,7 @@ export default function FurasContract() {
       <header className="fu-hero">
         <div className="fu-hero__top">
           <h1 dir="ltr">{c.contractNumber}</h1>
-          <Chip tone={multi ? 'info' : 'value'} icon="layers">{L(`${c.recordCount} record${multi ? 's' : ''} carry this number`, `${c.recordCount} ${multi ? 'سجلات تحمل' : 'سجل يحمل'} هذا الرقم`)}</Chip>
+          <Chip tone={multi ? 'info' : 'value'} icon="layers" title={shapeText}>{c.shape === 'single' ? L('Single record', 'سجل واحد') : c.shape === 'versions' ? L(`1 opportunity · ${c.recordCount} records`, `فرصة واحدة · ${c.recordCount} سجلات`) : L(`${c.opportunityCount} opportunities · ${c.recordCount} records`, `${c.opportunityCount} فرص · ${c.recordCount} سجلات`)}</Chip>
           <Chip tone="warn" icon="alert" title={L('The data has no created / version column', 'لا يوجد عمود إنشاء أو إصدار في البيانات')}>{L('Current record not determined', 'السجل الحالي غير محدد')}</Chip>
         </div>
         <dl className="fu-hero__facts">
@@ -68,36 +78,62 @@ export default function FurasContract() {
           <div><dt>{L('Payment rows in the extract', 'صفوف الدفعات في المستخرج')}</dt><dd><b dir="ltr">{count(c.payments.rowsInExtract)}</b> <span className="muted">{L('limited sample', 'عيّنة محدودة')}</span></dd></div>
           <div><dt>{L('Case rows', 'صفوف الحالات')}</dt><dd><b dir="ltr">{count(c.caseRows.count)}</b></dd></div>
         </dl>
-        {multi && diffKeys.length > 0 && <div className="fu-callout" role="note"><Icon name="alert" /><span>{L(`The ${c.recordCount} records differ on: ${diffKeys.join(', ')}. No record is chosen and contract values are never summed across records.`, `تختلف السجلات الـ${c.recordCount} في: ${diffKeys.join('، ')}. ولا يُختار سجل ولا تُجمع قيم العقد بين السجلات.`)}</span></div>}
+        {multi && (withinKeys.length > 0 || betweenKeys.length > 0) && <div className="fu-callout" role="note"><Icon name="alert" /><span>
+          {withinKeys.length > 0 && <span style={{ display: 'block' }}><b>{L('Within one opportunity (versions):', 'داخل الفرصة الواحدة (إصدارات):')}</b> {L('differ on ', 'تختلف في ')}{withinKeys.map(labelOf).join(ar ? '، ' : ', ')}.</span>}
+          {betweenKeys.length > 0 && <span style={{ display: 'block' }}><b>{L('Between opportunities:', 'بين الفرص:')}</b> {L('differ on ', 'تختلف في ')}{betweenKeys.map(labelOf).join(ar ? '، ' : ', ')}.</span>}
+          <span style={{ display: 'block' }}>{L('No record is chosen as current and contract values are never summed across records.', 'ولا يُختار سجل حالي ولا تُجمع قيم العقد بين السجلات.')}</span></span></div>}
       </header>
       <DatasetBanner S={S} />
       <nav className="fu-nav" aria-label={L('On this page', 'في هذه الصفحة')}>
-        <a href="#records">{L('Records', 'السجلات')}</a><a href="#payments">{L('Payment rows', 'صفوف الدفعات')}</a><a href="#cases">{L('Case rows', 'صفوف الحالات')}</a><a href="#na">{L('Not available', 'غير متاح')}</a>
+        <a href="#structure">{L('Structure', 'البنية')}</a><a href="#records">{L('Records', 'السجلات')}</a><a href="#payments">{L('Payment rows', 'صفوف الدفعات')}</a><a href="#cases">{L('Case rows', 'صفوف الحالات')}</a><a href="#na">{L('Not available', 'غير متاح')}</a>
       </nav>
 
+      <section className="fu-sec" id="structure" aria-labelledby="h-structure">
+        <div className="fu-sec__head"><h2 id="h-structure">{L('Structure of this number', 'بنية هذا الرقم')}</h2></div>
+        <p className="fu-sub" style={{ margin: 0 }}>{shapeText} {L('Records are grouped by opportunity number; the contract number itself is not a record key.', 'تُجمَّع السجلات حسب رقم الفرصة؛ ورقم العقد نفسه ليس مفتاح سجل.')}</p>
+        <ol className="fu-tree" aria-label={L('Opportunities and records', 'الفرص والسجلات')}>
+          <li className="fu-tree__root"><span className="fu-tree__label">{L('Contract number', 'رقم العقد')} <b dir="ltr">{c.contractNumber}</b><span className="fu-col" dir="ltr">CONTRACTNUMBER</span></span>
+            <ol>{opps.map((g, gi) => (
+              <li key={gi}><a className="fu-tree__label" href={`#opp-${gi}`}>{L('Opportunity', 'الفرصة')} {g.opportunityNumber == null ? <i>{L('(no opportunity number)', '(بلا رقم فرصة)')}</i> : <b dir="ltr">{g.opportunityNumber}</b>}<span className="fu-count">{g.recordIndexes.length}</span></a>
+                <ol>{g.recordIndexes.map((ri) => <li key={ri}><span className="fu-tree__rec">{L(`Record ${ri + 1}`, `السجل ${ri + 1}`)} <span className="fu-rec" dir="ltr">{recs[ri].recordKey}</span> {recs[ri].status ? <Chip title={stored('status', recs[ri].status, ar).translated ? recs[ri].status : undefined}>{storedText('status', recs[ri].status, ar)}</Chip> : <NaCell />}</span></li>)}</ol>
+              </li>))}</ol>
+          </li>
+        </ol>
+      </section>
+
       <section className="fu-sec" id="records" aria-labelledby="h-records">
-        <div className="fu-sec__head"><h2 id="h-records">{L('Contract records', 'سجلات العقد')} <span className="fu-count">{c.recordCount}</span></h2>
-          {multi && <button type="button" className="fu-toggle" aria-pressed={onlyDiff} onClick={() => setOnlyDiff((v) => !v)}>{L('Show only differences', 'أظهر الفروق فقط')}</button>}</div>
-        {multi ? (
-          <div className="fu-matrix-wrap" tabIndex={0} role="region" aria-label={L('Records side by side', 'السجلات جنباً إلى جنب')}>
-            <table className="fu-matrix">
-              <thead><tr><th scope="col">{L('Field', 'الحقل')}</th>{recs.map((r, i) => <th key={i} scope="col">{L(`Record ${i + 1}`, `السجل ${i + 1}`)}<span className="fu-rec" dir="ltr">{r.recordKey}</span></th>)}</tr></thead>
-              <tbody>{groups.map((gr) => {
-                const rows = gr.rows.filter(([k]) => !onlyDiff || differs(k)); if (!rows.length) return null;
-                return (<React.Fragment key={gr.g[0]}>
-                  <tr className="fu-group"><th colSpan={recs.length + 1} scope="colgroup">{B({ en: gr.g[0], ar: gr.g[1] })}</th></tr>
-                  {rows.map(([k, en, arb, kind]) => <tr key={k} className={differs(k) ? 'is-diff' : ''}><th scope="row">{B({ en, ar: arb })}{differs(k) && <span className="fu-sr"> — {L('differs between records', 'يختلف بين السجلات')}</span>}</th>{recs.map((r, i) => <td key={i}>{cell(r, k, kind)}</td>)}</tr>)}
-                </React.Fragment>);
-              })}
-                {onlyDiff && !diffKeys.length && <tr><td colSpan={recs.length + 1} className="fu-empty">{L('The records do not differ on any field.', 'لا تختلف السجلات في أي حقل.')}</td></tr>}</tbody>
-            </table>
-          </div>
-        ) : (
-          <dl className="fu-kv">
-            <div><dt>{L('Record key', 'مفتاح السجل')}</dt><dd dir="ltr">{recs[0].recordKey}</dd></div>
-            {groups.flatMap((gr) => gr.rows).map(([k, en, arb, kind]) => <div key={k}><dt>{B({ en, ar: arb })}</dt><dd>{cell(recs[0], k, kind)}</dd></div>)}
-          </dl>
-        )}
+        <div className="fu-sec__head"><h2 id="h-records">{L('Contract records by opportunity', 'سجلات العقد حسب الفرصة')} <span className="fu-count">{c.recordCount}</span></h2>
+          {hasVersions && <button type="button" className="fu-toggle" aria-pressed={onlyDiff} onClick={() => setOnlyDiff((v) => !v)}>{L('Show only differences', 'أظهر الفروق فقط')}</button>}</div>
+        {opps.map((g, gi) => {
+          const rs = g.recordIndexes.map((i) => ({ r: recs[i], i })); const m = rs.length > 1;
+          const gDiff = (k) => m && new Set(rs.map(({ r }) => JSON.stringify(r[k]))).size > 1;
+          const body = groups.map((gr) => ({ ...gr, rows: gr.rows.filter(([k]) => k !== 'opportunityNumber' && (!onlyDiff || gDiff(k))) })).filter((gr) => gr.rows.length);
+          const label = ([k, en, arb]) => <>{B({ en, ar: arb })}{COL[k] && <span className="fu-col" dir="ltr">{COL[k]}</span>}</>;
+          return (
+            <article className="fu-opp" id={`opp-${gi}`} key={gi} aria-labelledby={`h-opp-${gi}`}>
+              <header className="fu-opp__head">
+                <h3 id={`h-opp-${gi}`}>{L('Opportunity', 'الفرصة')} {g.opportunityNumber == null ? <i>{L('(no opportunity number)', '(بلا رقم فرصة)')}</i> : <span dir="ltr">{g.opportunityNumber}</span>}</h3>
+                <Chip tone={m ? 'info' : 'value'} icon="layers" title={m ? L('The same opportunity stored more than once; the data does not say which version is current.', 'الفرصة نفسها مخزّنة أكثر من مرة؛ ولا تحدد البيانات أي إصدار هو الحالي.') : undefined}>{m ? L(`${rs.length} records (versions)`, `${rs.length} سجلات (إصدارات)`) : L('1 record', 'سجل واحد')}</Chip>
+              </header>
+              {m ? (
+                <div className="fu-matrix-wrap" tabIndex={0} role="region" aria-label={L('Records of this opportunity side by side', 'سجلات هذه الفرصة جنباً إلى جنب')}>
+                  <table className="fu-matrix">
+                    <thead><tr><th scope="col">{L('Field', 'الحقل')}</th>{rs.map(({ r, i }) => <th key={i} scope="col">{L(`Record ${i + 1}`, `السجل ${i + 1}`)}<span className="fu-rec" dir="ltr">{r.recordKey}</span></th>)}</tr></thead>
+                    <tbody>{body.map((gr) => (<React.Fragment key={gr.g[0]}>
+                      <tr className="fu-group"><th colSpan={rs.length + 1} scope="colgroup">{B({ en: gr.g[0], ar: gr.g[1] })}</th></tr>
+                      {gr.rows.map((row) => { const [k, , , kind] = row; return <tr key={k} className={gDiff(k) ? 'is-diff' : ''}><th scope="row">{label(row)}{gDiff(k) && <span className="fu-sr"> — {L('differs between records', 'يختلف بين السجلات')}</span>}</th>{rs.map(({ r, i }) => <td key={i}>{cell(r, k, kind)}</td>)}</tr>; })}
+                    </React.Fragment>))}
+                      {onlyDiff && !body.length && <tr><td colSpan={rs.length + 1} className="fu-empty">{L('The records of this opportunity do not differ on any field.', 'لا تختلف سجلات هذه الفرصة في أي حقل.')}</td></tr>}</tbody>
+                  </table>
+                </div>
+              ) : (
+                <dl className="fu-kv">
+                  <div><dt>{L('Record key', 'مفتاح السجل')}<span className="fu-col" dir="ltr">{COL.recordKey}</span></dt><dd dir="ltr">{rs[0].r.recordKey}</dd></div>
+                  {groups.flatMap((gr) => gr.rows).filter(([k]) => k !== 'opportunityNumber').map((row) => <div key={row[0]}><dt>{label(row)}</dt><dd>{cell(rs[0].r, row[0], row[3])}</dd></div>)}
+                </dl>
+              )}
+            </article>);
+        })}
         {absent.length > 0 && <div className="fu-absent"><NaCell full /><span>{L('for ' + (multi ? 'every record' : 'this record') + ':', (multi ? 'في كل سجل' : 'في هذا السجل') + ':')}</span>{absent.map((a) => <Chip key={a} tone="muted">{a}</Chip>)}</div>}
       </section>
 

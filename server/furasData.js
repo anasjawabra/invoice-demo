@@ -108,6 +108,14 @@ function municipalityTable(C, n) {
   return out;
 }
 
+/* ---------------------------------------------------------------------------------------------- structure of a contract number */
+// A contract NUMBER can carry several records; the records are grouped by OPPORTUNITY number. Three shapes, from the data alone (no record is chosen as current):
+//   single   — one record
+//   versions — several records, all under one opportunity number (the same opportunity stored more than once)
+//   multi    — records under two or more opportunity numbers
+export const SHAPES = ['single', 'versions', 'multi'];
+const shapeOf = (n, groups) => (n <= 1 ? 'single' : groups <= 1 ? 'versions' : 'multi');
+
 /* ---------------------------------------------------------------------------------------------- per-number view */
 function numberRows(D) {
   if (D.numRows) return D.numRows;
@@ -117,8 +125,9 @@ function numberRows(D) {
     const types = dist('contracttype'); const statuses = dist('opportunitystatus'); const codes = dist('municipalityid');
     const vals = new Set(idx.map((i) => num(C.contractvalue[i])).filter((v) => v != null).map((v) => v.toFixed(2))); const ann = new Set(idx.map((i) => num(C.annualcontractvalue[i])).filter((v) => v != null).map((v) => v.toFixed(2)));
     const ends = new Set(idx.map((i) => C.enddate[i]).filter((x) => x != null));
+    const oppGroups = new Set(idx.map((i) => C.opportunitynumber[i])); const opps = [...oppGroups].filter((x) => x != null).length;
     out.push({
-      no, n: idx.length, types: top(types), statuses: top(statuses), codes: [...codes.keys()], payRows: (D.payByNo.get(no) || []).length,
+      no, n: idx.length, opps, groups: oppGroups.size, shape: shapeOf(idx.length, oppGroups.size), types: top(types), statuses: top(statuses), codes: [...codes.keys()], payRows: (D.payByNo.get(no) || []).length,
       valueState: vals.size === 0 ? 'none' : vals.size === 1 ? 'single' : 'conflict', value: vals.size === 1 ? Number([...vals][0]) : null, valueCount: vals.size,
       annualState: ann.size === 0 ? 'none' : ann.size === 1 ? 'single' : 'conflict', annual: ann.size === 1 ? Number([...ann][0]) : null,
       conflicts: { status: statuses.size > 1, type: types.size > 1, value: vals.size > 1, annual: ann.size > 1, endDate: ends.size > 1, municipality: codes.size > 1 }
@@ -168,7 +177,7 @@ export async function furasSummary() {
   D.summary = {
     dataset: { title: 'Furas Databank exports', schema: 'Furas business schema', extract, etl: D.etl, files, subset: D.subset, note: 'Read locally at runtime; not in Git, not in any build, not in any log.' },
     contracts: {
-      records: nC, distinctNumbers: D.byNo.size, recordsWithoutNumber: D.noNumber, numbersWithSeveralRecords: repeated.length, recordsInRepeatedNumbers: repeated.reduce((t, r) => t + r.n, 0), maxRecordsPerNumber: rows.reduce((m, r) => Math.max(m, r.n), 0),
+      shapes: Object.fromEntries(SHAPES.map((k) => [k, rows.filter((r) => r.shape === k).length])), records: nC, distinctNumbers: D.byNo.size, recordsWithoutNumber: D.noNumber, numbersWithSeveralRecords: repeated.length, recordsInRepeatedNumbers: repeated.reduce((t, r) => t + r.n, 0), maxRecordsPerNumber: rows.reduce((m, r) => Math.max(m, r.n), 0),
       recordKeyUnique: D.byPz.size === nC, conflictsAmongRepeated: { status: conflicts('status'), type: conflicts('type'), value: conflicts('value'), annual: conflicts('annual'), endDate: conflicts('endDate'), municipality: conflicts('municipality') },
       byType, byStatus, byMunicipality, numbersWithSeveralTypes: rows.filter((r) => r.conflicts.type).length,
       dates: { startFilled: filled('startdate'), endFilled: filled('enddate'), signingFilled: filled('signingdate'), awardingFilled: filled('awardingdate') },
@@ -200,6 +209,7 @@ export async function furasContracts(body = {}) {
   if (f.type) rows = rows.filter((r) => r.types.some(([v]) => v === f.type));
   if (f.status) rows = rows.filter((r) => r.statuses.some(([v]) => v === f.status));
   if (f.municipality) rows = rows.filter((r) => r.codes.includes(f.municipality));
+  if (f.shape && SHAPES.includes(f.shape)) rows = rows.filter((r) => r.shape === f.shape);
   if (f.severalRecords) rows = rows.filter((r) => r.n > 1);
   if (f.conflicting) rows = rows.filter((r) => Object.values(r.conflicts).some(Boolean));
   if (f.inPaymentExtract) rows = rows.filter((r) => r.payRows > 0);
@@ -208,7 +218,7 @@ export async function furasContracts(body = {}) {
   return {
     total: rows.length, page, pageSize: size,
     rows: rows.slice(page * size, (page + 1) * size).map((r) => ({
-      no: r.no, records: r.n, types: r.types.map(([value, n]) => ({ value, records: n })), statuses: r.statuses.map(([value, n]) => ({ value, records: n })),
+      no: r.no, records: r.n, opportunities: r.opps, shape: r.shape, types: r.types.map(([value, n]) => ({ value, records: n })), statuses: r.statuses.map(([value, n]) => ({ value, records: n })),
       municipalities: r.codes.map((c) => ({ code: c, sourceName: names.get(c)?.sourceName || null })), paymentRowsInExtract: r.payRows,
       contractValue: { state: r.valueState, value: r.value, distinct: r.valueCount }, annualValue: { state: r.annualState, value: r.annual }, conflicts: r.conflicts
     }))
@@ -231,7 +241,11 @@ export async function furasContract(no) {
       dateFlags: Object.fromEntries(['startdate', 'enddate', 'signingdate', 'awardingdate'].map((c) => [c, dateFlag(C[c][i], extract)]).filter(([, v]) => v))
     };
   };
-  const records = idx.map(rec); const fields = ['contractType', 'status', 'contractValue', 'calculatedValue', 'annualValue', 'endDate', 'startDate', 'opportunityNumber', 'investorId'];
+  const records = idx.map(rec);
+  // the records grouped by opportunity number, in the order the opportunities first appear; a record without an opportunity number forms its own group
+  const groupMap = new Map(); records.forEach((r, i) => { const k = r.opportunityNumber ?? null; if (!groupMap.has(k)) groupMap.set(k, []); groupMap.get(k).push(i); });
+  const groups = [...groupMap.entries()].map(([opportunityNumber, recordIndexes]) => ({ opportunityNumber, recordIndexes }));
+  const fields = ['contractType', 'status', 'contractValue', 'calculatedValue', 'annualValue', 'endDate', 'startDate', 'opportunityNumber', 'investorId'];
   const differing = fields.filter((f) => new Set(records.map((r) => JSON.stringify(r[f]))).size > 1);
   const oppSet = new Set(idx.map((i) => C.opportunitynumber[i]));
   const payIdx = D.payByNo.get(key) || [];
@@ -244,7 +258,7 @@ export async function furasContract(no) {
   })).sort((a, b) => (a.batchNumber ?? 1e9) - (b.batchNumber ?? 1e9) || String(a.dueDate).localeCompare(String(b.dueDate)));
   const M = D.views.contractmanagement.cols; const cm = new Set(D.cmByNo.get(key) || []); for (const o of oppSet) for (const i of D.cmByOpp.get(o) || []) cm.add(i);
   return {
-    contractNumber: key, records, recordCount: records.length, differingFields: differing, currentRecordDetermined: false,
+    contractNumber: key, records, recordCount: records.length, shape: shapeOf(records.length, groups.length), opportunityCount: groups.filter((g) => g.opportunityNumber != null).length, groups, differingFields: differing, currentRecordDetermined: false,
     payments: { rows: payments, rowsInExtract: payments.length, extractIsCapped: D.views.payment.capped },
     caseRows: { count: cm.size, byLabel: top(countBy([...cm].map((i) => M.pylabel[i] || null))).map(([value, n]) => ({ value, rows: n })) },
     dataset: { extract, etl: D.etl }

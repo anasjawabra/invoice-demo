@@ -2194,6 +2194,19 @@ await test('Furas mode · the local subset (when present) keeps only whitelisted
     for (const c of ['pzinskey', 'renewedcontractid']) if (all.cols[c]) for (const v of all.cols[c]) if (v != null) for (const m of v.match(/(?<!\d)\d{10}(?!\d)/g) || []) assert.match(m, /^9\d{9}$/, `${view}.${c} embeds a real id`);
   }
 });
+await test('Furas mode · structure of a contract number: records grouped by opportunity number into single / versions / multi, no record chosen, no figure invented', async () => {
+  await withFuras(async () => {
+    const S = await furasSummary(); assert.deepEqual(S.contracts.shapes, { single: 2, versions: 1, multi: 1 }, 'CN-1 has two opportunities, CN-2 repeats one opportunity, CN-3 and DROCN-9 are single');
+    const all = await furasContracts({ pageSize: 100 }); const by = Object.fromEntries(all.rows.map((r) => [r.no, r])); assert.equal(by['CN-1'].shape, 'multi'); assert.equal(by['CN-1'].opportunities, 2); assert.equal(by['CN-2'].shape, 'versions'); assert.equal(by['CN-2'].opportunities, 1); assert.equal(by['CN-3'].shape, 'single');
+    assert.deepEqual((await furasContracts({ filter: { shape: 'versions' } })).rows.map((r) => r.no), ['CN-2']); assert.equal((await furasContracts({ filter: { shape: 'multi' } })).total, 1); assert.equal((await furasContracts({ filter: { shape: 'bogus' } })).total, 4, 'an unknown shape is ignored');
+    const m = await furasContract('CN-1'); assert.equal(m.shape, 'multi'); assert.equal(m.opportunityCount, 2); assert.deepEqual(m.groups.map((g) => [g.opportunityNumber, g.recordIndexes]), [['O-1', [0]], ['O-2', [1]]]); assert.equal(m.currentRecordDetermined, false);
+    const v = await furasContract('CN-2'); assert.equal(v.shape, 'versions'); assert.deepEqual(v.groups.map((g) => [g.opportunityNumber, g.recordIndexes]), [['O-3', [0, 1]]]);
+    const one = await furasContract('CN-3'); assert.equal(one.shape, 'single'); assert.equal(one.groups.length, 1);
+    assert.ok(!JSON.stringify(m).includes('SENTINEL'), 'no personal value reaches the card');
+  });
+  const page = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8');
+  for (const t of ['id="structure"', 'fu-tree', 'fu-opp', 'COL = {', 'CONTRACTVALUE', 'Within one opportunity (versions)', 'Between opportunities']) assert.ok(page.includes(t), `missing: ${t}`);
+});
 await test('Furas mode · local only: nothing is written, logged, committed, built or deployed', () => {
   const src = nodeFs.readFileSync('server/furasData.js', 'utf8') + nodeFs.readFileSync('server/furasCsv.js', 'utf8'); assert.ok(!/writeFile|appendFile|createWriteStream|copyFile|mkdir\(/.test(src), 'the loader writes nothing'); assert.ok(!/process\.env\.VERCEL/.test(src) === false && /process\.env\.VERCEL/.test(src), 'always off on Vercel');
   assert.equal((src.match(/console\.(log|info|warn|error)/g) || []).length, 1, 'one fixed log line, no value'); assert.ok(src.includes("console.log('[furas] local exports loaded')"));
