@@ -2066,7 +2066,7 @@ await test('Documentation · the net formula is stated once and consistently («
 });
 import nodeOs from 'node:os';
 import { execSync as execSync_F } from 'node:child_process';
-import { furasAvailable, loadFuras, resetFuras, furasSummary, furasContracts, furasContract, furasDecisionInput, FURAS_KEEP, maskId as maskId_F, dateFlag as dateFlag_F } from '../server/furasData.js';
+import { scopeStatus as scope_F, APPROVED_STATUS as APPROVED_F, furasAvailable, loadFuras, resetFuras, furasSummary, furasContracts, furasContract, furasDecisionInput, FURAS_KEEP, maskId as maskId_F, dateFlag as dateFlag_F } from '../server/furasData.js';
 import { furasItems } from '../src/data/furasDecisions.js';
 import { parseCsv as parseCsv_F } from '../server/furasCsv.js';
 // ---- FURAS DATASET MODE: tested on SYNTHETIC exports written to a temp directory (no real record is ever used by a test) ----
@@ -2098,7 +2098,8 @@ const fx = (() => {
   write('investor', ['investorname', 'pyemail1', 'pymobilephone'], [{ investorid: 'I-1111111', investorname: SENT.name, pyemail1: SENT.mail, pymobilephone: SENT.mob }, { investorid: 'I-2222222', pyemail1: SENT.mail }]);
   return dir;
 })();
-const withFuras = async (fn, dir = fx) => { const old = { d: process.env.FURAS_EXPORT_DIR, v: process.env.VERCEL }; process.env.FURAS_EXPORT_DIR = dir; delete process.env.VERCEL; resetFuras(); try { return await fn(); } finally { if (old.d === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = old.d; if (old.v === undefined) delete process.env.VERCEL; else process.env.VERCEL = old.v; resetFuras(); } };
+// `scope` = the status the data service keeps (the product default is Contract-Approved); most tests read the whole fixture, so the scope is off unless a test asks for it
+const withFuras = async (fn, dir = fx, scope = '') => { const old = { d: process.env.FURAS_EXPORT_DIR, v: process.env.VERCEL, s: process.env.FURAS_STATUS_SCOPE }; process.env.FURAS_EXPORT_DIR = dir; process.env.FURAS_STATUS_SCOPE = scope; delete process.env.VERCEL; resetFuras(); try { return await fn(); } finally { if (old.s === undefined) delete process.env.FURAS_STATUS_SCOPE; else process.env.FURAS_STATUS_SCOPE = old.s; if (old.d === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = old.d; if (old.v === undefined) delete process.env.VERCEL; else process.env.VERCEL = old.v; resetFuras(); } };
 await test('Furas mode · available only when the local exports are configured, and never on a deployment', async () => {
   await withFuras(() => { assert.deepEqual(furasAvailable(), { available: true, reason: null }); process.env.VERCEL = '1'; assert.deepEqual(furasAvailable(), { available: false, reason: 'deployment' }, 'Vercel never serves the real-data mode'); });
   const was = process.env.FURAS_EXPORT_DIR; process.env.FURAS_EXPORT_DIR = nodePath.join(fx, 'missing'); if (!nodeFs.existsSync('furas-exports.local')) assert.equal(furasAvailable().available, false); if (was === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = was;
@@ -2206,6 +2207,30 @@ await test('Furas mode · structure of a contract number: records grouped by opp
   });
   const page = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8');
   for (const t of ['id="structure"', 'fu-tree', 'fu-opp', 'COL = {', 'CONTRACTVALUE', 'Within one opportunity (versions)', 'Between opportunities']) assert.ok(page.includes(t), `missing: ${t}`);
+});
+await test('Furas mode · approved contracts only: records of other statuses and rows that belong only to other contracts are outside the scope; unmatched rows stay; the file row counts are kept', async () => {
+  assert.equal(scope_F(), 'Contract-Approved', 'the product default is the stored status Contract-Approved'); assert.equal(APPROVED_F, 'Contract-Approved');
+  await withFuras(async () => {
+    const S = await furasSummary(); const sc = S.dataset.scope; assert.equal(sc.status, 'S1');
+    assert.equal(S.contracts.records, 5, 'PZ-1, PZ-3, PZ-4, PZ-5 and PZ-7 carry S1'); assert.equal(sc.recordsOutside, 2, 'PZ-2 (S2) and PZ-6 (S3)'); assert.equal(sc.numbersOutside, 1, 'DROCN-9 has no approved record');
+    const all = await furasContracts({ pageSize: 100 }); assert.deepEqual(all.rows.map((r) => r.no).sort(), ['CN-1', 'CN-2', 'CN-3'], 'DROCN-9 is not listed');
+    const cn1 = all.rows.find((r) => r.no === 'CN-1'); assert.equal(cn1.records, 1); assert.equal(cn1.shape, 'single', 'its S2 record is outside the scope, so it is no longer a multi-opportunity number'); assert.equal(cn1.hiddenRecords, 1);
+    const card = await furasContract('CN-1'); assert.equal(card.recordCount, 1); assert.deepEqual(card.scope, { status: 'S1', hiddenRecords: 1 }); assert.equal(await furasContract('DROCN-9'), null, 'a number without an approved record is not found');
+    const files = Object.fromEntries(S.dataset.files.map((f) => [f.key, f])); assert.equal(files.contract.rows, 5); assert.equal(files.contract.fileRows, 7, 'the file row count is kept beside the in-scope count');
+    assert.ok(files.payment.rows <= files.payment.fileRows && files.payment.capped !== true);
+    // a payment row whose number matches NO contract is kept (it is an integrity finding, not an out-of-scope row)
+    assert.equal(S.payments.rowsNotFound, 2, 'the CN-404 rows still show as unmatched');
+  }, fx, 'S1');
+  await withFuras(async () => { const S = await furasSummary(); assert.equal(S.dataset.scope, null); assert.equal(S.contracts.records, 7); assert.equal(S.dataset.files[0].rows, S.dataset.files[0].fileRows); }, fx, '');
+  await withFuras(async () => assert.equal((await furasSummary()).dataset.scope, null), fx, 'all');
+  const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(parts.includes('Approved contracts only') && parts.includes('The exports hold no invoices'), 'the banner and the limits say it, and that no invoice is linked');
+  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes('withInvoiceDate') && list.includes('not a validated link to an installment'));
+});
+await test('Furas mode · the invoice-date signal counts payment rows that carry an invoice date, per number, and never claims an invoice link', async () => {
+  await withFuras(async () => {
+    const S = await furasSummary(); const L = await furasContracts({ pageSize: 100 }); const withInv = (await furasContracts({ filter: { withInvoiceDate: true }, pageSize: 100 })).rows;
+    assert.equal(S.payments.numbersWithInvoiceDate, withInv.length); assert.ok(withInv.length >= 1 && withInv.every((r) => r.invoiceDateRows > 0)); assert.equal(L.rows.filter((r) => r.invoiceDateRows > 0).length, withInv.length);
+  });
 });
 await test('Furas mode · local only: nothing is written, logged, committed, built or deployed', () => {
   const src = nodeFs.readFileSync('server/furasData.js', 'utf8') + nodeFs.readFileSync('server/furasCsv.js', 'utf8'); assert.ok(!/writeFile|appendFile|createWriteStream|copyFile|mkdir\(/.test(src), 'the loader writes nothing'); assert.ok(!/process\.env\.VERCEL/.test(src) === false && /process\.env\.VERCEL/.test(src), 'always off on Vercel');

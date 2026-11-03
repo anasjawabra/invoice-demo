@@ -29,7 +29,18 @@ def check(name, got, want, tol=0):
 
 S = api('/furas/summary'); c = S['contracts']; p = S['payments']
 C = load('contract'); P = load('payment'); M = load('contractmanagement', ['contractnumber', 'opportunitynumber', 'sadadbillnumber']); I = load('investor', ['investorid'])
-EM = load('entitymanagement', ['sadadbillnumber']); IW = load('imsfw_work', ['sadadbillnumber'])
+EM = load('entitymanagement', ['contractnumber', 'opportunitynumber', 'sadadbillnumber']); IW = load('imsfw_work', ['contractnumber', 'opportunitynumber', 'sadadbillnumber'])
+M = load('contractmanagement', ['contractnumber', 'opportunitynumber', 'sadadbillnumber'])
+# SCOPE (same rule as server/furasData.js): approved contracts only; payment and case rows are dropped only when they belong to OTHER contracts (a row that matches no contract stays)
+STATUS = os.environ.get('FURAS_STATUS_SCOPE', 'Contract-Approved')
+if STATUS not in ('', 'all'):
+    allNo, allOpp = set(C['contractnumber'].dropna()), set(C['opportunitynumber'].dropna())
+    ap = C[C['opportunitystatus'] == STATUS]; apNo, apOpp = set(ap['contractnumber'].dropna()), set(ap['opportunitynumber'].dropna())
+    P = P[~P['contractid'].isin(allNo - apNo)]
+    def keep_cases(df):
+        mine = df['contractnumber'].isin(apNo) | df['opportunitynumber'].isin(apOpp); other = ~mine & (df['contractnumber'].isin(allNo) | df['opportunitynumber'].isin(allOpp)); return df[~other]
+    M, EM, IW = keep_cases(M), keep_cases(EM), keep_cases(IW); C = ap
+    print(f'SCOPE: approved contracts only ({STATUS}) — {len(C)} contract records in scope')
 no = C['contractnumber']; g = C.groupby('contractnumber'); size = g.size(); rep = size[size > 1]
 check('Contract rows', c['records'], len(C)); check('Payment rows', p['rows'], len(P))
 check('Contract record keys unique', c['recordKeyUnique'], C['pzinskey'].is_unique)
@@ -72,7 +83,8 @@ check('Collected-amount field filled', p['collectedFieldFilled'], int(P['batcham
 check('SADAD-like numbers filled on cases (CM/EM/IW)', [S['cases']['sadadBillNumberFilled'][k] for k in ('contractManagement', 'entityManagement', 'imsfwWork')], [int(M['sadadbillnumber'].notna().sum()), int(EM['sadadbillnumber'].notna().sum()), int(IW['sadadbillnumber'].notna().sum())])
 check('Case rows with contract number found', S['cases']['contractNumberFound'], int(M['contractnumber'].dropna().isin(set(no.dropna())).sum())); check('Case rows with opportunity number found', S['cases']['opportunityNumberFound'], int(M['opportunitynumber'].dropna().isin(set(C['opportunitynumber'].dropna())).sum()))
 # a sample of contract numbers: list rows and detail pages
-random.seed(7); sample = random.sample(sorted(rep.index), 15) + random.sample(sorted(set(pn.dropna())), 15) + random.sample(sorted(size[size == 1].index), 10)
+random.seed(7); pick = lambda pool, k: random.sample(sorted(pool), min(k, len(pool)))   # a scoped subset can hold fewer than k
+sample = pick(rep.index, 15) + pick(set(pn.dropna()), 15) + pick(size[size == 1].index, 10)
 bad = 0
 for n in sample:
     d = api('/furas/contract', {'no': n}); pr = P[P['contractid'] == n]; rc = C[C['contractnumber'] == n]

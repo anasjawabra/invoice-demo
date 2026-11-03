@@ -4,10 +4,11 @@ const bi = (ar, en) => ({ ar, en });
 const n = (v) => Number(v).toLocaleString('en-US');
 
 export function furasItems(I) {
-  const out = []; const sub = I.dataset && I.dataset.subset;
+  const out = []; const sub = I.dataset && I.dataset.subset; const scope = I.dataset && I.dataset.scope;
   // in a scenario subset every figure describes the subset only; say so on the item itself
   const SCOPE = bi(' (في عيّنة السيناريوهات فقط — ليست على مستوى فرص)', ' (scenario subset only — not Furas-wide)');
-  const add = (x) => out.push({ category: 'matching', amount: null, evidenceQuality: 0.9, ...x, ...(sub && x.problem ? { problem: bi(x.problem.ar + SCOPE.ar, x.problem.en + SCOPE.en) } : {}) });
+  const APPROVED = bi(' (العقود المعتمدة فقط)', ' (approved contracts only)');
+  const add = (x) => out.push({ category: 'matching', amount: null, evidenceQuality: 0.9, ...x, ...(x.problem && (sub || scope) ? { problem: bi(x.problem.ar + (scope ? APPROVED.ar : '') + (sub ? SCOPE.ar : ''), x.problem.en + (scope ? APPROVED.en : '') + (sub ? SCOPE.en : '')) } : {}) });
   const c = I.repeated; const p = I.payments;
   if (c.numbers > 0) add({
     key: 'furas:repeated', lane: 'decision', role: 'data_owner', dueDays: 30, actionability: 0.8,

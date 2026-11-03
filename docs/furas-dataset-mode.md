@@ -44,3 +44,12 @@ The generated contract engine (`server/contracts.js`, the ledger's contract fiel
 ### Structure of a contract number
 
 Records of a number are grouped by **opportunity number**: *single* (one record), *versions* (several records, one opportunity) and *multi* (two or more opportunities). The list shows «N opportunities · M records» with a Structure filter; the details page shows the tree contract number → opportunities → records, the records of each opportunity side by side with differences lit, differences reported separately within and between opportunities, and the Databank column name beside every field.
+
+### Scope: approved contracts only
+
+The contract pages are read together with invoices, so **only approved contracts are shown**: contract records whose stored status is exactly `Contract-Approved` (`APPROVED_STATUS` in `server/furasData.js`; `FURAS_STATUS_SCOPE` overrides it, `''` or `all` turns the scope off). Everything is computed on that scope: the list, the overview, the integrity checks and the Data requests.
+
+* A number with an approved record is shown with its approved records only; the details page says how many other records of the number have another status and are not shown.
+* Payment and case rows are dropped only when they belong to **other** contracts. A row that matches no contract at all stays, so the integrity checks still see it. The file row count is kept beside the in-scope count (`fileRows`).
+* The exports hold **no invoices**. The only invoice evidence is the invoice date on payment rows; it is offered as a signal and a filter («With an invoice date») and is not an invoice link.
+* «Approved» is a business rule applied to the stored value; the exports do not document status meanings. Statuses such as `ContractExtension-Approved` and `ContractAddendum-Approved` are different documents and are not included.

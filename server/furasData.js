@@ -25,6 +25,10 @@ export const FURAS_KEEP = KEEP; // the only columns ever read (tests assert noth
 const VIEW_NAME = { contract: 'Contract', payment: 'Payment', contractmanagement: 'ContractManagement', entitymanagement: 'EntityManagement', imsfw_work: 'IMSFW_Work', investor: 'Investor' };
 const SCHEMA_COLS = { contract: 38, payment: 31, contractmanagement: 28, entitymanagement: 32, imsfw_work: 54, investor: 8 }; // business-schema columns; the files carry two more (SOURCE_PT, ETL_TIME)
 export const OUTSIDE_SUBSET = 'OUTSIDE-SUBSET'; // set by scripts/make-furas-subset.py on a renewal link whose target record is not in the subset (honoured only when the directory has a subset.json)
+// SCOPE (a business rule): only APPROVED contracts are shown, because the contract pages exist to be read together with invoices.
+// «Approved» = the stored contract status below, taken literally; FURAS_STATUS_SCOPE overrides it ('' or 'all' turns the scope off). Rows that belong only to other contracts are outside the scope too.
+export const APPROVED_STATUS = 'Contract-Approved';
+export const scopeStatus = () => { const v = process.env.FURAS_STATUS_SCOPE; return v === undefined ? APPROVED_STATUS : (v === '' || v.toLowerCase() === 'all' ? null : v); };
 const CAP = 10000; // a file with exactly this many rows is treated as a capped sample (the cap rule itself is not documented)
 const FLAGGED_MUNICIPALITIES = new Set(['002']); // the data's wording differs from the generated demo's («أمانة العاصمة المقدسة» vs «أمانة منطقة مكة المكرمة»): entity scope to be confirmed
 
@@ -75,12 +79,36 @@ export function loadFuras() {
       const text = await fs.promises.readFile(files[k], 'utf8'); const p = parseCsv(text, KEEP[k]);
       D.views[k] = { name: VIEW_NAME[k], rows: p.n, columns: p.header.length, schemaColumns: SCHEMA_COLS[k], capped: p.n === CAP, cols: p.cols };
     }
+    applyScope(D, scopeStatus());
     index(D); console.log('[furas] local exports loaded'); // counts and values are never logged
     return D;
   })().catch((e) => { loading = null; throw e; });
   return loading;
 }
 export const resetFuras = () => { loading = null; };
+
+// keep only the rows of the approved contracts: contract records of the status; payment and case rows are dropped only when they belong to OTHER (not approved) contracts —
+// a row that matches no contract at all stays, so the integrity checks still see it. Numbers and opportunity numbers are compared in the whole Contract view first.
+function applyScope(D, status) {
+  D.scope = null; D.hiddenByNo = new Map(); if (!status) return;
+  const take = (v, keep) => { const V = D.views[v]; const out = {}; for (const k of Object.keys(V.cols)) out[k] = keep.map((i) => V.cols[k][i]); V.fileRows = V.rows; V.cols = out; V.rows = keep.length; };
+  const C = D.views.contract.cols; const nC = D.views.contract.rows;
+  const allNo = new Set(); const allOpp = new Set(); const apNo = new Set(); const apOpp = new Set(); const keepC = [];
+  for (let i = 0; i < nC; i += 1) {
+    const no = C.contractnumber[i]; const o = C.opportunitynumber[i]; if (no != null) allNo.add(no); if (o != null) allOpp.add(o);
+    if (C.opportunitystatus[i] === status) { keepC.push(i); if (no != null) apNo.add(no); if (o != null) apOpp.add(o); }
+  }
+  const hidden = new Map(); for (let i = 0; i < nC; i += 1) { if (C.opportunitystatus[i] === status) continue; const no = C.contractnumber[i]; if (no != null) hidden.set(no, (hidden.get(no) || 0) + 1); }
+  for (const [no, n] of hidden) if (apNo.has(no)) D.hiddenByNo.set(no, n);
+  const numbersOut = [...allNo].filter((n) => !apNo.has(n)).length;
+  const P = D.views.payment.cols; const keepP = []; for (let i = 0; i < D.views.payment.rows; i += 1) { const no = P.contractid[i]; if (no != null && allNo.has(no) && !apNo.has(no)) continue; keepP.push(i); }
+  const keepCase = (v) => { const X = D.views[v].cols; const keep = []; for (let i = 0; i < D.views[v].rows; i += 1) { const no = X.contractnumber[i]; const o = X.opportunitynumber[i]; const matchesAp = (no != null && apNo.has(no)) || (o != null && apOpp.has(o)); const matchesOther = !matchesAp && ((no != null && allNo.has(no)) || (o != null && allOpp.has(o))); if (!matchesOther) keep.push(i); } return keep; };
+  const before = Object.fromEntries(Object.keys(D.views).map((k) => [k, D.views[k].rows]));
+  const wasCapped = D.views.payment.capped;
+  take('contract', keepC); take('payment', keepP); for (const v of ['contractmanagement', 'entitymanagement', 'imsfw_work']) take(v, keepCase(v));
+  D.views.payment.capped = wasCapped; // the cap is a property of the file, not of the scope
+  D.scope = { status, numbersOutside: numbersOut, recordsOutside: before.contract - D.views.contract.rows, excluded: Object.fromEntries(['contract', 'payment', 'contractmanagement', 'entitymanagement', 'imsfw_work'].map((k) => [k, before[k] - D.views[k].rows])) };
+}
 
 function index(D) {
   const C = D.views.contract.cols; const P = D.views.payment.cols; const nC = D.views.contract.rows; const nP = D.views.payment.rows;
@@ -128,6 +156,7 @@ function numberRows(D) {
     const oppGroups = new Set(idx.map((i) => C.opportunitynumber[i])); const opps = [...oppGroups].filter((x) => x != null).length;
     out.push({
       no, n: idx.length, opps, groups: oppGroups.size, shape: shapeOf(idx.length, oppGroups.size), types: top(types), statuses: top(statuses), codes: [...codes.keys()], payRows: (D.payByNo.get(no) || []).length,
+      invRows: (D.payByNo.get(no) || []).filter((i) => D.views.payment.cols.invoicedate[i] != null).length, hidden: D.hiddenByNo.get(no) || 0,
       valueState: vals.size === 0 ? 'none' : vals.size === 1 ? 'single' : 'conflict', value: vals.size === 1 ? Number([...vals][0]) : null, valueCount: vals.size,
       annualState: ann.size === 0 ? 'none' : ann.size === 1 ? 'single' : 'conflict', annual: ann.size === 1 ? Number([...ann][0]) : null,
       conflicts: { status: statuses.size > 1, type: types.size > 1, value: vals.size > 1, annual: ann.size > 1, endDate: ends.size > 1, municipality: codes.size > 1 }
@@ -142,7 +171,7 @@ export async function furasSummary() {
   const D = await loadFuras(); if (D.summary) return D.summary;
   const C = D.views.contract.cols; const P = D.views.payment.cols; const nC = D.views.contract.rows; const nP = D.views.payment.rows; const rows = numberRows(D);
   const extract = D.partition;
-  const files = Object.keys(KEEP).map((k) => { const v = D.views[k]; return { key: k, view: v.name, rows: v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: D.subset ? 'subset' : v.capped ? 'capped_sample' : 'not_capped' }; });
+  const files = Object.keys(KEEP).map((k) => { const v = D.views[k]; return { key: k, view: v.name, rows: v.rows, fileRows: v.fileRows ?? v.rows, columns: v.columns, schemaColumns: v.schemaColumns, scope: D.subset ? 'subset' : v.capped ? 'capped_sample' : 'not_capped' }; });
   // contract numbers and records
   const repeated = rows.filter((r) => r.n > 1);
   const conflicts = (k) => repeated.filter((r) => r.conflicts[k]).length;
@@ -175,7 +204,7 @@ export async function furasSummary() {
   const sadadFilled = (v) => D.views[v].cols.sadadbillnumber.filter((x) => x != null).length;
   const pFound = P.investorid.filter((x) => x != null && D.investors.has(x)).length; const pInv = P.investorid.filter((x) => x != null).length;
   D.summary = {
-    dataset: { title: 'Furas Databank exports', schema: 'Furas business schema', extract, etl: D.etl, files, subset: D.subset, note: 'Read locally at runtime; not in Git, not in any build, not in any log.' },
+    dataset: { title: 'Furas Databank exports', schema: 'Furas business schema', extract, etl: D.etl, files, subset: D.subset, scope: D.scope, note: 'Read locally at runtime; not in Git, not in any build, not in any log.' },
     contracts: {
       shapes: Object.fromEntries(SHAPES.map((k) => [k, rows.filter((r) => r.shape === k).length])), records: nC, distinctNumbers: D.byNo.size, recordsWithoutNumber: D.noNumber, numbersWithSeveralRecords: repeated.length, recordsInRepeatedNumbers: repeated.reduce((t, r) => t + r.n, 0), maxRecordsPerNumber: rows.reduce((m, r) => Math.max(m, r.n), 0),
       recordKeyUnique: D.byPz.size === nC, conflictsAmongRepeated: { status: conflicts('status'), type: conflicts('type'), value: conflicts('value'), annual: conflicts('annual'), endDate: conflicts('endDate'), municipality: conflicts('municipality') },
@@ -191,7 +220,7 @@ export async function furasSummary() {
       scheduledAmount: { total: amountTotal, rows: amountRows, zeroRows: zero }, byStatus: byPayStatus,
       byMethod: top(countBy(P.methodofcollectingpayments.filter((x) => x != null))).map(([value, rows2_]) => ({ value, rows: rows2_ })), byType: top(countBy(P.paymenttype.filter((x) => x != null))).map(([value, rows2_]) => ({ value, rows: rows2_ })),
       dueDateFlags: flagCount('paymentduedate'), invoiceDateFlags: flagCount('invoicedate', { noFuture: true }), paymentDateFlags: flagCount('paymentdate', { noFuture: true }),
-      invoiceDateFilled: P.invoicedate.filter((x) => x != null).length, paymentDateFilled: P.paymentdate.filter((x) => x != null).length, collectedFieldFilled: P.batchamountpaid.filter((x) => x != null).length,
+      invoiceDateFilled: P.invoicedate.filter((x) => x != null).length, numbersWithInvoiceDate: rows.filter((r) => r.invRows > 0).length, paymentDateFilled: P.paymentdate.filter((x) => x != null).length, collectedFieldFilled: P.batchamountpaid.filter((x) => x != null).length,
       latest: { createdField: 'PXCREATEDATETIME', created: createMax || null, paymentDateField: 'PAYMENTDATE (rows with status Paid, values after the extract date excluded)', paymentDate: paidDates.sort().pop() || null },
       investorIdFound: pFound, investorIdFilled: pInv
     },
@@ -213,13 +242,14 @@ export async function furasContracts(body = {}) {
   if (f.severalRecords) rows = rows.filter((r) => r.n > 1);
   if (f.conflicting) rows = rows.filter((r) => Object.values(r.conflicts).some(Boolean));
   if (f.inPaymentExtract) rows = rows.filter((r) => r.payRows > 0);
+  if (f.withInvoiceDate) rows = rows.filter((r) => r.invRows > 0);
   const size = Math.min(100, Math.max(1, Number(body.pageSize) || 25)); const page = Math.max(0, Number(body.page) || 0);
   const names = D.municipalities;
   return {
     total: rows.length, page, pageSize: size,
     rows: rows.slice(page * size, (page + 1) * size).map((r) => ({
       no: r.no, records: r.n, opportunities: r.opps, shape: r.shape, types: r.types.map(([value, n]) => ({ value, records: n })), statuses: r.statuses.map(([value, n]) => ({ value, records: n })),
-      municipalities: r.codes.map((c) => ({ code: c, sourceName: names.get(c)?.sourceName || null })), paymentRowsInExtract: r.payRows,
+      municipalities: r.codes.map((c) => ({ code: c, sourceName: names.get(c)?.sourceName || null })), paymentRowsInExtract: r.payRows, invoiceDateRows: r.invRows, hiddenRecords: r.hidden,
       contractValue: { state: r.valueState, value: r.value, distinct: r.valueCount }, annualValue: { state: r.annualState, value: r.annual }, conflicts: r.conflicts
     }))
   };
@@ -258,6 +288,7 @@ export async function furasContract(no) {
   })).sort((a, b) => (a.batchNumber ?? 1e9) - (b.batchNumber ?? 1e9) || String(a.dueDate).localeCompare(String(b.dueDate)));
   const M = D.views.contractmanagement.cols; const cm = new Set(D.cmByNo.get(key) || []); for (const o of oppSet) for (const i of D.cmByOpp.get(o) || []) cm.add(i);
   return {
+    scope: D.scope ? { status: D.scope.status, hiddenRecords: D.hiddenByNo.get(key) || 0 } : null,
     contractNumber: key, records, recordCount: records.length, shape: shapeOf(records.length, groups.length), opportunityCount: groups.filter((g) => g.opportunityNumber != null).length, groups, differingFields: differing, currentRecordDetermined: false,
     payments: { rows: payments, rowsInExtract: payments.length, extractIsCapped: D.views.payment.capped },
     caseRows: { count: cm.size, byLabel: top(countBy([...cm].map((i) => M.pylabel[i] || null))).map(([value, n]) => ({ value, rows: n })) },

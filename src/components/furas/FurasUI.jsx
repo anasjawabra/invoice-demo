@@ -9,6 +9,7 @@ const PATHS = {
   layers: 'M12 3l9 5-9 5-9-5 9-5zM3 13l9 5 9-5M3 17.5l9 5 9-5',
   table: 'M3 5h18v14H3zM3 10h18M9 5v14',
   info: 'M12 16v-5m0-3h.01M12 22a10 10 0 100-20 10 10 0 000 20z',
+  check: 'M5 13l4 4L19 7',
   x: 'M6 6l12 12M18 6L6 18'
 };
 export const Icon = ({ name }) => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={PATHS[name]} /></svg>;

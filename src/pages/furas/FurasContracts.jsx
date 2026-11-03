@@ -12,7 +12,7 @@ import { DatasetBanner, LimitsPanel, IntegrityChecks, FurasOverview } from '../.
 import { Chip, Icon, NaCell, StatStrip, Tabs } from '../../components/furas/FurasUI';
 import { stored, storedOption, storedText, LITERAL_NOTE } from '../../data/furasLabels';
 
-const EMPTY = { q: '', type: '', status: '', municipality: '', shape: '', severalRecords: false, conflicting: false, inPaymentExtract: false };
+const EMPTY = { q: '', type: '', status: '', municipality: '', shape: '', withInvoiceDate: false, severalRecords: false, conflicting: false, inPaymentExtract: false };
 const PS = 25;
 const CONFLICT_LABEL = { status: ['status', 'الحالة'], value: ['contract value', 'قيمة العقد'], annual: ['annual value', 'القيمة السنوية'], type: ['service type', 'نوع الخدمة'], endDate: ['end date', 'تاريخ النهاية'], municipality: ['Amanah', 'الأمانة'] };
 
@@ -25,10 +25,11 @@ export default function FurasContracts() {
   const [f, setF] = useState(EMPTY); const [page, setPage] = useState(0);
   const upd = (patch) => { setF((x) => ({ ...x, ...patch })); setPage(0); };
   const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
-  const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, shape: f.shape, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
+  const body = useMemo(() => ({ q: f.q, page, pageSize: PS, filter: { type: f.type, status: f.status, municipality: f.municipality, shape: f.shape, withInvoiceDate: f.withInvoiceDate, severalRecords: f.severalRecords, conflicting: f.conflicting, inPaymentExtract: f.inPaymentExtract } }), [f, page]);
   const { data: list, loading, error } = useAsync(() => (tab === 'contracts' ? furas.contracts(body) : Promise.resolve(null)), [body, tab]);
   const active = [f.q && { k: 'q', label: `“${f.q}”` }, f.type && { k: 'type', label: storedText('type', f.type, ar) }, f.status && { k: 'status', label: storedText('status', f.status, ar) }, f.municipality && { k: 'municipality', label: S?.contracts.byMunicipality.find((m) => m.code === f.municipality)?.sourceName || f.municipality },
     f.shape && { k: 'shape', label: SHAPE[f.shape] },
+    f.withInvoiceDate && { k: 'withInvoiceDate', label: L('With an invoice date', 'بتاريخ فاتورة') },
     f.severalRecords && { k: 'severalRecords', label: L('Several records', 'عدة سجلات') }, f.conflicting && { k: 'conflicting', label: L('Conflicting records', 'سجلات متعارضة') }, f.inPaymentExtract && { k: 'inPaymentExtract', label: L('In the payment extract', 'في مستخرج الدفعات') }].filter(Boolean);
   const reset = (k) => upd({ [k]: EMPTY[k] });
   const SHAPE = { single: L('Single record', 'سجل واحد'), versions: L('One opportunity, several records', 'فرصة واحدة بعدة سجلات'), multi: L('Several opportunities', 'عدة فرص') };
@@ -57,13 +58,14 @@ export default function FurasContracts() {
             <div className="fu-tools__row">
               <label className="fu-search"><Icon name="search" /><span className="fu-sr">{L('Search a contract number', 'ابحث برقم العقد')}</span><input type="search" value={f.q} onChange={(e) => upd({ q: e.target.value })} placeholder={L('Search a contract number…', 'ابحث برقم العقد…')} dir="ltr" autoComplete="off" /></label>
               <select className="fu-select" aria-label={L('Service type', 'نوع الخدمة')} value={f.type} onChange={(e) => upd({ type: e.target.value })}><option value="">{L('All service types', 'كل أنواع الخدمة')}</option>{S?.contracts.byType.map((x) => <option key={x.value} value={x.value}>{storedOption('type', x.value, ar)}</option>)}</select>
-              <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{storedOption('status', x.value, ar)}</option>)}</select>
+              {!S?.dataset.scope && <select className="fu-select" aria-label={L('Status (as stored)', 'الحالة (كما هي)')} value={f.status} onChange={(e) => upd({ status: e.target.value })}><option value="">{L('All statuses', 'كل الحالات')}</option>{S?.contracts.byStatus.map((x) => <option key={x.value} value={x.value}>{storedOption('status', x.value, ar)}</option>)}</select>}
               <select className="fu-select" aria-label={L('Structure', 'البنية')} value={f.shape} onChange={(e) => upd({ shape: e.target.value })}><option value="">{L('All structures', 'كل البنى')}</option>{['single', 'versions', 'multi'].map((k) => <option key={k} value={k}>{SHAPE[k]}{c ? ` (${count(c.shapes[k])})` : ''}</option>)}</select>
               <select className="fu-select" aria-label={L('Amanah (source)', 'الأمانة (المصدر)')} value={f.municipality} onChange={(e) => upd({ municipality: e.target.value })}><option value="">{L('All Amanahs', 'كل الأمانات')}</option>{S?.contracts.byMunicipality.map((m) => <option key={m.code} value={m.code}>{m.code} · {m.sourceName}</option>)}</select>
             </div>
             <div className="fu-tools__row" role="group" aria-label={L('Quick filters', 'تصفية سريعة')}>
               <button type="button" className="fu-toggle" aria-pressed={f.severalRecords} onClick={() => upd({ severalRecords: !f.severalRecords })}><Icon name="layers" /> {L('Several records', 'عدة سجلات')}</button>
               <button type="button" className="fu-toggle" aria-pressed={f.conflicting} onClick={() => upd({ conflicting: !f.conflicting })}><Icon name="alert" /> {L('Conflicting records', 'سجلات متعارضة')}</button>
+              <button type="button" className="fu-toggle" aria-pressed={f.withInvoiceDate} onClick={() => upd({ withInvoiceDate: !f.withInvoiceDate })} title={L('Payment rows that carry an invoice date. The exports hold no invoices: this is not a validated link to an installment.', 'صفوف دفعات تحمل تاريخ فاتورة. لا تحوي التصديرات فواتير: وهذا ليس ربطاً متحقَّقاً بقسط.')}><Icon name="table" /> {L('With an invoice date', 'بتاريخ فاتورة')}{c ? ` (${count(p.numbersWithInvoiceDate)})` : ''}</button>
               <button type="button" className="fu-toggle" aria-pressed={f.inPaymentExtract} onClick={() => upd({ inPaymentExtract: !f.inPaymentExtract })}><Icon name="table" /> {L('In the payment extract', 'في مستخرج الدفعات')}</button>
             </div>
             <div className="fu-tools__meta">
@@ -88,8 +90,9 @@ export default function FurasContracts() {
                   <div role="cell" data-col="value" className="fu-cell fu-cell--num" dir="ltr">{r.contractValue.state === 'none' ? <NaCell /> : r.contractValue.state === 'conflict' ? <Chip tone="warn" icon="alert" title={L('Records disagree; no value is chosen', 'السجلات متعارضة؛ ولا تُختار قيمة')}>{L(`${r.contractValue.distinct} values`, `${r.contractValue.distinct} قيم`)}</Chip> : sar(r.contractValue.value)}</div>
                   <div role="cell" data-col="signals" className="fu-cell"><span className="fu-chips">
                     {conflictKeys.length > 0 && <Chip tone="warn" icon="alert" title={L('Records differ on: ', 'تختلف السجلات في: ') + conflictKeys.map((k) => B({ en: CONFLICT_LABEL[k][0], ar: CONFLICT_LABEL[k][1] })).join(ar ? '، ' : ', ')}>{L('Differ', 'متعارضة')}</Chip>}
+                    {r.invoiceDateRows > 0 && <Chip tone="ok" icon="check" title={L('Payment rows with an invoice date (not a validated invoice link)', 'صفوف دفعات بتاريخ فاتورة (وليس ربطاً متحقَّقاً بفاتورة)')}>{L(`${r.invoiceDateRows} invoiced`, `${r.invoiceDateRows} مفوترة`)}</Chip>}
                     {r.paymentRowsInExtract > 0 && <Chip tone="info" icon="table" title={L('Payment rows for this number in the limited extract', 'صفوف دفعات لهذا الرقم في المستخرج المحدود')}>{count(r.paymentRowsInExtract)}</Chip>}
-                    {conflictKeys.length === 0 && r.paymentRowsInExtract === 0 && <span className="fu-na fu-dot">·</span>}
+                    {conflictKeys.length === 0 && r.paymentRowsInExtract === 0 && !r.invoiceDateRows && <span className="fu-na fu-dot">·</span>}
                   </span></div>
                 </div>);
             })}
