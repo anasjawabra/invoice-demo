@@ -10,8 +10,6 @@ import { riyadhToday, DEMO_TODAY, IS_TIME_TRAVEL } from '../data/clock';
 import { ToastProvider, useToast } from './Toast';
 import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
-import { useDataMode } from '../context/DataModeContext';
-import FurasUnavailable from '../pages/furas/FurasUnavailable';
 import { useFitTables } from '../utils/fitTables';
 
 function Icon({ name }) {
@@ -130,8 +128,6 @@ function LayoutInner() {
   const toast = useToast();
   const nav = useNavigate();
   const loc = useLocation();
-  const dm = useDataMode();
-  const furasSupported = /^\/(contracts|decisions)(\/|$)|^\/products\/foras$/.test(loc.pathname); // the pages that have a Furas-dataset version; every other page is built on generated invoices
   // after a route change, keyboard / screen-reader focus moves to the new page's heading (not on the first load, and not when only the query changes)
   const firstRoute = useRef(true);
   useEffect(() => {
@@ -217,14 +213,8 @@ function LayoutInner() {
                 <span>{t('brand_tagline')}</span>
               </div>
             </NavLink>
-            {dm.available && (
-              <div className="data-mode" role="group" aria-label={lang === 'ar' ? 'مصدر البيانات' : 'Data source'}>
-                <button type="button" className={`btn btn-sm${!dm.isFuras ? ' btn-primary' : ''}`} aria-pressed={!dm.isFuras} onClick={() => dm.setMode('demo')}>{lang === 'ar' ? 'عرض مُولَّد' : 'Generated demo'}</button>
-                <button type="button" className={`btn btn-sm${dm.isFuras ? ' btn-primary' : ''}`} aria-pressed={dm.isFuras} onClick={() => dm.setMode('furas')}>{lang === 'ar' ? 'تصديرات فرص' : 'Furas exports'}</button>
-              </div>
-            )}
             <details className="demo-note">
-              <summary>{dm.isFuras ? (lang === 'ar' ? 'بيانات فرص (محلية)' : 'Furas data (local)') : (lang === 'ar' ? 'بيانات تجريبية' : 'Demo data')}</summary>
+              <summary>{lang === 'ar' ? 'بيانات تجريبية' : 'Demo data'}</summary>
               <div role="note">{lang === 'ar' ? `بيانات اصطناعية وليست بيانات الوزارة الفعلية${rev.meta?.size === 'compact' ? ` (عينة مضغوطة: ${rev.meta.counts?.invoicesTotal ?? ''} فاتورة)` : ''}. التواريخ والأوقات بتوقيت الرياض.` : `Synthetic data, not the Ministry’s actual data${rev.meta?.size === 'compact' ? ` (compact sample: ${rev.meta.counts?.invoicesTotal ?? ''} invoices)` : ''}. Dates and times are Asia/Riyadh.`}</div>
             </details>
           </div>
@@ -392,9 +382,9 @@ function LayoutInner() {
 
         <section className="content" id="main-content" tabIndex={-1}>
           {lang === 'zh' && <div className="rv-callout" role="note" data-testid="zh-notice"><span lang="zh-CN">中文翻译不完整：当前大部分页面、导航和报告尚未翻译，以英文显示（仅部分旧版文本为中文）。</span> <span lang="en">The Chinese translation is incomplete: most current pages, navigation and reports are not translated and are shown in English (only some legacy text is Chinese). Arabic and English are the fully authored languages.</span></div>}
-          <div lang={lang === 'zh' ? 'en' : undefined}>{dm.isFuras && !furasSupported ? <FurasUnavailable /> : <Outlet />}</div>
+          <div lang={lang === 'zh' ? 'en' : undefined}><Outlet /></div>
         </section>
-        <footer className="app-footer">{dm.isFuras ? (lang === 'ar' ? 'وضع بيانات فرص: قراءة محلية لتصديرات بنك البيانات — ليست في Git ولا في أي إصدار منشور · التواريخ والأوقات بتوقيت الرياض' : 'Furas dataset mode: a local read of the Databank exports — not in Git or in any published build · dates and times are Asia/Riyadh') : lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data · dates and times are Asia/Riyadh'}</footer>
+        <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة، عدا صفحات العقود الاستثمارية فتقرأ نسخة محلية من تصديرات بنك البيانات · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data, except the Investment contracts pages, which read a local copy of the Databank exports · dates and times are Asia/Riyadh'}</footer>
 
         <FloatingAssistantButton />
         <AnalysisHost />

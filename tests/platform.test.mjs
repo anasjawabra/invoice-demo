@@ -1955,21 +1955,21 @@ await test('Group A · «due — no invoice linked» is a proposed rule over the
   assert.ok(text.includes(PR_A.en) && text.includes(PR_A.ar)); assert.match(text, /generated/i); for (const p of RULE_A.prerequisites) assert.ok(text.includes(p.en) && text.includes(p.ar), `Decision Room names «${p.key}»`);
   assert.ok(it.cause.status === 'hypothesis' && !/found in the Furas extract/i.test(text), 'never presented as an extract finding');
   // the pages: no page prints the phrase without the candidate-rule wording (they all read it from contractRules)
-  for (const f of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/data/decisionRoom.js', 'src/data/contracts.js']) {
+  for (const f of ['src/data/decisionRoom.js', 'src/data/contracts.js']) {
     const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/L\('Due — no invoice linked'/.test(src), `${f}: the old unlabelled wording is gone`); assert.ok(/UNLINKED_RULE|CandidateRuleNote/.test(src), `${f}: reads the shared candidate-rule text`);
   }
 });
 await test('Data accuracy · one wording for what the data does not support («Not available in the current data») and one for unconfirmed rules («Proposed rule — requires confirmation»), used everywhere on the contract surfaces', () => {
   assert.equal(NA_A.en, 'Not available in the current data'); assert.equal(PR_A.en, 'Proposed rule — requires confirmation'); assert.ok(NA_A.ar && PR_A.ar);
   assert.deepEqual(DSTATE_A.unknown, NA_A); assert.equal(cst_A(null, (x) => x.en, (en) => en), NA_A.en); assert.equal(cst_A('Contract-X', (x) => x.en, (en) => en), 'Contract-X (value not recognised)');
-  for (const f of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/pages/InvoicePage.jsx', 'src/data/contracts.js', 'src/data/decisionRoom.js', 'src/data/dictionaryDocs.js', 'src/components/record/OriginParts.jsx', 'src/data/contractRules.js']) {
+  for (const f of ['src/pages/InvoicePage.jsx', 'src/data/contracts.js', 'src/data/decisionRoom.js', 'src/data/dictionaryDocs.js', 'src/components/record/OriginParts.jsx', 'src/data/contractRules.js']) {
     const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/Not available from source|Not provided by source|غير متاح من المصدر|candidate rule|قاعدة مرشَّحة|candidate, unapproved/i.test(src), `${f}: no old wording`);
   }
   assert.deepEqual(Object.keys(PRS_A).sort(), ['due_no_invoice_linked', 'overdue_no_grace', 'term_ended']);
   for (const [k, r] of Object.entries(PRS_A)) assert.ok(r.statement.ar && r.statement.en && r.label.en, k);
   assert.deepEqual(Object.keys(proposedRules_A()).sort(), Object.keys(PRS_A).sort()); assert.ok(Object.values(proposedRules_A()).every((x) => x.status === 'proposed' && x.scope === 'generated_demo_ledger'));
-  const page = nodeFs.readFileSync('src/pages/ContractPage.jsx', 'utf8'); assert.ok(page.includes('rule="term_ended"') && page.includes('rule="overdue_no_grace"') && page.includes('DataLimitsNote'));
-  const list = nodeFs.readFileSync('src/pages/Contracts.jsx', 'utf8'); assert.ok(list.includes('rule="overdue_no_grace"') && list.includes('rule="due_no_invoice_linked"') && list.includes('DataLimitsNote'));
+  // the generated contract pages were replaced by the Databank-schema pages (src/pages/furas); the rule wording is still checked on the Decision Room and the data files above
+
 });
 await test('Data accuracy · the limits shown are qualitative (no real figure), each is tagged not-available / proposed / limited-sample / demo, and they say what the current data cannot support', () => {
   const kinds = new Set(Object.keys(LKIND_A)); assert.deepEqual([...kinds].sort(), ['demo', 'limited_sample', 'not_available', 'proposed']);
@@ -1997,10 +1997,10 @@ await test('Data accuracy · «net invoiced due to date» = net (gross − exclu
   const ru = contractRollup_A(full); assert.equal(ru.unlinkedInstallments, full.reduce((t, c) => t + c.totals.unlinkedInstallments, 0));
   const prod = nodeFs.readFileSync('src/pages/ProductPage.jsx', 'utf8'); assert.ok(!/Receivables to date|المستحقات حتى تاريخه/.test(prod), 'the tile no longer calls a before-collections amount «receivables»');
   assert.ok(prod.includes('Net invoiced and due to date (before collections)') && prod.includes('t.netDueToDate') && !/t\.dueToDate/.test(prod));
-  for (const f of ['src/pages/ContractPage.jsx', 'src/data/dictionaryDocs.js', 'server/contracts.js']) assert.ok(!/\bdueToDate\b/.test(nodeFs.readFileSync(f, 'utf8').replace(/netDueToDate|collectedOfDueToDate/g, '')), `${f}: no stale dueToDate`);
+  for (const f of ['src/data/dictionaryDocs.js', 'server/contracts.js']) assert.ok(!/\bdueToDate\b/.test(nodeFs.readFileSync(f, 'utf8').replace(/netDueToDate|collectedOfDueToDate/g, '')), `${f}: no stale dueToDate`);
 });
 await test('Data accuracy · API field rename: nothing reads or emits `candidateRules`, in the source or in the built outputs; `proposedRules` is on the card and the roll-up', () => {
-  const files = ['server/contracts.js', 'server/api.js', 'src/data/contractRules.js', 'src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/data/useDecisions.js', 'src/data/decisionRoom.js', 'src/api/client.js', 'api/_handler.mjs', 'dist-server/server.mjs'];
+  const files = ['server/contracts.js', 'server/api.js', 'src/data/contractRules.js', 'src/data/useDecisions.js', 'src/data/decisionRoom.js', 'src/api/client.js', 'api/_handler.mjs', 'dist-server/server.mjs'];
   for (const f of files) assert.ok(!/candidateRules/.test(nodeFs.readFileSync(f, 'utf8')), `${f}: no candidateRules`);
   for (const f of nodeFs.readdirSync('dist/assets').filter((x) => x.endsWith('.js'))) assert.ok(!/candidateRules/.test(nodeFs.readFileSync(`dist/assets/${f}`, 'utf8')), `dist/assets/${f}`);
   for (const f of ['api/_handler.mjs', 'dist-server/server.mjs']) assert.ok(nodeFs.readFileSync(f, 'utf8').includes('proposedRules'), `${f}: emits proposedRules`);
@@ -2012,9 +2012,9 @@ await test('Data accuracy · verification scope: there is no contract report or 
   const parity = nodeFs.readFileSync('scripts/export-parity.mjs', 'utf8'); assert.ok(!/contractCards|contractCard|totals\.netDueToDate|proposedRules/.test(parity), 'the parity script does not exercise contract data');
 });
 await test('Data accuracy · the generated schedule details («n of N», the schedule counts, the payment interval) are marked as generated / illustrative wherever they are shown', () => {
-  const page = nodeFs.readFileSync('src/pages/ContractPage.jsx', 'utf8'); const list = nodeFs.readFileSync('src/pages/Contracts.jsx', 'utf8'); const prod = nodeFs.readFileSync('src/pages/ProductPage.jsx', 'utf8'); const sr = nodeFs.readFileSync('server/sourceRecords.js', 'utf8');
-  assert.ok(page.includes("Installment (generated schedule)") && page.includes('field="schedule"') && page.includes('field="interval"') && page.includes('Payment interval (illustrative)'));
-  assert.ok(list.includes('Payments (generated schedule)')); assert.ok(prod.includes('sum of the generated schedules'));
+  const prod = nodeFs.readFileSync('src/pages/ProductPage.jsx', 'utf8'); const sr = nodeFs.readFileSync('server/sourceRecords.js', 'utf8');
+
+  assert.ok(prod.includes('sum of the generated schedules'));
   assert.ok(sr.includes("'Installment (generated schedule)'") && sr.includes("'Installments (generated schedule)'"));
   assert.ok(LIMITS_A.find((l) => l.key === 'schedule').en.includes('generated') && LIMITS_A.find((l) => l.key === 'frequency').en.includes('illustrative'));
 });
@@ -2215,9 +2215,13 @@ await test('Furas mode · local only: nothing is written, logged, committed, bui
   if (nodeFs.existsSync('furas-exports.local')) { const dir = nodeFs.readFileSync('furas-exports.local', 'utf8').trim(); const outs = ['api/_handler.mjs', 'dist-server/server.mjs', ...nodeFs.readdirSync('dist/assets').map((f) => `dist/assets/${f}`), 'dist/index.html']; for (const f of outs) assert.ok(!nodeFs.readFileSync(f, 'utf8').includes(dir), `${f} holds no local path`); }
   const api = nodeFs.readFileSync('server/api.js', 'utf8'); assert.ok(api.includes("path.startsWith('/furas/')") && api.includes("furas_unavailable"), 'the endpoints answer 404 when the mode is off');
 });
-await test('Furas mode · the pages use the selected dataset consistently: contracts, contract number, product and Decision Room switch together; other pages are marked not available; no generated engine is used', () => {
-  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); for (const r of ['path="contracts" element={<ModeRoute', 'path="contracts/:no" element={<ModeRoute', 'path="decisions" element={<ModeRoute', 'path="products/:key" element={<ProductRoute']) assert.ok(app.includes(r), r);
-  const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); assert.ok(lay.includes('dm.isFuras && !furasSupported ? <FurasUnavailable />') && lay.includes('contracts|decisions') && lay.includes('products\\/foras'));
+await test('Investment contracts · the contract pages always read the Databank-schema exports (no generated contract page, no data-mode switch); the data-requests view sits in the contracts page; no generated engine is used', () => {
+  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); for (const r of ['path="contracts" element={<FurasContracts />}', 'path="contracts/:no" element={<FurasContract />}', 'path="decisions" element={<DecisionRoom />}', 'path="products/:key" element={<ProductRoute']) assert.ok(app.includes(r), r);
+  assert.ok(/key === 'foras' \? <FurasProduct \/> : <ProductPage \/>/.test(app), 'the Furas product page is built on the exports, every other product on the generated invoices');
+  for (const gone of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/context/DataModeContext.jsx']) assert.ok(!nodeFs.existsSync(gone), `${gone} was removed`);
+  const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); assert.ok(!lay.includes('useDataMode') && !lay.includes('data-mode') && !lay.includes('furasSupported'), 'no data-mode switch');
+  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes("furasUnavailable(sErr)") && list.includes("key: 'requests'") && list.includes('<FurasDecisionRoom embedded />'), 'an unconfigured server shows the unavailable state; data requests are a tab of the contracts page');
+  for (const f of ['src/pages/furas/FurasContract.jsx', 'src/pages/furas/FurasProduct.jsx']) assert.ok(nodeFs.readFileSync(f, 'utf8').includes('furasUnavailable('), `${f}: unavailable state`);
   for (const f of nodeFs.readdirSync('src/pages/furas').map((x) => `src/pages/furas/${x}`).concat(nodeFs.readdirSync('src/components/furas').map((x) => `src/components/furas/${x}`))) { const t = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/useRevenue|rev\.data|contractCards|buildDecisionItems|\/api\/client/.test(t), `${f}: no generated-demo source`); }
   const di = { dataset: {}, repeated: { numbers: 2, records: 4, conflicts: { status: 1 } }, conflictingValues: 1, payments: { rows: 10000, capped: true, distinctNumbers: 5, rowsMatchingSeveralRecords: 2, rowsNotFound: 1, contractsWithThreePlusRows: 3, contiguous: 1 }, dateIssues: { due: 1, invoice: 1, payment: 1 }, startDateFilled: 1, records: 7, statusValues: 3, renewal: { links: 1, selfReference: 1, sameContractNumber: 1 } };
   const keys = furasItems(di).map((i) => i.key); assert.deepEqual(keys.sort(), ['furas:capped', 'furas:dates', 'furas:renewal', 'furas:repeated', 'furas:startdate', 'furas:status', 'furas:unmatched']); assert.ok(furasItems(di).every((i) => i.amount === null && !/overdue|aged|target|unlinked/.test(i.key)), 'no generated insight and no money amount');

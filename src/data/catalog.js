@@ -115,3 +115,6 @@ export const withGrp = (g) => g << GRP_SHIFT; export const withExt = (e) => e <<
 export const dayNum = (iso) => Math.floor(Date.UTC(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))) / 86400000);
 const isoCache = new Map();
 export const isoOf = (day) => { let s = isoCache.get(day); if (!s) { s = new Date(day * 86400000).toISOString().slice(0, 10); if (isoCache.size < 5000) isoCache.set(day, s); } return s; };
+
+// the display name of an Amanah / entity (Arabic or English) from the catalog; an unknown name is returned as it is
+export const amanahName = (en, ar) => { const a = (ENTITIES || AMANAH_CATALOG).find((x) => x.en === en); return a ? (ar ? a.ar : a.en) : en; };

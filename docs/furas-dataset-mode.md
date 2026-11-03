@@ -34,3 +34,13 @@ Put the export directory in the git-ignored file `furas-exports.local` (one line
 * **Renewal links.** A link to a record that is not in the subset keeps the fixed marker `OUTSIDE-SUBSET` (no identifier of the outside record). It is shown as «related record outside this subset», and is counted apart from «no link» and from «target record not found». The marker is honoured only when the directory has a `subset.json`.
 * **Identifiers.** Columns outside the non-personal whitelist are blank. Investor ids (and the ids embedded in record keys) are replaced by consistent fake ids from a seeded shuffle, so matching, repeats and gaps are preserved but no real id remains; bill numbers keep only a «filled» placeholder. Contract, opportunity and payment numbers are real business identifiers and stay: the subset must remain local.
 * **Reproducible.** The selection and the fake ids are deterministic (verified with different hash seeds).
+
+## Update: the contract pages always read the Databank-schema data
+
+The data-mode switch was removed. `/contracts`, `/contracts/:no` and `/products/foras` always read the local exports (the 100-contract-number scenario subset, or the full folder if `furas-exports.local` points to it); the generated contract pages (`Contracts.jsx`, `ContractPage.jsx`) and the `DataModeContext` were deleted. Where the exports are not configured (always on a deployment) the pages show an unavailable state and no contract. The Furas data-quality items now live in the contracts page, tab «Data requests».
+
+The generated contract engine (`server/contracts.js`, the ledger's contract field) is kept because invoice features still use it (order matching, invoice contract status) and its tests guard the Phase 1 financial identities; no page shows it any more.
+
+### Structure of a contract number
+
+Records of a number are grouped by **opportunity number**: *single* (one record), *versions* (several records, one opportunity) and *multi* (two or more opportunities). The list shows «N opportunities · M records» with a Structure filter; the details page shows the tree contract number → opportunities → records, the records of each opportunity side by side with differences lit, differences reported separately within and between opportunities, and the Databank column name beside every field.

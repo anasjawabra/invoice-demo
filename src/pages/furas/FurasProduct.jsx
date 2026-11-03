@@ -2,14 +2,16 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useL } from '../../utils/bi';
 import { useAsync } from '../../utils/useAsync';
-import { furas } from '../../api/furasClient';
+import { furas, furasUnavailable } from '../../api/furasClient';
+import FurasUnavailable from './FurasUnavailable';
 import { DatasetBanner, LimitsPanel, FurasOverview } from '../../components/furas/FurasParts';
 import { Chip, NaCell } from '../../components/furas/FurasUI';
 
 // The Furas product page in FURAS DATASET MODE: the contract and payment facts of the exports. Invoice-based KPIs need invoices, which the exports do not contain.
 export default function FurasProduct() {
   const { L } = useL();
-  const { data: S } = useAsync(() => furas.summary(), []);
+  const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
+  if (furasUnavailable(sErr)) return <FurasUnavailable />;
   return (
     <div className="fu-page">
       <header className="fu-head"><div>

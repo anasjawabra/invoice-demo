@@ -6,7 +6,6 @@ import { I18nProvider } from './context/I18nContext';
 import { AuthProvider } from './context/AuthContext';
 import { RevenueProvider } from './context/RevenueContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { DataModeProvider } from './context/DataModeContext';
 // IBM Plex Sans Arabic, self-hosted (no external font request); one family for Arabic and Latin text and digits
 import '@fontsource/ibm-plex-sans-arabic/400.css';
 import '@fontsource/ibm-plex-sans-arabic/500.css';
@@ -25,11 +24,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <ThemeProvider>
         <I18nProvider>
           <AuthProvider>
-            <DataModeProvider>
               <RevenueProvider>
                 <App />
               </RevenueProvider>
-            </DataModeProvider>
           </AuthProvider>
         </I18nProvider>
       </ThemeProvider>

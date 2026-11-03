@@ -12,7 +12,7 @@ import { locLabel } from '../data/docxText';
 import { analyzeNotation } from '../data/sanadSource';
 import { nextActionOf, matchCriteria, confidenceOf, CONFIDENCE_LABEL, rowState } from '../data/orderSummary';
 import { SHOW_INTERNAL_NOTES } from '../data/uiFlags';
-import { amanahName } from './Contracts';
+import { amanahName } from '../data/catalog';
 import { OrderStatusChip, PayStatusChip, Chip, LINK_STATUS_LABEL, KIND_LABEL, SOURCE_LABEL, IntegrationNotice } from '../components/revenue/EnforcementUI';
 import { RecordLink, useReturnTarget } from '../utils/returnContext';
 import { invoicePath, contractPath, ordersListPath } from '../utils/paths';

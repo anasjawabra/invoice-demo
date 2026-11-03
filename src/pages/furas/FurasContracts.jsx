@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useL } from '../../utils/bi';
 import { useAsync } from '../../utils/useAsync';
-import { furas } from '../../api/furasClient';
+import { furas, furasUnavailable } from '../../api/furasClient';
+import FurasUnavailable from './FurasUnavailable';
+import FurasDecisionRoom from './FurasDecisionRoom';
 import Pager from '../../components/Pager';
 import { RecordState } from '../../components/record/RecordPage';
 import { contractPath } from '../../utils/paths';
@@ -18,7 +20,7 @@ const CONFLICT_LABEL = { status: ['status', 'الحالة'], value: ['contract v
 export default function FurasContracts() {
   const { L, B, ar, count, sar } = useL();
   const nav = useNavigate(); const [sp, setSp] = useSearchParams();
-  const tab = ['overview', 'limits'].includes(sp.get('tab')) ? sp.get('tab') : 'contracts';
+  const tab = ['overview', 'limits', 'requests'].includes(sp.get('tab')) ? sp.get('tab') : 'contracts';
   const setTab = (k) => setSp(k === 'contracts' ? {} : { tab: k }, { replace: true });
   const [f, setF] = useState(EMPTY); const [page, setPage] = useState(0);
   const upd = (patch) => { setF((x) => ({ ...x, ...patch })); setPage(0); };
@@ -32,6 +34,7 @@ export default function FurasContracts() {
   const SHAPE = { single: L('Single record', 'سجل واحد'), versions: L('One opportunity, several records', 'فرصة واحدة بعدة سجلات'), multi: L('Several opportunities', 'عدة فرص') };
   const c = S?.contracts; const p = S?.payments;
   const chips = (arr, kind) => (arr.length ? <span className="fu-chips" title={arr.map((x) => stored(kind, x.value, false).raw + (x.n ? ` ×${x.n}` : '')).join(' · ')}>{arr.slice(0, 2).map((x) => <Chip key={x.value} title={stored(kind, x.value, ar).translated ? x.value : undefined}>{storedText(kind, x.value, ar)}{x.n ? ` ×${x.n}` : ''}</Chip>)}{arr.length > 2 && <Chip tone="muted">+{arr.length - 2}</Chip>}</span> : <NaCell />);
+  if (furasUnavailable(sErr) || furasUnavailable(error)) return <FurasUnavailable />;
   return (
     <div className="fu-page">
       <header className="fu-head"><div>
@@ -46,7 +49,7 @@ export default function FurasContracts() {
         { label: L('Numbers with several records', 'أرقام لها عدة سجلات'), value: count(c.numbersWithSeveralRecords), sub: L(`${count(c.shapes.multi)} several opportunities · ${count(c.shapes.versions)} one opportunity · tap to filter`, `${count(c.shapes.multi)} عدة فرص · ${count(c.shapes.versions)} فرصة واحدة · اضغط للتصفية`), tone: 'warn', onClick: () => { setTab('contracts'); upd({ severalRecords: !f.severalRecords }); }, active: f.severalRecords },
         { label: L('Payment rows in the extract', 'صفوف الدفعات في المستخرج'), value: count(p.rows), sub: L(`${count(p.distinctNumbers)} numbers · limited sample · tap to filter`, `${count(p.distinctNumbers)} رقماً · عيّنة محدودة · اضغط للتصفية`), onClick: () => { setTab('contracts'); upd({ inPaymentExtract: !f.inPaymentExtract }); }, active: f.inPaymentExtract }
       ]} />}
-      <Tabs label={L('Sections', 'الأقسام')} value={tab} onChange={setTab} tabs={[{ key: 'contracts', label: L('Contract numbers', 'أرقام العقود'), hint: c ? count(c.distinctNumbers) : null }, { key: 'overview', label: L('Dataset overview', 'نظرة على البيانات') }, { key: 'limits', label: L('Limits and checks', 'الحدود والفحوص') }]} />
+      <Tabs label={L('Sections', 'الأقسام')} value={tab} onChange={setTab} tabs={[{ key: 'contracts', label: L('Contract numbers', 'أرقام العقود'), hint: c ? count(c.distinctNumbers) : null }, { key: 'overview', label: L('Dataset overview', 'نظرة على البيانات') }, { key: 'limits', label: L('Limits and checks', 'الحدود والفحوص') }, { key: 'requests', label: L('Data requests', 'طلبات البيانات') }]} />
 
       {tab === 'contracts' && (
         <div role="tabpanel" id="fu-panel-contracts" aria-labelledby="fu-tab-contracts" style={{ display: 'grid', gap: 12 }}>
@@ -97,6 +100,7 @@ export default function FurasContracts() {
         </div>)}
 
       {tab === 'overview' && <div role="tabpanel" id="fu-panel-overview" aria-labelledby="fu-tab-overview" style={{ display: 'grid', gap: 16 }}>{S ? <FurasOverview S={S} /> : <div className="muted" role="status">{L('Reading the local exports…', 'جارٍ قراءة التصديرات المحلية…')}</div>}</div>}
+      {tab === 'requests' && <div role="tabpanel" id="fu-panel-requests" aria-labelledby="fu-tab-requests"><FurasDecisionRoom embedded /></div>}
       {tab === 'limits' && S && (
         <div role="tabpanel" id="fu-panel-limits" aria-labelledby="fu-tab-limits" className="fu-grid" style={{ alignItems: 'start' }}>
           <section className="fu-card"><h2>{L('What these exports support — and what they do not', 'ما تدعمه هذه التصديرات — وما لا تدعمه')}</h2><LimitsPanel S={S} /></section>

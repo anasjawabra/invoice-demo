@@ -44,14 +44,14 @@ export function StatStrip({ items }) {
   );
 }
 
-// a distribution as bars: rows = [{ label, a, b }]; the bar is a's share of the largest a
+// a distribution as bars: rows = [{ key, label, title, a, b }]; the bar is a's share of the largest a. Two stored values can read the same once translated (spelling variants), so the key is the stored value, never the label.
 export function BarList({ rows, format, second }) {
   const max = Math.max(1, ...rows.map((r) => r.a));
   return (
     <ul className="fu-bars">
-      {rows.map((r) => (
-        <li key={r.label} className="fu-bar">
-          <span className="fu-bar__label" dir="auto">{r.label}{r.chip}</span>
+      {rows.map((r, i) => (
+        <li key={r.key ?? `${r.label}#${i}`} className="fu-bar">
+          <span className="fu-bar__label" dir="auto" title={r.title}>{r.label}{r.chip}</span>
           <span className="fu-bar__nums" dir="ltr">{format(r.a)}{second && r.b != null ? ` · ${second(r.b)}` : ''}</span>
           <span className="fu-bar__track" aria-hidden="true"><span className="fu-bar__fill" style={{ width: `${Math.max(1, (r.a / max) * 100)}%` }} /></span>
         </li>))}

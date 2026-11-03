@@ -8,7 +8,7 @@ import { reviewStatusOf, REVIEW_LABEL, orderAlerts, orderSearchBlob, normalizeSe
 import { SOURCE_STATUSES, DEBTOR_TYPES } from '../data/sanadSource';
 import { RecordLink, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { orderPath } from '../utils/paths';
-import { amanahName } from './Contracts';
+import { amanahName } from '../data/catalog';
 
 const PAGE = 25;
 const SORTS = [['recent', 'Latest referral', 'الأحدث رفعاً'], ['amount', 'Highest amount', 'الأعلى مبلغاً'], ['request', 'Request number', 'رقم الطلب']];

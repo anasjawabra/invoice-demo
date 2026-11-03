@@ -9,8 +9,8 @@ import { RecordState } from '../../components/record/RecordPage';
 import { DatasetBanner, Tag } from '../../components/furas/FurasParts';
 import { Icon, Chip } from '../../components/furas/FurasUI';
 
-// Decision Room in FURAS DATASET MODE: read-only items about the data itself. The generated-demo items need data the exports do not contain, so they are not built.
-export default function FurasDecisionRoom() {
+// «Data requests» of the Investment contracts pages (the contracts page tab): read-only items about the data itself. The generated-demo items need data the exports do not contain, so they are not built.
+export default function FurasDecisionRoom({ embedded = false }) {
   const { L, B, ar, count, short } = useL();
   const { data: I, error } = useAsync(() => furas.decisions(), []);
   const [lane, setLane] = useState('decision'); const [open, setOpen] = useState(null);
@@ -18,13 +18,13 @@ export default function FurasDecisionRoom() {
   const fig = (f) => (f.kind === 'money' ? short(f.value) : count(f.value));
   return (
     <div className="fu-page" dir={ar ? 'rtl' : 'ltr'}>
-      <header className="fu-head"><div>
-        <h1 className="fu-title">{L('Decision room', 'غرفة القرارات')} <Chip tone="ok">{L('Furas exports', 'تصديرات فرص')}</Chip></h1>
+      {!embedded && <header className="fu-head"><div>
+        <h1 className="fu-title">{L('Data requests', 'طلبات البيانات')} <Chip tone="ok">{L('Furas exports', 'تصديرات فرص')}</Chip></h1>
         <p className="fu-sub">{L('Items about the exported data itself — what needs a decision or a request to the data owner. Read-only.', 'بنود عن البيانات المصدَّرة نفسها — ما يحتاج قراراً أو طلباً إلى مالك البيانات. للقراءة فقط.')}</p>
-      </div></header>
+      </div></header>}
       {error && !I && <RecordState error={error} onRetry={() => window.location.reload()} kind={L('Decision room', 'غرفة القرارات')} />}
-      <DatasetBanner S={I ? { dataset: I.dataset } : null} />
-      <div className="fu-callout fu-callout--info" role="note"><Icon name="info" /><span>{L('Overdue stock, aged debt, collection targets, enforcement, “due — no invoice linked” and every figure that needs collected amounts are not available in the current data, so no such item is shown in this mode.', 'المتأخرات والديون المتقادمة وأهداف التحصيل والتنفيذ و«مستحقة — لا فاتورة مرتبطة» وكل مؤشر يحتاج مبالغ محصّلة غير متاحة في البيانات الحالية، لذا لا يُعرض أي بند منها في هذا الوضع.')}</span></div>
+      {!embedded && <DatasetBanner S={I ? { dataset: I.dataset } : null} />}
+      <div className="fu-callout fu-callout--info" role="note"><Icon name="info" /><span>{L('Overdue stock, aged debt, collection targets, enforcement, “due — no invoice linked” and every figure that needs collected amounts are not available in the current data, so no such item is shown here.', 'المتأخرات والديون المتقادمة وأهداف التحصيل والتنفيذ و«مستحقة — لا فاتورة مرتبطة» وكل مؤشر يحتاج مبالغ محصّلة غير متاحة في البيانات الحالية، لذا لا يُعرض أي بند منها هنا.')}</span></div>
       {I && (
         <>
           <div className="sr-tabs" role="tablist">{Object.keys(LANES).map((k) => <button key={k} type="button" role="tab" aria-selected={lane === k} className={`sr-tab ${lane === k ? 'is-active' : ''}`} onClick={() => { setLane(k); setOpen(null); }}><b>{B(LANES[k])}</b> ({items.filter((i) => i.lane === k).length})</button>)}</div>

@@ -11,7 +11,7 @@ import { buildIndex } from '../data/relations';
 import { orderExceptions, orderCompleteness, EXCEPTION_TYPES } from '../data/orderMatching';
 import { reviewStatusOf, statusGroupCounts } from '../data/orderSummary';
 import { useDocFiles } from '../components/record/PdfPreview';
-import { amanahName } from './Contracts';
+import { amanahName } from '../data/catalog';
 import OrdersView from './EnforcementOrders';
 import { Section } from '../components/record/RecordPage';
 import { loadPreparedSamples, SIM_LABEL } from '../data/ocrSimulation';

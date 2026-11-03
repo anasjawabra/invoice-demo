@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useL } from '../../utils/bi';
 import { useAsync } from '../../utils/useAsync';
-import { furas } from '../../api/furasClient';
+import { furas, furasUnavailable } from '../../api/furasClient';
+import FurasUnavailable from './FurasUnavailable';
 import { RecordState } from '../../components/record/RecordPage';
 import { DatasetBanner, UnavailableChips } from '../../components/furas/FurasParts';
 import { Chip, Icon, NaCell } from '../../components/furas/FurasUI';
@@ -32,7 +33,8 @@ export default function FurasContract() {
   const { L, B, ar, count, sar } = useL();
   const [onlyDiff, setOnlyDiff] = useState(false);
   const { data: c, loading, error } = useAsync(() => furas.contract(no), [no]);
-  const { data: S } = useAsync(() => furas.summary(), []);
+  const { data: S, error: sErr } = useAsync(() => furas.summary(), []);
+  if (furasUnavailable(sErr) || furasUnavailable(error)) return <FurasUnavailable />;
   if (!c) return <div className="fu-page"><nav className="fu-crumb" aria-label="breadcrumb"><Link to="/contracts">{L('Contracts', 'العقود')}</Link> › <span dir="ltr">{no}</span></nav><RecordState loading={loading && !error} error={error && error.status !== 404 ? error : null} notFound={!loading && error?.status === 404} kind={L('Contract number', 'رقم العقد')} backTo={{ path: '/contracts', label: L('Back to the contracts', 'العودة إلى العقود') }} /></div>;
 
   const recs = c.records; const multi = recs.length > 1; const opps = c.groups;
