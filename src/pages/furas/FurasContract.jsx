@@ -36,7 +36,7 @@ export default function FurasContract() {
   const cell = (r, k, kind) => {
     const v = r[k];
     if (k === 'municipality') return v ? <>{v.sourceName}<span className="fu-rec">{v.code}{v.flag && <> <Chip tone="warn" icon="alert">{L('entity scope to be confirmed', 'نطاق الجهة بانتظار التأكيد')}</Chip></>}</span></> : <NaCell />;
-    if (k === 'renewalLink') return v == null ? <NaCell /> : !v.resolved ? L('target record not found', 'السجل المستهدف غير موجود') : v.selfReference ? <Chip tone="warn" icon="alert">{L('points to itself — to review', 'يشير إلى نفسه — للمراجعة')}</Chip> : <span dir="ltr">{v.contractNumber}{v.sameContractNumber ? ` (${L('same number', 'الرقم نفسه')})` : ''}</span>;
+    if (k === 'renewalLink') return v == null ? <NaCell /> : !v.resolved ? (v.outsideSubset ? <Chip tone="warn" icon="alert" title={L('The link points to a record that exists in the full export but was not included in this subset.', 'الرابط يشير إلى سجل موجود في التصدير الكامل لكنه غير مضمَّن في هذه العيّنة.')}>{L('related record outside this subset', 'سجل مرتبط خارج هذه العيّنة')}</Chip> : L('target record not found', 'السجل المستهدف غير موجود')) : v.selfReference ? <Chip tone="warn" icon="alert">{L('points to itself — to review', 'يشير إلى نفسه — للمراجعة')}</Chip> : <span dir="ltr">{v.contractNumber}{v.sameContractNumber ? ` (${L('same number', 'الرقم نفسه')})` : ''}</span>;
     if (DATE_FLAG_KEY[k]) return date(v, r.dateFlags[DATE_FLAG_KEY[k]]);
     if (k.startsWith('handover')) return date(v);
     if (empty(v)) return <NaCell />;

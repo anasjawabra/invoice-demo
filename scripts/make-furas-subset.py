@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""Build a LOCAL, git-ignored subset of the six Furas exports: N contract numbers and ONLY the rows that belong to them.
-Everything outside the whitelist of non-personal columns is blanked (header kept); bill numbers are replaced by a placeholder that keeps the «filled» pattern.
+"""Build a LOCAL, git-ignored scenario subset of the six Furas exports: N contract numbers (not N unique current contracts: a number can carry several records) and ONLY the rows that belong to them.
+Everything outside the whitelist of non-personal columns is blanked (header kept); bill numbers are replaced by a placeholder that keeps the «filled» pattern; investor ids are replaced by consistent fake ids; a renewal link to a record outside the subset keeps an OUTSIDE-SUBSET marker.
 The originals are never modified or deleted. Usage: python3 scripts/make-furas-subset.py [source dir] [output dir] [N=100]
 The output directory should be a git-ignored name (default: furas-subset.local) — the script refuses to write anywhere Git tracks."""
 import glob, json, os, random, subprocess, sys
@@ -17,7 +17,7 @@ def load(v): return pd.read_csv(FILES[v], dtype=str, keep_default_na=False, na_v
 V = {v: load(v) for v in KEEP}
 C, P = V['contract'], V['payment']
 
-# ---------- choose N contract numbers that contain EVERY scenario the data shows (greedy set cover, seeded and reproducible), then fill with a spread
+# ---------- choose N contract numbers that cover all scenarios defined by the profiling rules below (greedy set cover, seeded and reproducible), then fill with a spread
 rng = random.Random(20261102)
 size = C.groupby('contractnumber').size(); numbers = list(size.index); EXTRACT = '2026-10-25'
 def year(s): return pd.to_numeric(s.str[:4], errors='coerce')
@@ -73,7 +73,7 @@ def add(n):
 uncovered = set(sc); universe = sorted(set().union(*sc.values()))
 index = {}
 for k, v in sc.items():
-    for n in v: index.setdefault(n, set()).add(k)
+    for n in sorted(v): index.setdefault(n, set()).add(k)   # sorted: set order depends on the process hash seed, which would change the seeded choice between runs
 while uncovered and len(chosen) < N:
     best = max(index, key=lambda n: (len(index[n] & uncovered), rng.random()) if n not in chosen_set else (-1, 0))
     gain = index[best] & uncovered
@@ -96,7 +96,23 @@ sub = {'contract': Cs, 'payment': Ps}
 for v in ('contractmanagement', 'entitymanagement', 'imsfw_work'): sub[v] = related(V[v]).copy()
 inv = set(Cs['investorid'].dropna()) | set(Ps['investorid'].dropna()) | set(sub['contractmanagement']['investorid'].dropna())
 sub['investor'] = V['investor'][V['investor']['investorid'].isin(inv)].copy()
-pz = set(Cs['pzinskey']); Cs.loc[~Cs['renewedcontractid'].isin(pz), 'renewedcontractid'] = pd.NA   # a renewal link whose target is outside the subset would dangle
+# a renewal link whose target is outside the subset must not read as «no link»: it keeps a fixed marker (no identifier of the outside record). A link whose target is missing in the SOURCE too stays as it is.
+OUTSIDE = 'OUTSIDE-SUBSET'
+pz = set(Cs['pzinskey']); pz_src = set(C['pzinskey']); rlk = Cs['renewedcontractid']
+outside_mask = rlk.notna() & ~rlk.isin(pz) & rlk.isin(pz_src); Cs.loc[outside_mask, 'renewedcontractid'] = OUTSIDE
+n_outside = int(outside_mask.sum()); n_missing_in_source = int((rlk.notna() & ~rlk.isin(pz) & ~rlk.isin(pz_src)).sum())
+
+# investor ids identify people and entities, and the record keys embed them: replace every id with a consistent fake one (same id -> same fake id, so matching, repeats and gaps are preserved).
+# The fake ids come from a seeded shuffle, not from the real value, so they cannot be recomputed from an id.
+import re
+toks = sorted({t for df in sub.values() if 'investorid' in df.columns for x in df['investorid'].dropna() for t in str(x).split('-')})
+order = list(range(len(toks))); random.Random(20261103).shuffle(order); fake = {t: str(9_000_000_001 + order[i]) for i, t in enumerate(toks)}
+ID10 = re.compile(r'(?<!\d)\d{10}(?!\d)')
+def pseudo_key(x): return x if not isinstance(x, str) else ID10.sub(lambda m: fake.get(m.group(0), m.group(0)), x)
+for df in sub.values():
+    if 'investorid' in df.columns: df['investorid'] = df['investorid'].map(lambda x: '-'.join(fake[t] for t in str(x).split('-')) if isinstance(x, str) else x)
+    if 'pzinskey' in df.columns: df['pzinskey'] = df['pzinskey'].map(pseudo_key)
+    if 'renewedcontractid' in df.columns: df['renewedcontractid'] = df['renewedcontractid'].map(pseudo_key)
 
 # ---------- blank everything outside the whitelist; bill numbers keep only their «filled» pattern
 os.makedirs(OUT, exist_ok=True)
@@ -109,7 +125,8 @@ for v, df in sub.items():
         out['sadadbillnumber'] = V[v].loc[out.index, 'sadadbillnumber'].map(lambda x: '00-00-000000' if isinstance(x, str) else pd.NA)
     out.to_csv(os.path.join(OUT, os.path.basename(FILES[v])), index=False, encoding='utf-8-sig', lineterminator='\r\n')
     rows[v] = int(len(out))
-json.dump({'kind': 'subset', 'contracts': len(S), 'rows': rows, 'selection': 'seeded greedy cover of every scenario the exports show (service types, statuses, Amanah codes, payment statuses, repeated numbers and their conflicts, date anomalies, schedules with and without gaps, renewal links, case rows), then a spread of repeated and single records',
+json.dump({'kind': 'subset', 'contracts': len(S), 'rows': rows, 'selection': 'seeded greedy cover of the scenarios defined by the profiling rules in this script (service types, statuses, Amanah codes, payment statuses, repeated numbers and their conflicts, date anomalies, schedules with and without gaps, renewal links, case rows), then a spread of repeated and single records',
+           'coverageNote': 'Covers all %d scenarios defined by the profiling rules. This does not establish complete business-scenario coverage, and the subset is not a representative sample: it over-represents rare cases.' % len(sc), 'representative': False,
            'scenarios': {'total': len(sc), 'covered': covered_n, 'notCovered': sorted(uncovered)},
-           'blanked': 'every column outside the non-personal whitelist; bill numbers replaced by a placeholder', 'danglingRenewalLinksCleared': True}, open(os.path.join(OUT, 'subset.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+           'blanked': 'every column outside the non-personal whitelist; bill numbers replaced by a placeholder; investor ids (and the ids inside record keys) replaced by consistent fake ids', 'renewalLinksToRecordsOutsideSubset': n_outside, 'renewalLinksMissingInSource': n_missing_in_source, 'renewalOutsideMarker': OUTSIDE, 'investorIdsPseudonymised': True}, open(os.path.join(OUT, 'subset.json'), 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(f'subset of {len(S)} contract numbers written to {OUT}:', rows)

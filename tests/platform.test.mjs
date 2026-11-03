@@ -2068,6 +2068,7 @@ import nodeOs from 'node:os';
 import { execSync as execSync_F } from 'node:child_process';
 import { furasAvailable, loadFuras, resetFuras, furasSummary, furasContracts, furasContract, furasDecisionInput, FURAS_KEEP, maskId as maskId_F, dateFlag as dateFlag_F } from '../server/furasData.js';
 import { furasItems } from '../src/data/furasDecisions.js';
+import { parseCsv as parseCsv_F } from '../server/furasCsv.js';
 // ---- FURAS DATASET MODE: tested on SYNTHETIC exports written to a temp directory (no real record is ever used by a test) ----
 const SENT = { name: 'SENTINEL_NAME_ZZ', mail: 'sentinel.zz@example.invalid', mob: '0599999999', nid: '1099999999', cr: '7099999999' };
 const fx = (() => {
@@ -2097,7 +2098,7 @@ const fx = (() => {
   write('investor', ['investorname', 'pyemail1', 'pymobilephone'], [{ investorid: 'I-1111111', investorname: SENT.name, pyemail1: SENT.mail, pymobilephone: SENT.mob }, { investorid: 'I-2222222', pyemail1: SENT.mail }]);
   return dir;
 })();
-const withFuras = async (fn) => { const old = { d: process.env.FURAS_EXPORT_DIR, v: process.env.VERCEL }; process.env.FURAS_EXPORT_DIR = fx; delete process.env.VERCEL; resetFuras(); try { return await fn(); } finally { if (old.d === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = old.d; if (old.v === undefined) delete process.env.VERCEL; else process.env.VERCEL = old.v; resetFuras(); } };
+const withFuras = async (fn, dir = fx) => { const old = { d: process.env.FURAS_EXPORT_DIR, v: process.env.VERCEL }; process.env.FURAS_EXPORT_DIR = dir; delete process.env.VERCEL; resetFuras(); try { return await fn(); } finally { if (old.d === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = old.d; if (old.v === undefined) delete process.env.VERCEL; else process.env.VERCEL = old.v; resetFuras(); } };
 await test('Furas mode · available only when the local exports are configured, and never on a deployment', async () => {
   await withFuras(() => { assert.deepEqual(furasAvailable(), { available: true, reason: null }); process.env.VERCEL = '1'; assert.deepEqual(furasAvailable(), { available: false, reason: 'deployment' }, 'Vercel never serves the real-data mode'); });
   const was = process.env.FURAS_EXPORT_DIR; process.env.FURAS_EXPORT_DIR = nodePath.join(fx, 'missing'); if (!nodeFs.existsSync('furas-exports.local')) assert.equal(furasAvailable().available, false); if (was === undefined) delete process.env.FURAS_EXPORT_DIR; else process.env.FURAS_EXPORT_DIR = was;
@@ -2111,7 +2112,7 @@ await test('Furas mode · counts and supported totals come from the files: recor
     assert.deepEqual(c.values, { numbersWithSingleValue: 2, sumOfSingleValues: 110, numbersWithConflictingValues: 1, numbersWithoutValue: 1 }, 'conflicting values are never summed or chosen; a number with several equal records counts once');
     assert.equal(c.dates.startFilled, 1); assert.deepEqual(c.byType.map((x) => [x.value, x.records, x.numbers]).sort(), [['T1', 4, 2], ['T2', 2, 1], ['T3', 1, 1]].sort());
     assert.deepEqual(c.byMunicipality.map((m) => [m.code, m.sourceName, m.records, m.numbers, m.flag]), [['002', 'أمانة العاصمة المقدسة', 3, 2, 'confirm_entity_scope'], ['003', 'أمانة منطقة المدينة المنورة', 1, 1, null]], 'source names are kept; the Makkah wording is flagged, not renamed');
-    assert.deepEqual(c.renewal, { links: 1, resolved: 1, unresolved: 0, selfReference: 1, sameContractNumber: 1 });
+    assert.deepEqual(c.renewal, { links: 1, resolved: 1, outsideSubset: 0, unresolved: 0, selfReference: 1, sameContractNumber: 1 });
     assert.equal(p.rows, 6); assert.equal(p.capped, false); assert.equal(p.distinctNumbers, 3); assert.equal(p.numbersFoundInContract, 2); assert.equal(p.numbersNotFound, 1); assert.equal(p.rowsNotFound, 2, 'unmatched payment rows are counted, never dropped silently');
     assert.equal(p.rowsMatchingSeveralRecords, 4); assert.equal(p.rowsAfterNumberJoin, 8, 'an amount join would give 8 rows for 6 payment rows: payments are never joined'); assert.equal(p.duplicateRows, 1);
     assert.equal(p.scheduledAmount.total, 490, 'each payment amount is counted once (6 rows), not once per matching contract record'); assert.deepEqual(p.byStatus.map((x) => [x.value, x.rows, x.scheduledAmount]).sort(), [['Default', 1, 50], ['New', 2, 200], ['Paid', 3, 240]].sort());
@@ -2146,9 +2147,52 @@ await test('Furas mode · a subset directory (subset.json) is labelled as a subs
   nodeFs.writeFileSync(nodePath.join(fx, 'subset.json'), JSON.stringify({ kind: 'subset', contracts: 4, scenarios: { total: 10, covered: 10, notCovered: [] } }));
   try {
     await withFuras(async () => { const S = await furasSummary(); assert.deepEqual(S.dataset.subset, { contracts: 4, scenarios: { total: 10, covered: 10, notCovered: [] } }); assert.ok(S.dataset.files.every((f) => f.scope === 'subset'), 'no file is called capped or complete when the directory is a subset'); assert.ok(!JSON.stringify(S.dataset.subset).match(/CN-|DROCN/), 'the manifest holds no contract number'); });
-    const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(parts.includes('d.subset') && parts.includes("f.scope === 'subset'") && parts.includes('This is a subset'), 'the banner, the files table and the limits say it is a subset');
+    const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(parts.includes('d.subset') && parts.includes("f.scope === 'subset'") && parts.includes('scenario subset'), 'the banner, the files table and the limits say it is a scenario subset');
   } finally { nodeFs.rmSync(nodePath.join(fx, 'subset.json')); }
   await withFuras(async () => assert.equal((await furasSummary()).dataset.subset, null, 'a full export has no subset label'));
+});
+await test('Furas mode · a renewal link to a record outside the subset is kept apart from «no link» and from «target not found», without any identifier of the outside record', async () => {
+  const fx2 = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'furas-fx2-'));
+  try {
+    nodeFs.cpSync(fx, fx2, { recursive: true });
+    const cf = nodePath.join(fx2, nodeFs.readdirSync(fx2).find((f) => f.includes('_contract_df_')));
+    const lines = nodeFs.readFileSync(cf, 'utf8').split('\r\n'); const k = lines.findIndex((l) => l.startsWith('PZ-6,')); assert.ok(k > 0);
+    const at = lines[k].lastIndexOf(',PZ-6,'); assert.ok(at > 0); lines[k] = `${lines[k].slice(0, at)},OUTSIDE-SUBSET,${lines[k].slice(at + 6)}`; nodeFs.writeFileSync(cf, lines.join('\r\n'));
+    // a full export (no manifest): the marker means nothing, so the link is an ordinary unresolved one
+    await withFuras(async () => { const S = await furasSummary(); assert.deepEqual(S.contracts.renewal, { links: 1, resolved: 0, outsideSubset: 0, unresolved: 1, selfReference: 0, sameContractNumber: 0 }); assert.deepEqual((await furasContract('DROCN-9')).records[0].renewalLink, { resolved: false }); }, fx2);
+    nodeFs.writeFileSync(nodePath.join(fx2, 'subset.json'), JSON.stringify({ kind: 'subset', contracts: 4, scenarios: { total: 10, covered: 10, notCovered: [] } }));
+    await withFuras(async () => {
+      const S = await furasSummary(); assert.deepEqual(S.contracts.renewal, { links: 1, resolved: 0, outsideSubset: 1, unresolved: 0, selfReference: 0, sameContractNumber: 0 }, 'an outside-subset link is neither resolved nor «not found»');
+      const card = await furasContract('DROCN-9'); assert.deepEqual(card.records[0].renewalLink, { resolved: false, outsideSubset: true }); assert.ok(!JSON.stringify(card).includes('OUTSIDE-SUBSET'), 'the marker itself is not shown');
+      const item = furasItems(await furasDecisionInput()).find((i) => i.key === 'furas:renewal'); assert.ok(item.problem.en.includes('outside the subset') && item.problem.ar.includes('خارج العيّنة'));
+    }, fx2);
+    const noLink = (await withFuras(async () => (await furasContract('CN-1')).records.map((r) => r.renewalLink), fx2)); assert.deepEqual(noLink, [null, null], 'a record without a link stays «no link»');
+  } finally { nodeFs.rmSync(fx2, { recursive: true, force: true }); }
+  assert.ok(nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8').includes('related record outside this subset'));
+});
+await test('Furas mode · subset wording: a scenario subset of contract numbers (not unique current contracts), 125 scenarios defined by the profiling rules, never a full-population or representative figure', () => {
+  const read = (f) => nodeFs.readFileSync(f, 'utf8');
+  const parts = read('src/components/furas/FurasParts.jsx');
+  for (const t of ['Scenario subset', 'unique current contracts', 'defined by the profiling rules', 'does not establish complete business-scenario coverage', 'not Furas-wide', 'representative']) assert.ok(parts.includes(t), `missing: ${t}`);
+  for (const f of ['server/furasData.js', 'src/components/furas/FurasParts.jsx', 'src/data/furasDecisions.js', 'scripts/make-furas-subset.py', 'docs/furas-dataset-mode.md']) assert.ok(!/every scenario|all scenarios in the (full )?exports/i.test(read(f)), `${f} claims coverage of every scenario`);
+  // no percentage or share of a population is shown anywhere in the Furas pages
+  for (const f of ['src/components/furas/FurasParts.jsx', 'src/pages/furas/FurasContracts.jsx', 'src/pages/furas/FurasContract.jsx', 'src/pages/furas/FurasProduct.jsx', 'src/pages/furas/FurasDecisionRoom.jsx', 'src/data/furasDecisions.js']) assert.ok(!read(f).replace(/width: '100%'/g, '').includes('%'), `${f} shows a percentage`);
+  // every Decision Room item says the figure is the subset's only
+  const base = { dataset: { subset: { contracts: 4 } }, repeated: { numbers: 2, records: 4, conflicts: { status: 1 } }, conflictingValues: 1, payments: { rows: 10000, capped: true, distinctNumbers: 5, rowsMatchingSeveralRecords: 1, rowsNotFound: 1, contractsWithThreePlusRows: 1, contiguous: 0 }, dateIssues: { due: 1, invoice: 0, payment: 0, flags: {} }, startDateFilled: 1, records: 7, statusValues: 3, renewal: { links: 1, selfReference: 1, sameContractNumber: 1, outsideSubset: 0 } };
+  const items = furasItems(base); assert.ok(items.length >= 6); for (const i of items) assert.ok(i.problem.en.includes('scenario subset only') && i.problem.ar.includes('عيّنة السيناريوهات'), `${i.key} is not scoped to the subset`);
+  assert.ok(furasItems({ ...base, dataset: { subset: null } }).every((i) => !i.problem.en.includes('scenario subset only')), 'a full export is not labelled');
+});
+await test('Furas mode · the local subset (when present) keeps only whitelisted columns and holds no real investor id', async () => {
+  const dir = nodePath.join(process.cwd(), 'furas-subset.local'); if (!nodeFs.existsSync(nodePath.join(dir, 'subset.json'))) return;
+  const man = JSON.parse(nodeFs.readFileSync(nodePath.join(dir, 'subset.json'), 'utf8')); assert.equal(man.kind, 'subset'); assert.equal(man.representative, false); assert.equal(man.investorIdsPseudonymised, true); assert.ok(/complete business-scenario coverage/.test(man.coverageNote));
+  assert.ok(!/CN-|\d{8,}/.test(JSON.stringify(man)), 'the manifest holds no contract number or id');
+  for (const view of Object.keys(FURAS_KEEP)) {
+    const file = nodeFs.readdirSync(dir).find((f) => f.includes(`_${view}_df_`)); const text = nodeFs.readFileSync(nodePath.join(dir, file), 'utf8');
+    const head = parseCsv_F(text, []).header; const all = parseCsv_F(text, head);
+    for (const c of head) if (all.cols[c].some((v) => v != null)) assert.ok(FURAS_KEEP[view].includes(c), `${view}.${c} holds data but is not on the whitelist`);
+    for (const c of ['investorid']) if (all.cols[c]) for (const v of all.cols[c]) if (v != null) for (const t of v.split('-')) assert.match(t, /^9\d{9}$/, `${view}.${c} holds a value that is not a pseudonymised investor id`);
+    for (const c of ['pzinskey', 'renewedcontractid']) if (all.cols[c]) for (const v of all.cols[c]) if (v != null) for (const m of v.match(/(?<!\d)\d{10}(?!\d)/g) || []) assert.match(m, /^9\d{9}$/, `${view}.${c} embeds a real id`);
+  }
 });
 await test('Furas mode · local only: nothing is written, logged, committed, built or deployed', () => {
   const src = nodeFs.readFileSync('server/furasData.js', 'utf8') + nodeFs.readFileSync('server/furasCsv.js', 'utf8'); assert.ok(!/writeFile|appendFile|createWriteStream|copyFile|mkdir\(/.test(src), 'the loader writes nothing'); assert.ok(!/process\.env\.VERCEL/.test(src) === false && /process\.env\.VERCEL/.test(src), 'always off on Vercel');

@@ -23,3 +23,14 @@ Put the export directory in the git-ignored file `furas-exports.local` (one line
 
 ## Verification
 `python3 scripts/verify-furas.py` recomputes every displayed count and total from the CSV files with pandas and compares it with the running service (aggregates only). The unit tests use synthetic fixtures; no real record is used by a test.
+
+## The local scenario subset (`furas-subset.local/`)
+
+`scripts/make-furas-subset.py` builds a **100-contract-number scenario subset** of the six exports, for working without keeping the full files in the project. It is local and git-ignored; the originals are never changed.
+
+* **What it is.** 100 contract *numbers*, not 100 unique current contracts: a number can carry several records, so the subset holds more contract records than numbers, plus the payment, case and investor rows related to them.
+* **What "covers" means.** A seeded greedy cover over the scenarios defined by the profiling rules in the script (service types, statuses, Amanah codes, payment statuses, repeated numbers and their conflicts, date anomalies, schedule shapes, renewal links, case rows). It covers **all 125 scenarios defined by those rules**. That does not establish complete business-scenario coverage.
+* **Not a sample.** Rare cases are over-represented on purpose, so no count, total or distribution computed from the subset is a Furas-wide or representative figure. The UI says so in the dataset strip, the overview, the limits panel and on every Decision Room item; no percentage or share of a population is shown anywhere.
+* **Renewal links.** A link to a record that is not in the subset keeps the fixed marker `OUTSIDE-SUBSET` (no identifier of the outside record). It is shown as «related record outside this subset», and is counted apart from «no link» and from «target record not found». The marker is honoured only when the directory has a `subset.json`.
+* **Identifiers.** Columns outside the non-personal whitelist are blank. Investor ids (and the ids embedded in record keys) are replaced by consistent fake ids from a seeded shuffle, so matching, repeats and gaps are preserved but no real id remains; bill numbers keep only a «filled» placeholder. Contract, opportunity and payment numbers are real business identifiers and stay: the subset must remain local.
+* **Reproducible.** The selection and the fake ids are deterministic (verified with different hash seeds).

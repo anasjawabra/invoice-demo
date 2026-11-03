@@ -4,7 +4,10 @@ const bi = (ar, en) => ({ ar, en });
 const n = (v) => Number(v).toLocaleString('en-US');
 
 export function furasItems(I) {
-  const out = []; const add = (x) => out.push({ category: 'matching', amount: null, evidenceQuality: 0.9, ...x });
+  const out = []; const sub = I.dataset && I.dataset.subset;
+  // in a scenario subset every figure describes the subset only; say so on the item itself
+  const SCOPE = bi(' (في عيّنة السيناريوهات فقط — ليست على مستوى فرص)', ' (scenario subset only — not Furas-wide)');
+  const add = (x) => out.push({ category: 'matching', amount: null, evidenceQuality: 0.9, ...x, ...(sub && x.problem ? { problem: bi(x.problem.ar + SCOPE.ar, x.problem.en + SCOPE.en) } : {}) });
   const c = I.repeated; const p = I.payments;
   if (c.numbers > 0) add({
     key: 'furas:repeated', lane: 'decision', role: 'data_owner', dueDays: 30, actionability: 0.8,
@@ -57,7 +60,7 @@ export function furasItems(I) {
   if (I.renewal.links > 0) add({
     key: 'furas:renewal', lane: 'watch', role: 'data_owner', dueDays: 60, actionability: 0.3,
     title: bi('روابط التجديد: المعنى والاتجاه غير مؤكدين', 'Renewal links: meaning and direction unconfirmed'),
-    problem: bi(`${n(I.renewal.links)} رابط؛ ${n(I.renewal.selfReference)} يشير إلى سجله نفسه، و${n(I.renewal.sameContractNumber)} يشير إلى سجل بالرقم نفسه. لا يُسمّى أي منها تجديداً قبل التأكيد.`, `${n(I.renewal.links)} links; ${n(I.renewal.selfReference)} point to their own record and ${n(I.renewal.sameContractNumber)} to a record with the same contract number. None is called a renewal until confirmed.`),
+    problem: bi(`${n(I.renewal.links)} رابط؛ ${n(I.renewal.selfReference)} يشير إلى سجله نفسه، و${n(I.renewal.sameContractNumber)} يشير إلى سجل بالرقم نفسه.${I.renewal.outsideSubset ? ` و${n(I.renewal.outsideSubset)} إلى سجل مرتبط خارج العيّنة (وليس «بلا رابط»).` : ''} لا يُسمّى أي منها تجديداً قبل التأكيد.`, `${n(I.renewal.links)} links; ${n(I.renewal.selfReference)} point to their own record and ${n(I.renewal.sameContractNumber)} to a record with the same contract number.${I.renewal.outsideSubset ? ` ${n(I.renewal.outsideSubset)} point to a related record outside the subset (not “no link”).` : ''} None is called a renewal until confirmed.`),
     figures: [{ label: bi('روابط', 'Links'), value: I.renewal.links, kind: 'count' }, { label: bi('إشارات ذاتية', 'Self-references'), value: I.renewal.selfReference, kind: 'count' }], cause: { status: 'unknown', text: bi('المعنى غير موثّق.', 'The meaning is not documented.') },
     evidence: [{ label: bi('أرقام العقود', 'Contract numbers'), to: '/contracts' }], recommendation: bi('اسألوا بنك البيانات عن معنى الحقل واتجاهه.', 'Ask Data Bank what the field means and which way it points.'), decisionNeeded: null
   });

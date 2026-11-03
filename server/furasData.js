@@ -24,6 +24,7 @@ const KEEP = {
 export const FURAS_KEEP = KEEP; // the only columns ever read (tests assert nothing else is kept)
 const VIEW_NAME = { contract: 'Contract', payment: 'Payment', contractmanagement: 'ContractManagement', entitymanagement: 'EntityManagement', imsfw_work: 'IMSFW_Work', investor: 'Investor' };
 const SCHEMA_COLS = { contract: 38, payment: 31, contractmanagement: 28, entitymanagement: 32, imsfw_work: 54, investor: 8 }; // business-schema columns; the files carry two more (SOURCE_PT, ETL_TIME)
+export const OUTSIDE_SUBSET = 'OUTSIDE-SUBSET'; // set by scripts/make-furas-subset.py on a renewal link whose target record is not in the subset (honoured only when the directory has a subset.json)
 const CAP = 10000; // a file with exactly this many rows is treated as a capped sample (the cap rule itself is not documented)
 const FLAGGED_MUNICIPALITIES = new Set(['002']); // the data's wording differs from the generated demo's («أمانة العاصمة المقدسة» vs «أمانة منطقة مكة المكرمة»): entity scope to be confirmed
 
@@ -144,8 +145,8 @@ export async function furasSummary() {
   const muniRecords = countBy(C.municipalityid.filter((x) => x != null)); const muniNumbers = new Map(); for (const r of rows) for (const c of r.codes) muniNumbers.set(c, (muniNumbers.get(c) || 0) + 1);
   const byMunicipality = [...D.municipalities.values()].sort((a, b) => (a.code < b.code ? -1 : 1)).map((m) => ({ ...m, records: muniRecords.get(m.code) || 0, numbers: muniNumbers.get(m.code) || 0 }));
   const filled = (col) => C[col].filter((x) => x != null).length;
-  let links = 0; let resolved = 0; let selfRef = 0; let sameNo = 0;
-  for (let i = 0; i < nC; i += 1) { const r = C.renewedcontractid[i]; if (r == null) continue; links += 1; const j = D.byPz.get(r); if (j == null) continue; resolved += 1; if (j === i) selfRef += 1; if (C.contractnumber[j] === C.contractnumber[i]) sameNo += 1; }
+  let links = 0; let resolved = 0; let outside = 0; let selfRef = 0; let sameNo = 0;
+  for (let i = 0; i < nC; i += 1) { const r = C.renewedcontractid[i]; if (r == null) continue; links += 1; const j = D.byPz.get(r); if (j == null) { if (D.subset && r === OUTSIDE_SUBSET) outside += 1; continue; } resolved += 1; if (j === i) selfRef += 1; if (C.contractnumber[j] === C.contractnumber[i]) sameNo += 1; }
   const investorsFound = C.investorid.filter((x) => x != null && D.investors.has(x)).length;
   // payment extract
   const payNos = [...D.payByNo.keys()]; const matched = payNos.filter((no) => D.byNo.has(no));
@@ -172,7 +173,7 @@ export async function furasSummary() {
       byType, byStatus, byMunicipality, numbersWithSeveralTypes: rows.filter((r) => r.conflicts.type).length,
       dates: { startFilled: filled('startdate'), endFilled: filled('enddate'), signingFilled: filled('signingdate'), awardingFilled: filled('awardingdate') },
       values: { numbersWithSingleValue: consistent.length, sumOfSingleValues: consistent.reduce((t, r) => t + r.value, 0), numbersWithConflictingValues: rows.filter((r) => r.valueState === 'conflict').length, numbersWithoutValue: rows.filter((r) => r.valueState === 'none').length },
-      renewal: { links, resolved, unresolved: links - resolved, selfReference: selfRef, sameContractNumber: sameNo },
+      renewal: { links, resolved, outsideSubset: outside, unresolved: links - resolved - outside, selfReference: selfRef, sameContractNumber: sameNo },
       investorIdFound: investorsFound, investorIdFilled: filled('investorid')
     },
     payments: {
@@ -226,7 +227,7 @@ export async function furasContract(no) {
       awardingDate: dateOnly(C.awardingdate[i]), signingDate: dateOnly(C.signingdate[i]), startDate: dateOnly(C.startdate[i]), endDate: dateOnly(C.enddate[i]), handoverPlanned: dateOnly(C.dateofsitehandover[i]), handoverActual: dateOnly(C.dateofsitehandoveractual[i]),
       contractValue: num(C.contractvalue[i]), calculatedValue: num(C.calculatedcontractvalue[i]), annualValue: num(C.annualcontractvalue[i]), valueWithVat: num(C.totalcontractvaluewithvat[i]), term: C.contractterm[i], durationMonths: C.contractdurationmonths[i],
       municipality: C.municipalityid[i] == null ? null : { code: C.municipalityid[i], sourceName: names.get(C.municipalityid[i])?.sourceName || null, nameOnRecord: C.municipality[i], flag: names.get(C.municipalityid[i])?.flag || null }, subMunicipality: C.submunicipality[i],
-      renewalLink: C.renewedcontractid[i] == null ? null : link == null ? { resolved: false } : { resolved: true, contractNumber: C.contractnumber[link], selfReference: link === i, sameContractNumber: C.contractnumber[link] === C.contractnumber[i] },
+      renewalLink: C.renewedcontractid[i] == null ? null : link == null ? (D.subset && C.renewedcontractid[i] === OUTSIDE_SUBSET ? { resolved: false, outsideSubset: true } : { resolved: false }) : { resolved: true, contractNumber: C.contractnumber[link], selfReference: link === i, sameContractNumber: C.contractnumber[link] === C.contractnumber[i] },
       dateFlags: Object.fromEntries(['startdate', 'enddate', 'signingdate', 'awardingdate'].map((c) => [c, dateFlag(C[c][i], extract)]).filter(([, v]) => v))
     };
   };
