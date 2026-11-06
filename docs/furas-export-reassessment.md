@@ -14,14 +14,14 @@ The Payment and IMSFW_Work exports are capped samples; the Contract view repeats
 | Earlier statement (20-row sample) | Status now |
 |---|---|
 | «7 of 10 raw Paid rows show no payment evidence» | Superseded: in the larger export almost every Paid row has a payment date |
-| «BALANCEAMOUNT fits 2 of 20 raw rows» | Superseded: filled throughout; its definition is still not given (balance stays undisplayed) |
+| «BALANCEAMOUNT fits 2 of 20 raw rows» | Superseded: filled throughout; on the subset it does not behave as «remaining after payment» (most Paid rows carry a balance). Not displayed; the page shows `BATCHAMOUNTPAID` / `BATCHAMOUNTBALANCE` only where filled |
 | «three status vocabularies exist» | Superseded: one value list per column, none with an approved meaning |
 | Start/end, municipality, invoice/payment dates, amounts «0 of 20 / few of 20 filled» | Superseded: filled to very different degrees in the exports; see the review tables |
-| Payment → Contract by contract number | **Observed match** (a number match, one-to-many across contract records; not a record key; the current record is not determined) |
+| Payment → Contract by contract number | **Observed match, and the schema's «points to the contract key» is contradicted** (re-checked 5 Nov on the scenario subset: every row matches a contract NUMBER, none a record key; one-to-many across contract records; the current record is not determined). See `docs/furas-dataset-mode.md` §«Verified vs schema-documented vs unresolved» |
 | Installment → invoice | **Not verified**: no key on the Payment rows; never inferred from the contract-number match or from how a number looks |
 
 ## Where the demo applies this
-`src/data/contractRules.js` (origin of a value, the candidate rule «due — no invoice linked») and `docs/contracts-lifecycle-phase1.md` (Group A corrections).
+`src/data/contractRules.js` (origin of a value, the candidate rule «due — no invoice linked»), `docs/contracts-lifecycle-phase1.md` (Group A corrections) and, for the contract list and details pages, `docs/furas-dataset-mode.md` §«Contract pages rework».
 
 ## Wording used on the contract pages
 «Not available in the current data» (information the data does not support) · «Proposed rule — requires confirmation» (a rule no business owner has confirmed). See `docs/contracts-lifecycle-phase1.md`, section «Data-accuracy corrections».

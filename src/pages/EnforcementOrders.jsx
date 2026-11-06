@@ -1,117 +1,72 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import Pager from '../components/Pager';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
 import { orderCompleteness, orderExceptions } from '../data/orderMatching';
-import { reviewStatusOf, REVIEW_LABEL, orderAlerts, orderSearchBlob, normalizeSearch } from '../data/orderSummary';
+import { reviewStatusOf, orderAlerts, orderSearchBlob, normalizeSearch } from '../data/orderSummary';
 import { SOURCE_STATUSES, DEBTOR_TYPES } from '../data/sanadSource';
 import { RecordLink, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { orderPath } from '../utils/paths';
 import { amanahName } from '../data/catalog';
+import { loadDocsIndex, documentState } from '../data/sanadDocs/service';
+import { DocChip, ReviewChip, ListToolbar, useListFilters, OpenRow, OpenCell, OpenTh, InfoTh, EmptyRow, when } from '../components/revenue/EnforcementSources';
+import { METHODS, SOURCES } from '../data/ingestion/reports';
+import { enforcementFields, sanadMatches, sortOptions } from '../components/filters/localPages';
+import '../styles/enforcement-lists.css';
 
 const PAGE = 25;
-const SORTS = [['recent', 'Latest referral', 'الأحدث رفعاً'], ['amount', 'Highest amount', 'الأعلى مبلغاً'], ['request', 'Request number', 'رقم الطلب']];
-const REASONS = [['all', 'Any', 'أي سبب'], ['no_references', 'Numbers not identified', 'أرقام غير محددة'], ['unresolved_references', 'Open references', 'مراجع مفتوحة'], ['corrupted_reference', 'Unreliable number', 'رقم غير موثوق'], ['proposals_pending', 'Proposals to confirm', 'اقتراحات للتأكيد'], ['conflicts', 'Conflicts', 'تعارضات'], ['unread_pages', 'Unread document', 'مستند لم يُقرأ'], ['amount_difference', 'Financial gap', 'فرق مالي']];
 
-// The ORDERS list of «إدارة التنفيذ» — the main working area: one row per Sanad ENFORCEMENT REQUEST, the original source status, linked invoices and ONE matching-review status (with small alerts).
-// Three filters are visible; the rest are under «تصفية إضافية». Everything else about an order is in its details page.
+// The ORDERS list of «إدارة أوامر التنفيذ» — the main working area: one row per Sanad ENFORCEMENT REQUEST, the original source status, linked invoices and ONE matching-review status (with small alerts).
+// Toolbar: Amanah / entity · Sanad request status · matching review (ONE control: «needs action» is one of its options) · search; «المزيد من الفلاتر»: debtor type, review reason, document,
+// reconciliation, referral date (from / to). The filters live in the URL, so opening a request and coming back keeps them.
 export default function OrdersView() {
   const { cases } = useRevenue();
   const { L, B, sar, ar } = useL();
-  const [sp] = useSearchParams();
   const restore = useShouldRestore();
   const mem = useMemo(() => readListMemory('orders', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const fromUrl = sp.get('review');
   const [page, setPage] = useState(mem.page ?? 0);
-  const [q, setQ] = useState(mem.q ?? '');
-  const [fAm, setFAm] = useState(mem.fAm ?? 'all');
-  const [fRev, setFRev] = useState(fromUrl || mem.fRev || 'all');
-  const [fSrc, setFSrc] = useState(mem.fSrc ?? 'all');
-  const [fType, setFType] = useState(mem.fType ?? 'all');
-  const [fDoc, setFDoc] = useState(mem.fDoc ?? 'all');
-  const [fFin, setFFin] = useState(mem.fFin ?? 'all');
-  const [fWhy, setFWhy] = useState(mem.fWhy ?? 'all');
-  const [sort, setSort] = useState(mem.sort ?? 'recent');
-  const [dFrom, setDFrom] = useState(mem.dFrom ?? ''); const [dTo, setDTo] = useState(mem.dTo ?? ''); // D23: period filter on the referral (raise) date
-  useEffect(() => { if (fromUrl) { setFRev(fromUrl); setPage(0); } }, [fromUrl]);
-  useEffect(() => { writeListMemory('orders', { page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo }); }, [page, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo]);
+  useEffect(() => { writeListMemory('orders', { page }); }, [page]);
 
+  const [docsIdx, setDocsIdx] = useState(null);
+  useEffect(() => { let off = false; loadDocsIndex().then((m) => { if (!off) setDocsIdx(m); }).catch(() => { if (!off) setDocsIdx(new Map()); }); return () => { off = true; }; }, []);
   const rows = useMemo(() => cases.map((c) => {
     const comp = orderCompleteness(c); const ex = orderExceptions(c);
     return { c, comp, ex, review: reviewStatusOf(comp, c, ex), alerts: orderAlerts(comp, ex), blob: orderSearchBlob(c) };
   }), [cases]);
   const amanahs = useMemo(() => [...new Set(cases.map((c) => c.amanahEn))].sort(), [cases]);
   const usedStatuses = useMemo(() => SOURCE_STATUSES.filter((x) => rows.some((r) => r.c.source?.statusId === x.id)), [rows]);
+  const fields = useMemo(() => enforcementFields('sanad', {
+    entities: amanahs.map((x) => ({ value: x, label: amanahName(x, ar) })), statuses: usedStatuses.map((x) => ({ value: String(x.id), label: x.text })), debtorTypes: DEBTOR_TYPES.map((x) => ({ value: String(x.id), label: x.text }))
+  }), [amanahs, usedStatuses, ar]);
+  const F = useListFilters('sanad', fields, () => setPage(0)); const v = F.values;
   const shown = useMemo(() => {
-    const t = normalizeSearch(q);
-    const out = rows.filter((r) => (fAm === 'all' || r.c.amanahEn === fAm) && (fRev === 'all' || (fRev === 'open' ? r.review !== 'complete' : r.review === fRev))
-      && (fSrc === 'all' || String(r.c.source?.statusId) === fSrc) && (fType === 'all' || String(r.c.source?.debtorTypeId) === fType) && (fDoc === 'all' || r.comp.extraction.state === fDoc)
-      && (fFin === 'all' || (fFin === 'difference' ? ['short', 'over'].includes(r.comp.finance.state) : r.comp.finance.state === fFin)) && (fWhy === 'all' || r.ex.includes(fWhy))
-      && (!t || r.blob.includes(t))
-      && (!(dFrom || dTo) || (() => { const d = String(r.c.source?.raiseAt || r.c.openedDate || '').slice(0, 10); return !!d && (!dFrom || d >= dFrom) && (!dTo || d <= dTo); })()));
-    const key = { recent: (r) => -(Date.parse(String(r.c.source?.raiseAt || r.c.openedDate).replace(' ', 'T')) || 0), amount: (r) => -(r.c.amount || 0), request: (r) => Number(r.c.source?.requestNo) || 0 }[sort];
+    const out = rows.filter((r) => sanadMatches(r, v, normalizeSearch));
+    const key = { recent: (r) => -(Date.parse(String(r.c.source?.raiseAt || r.c.openedDate).replace(' ', 'T')) || 0), amount: (r) => -(r.c.amount || 0), request: (r) => Number(r.c.source?.requestNo) || 0 }[v.sort] || ((r) => 0);
     return out.sort((a, b) => key(a) - key(b));
-  }, [rows, q, fAm, fRev, fSrc, fType, fDoc, fFin, fWhy, sort, dFrom, dTo]);
+  }, [rows, v]);
   const view = shown.slice(page * PAGE, (page + 1) * PAGE);
   useRestoreScroll(view.length > 0);
 
-  const extras = [fSrc, fType, fDoc, fFin, fWhy].filter((v) => v !== 'all');
-  const reset = () => { setDFrom(''); setDTo(''); setQ(''); setFAm('all'); setFRev('all'); setFSrc('all'); setFType('all'); setFDoc('all'); setFFin('all'); setFWhy('all'); setPage(0); };
-  const why = REASONS.find((x) => x[0] === fWhy);
-  const active = [
-    (dFrom || dTo) && { k: 'per', t: `${L('Referral date', 'تاريخ الإحالة')}: ${dFrom || '…'} → ${dTo || '…'}`, off: () => { setDFrom(''); setDTo(''); } },
-    q.trim() && { k: 'q', t: `${L('Search', 'بحث')}: ${q.trim()}`, off: () => setQ('') },
-    fAm !== 'all' && { k: 'am', t: amanahName(fAm, ar), off: () => setFAm('all') },
-    fRev !== 'all' && { k: 'rev', t: fRev === 'open' ? L('Needs attention', 'تحتاج إجراء') : B(REVIEW_LABEL[fRev] || { en: fRev, ar: fRev }), off: () => setFRev('all') },
-    fSrc !== 'all' && { k: 'src', t: SOURCE_STATUSES.find((x) => String(x.id) === fSrc)?.text, off: () => setFSrc('all') },
-    fType !== 'all' && { k: 'type', t: DEBTOR_TYPES.find((x) => String(x.id) === fType)?.text, off: () => setFType('all') },
-    fDoc !== 'all' && { k: 'doc', t: L('Document: ', 'المستند: ') + ({ complete: L('read', 'مقروء'), incomplete: L('not read', 'لم يُقرأ'), no_document: L('none', 'لا مستند') }[fDoc] || fDoc), off: () => setFDoc('all') },
-    fFin !== 'all' && { k: 'fin', t: L('Reconciliation: ', 'التسوية: ') + ({ reconciled: L('reconciled', 'متطابقة'), difference: L('gap', 'فرق'), no_confirmed: L('no linked invoice', 'لا فاتورة مربوطة') }[fFin] || fFin), off: () => setFFin('all') },
-    fWhy !== 'all' && why && { k: 'why', t: L(why[1], why[2]), off: () => setFWhy('all') }
-  ].filter(Boolean);
-  const sel = (id, label, v, set, opts) => (<label>{label}<select id={id} className="input" value={v} onChange={(e) => { set(e.target.value); setPage(0); }}>{opts.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>);
-
   return (
     <section className="rp-section" aria-label={L('Enforcement requests', 'طلبات التنفيذ')}>
-      <div className="rv-form" role="search" aria-label={L('Filters', 'التصفية')} style={{ marginBottom: 8 }}>
-        <label style={{ flex: '1 1 240px' }}>{L('Search by request number or invoice number', 'بحث برقم طلب التنفيذ أو رقم الفاتورة')}<input id="ord_q" className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="4606056" dir="auto" /></label>
-        <label>{L('Referral from', 'من تاريخ الإحالة')}<input id="ord_from" className="input" type="date" value={dFrom} max={dTo || undefined} onChange={(e) => { setDFrom(e.target.value); setPage(0); }} /></label>
-        <label>{L('Referral to', 'إلى تاريخ الإحالة')}<input id="ord_to" className="input" type="date" value={dTo} min={dFrom || undefined} onChange={(e) => { setDTo(e.target.value); setPage(0); }} /></label>
-        <label>{L('Amanah', 'الأمانة / الجهة')}<select id="ord_am" className="input" value={fAm} onChange={(e) => { setFAm(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{amanahs.map((x) => <option key={x} value={x}>{amanahName(x, ar)}</option>)}</select></label>
-        {sel('ord_rev', L('Matching review', 'مراجعة المطابقة'), fRev, setFRev, [['all', 'All', 'الكل'], ['open', 'Needs attention', 'تحتاج إجراء'], ['needs_review', 'Needs review', 'تحتاج مراجعة'], ['not_identified', 'Numbers not identified', 'أرقام غير محددة'], ['complete', 'Complete', 'مكتملة']])}
-      </div>
-      <details open={extras.length > 0} className="oj-more">
-        <summary>{L('More filters', 'تصفية إضافية')}{extras.length ? ` (${extras.length})` : ''}</summary>
-        <div className="rv-form" style={{ marginTop: 6 }}>
-          <label>{L('Source status', 'حالة الطلب في سند')}<select id="ord_src" className="input" value={fSrc} onChange={(e) => { setFSrc(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{usedStatuses.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
-          <label>{L('Debtor type', 'نوع المنفذ ضده')}<select id="ord_type" className="input" value={fType} onChange={(e) => { setFType(e.target.value); setPage(0); }}><option value="all">{L('All', 'الكل')}</option>{DEBTOR_TYPES.map((x) => <option key={x.id} value={String(x.id)}>{x.text}</option>)}</select></label>
-          {sel('ord_why', L('Review reason', 'سبب المراجعة'), fWhy, setFWhy, REASONS)}
-          {sel('ord_doc', L('Document', 'المستند'), fDoc, setFDoc, [['all', 'All', 'الكل'], ['complete', 'Read', 'مقروء'], ['incomplete', 'Not read', 'لم يُقرأ'], ['no_document', 'No document', 'لا مستند']])}
-          {sel('ord_fin', L('Reconciliation', 'التسوية'), fFin, setFFin, [['all', 'All', 'الكل'], ['reconciled', 'Reconciled', 'متطابقة'], ['difference', 'Gap', 'فرق'], ['no_confirmed', 'No linked invoice', 'لا فاتورة مربوطة']])}
-        </div>
-      </details>
-      <div className="oj-bar">
-        <span role="status" aria-live="polite"><b>{shown.length}</b> {L('requests', 'طلب')}</span>
-        {active.map((x) => <button key={x.k} type="button" className="oj-chip" onClick={() => { x.off(); setPage(0); }} aria-label={`${L('Remove filter', 'إزالة التصفية')}: ${x.t}`}>{x.t} ×</button>)}
-        {active.length > 0 && <button type="button" className="rv-link" onClick={reset}>{L('Reset all filters', 'إعادة ضبط كل التصفية')}</button>}
-        <label className="oj-sort">{L('Sort', 'الترتيب')}<select id="ord_sort" className="input" value={sort} onChange={(e) => { setSort(e.target.value); setPage(0); }}>{SORTS.map(([k, en, a]) => <option key={k} value={k}>{L(en, a)}</option>)}</select></label>
-      </div>
+      <ListToolbar fields={fields} values={v} onChange={F.set} onClear={F.clear} onQ={(x) => F.set({ q: x })} qPlaceholder={L('Request, claim or invoice number', 'رقم الطلب أو المطالبة أو الفاتورة')}
+        count={<><b>{shown.length}</b> {L('requests', 'طلب')}</>} sort={{ value: v.sort, set: (x) => F.set({ sort: x }), options: sortOptions('sanad').map((o) => ({ value: o.value, label: B(o.label) })) }} />
       <div className="rp-tablewrap" tabIndex={0}>
-        <table aria-label={L('Enforcement requests', 'طلبات التنفيذ')}>
-          <thead><tr><th>{L('Request no.', 'رقم الطلب')}</th><th>{L('Amanah · municipality', 'الأمانة · البلدية')}</th><th>{L('Source status', 'حالة الطلب في سند')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th className="num">{L('Linked invoices', 'الفواتير المربوطة')}</th><th>{L('Matching review', 'مراجعة المطابقة')}</th><th><span className="sr-only">{L('Details', 'التفاصيل')}</span></th></tr></thead>
+        <table className="ef-table" aria-label={L('Enforcement requests', 'طلبات التنفيذ')}>
+          <thead><tr><th>{L('Request no.', 'رقم الطلب')}</th><th>{L('Amanah · municipality', 'الأمانة · البلدية')}</th><th>{L('Source status', 'حالة الطلب في سند')}</th><InfoTh num label={L('Amount', 'المبلغ')} def={L('The claim amount stated in the Sanad request (not an outstanding balance, not an invoice amount).', 'مبلغ المطالبة المذكور في طلب سند (ليس رصيداً مستحقاً ولا مبلغ فاتورة).')} /><th className="num">{L('Linked invoices', 'الفواتير المربوطة')}</th><th>{L('Sanad document', 'مستند سند')}</th><th>{L('Matching review', 'مراجعة المطابقة')}</th><OpenTh /></tr></thead>
           <tbody>
-            {view.map(({ c, comp, review, alerts }) => { const sc = c.source || {}; const lab = REVIEW_LABEL[review]; return (
-              <tr key={c.enforceNum}>
-                <td><RecordLink to={orderPath(c.enforceNum)} dir="ltr"><b style={{ fontSize: 15 }}>{sc.requestNo || c.enforceNum}</b></RecordLink></td>
+            {view.map(({ c, comp, review, alerts }) => { const sc = c.source || {}; const no = sc.requestNo || c.enforceNum; const to = orderPath(c.enforceNum); return (
+              <OpenRow key={c.enforceNum} to={to}>
+                <td title={`${L('Ingestion · last import', 'طريقة الاستيراد · آخر استيراد')}: ${c.ingestion ? `${B(SOURCES.sanad)} / ${B(METHODS[c.ingestion.method])} · ${when(c.ingestion.importedAt)}` : L('Synthetic demo feed (generated)', 'تغذية تجريبية (مولّدة)')}`}><div className="ef-id"><RecordLink to={to} dir="ltr"><b>{no}</b></RecordLink>{sc.claimNo && <span className="ef-sub">{L('Claim no.', 'رقم المطالبة')} <span dir="ltr">{sc.claimNo}</span></span>}</div></td>
                 <td>{amanahName(c.amanahEn, ar)}{sc.municipality ? <span className="muted"> · {sc.municipality}</span> : null}</td>
-                <td style={{ fontSize: 13 }}>{sc.statusText || '—'}</td>
+                <td className="ef-status">{sc.statusText || '—'}</td>
                 <td className="num" dir="ltr">{sar(c.amount)}</td>
                 <td className="num">{comp.references.confirmedLinks || <span className="muted">—</span>}</td>
-                <td><span className={lab.tone === 'ok' ? 'rp-ok' : 'rp-warn'}>{lab.tone === 'ok' ? '✓' : '!'} {B(lab)}</span>{alerts.length > 0 && <div className="oj-alerts">{alerts.map((a) => <span key={a.key} className="oj-alert" title={B(a.why)}>⚠ {B(a)}</span>)}</div>}</td>
-                <td><RecordLink className="btn btn-sm" to={orderPath(c.enforceNum)}>{L('Open', 'فتح')}</RecordLink></td>
-              </tr>); })}
-            {!view.length && <tr><td colSpan={7} className="muted">{L('No requests match these filters.', 'لا توجد طلبات مطابقة.')}</td></tr>}
+                <td><DocChip state={docsIdx ? documentState(c, docsIdx) : 'missing'} /></td>
+                <td><ReviewChip review={review} />{alerts.length > 0 && <div className="oj-alerts">{alerts.map((a) => <span key={a.key} className="oj-alert" title={B(a.why)}>⚠ {B(a)}</span>)}</div>}</td>
+                <OpenCell to={to} id={no} />
+              </OpenRow>); })}
+            {!view.length && <EmptyRow cols={8}>{L('No requests match these filters.', 'لا توجد طلبات مطابقة.')} {rows.length > 0 && <button type="button" className="rv-link" onClick={F.clear}>{L('Clear filters', 'مسح الفلاتر')}</button>}</EmptyRow>}
           </tbody>
         </table>
       </div>

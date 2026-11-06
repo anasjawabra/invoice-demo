@@ -72,7 +72,7 @@ button.fu-stat[aria-pressed="true"] { background: rgba(22, 106, 69, .08); box-sh
 
 /* ---- the contract-number list (div grid: one layout for desktop and phone) ---- */
 .fu-list { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
-.fu-list__head, .fu-row { display: grid; grid-template-columns: minmax(150px, 1.15fr) minmax(120px, .9fr) minmax(150px, 1.2fr) minmax(150px, 1.1fr) minmax(110px, .8fr) minmax(150px, 1fr); gap: 4px 16px; padding: 10px 16px; align-items: center; }
+.fu-list__head, .fu-row { display: grid; grid-template-columns: minmax(130px, 1fr) minmax(160px, 1.3fr) minmax(120px, .9fr) minmax(110px, .8fr) minmax(130px, .9fr) minmax(150px, 1fr); gap: 4px 16px; padding: 10px 16px; align-items: center; }
 .fu-list__head { background: var(--bg-0); font-size: 12px; font-weight: 600; color: var(--txt-mute); border-block-end: 1px solid var(--line); position: sticky; top: 0; z-index: 1; }
 .fu-row { border-block-end: 1px solid var(--line); color: inherit; text-decoration: none; cursor: pointer; font-size: 13px; min-height: 52px; }
 .fu-row:last-child { border-block-end: 0; }
@@ -90,9 +90,8 @@ button.fu-stat[aria-pressed="true"] { background: rgba(22, 106, 69, .08); box-sh
 @media (prefers-reduced-motion: reduce) { .fu-skel { animation: none; } }
 @media (max-width: 860px) {
   .fu-list__head { display: none; }
-  .fu-row { grid-template-columns: 1fr auto; grid-template-areas: "no value" "type amanah" "status status" "signals signals"; padding: 12px 14px; gap: 6px 12px; }
-  .fu-row > [data-col="no"] { grid-area: no; } .fu-row > [data-col="type"] { grid-area: type; } .fu-row > [data-col="status"] { grid-area: status; } .fu-row > [data-col="amanah"] { grid-area: amanah; text-align: end; } .fu-row > [data-col="value"] { grid-area: value; } .fu-row > [data-col="signals"] { grid-area: signals; }
-  .fu-row > [data-col="amanah"] small { display: inline; margin-inline-start: 6px; }
+  .fu-row { grid-template-columns: 1fr auto; grid-template-areas: "no value" "name name" "investor status" "dates dates"; padding: 12px 14px; gap: 6px 12px; }
+  .fu-row > [data-col="no"] { grid-area: no; } .fu-row > [data-col="name"] { grid-area: name; } .fu-row > [data-col="investor"] { grid-area: investor; } .fu-row > [data-col="status"] { grid-area: status; text-align: end; } .fu-row > [data-col="dates"] { grid-area: dates; } .fu-row > [data-col="value"] { grid-area: value; }
 }
 
 /* ---- overview: distributions as bars ---- */
@@ -179,7 +178,7 @@ button.fu-stat[aria-pressed="true"] { background: rgba(22, 106, 69, .08); box-sh
   .fu-matrix th, .fu-matrix td { min-width: 150px; }
 }
 .fu-toggle svg, .fu-link svg { width: 14px; height: 14px; flex: none; }
-.fu-cell { min-width: 0; text-align: start; }
+.fu-cell { min-width: 0; text-align: start; overflow-wrap: anywhere; }
 .fu-cell small { unicode-bidi: plaintext; }
 @media (max-width: 860px) { .fu-dot { display: none; } .fu-tabs { scrollbar-width: none; } .fu-tabs::-webkit-scrollbar { display: none; } }
 
@@ -197,3 +196,15 @@ a.fu-tree__label:hover { text-decoration: underline; }
 .fu-opp + .fu-opp { margin-block-start: 10px; }
 .fu-opp__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
 .fu-opp__head h3 { margin: 0; font-size: 15px; color: var(--heading); }
+
+/* ---- contract details (rework): information groups, installments, contract-level invoices ---- */
+.fu-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.fu-info__group { display: grid; gap: 6px; align-content: start; }
+.fu-info__group h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--txt-mute); }
+.fu-info .fu-kv { grid-template-columns: 1fr; padding: 4px 16px; }
+.fu-pay .fu-group th { background: var(--bg-0); font-size: 12px; color: var(--txt-dim); }
+.fu-pay tr.is-future td { color: var(--txt-mute); }
+.fu-pay tr.is-future small { color: var(--txt-mute); }
+.fu-bills { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.fu-bills li { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); font-variant-numeric: tabular-nums; font-size: 13px; }
+@media (max-width: 760px) { .fu-pay .fu-group th { display: block; padding: 8px 14px; } .fu-pay tr.fu-group { display: block; } }

@@ -18,3 +18,18 @@ export const presetRange = (key, today) => PRESETS.find((p) => p.key === key)?.r
 export const presetLabel = (key, lang) => { const p = PRESETS.find((x) => x.key === key); return p ? (lang === 'ar' ? p.ar : p.en) : null; };
 // which preset a range is (the first that matches), or 'custom'
 export const detectPreset = (from, to, today) => PRESETS.find((p) => { const r = p.range(today); return r.from === from && r.to === to; })?.key || 'custom';
+
+// ---- the ONE period control of the platform (src/components/filters/PeriodSelect.jsx): six choices only. The registry above stays the single source of the ranges;
+// a stored preset that is not offered any more (today / last3 / ytdLastMonth) still shows its own label while it is active. ----
+export const PERIOD_CHOICES = ['month', 'lastMonth', 'qtd', 'ytd', 'all', 'custom'];
+const CHOICE_LABELS = {
+  month: { ar: 'هذا الشهر (حتى اليوم)', en: 'This month (to date)' },
+  lastMonth: { ar: 'الشهر السابق', en: 'Previous month' },
+  qtd: { ar: 'هذا الربع (حتى اليوم)', en: 'This quarter (to date)' },
+  ytd: { ar: 'السنة حتى اليوم', en: 'Year to date' },
+  all: { ar: 'جميع البيانات المتاحة', en: 'All available data' },
+  custom: { ar: 'نطاق مخصص', en: 'Custom range' }
+};
+export const periodChoiceLabel = (key, lang = 'ar') => { const c = CHOICE_LABELS[key]; if (c) return lang === 'ar' ? c.ar : c.en; return presetLabel(key, lang) || key; };
+// a preset whose whole range lies before the first loaded date has no data (offered greyed out, never silently replaced)
+export const presetAvailable = (key, today, start = DATA_START) => { const r = presetRange(key, today); return !!r && r.to >= start; };

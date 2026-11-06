@@ -5,8 +5,10 @@ import { invoicePath } from '../utils/paths';
 import { useAsync } from '../utils/useAsync';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
-import { ScopeBar, MetricTile } from '../components/revenue/RevenueUI';
-import { PctBadge } from '../components/strategic/EntityMap';
+import { MetricTile } from '../components/revenue/RevenueUI';
+import ScopeFilters from '../components/filters/ScopeFilters';
+import { FILTER_PAGES } from '../components/filters/filterConfig';
+import { PctBadge } from '../components/strategic/PctScale';
 import { EXCLUSION_REASONS, ORIGIN_AR, ORIGIN_EN } from '../data/iim';
 import { groupByKey, groupName, groupTotals, mainChallenge, catalogTotals } from '../data/productInsights';
 import { catalogById } from '../data/productCatalog';
@@ -49,11 +51,12 @@ export default function ProductPage() {
       <div className="page-head">
         <div>
           <h1 className="page-title">{name}</h1>
-          <div className="page-sub"><Link to="/products">{L('Product management', 'إدارة المنتجات')}</Link> · {L('KPIs, challenges and invoices of this product', 'مؤشرات هذا المنتج وتحدياته وفواتيره')}</div>
+          <div className="page-sub"><Link to="/products">{L('Data Sources', 'مصادر البيانات')}</Link> · {L('KPIs, challenges and invoices of this product', 'مؤشرات هذا المنتج وتحدياته وفواتيره')}</div>
         </div>
         <button type="button" className="btn btn-sm" onClick={() => { if (srcFilter) { rev.setSource(srcFilter); rev.setProduct([]); } else rev.setProduct(keys); nav('/invoices'); }}>{L('Open the invoices list for this product', 'فتح قائمة الفواتير لهذا المنتج')}</button>
       </div>
-      <ScopeBar hideStatus />
+      {/* the product (and, for a catalogue entry that fixes it, the revenue source) IS this page: no control and no «hidden filter» chip for them */}
+      <ScopeFilters {...FILTER_PAGES.product} ignoreKeys={srcFilter ? ['product', 'source'] : ['product']} />
       {!T ? <div className="muted" role="status">{L('Calculating…', 'جارٍ الحساب…')}</div> : (
         <>
           <div className="rv-tiles">

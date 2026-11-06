@@ -2,8 +2,8 @@ import { useI18n } from '../context/I18nContext';
 import { fmtMoney, fmtSar, fmtInt, fmtInvoices, fmtParts, unitLabel, unitOfValues, chartUnit } from './money';
 
 // Inline bilingual helper for revenue-intelligence screens. English and Arabic
-// are authored; Chinese falls back to English (the dictionary-based t() is
-// still used for navigation and page titles).
+// are the only languages (the dictionary-based t() is still used for navigation
+// and page titles).
 export function useL() {
   const { lang, isRtl, t, T } = useI18n();
   const ar = lang === 'ar';

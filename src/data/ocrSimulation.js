@@ -4,7 +4,7 @@
 // or when the reviewer picked the sample from the list (then it is stored as that sample, separate from anything uploaded).
 import { buildExtraction } from './orderMatching';
 
-export const SIM_LABEL = { ar: 'محاكاة OCR — للعرض التجريبي', en: 'OCR simulation — demo only' };
+export const SIM_LABEL = { ar: 'محاكاة OCR — بيانات تجريبية', en: 'OCR simulation — synthetic demo data' };
 let cache = null;
 export async function loadPreparedSamples() {
   if (cache) return cache;

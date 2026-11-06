@@ -17,6 +17,7 @@ function dataService() {
       });
       // editing the data service or the shared catalog reloads it (and drops the in-memory world) on the next request
       server.watcher.on('change', (file) => {
+        if (/[\\/]server[\\/]\.data[\\/]/.test(file)) return; // the identity store (server/.data) is runtime state, not code: writing it must not reload the demo world
         if (/[\\/](server|src[\\/]data[\\/](catalog|sourceAssumptions|clock|revenueMetrics|enforcementMatching))[\\/.]/.test(file) || /[\\/]server[\\/]/.test(file)) {
           for (const m of server.moduleGraph.idToModuleMap.values()) if (/[\\/]server[\\/]|src[\\/]data[\\/](catalog|sourceAssumptions|clock|revenueMetrics|enforcementMatching)/.test(m.id || '')) server.moduleGraph.invalidateModule(m);
           api = null;

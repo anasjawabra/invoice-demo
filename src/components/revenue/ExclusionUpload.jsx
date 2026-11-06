@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useRevenue } from '../../context/RevenueContext';
 import { useL } from '../../utils/bi';
+import { shownActor } from '../../utils/actor';
 import { TEMPLATE_COLUMNS, REJECTIONS, readRows, buildTemplate, buildRejectedWorkbook, uploadReasons, UPLOAD_SOURCE } from '../../data/exclusionUpload';
 import { fmtDateText } from '../../data/clock';
 
@@ -52,17 +53,25 @@ export default function ExclusionUpload() {
   const dateText = (iso) => fmtDateText(String(iso).slice(0, 10), lang);
 
   return (
-    <div className="card card-pad" id="exclusion-upload" role="region" aria-label={L('Upload an Amanah exclusion list', 'رفع قائمة استبعادات الأمانة')}>
-      <h2 className="h3" style={{ marginTop: 0 }}>{L('Upload an Amanah exclusion list', 'رفع قائمة استبعادات الأمانة')}</h2>
-      <div className="muted" style={{ fontSize: 13, marginBottom: 10 }}>{L(`For «${uploadReasons()[0].en}» and «${uploadReasons()[1].en}». Each row is checked against the invoice data; only a full match is accepted. Source: ${UPLOAD_SOURCE.en}.`, `لسببي «${uploadReasons()[0].ar}» و«${uploadReasons()[1].ar}». يُفحص كل صف مقابل بيانات الفواتير، ويُقبل الصف المطابق بالكامل فقط. المصدر: ${UPLOAD_SOURCE.ar}.`)}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-        <button type="button" className="btn btn-sm" onClick={getTemplate} disabled={busy}>{L('Download the template', 'تنزيل النموذج')}</button>
-        <a className="btn btn-sm btn-ghost" href={SAMPLE_URL} download>{L('Sample file (about 150 rows)', 'ملف تجريبي (نحو 150 صفًا)')}</a>
-        <input ref={input} id="excl-file" type="file" accept=".xlsx,.csv" onChange={onFile} hidden aria-label={L('Choose the filled template', 'اختيار النموذج المعبّأ')} />
-        <button type="button" className="btn btn-primary btn-sm" onClick={() => input.current?.click()} disabled={busy || !rev.canReview}>{busy ? L('Working…', 'جارٍ العمل…') : L('Upload the file (.xlsx / .csv)', 'رفع الملف (.xlsx / .csv)')}</button>
-        {!rev.canReview && <span className="muted" style={{ fontSize: 12 }}>{L('Your role is read-only.', 'دورك للقراءة فقط.')}</span>}
+    <div className="card card-pad ex-upload" id="exclusion-upload" role="region" aria-label={L('Upload exclusions file', 'رفع ملف الاستبعادات')}>
+      <div className="ex-upload__head">
+        <div>
+          <h2 className="h3" style={{ margin: 0 }}>{L('Upload exclusions file', 'رفع ملف الاستبعادات')}</h2>
+          <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{L('An Amanah file (.xlsx / .csv). Each row is matched to one invoice by its number, GFS code and Amanah; only a full match is accepted.', 'ملف الأمانة (.xlsx / .csv). يُطابَق كل صف مع فاتورة واحدة برقمها ورمز حساب الإيراد والأمانة، ويُقبل الصف المطابق بالكامل فقط.')}</div>
+        </div>
+        <div className="ex-upload__actions">
+          <input ref={input} id="excl-file" type="file" accept=".xlsx,.csv" onChange={onFile} hidden aria-label={L('Choose the filled template', 'اختيار النموذج المعبّأ')} />
+          <button type="button" className="btn btn-primary" onClick={() => input.current?.click()} disabled={busy || !rev.canDo.exclusionUpload} title={rev.canDo.exclusionUpload ? undefined : L(rev.gates['exclusion.upload'].reason.en, rev.gates['exclusion.upload'].reason.ar)}>{busy ? L('Working…', 'جارٍ العمل…') : L('Upload the file (.xlsx / .csv)', 'رفع الملف (.xlsx / .csv)')}</button>
+          <button type="button" className="btn btn-sm" onClick={getTemplate} disabled={busy}>{L('Download the template', 'تنزيل النموذج')}</button>
+        </div>
       </div>
-      <div className="muted" style={{ fontSize: 12, marginTop: 6 }}>{L('Columns: ', 'الأعمدة: ')}{TEMPLATE_COLUMNS.map((c) => (ar ? c.ar : c.en)).join(ar ? '، ' : ', ')}</div>
+      {!rev.canDo.exclusionUpload && <div className="muted" style={{ fontSize: 12, marginTop: 6 }} data-testid="exclusion-upload-denied">{L(`Your role cannot upload exclusions (you can still download the template). ${rev.gates['exclusion.upload'].reason?.en || ''}`, `دورك لا يسمح برفع الاستبعادات (ويمكنك تنزيل النموذج). ${rev.gates['exclusion.upload'].reason?.ar || ''}`)}</div>}
+      <details className="ex-upload__how">
+        <summary>{L('Upload instructions', 'تعليمات الرفع')}</summary>
+        <div className="muted" style={{ fontSize: 13 }}>{L(`For «${uploadReasons()[0].en}» and «${uploadReasons()[1].en}». Source: ${UPLOAD_SOURCE.en}. Rejected rows go back to the Amanah with the reason; nothing is applied until you confirm.`, `لسببي «${uploadReasons()[0].ar}» و«${uploadReasons()[1].ar}». المصدر: ${UPLOAD_SOURCE.ar}. تعود الصفوف المرفوضة إلى الأمانة مع السبب، ولا يُطبَّق شيء إلا بعد التأكيد.`)}</div>
+        <div style={{ fontSize: 13, marginTop: 4 }}><a href={SAMPLE_URL} download>{L('Download a sample file (about 150 rows) to try the flow', 'تنزيل ملف تجريبي (نحو 150 صفًا) لتجربة التدفق')}</a></div>
+        <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>{L('Columns: ', 'الأعمدة: ')}{TEMPLATE_COLUMNS.map((c) => (ar ? c.ar : c.en)).join(ar ? '، ' : ', ')}</div>
+      </details>
       {msg && <div className={`rv-callout${msg.tone === 'bad' ? ' rv-callout--bad' : ''}`} role="status" aria-live="polite" style={{ marginTop: 10 }}>{msg.text}</div>}
 
       {prev && (
@@ -82,7 +91,7 @@ export default function ExclusionUpload() {
             </div>
           )}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-            <button type="button" className="btn btn-primary btn-sm" onClick={confirm} disabled={!acceptedRows.length || !rev.canReview}>{L(`Confirm and apply ${count(acceptedRows.length)} row(s)`, `تأكيد وتطبيق ${count(acceptedRows.length)} صفًا`)}</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={confirm} disabled={!acceptedRows.length || !rev.canDo.exclusionManage} title={rev.canDo.exclusionManage ? undefined : L(rev.gates['exclusion.manage'].reason.en, rev.gates['exclusion.manage'].reason.ar)}>{L(`Confirm and apply ${count(acceptedRows.length)} row(s)`, `تأكيد وتطبيق ${count(acceptedRows.length)} صفًا`)}</button>
             <button type="button" className="btn btn-sm" onClick={downloadRejected} disabled={!rejectedRows.length}>{L('Download the rejected rows', 'تنزيل الصفوف المرفوضة')}</button>
             <button type="button" className="btn btn-sm btn-ghost" onClick={() => setPrev(null)}>{L('Cancel', 'إلغاء')}</button>
           </div>
@@ -95,7 +104,7 @@ export default function ExclusionUpload() {
           <div className="rv-table-wrap" tabIndex={0}>
             <table className="rv-table">
               <thead><tr><th>{L('File', 'الملف')}</th><th>{L('Date', 'التاريخ')}</th><th>{L('By', 'بواسطة')}</th><th className="num">{L('Applied', 'المطبّق')}</th><th className="num">{L('Rejected', 'المرفوض')}</th><th className="num">{L('Excluded (SAR)', 'المستبعد (ريال)')}</th></tr></thead>
-              <tbody>{rev.exclusionUploads.map((u, i) => <tr key={`${u.at}-${i}`}><td dir="ltr">{u.file}</td><td>{dateText(u.at)}</td><td>{u.by}</td><td className="num">{count(u.accepted)}</td><td className="num">{count(u.rejected)}</td><td className="num" dir="ltr">{sar(u.amount)}</td></tr>)}</tbody>
+              <tbody>{rev.exclusionUploads.map((u, i) => <tr key={`${u.at}-${i}`}><td dir="ltr">{u.file}</td><td>{dateText(u.at)}</td><td>{shownActor(u.by)}</td><td className="num">{count(u.accepted)}</td><td className="num">{count(u.rejected)}</td><td className="num" dir="ltr">{sar(u.amount)}</td></tr>)}</tbody>
             </table>
           </div>
         </div>

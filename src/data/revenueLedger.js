@@ -27,11 +27,11 @@ export const DATA_CUTOFF = DEMO_TODAY;
 export const DATA_START = '2025-01-01';
 
 export const PROVENANCE_KINDS = {
-  demo: { en: 'Illustrative demo data', ar: 'بيانات توضيحية للعرض', zh: '演示用示例数据' },
-  uploaded: { en: 'Uploaded data', ar: 'بيانات مرفوعة', zh: '已上传数据' },
-  connected: { en: 'Connected production data', ar: 'بيانات إنتاج متصلة', zh: '已连接的生产数据' },
-  unavailable: { en: 'Unavailable source', ar: 'مصدر غير متاح', zh: '数据源不可用' },
-  awaiting: { en: 'Awaiting verification', ar: 'بانتظار التحقق', zh: '待核实' }
+  demo: { en: 'Illustrative demo data', ar: 'بيانات توضيحية للعرض' },
+  uploaded: { en: 'Uploaded data', ar: 'بيانات مرفوعة' },
+  connected: { en: 'Connected production data', ar: 'بيانات إنتاج متصلة' },
+  unavailable: { en: 'Unavailable source', ar: 'مصدر غير متاح' },
+  awaiting: { en: 'Awaiting verification', ar: 'بانتظار التحقق' }
 };
 
 /* ---------- Source-system registry ----------
@@ -54,14 +54,14 @@ export const UNAVAILABLE_REVENUE_SOURCES = [];
 
 /* ---------- Revenue-source taxonomy ---------- */
 export const REVENUE_SOURCES = {
-  investment: { gfs: '1421901', en: 'Investment', ar: 'الاستثمار', zh: '投资收入', platform: 'Foras' },
-  fines: { gfs: '1438001', en: 'Fines & penalties', ar: 'الغرامات والجزاءات', zh: '罚款与处罚', platform: 'Mumathil' },
-  municipal_fees: { gfs: '142113', en: 'Municipal fees', ar: 'الرسوم البلدية', zh: '市政收费', platform: 'Baladi' },
-  licenses: { gfs: '142162', en: 'Licence fees', ar: 'رسوم التراخيص', zh: '许可费', platform: 'Amanah Internal Reports' },
-  accommodation: { gfs: '11442', en: 'Accommodation facilities', ar: 'مرافق الإيواء', zh: '住宿设施', platform: 'Baladi' },
-  tobacco: { gfs: '1422110', en: 'Tobacco service fee', ar: 'رسم منتجات التبغ', zh: '烟草服务费', platform: 'Baladi' },
-  white_lands: { gfs: '1422111', en: 'White-land fees', ar: 'رسوم الأراضي البيضاء', zh: '空地费', platform: 'Baladi' },
-  housing_sales: { gfs: '1422112', en: 'Housing sector sales', ar: 'مبيعات قطاع الإسكان', zh: '住房销售', platform: 'Baladi' }
+  investment: { gfs: '1421901', en: 'Investment', ar: 'الاستثمار', platform: 'Foras' },
+  fines: { gfs: '1438001', en: 'Fines & penalties', ar: 'الغرامات والجزاءات', platform: 'Mumathil' },
+  municipal_fees: { gfs: '142113', en: 'Municipal fees', ar: 'الرسوم البلدية', platform: 'Baladi' },
+  licenses: { gfs: '142162', en: 'Licence fees', ar: 'رسوم التراخيص', platform: 'Amanah Internal Reports' },
+  accommodation: { gfs: '11442', en: 'Accommodation facilities', ar: 'مرافق الإيواء', platform: 'Baladi' },
+  tobacco: { gfs: '1422110', en: 'Tobacco service fee', ar: 'رسم منتجات التبغ', platform: 'Baladi' },
+  white_lands: { gfs: '1422111', en: 'White-land fees', ar: 'رسوم الأراضي البيضاء', platform: 'Baladi' },
+  housing_sales: { gfs: '1422112', en: 'Housing sector sales', ar: 'مبيعات قطاع الإسكان', platform: 'Baladi' }
 };
 export const REVENUE_SOURCE_KEYS = Object.keys(REVENUE_SOURCES);
 
@@ -248,7 +248,7 @@ export function buildLedger({ invoices = INVOICES, enforcement = ENFORCEMENT_SEE
       gfsCode: FIXTURE_GFS_BY_ID[inv.id] || FIXTURE_GFS[revenueSource] || '1453', // رقم حساب الإيراد of the hand-anchored invoices
       entity: inv.entity, entityEn: inv.entityEn, entityAr: inv.entityAr,
       amanah: inv.amanah, amanahEn: inv.amanahEn, amanahAr: inv.amanahAr,
-      municipalityEn: inv.municipalityEn, municipalityAr: inv.municipalityAr,
+      municipalityEn: inv.municipalityEn, municipalityAr: inv.municipalityAr, municipalitySourceValues: inv.municipalitySourceValues,
       beneficiaryId: (ov.missing || []).includes('debtor_id_number') ? null : inv.beneficiaryId,
       co: inv.co,
       sourcePlatform: inv.source,
@@ -302,7 +302,7 @@ export function accessibleLedger(ledger, org) {
 }
 
 export function amanahOptionsOf() {
-  return ENTITIES.slice(0, N_AMANAH + 1).map((e) => ({ key: e.en, en: e.en, ar: e.ar, zh: e.zh })).sort((a, b) => a.en.localeCompare(b.en));
+  return ENTITIES.slice(0, N_AMANAH + 1).map((e) => ({ key: e.en, en: e.en, ar: e.ar })).sort((a, b) => a.en.localeCompare(b.en));
 }
 // Every Amanah (and the Housing sector) — the choice for every Amanah filter, so the Amanah figures add up to the national figure.
 export function amanahFilterOptions() {

@@ -1,393 +1,15 @@
 // IntelliBill demo data (ES module)
 // Source: legacy assets/js/data.js
 
-/* ---------- Demo accounts ---------- */
-export const CREDENTIALS = [
-  {
-    user: 'demo',
-    pass: 'demo123',
-    name: '李芳军',
-    nameEn: 'Li Fangjun',
-    nameAr: 'طارق',
-    role: '财务共享中心 · 主管',
-    roleEn: 'Shared Service Center · Manager',
-    roleAr: 'مركز الخدمات المشتركة · مدير',
-    avatar: 'LF',
-    canReview: true
-  },
-  {
-    user: 'auditor',
-    pass: 'demo123',
-    name: 'Ahmad Al-Saud',
-    nameEn: 'Ahmad Al-Saud',
-    nameAr: 'أحمد آل سعود',
-    role: '审计师 · Auditor',
-    roleEn: 'Auditor',
-    roleAr: 'مدقق',
-    avatar: 'AS',
-    canReview: false
-  },
-  {
-    user: 'admin',
-    pass: 'admin',
-    name: '系统管理员',
-    nameEn: 'System Admin',
-    nameAr: 'مدير النظام',
-    role: '平台管理员',
-    roleEn: 'Platform Admin',
-    roleAr: 'مدير المنصة',
-    avatar: 'AD',
-    canReview: true
-  }
+/* ---------- Demo accounts (DISPLAY ONLY) ----------
+   Sign-in is verified by the data service (server/identity); the browser bundle holds NO passwords. This list is only the display names of the three seeded demo accounts
+   (the same names the server seeds), kept for tests and any page that needs to name a demo user. */
+export const DEMO_ACCOUNT_HINTS = [
+  { user: 'demo', name: 'Li Fangjun', nameEn: 'Li Fangjun', nameAr: 'Li Fangjun', role: 'Shared Service Center · Manager', roleEn: 'Shared Service Center · Manager', roleAr: 'مركز الخدمات المشتركة · مدير', avatar: 'LF' },
+  { user: 'auditor', name: 'Ahmad Al-Saud', nameEn: 'Ahmad Al-Saud', nameAr: 'أحمد آل سعود', role: 'Auditor', roleEn: 'Auditor', roleAr: 'مدقق', avatar: 'AS' },
+  { user: 'admin', name: 'System Admin', nameEn: 'System Admin', nameAr: 'مدير النظام', role: 'Platform Admin', roleEn: 'Platform Admin', roleAr: 'مدير المنصة', avatar: 'AD' }
 ];
 
-/* ---------- Organization context (scoped data) ----------
-   `amanahKeys` is the real access scope: null = all Amanahs (central tier);
-   otherwise the org may only see records whose `amanahEn` is in the list.
-   Applied centrally by revenueMetrics.scopeLedger — never by scaling amounts. */
-export const ORGS = [
-  {
-    id: 'mof-hq',
-    tier: 'central',
-    name: '住房与城乡事务部 · 本部（合并视图）',
-    nameEn: 'MoMAH · HQ (Consolidated)',
-    nameAr: 'وزارة البلديات والإسكان · المقر (موحّد)',
-    amanahKeys: null,
-    code: 'MOMAH-HQ'
-  },
-  {
-    id: 'gen-office',
-    tier: 'central',
-    name: '部长办公厅',
-    nameEn: "Minister's General Office",
-    nameAr: 'المكتب العام للوزير',
-    amanahKeys: null,
-    code: 'GEN-OFF'
-  },
-  {
-    id: 'riyadh',
-    tier: 'local',
-    name: '利雅得市政厅',
-    nameEn: 'Riyadh Municipality',
-    nameAr: 'أمانة منطقة الرياض',
-    amanahKeys: ['Riyadh Amanah'],
-    code: 'RUH-MUN'
-  },
-  {
-    id: 'makkah',
-    tier: 'local',
-    name: '麦加市政厅',
-    nameEn: 'Makkah Municipality',
-    nameAr: 'أمانة منطقة مكة المكرمة',
-    amanahKeys: ['Makkah Amanah'],
-    code: 'MAK-MUN'
-  },
-  {
-    id: 'eastern',
-    tier: 'local',
-    name: '东部省共享服务中心',
-    nameEn: 'Eastern Province Shared Service Center',
-    nameAr: 'مركز الخدمات المشتركة بالمنطقة الشرقية',
-    amanahKeys: ['Eastern Province Amanah'],
-    code: 'EP-SSC'
-  }
-];
-/* ---------- 12 agents: 1 orchestrator + 11 specialists ---------- */
-export const AGENTS = [
-  {
-    id: 'orch',
-    name: '总控编排 Agent',
-    nameEn: 'Orchestrator Agent',
-    nameAr: 'وكيل التنسيق',
-    en: 'Orchestrator',
-    form: '多智能体编排',
-    formEn: 'Multi-Agent Orchestration',
-    formAr: 'تنسيق متعدد الوكلاء',
-    color: 'gold',
-    desc: '意图识别与任务路由，按流水线调度 11 个子 Agent，统一中/阿对话入口，控制 HITL 断点。',
-    descEn:
-      'Intent recognition and task routing. Schedules 11 specialist agents via the pipeline, provides a unified ZH/AR chat entry, and controls HITL breakpoints.',
-    descAr:
-      'التعرف على القصد وتوجيه المهام. يقوم بجدولة 11 وكيلاً متخصصاً عبر خط الأنابيب، ويوفر مدخل دردشة موحداً بالصينية/العربية، ويتحكم في نقاط توقف HITL.',
-    uc: '贯穿全流程 / UC-07',
-    model: '豆包多语言模型 · 温度 0.2',
-    modelEn: 'Doubao Multilingual · Temp 0.2',
-    modelAr: 'Doubao متعدد اللغات · حرارة 0.2',
-    status: 'online',
-    calls: 48210,
-    acc: 100
-  },
-  {
-    id: 'ingest',
-    name: '发票摄取 Agent',
-    nameEn: 'Invoice Ingestion Agent',
-    nameAr: 'وكيل استيعاب الفواتير',
-    en: 'Ingestion',
-    short: '摄取',
-    shortEn: 'Ingestion',
-    shortAr: 'الاستيعاب',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'teal',
-    desc: '从四平台/邮件/ERP 抓取账单，纳入统一接收队列。',
-    descEn: 'Fetches invoices from the 4 platforms, email, and ERP into a single unified intake queue.',
-    descAr: 'يجلب الفواتير من المنصات الأربع والبريد الإلكتروني وERP إلى قائمة استيعاب موحّدة.',
-    uc: 'UC-01 / FR-001',
-    model: '豆包文本模型 · 温度 0.1',
-    modelEn: 'Doubao Text · Temp 0.1',
-    modelAr: 'Doubao نص · حرارة 0.1',
-    status: 'online',
-    calls: 3200,
-    acc: 97.5
-  },
-  {
-    id: 'ocr',
-    name: 'OCR 提取 Agent',
-    nameEn: 'OCR Data Extraction Agent',
-    nameAr: 'وكيل استخراج البيانات (OCR)',
-    en: 'OCR Extraction',
-    short: 'OCR',
-    shortEn: 'OCR',
-    shortAr: 'OCR',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'teal',
-    desc: '对每张账单图像/PDF 进行 OCR 提取：缴款方、催收单、金额、日期、税号。',
-    descEn: 'OCR extraction of payer, CO, amount, date, and VAT fields from each invoice image or PDF.',
-    descAr: 'استخراج OCR لحقول الجهة الدافعة وأمر التحصيل والمبلغ والتاريخ والضريبة من كل فاتورة.',
-    uc: 'UC-01 / FR-002',
-    model: '豆包视觉+文本 · 温度 0.1',
-    modelEn: 'Doubao Vision+Text · Temp 0.1',
-    modelAr: 'Doubao رؤية+نص · حرارة 0.1',
-    status: 'online',
-    calls: 4200,
-    acc: 95.0
-  },
-  {
-    id: 'normalize',
-    name: '元数据标准化 Agent',
-    nameEn: 'Metadata Normalization Agent',
-    nameAr: 'وكيل توحيد البيانات الوصفية',
-    en: 'Normalization',
-    short: '标准化',
-    shortEn: 'Normalization',
-    shortAr: 'التوحيد',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'blue',
-    desc: '将各来源的格式、单位与字段名称统一映射至标准发票模型。',
-    descEn: 'Standardizes formats, units, and field labels across sources into the unified invoice schema.',
-    descAr: 'يوحّد التنسيقات والوحدات وتسميات الحقول من مختلف المصادر ضمن نموذج بيانات موحّد.',
-    uc: 'UC-01 / FR-003',
-    model: '豆包文本模型 · 温度 0.1',
-    modelEn: 'Doubao Text · Temp 0.1',
-    modelAr: 'Doubao نص · حرارة 0.1',
-    status: 'online',
-    calls: 2800,
-    acc: 98.5
-  },
-  {
-    id: 'dedup',
-    name: '重复检测 Agent',
-    nameEn: 'Duplicates Detection Agent',
-    nameAr: 'وكيل اكتشاف التكرار',
-    en: 'Duplicates',
-    short: '去重',
-    shortEn: 'Dedup',
-    shortAr: 'التكرار',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'red',
-    desc: '对比发票指纹（缴款方/金额/催收单/发票号）与历史记录，拦截重复提交。',
-    descEn: 'Searches invoice fingerprints (payer, amount, CO, invoice no.) against history to catch duplicate submissions.',
-    descAr: 'يبحث في بصمات الفواتير (الجهة الدافعة، المبلغ، أمر التحصيل، رقم الفاتورة) مقابل السجل التاريخي لرصد التكرار.',
-    uc: 'UC-01 / FR-004',
-    model: '豆包文本模型 · 温度 0.1',
-    modelEn: 'Doubao Text · Temp 0.1',
-    modelAr: 'Doubao نص · حرارة 0.1',
-    status: 'online',
-    calls: 2280,
-    acc: 96.0
-  },
-  {
-    id: 'validation',
-    name: '自动化核验 Agent',
-    nameEn: 'Automated Validation Agent',
-    nameAr: 'وكيل التحقق الآلي',
-    en: 'Validation',
-    short: '核验',
-    shortEn: 'Validation',
-    shortAr: 'التحقق',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'teal',
-    desc: '三单核验（账单-催收单-应计确认）与 Tahseel 跨平台对账。',
-    descEn: '3-way verification (Invoice-Collection Order-Accrual Confirmation) and cross-platform reconciliation between platforms and Tahseel.',
-    descAr: 'المطابقة الثلاثية (فاتورة-أمر تحصيل-إثبات استحقاق) والتسوية عبر المنصات وتحصيل.',
-    uc: 'UC-02 / FR-005',
-    model: '豆包文本模型 · 温度 0.2',
-    modelEn: 'Doubao Text · Temp 0.2',
-    modelAr: 'Doubao نص · حرارة 0.2',
-    status: 'online',
-    calls: 7200,
-    acc: 93.5
-  },
-  {
-    id: 'compliance',
-    name: '合规检查 Agent',
-    nameEn: 'Compliance Checking Agent',
-    nameAr: 'وكيل فحص الامتثال',
-    en: 'Compliance',
-    short: '合规',
-    shortEn: 'Compliance',
-    shortAr: 'الامتثال',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'red',
-    desc: 'ZATCA 税号与增值税校验，比对既定的付款/税务/审批规则。',
-    descEn: 'ZATCA tax-ID and VAT validation against the defined payment, tax, and approval rules.',
-    descAr: 'التحقق من الرقم الضريبي ZATCA وضريبة القيمة المضافة مقابل قواعد الدفع والضريبة والاعتماد المحددة.',
-    uc: 'UC-11 / FR-006',
-    model: '豆包文本模型 · 温度 0.2',
-    modelEn: 'Doubao Text · Temp 0.2',
-    modelAr: 'Doubao نص · حرارة 0.2',
-    status: 'online',
-    calls: 5010,
-    acc: 91.8
-  },
-  {
-    id: 'anomaly',
-    name: '异常与欺诈检测 Agent',
-    nameEn: 'Anomaly & Fraud Detection Agent',
-    nameAr: 'وكيل اكتشاف الانحرافات والاحتيال',
-    en: 'Anomaly',
-    short: '异常',
-    shortEn: 'Anomaly',
-    shortAr: 'الانحراف',
-    form: '工作流 + 大模型',
-    formEn: 'Workflow + LLM',
-    formAr: 'سير العمل + LLM',
-    color: 'red',
-    desc: '比对缴款方历史模式与标准费率基准，输出 0-100 风险评分与欺诈警告。',
-    descEn: 'Compares payer historical patterns and standard fee tariffs; outputs a 0-100 risk score with fraud warnings.',
-    descAr: 'يقارن بأنماط الجهة الدافعة التاريخية ومعايير الرسوم القياسية للقطاع؛ يخرج درجة مخاطرة 0-100 مع تحذيرات الاحتيال.',
-    uc: 'UC-03 / FR-008',
-    model: '豆包文本模型 · 温度 0.3',
-    modelEn: 'Doubao Text · Temp 0.3',
-    modelAr: 'Doubao نص · حرارة 0.3',
-    status: 'online',
-    calls: 8460,
-    acc: 88.0
-  },
-  {
-    id: 'pattern',
-    name: '模式识别 Agent',
-    nameEn: 'Pattern Recognition Agent',
-    nameAr: 'وكيل التعرف على الأنماط',
-    en: 'Patterns',
-    short: '模式',
-    shortEn: 'Patterns',
-    shortAr: 'الأنماط',
-    form: '工作流 + 大模型',
-    formEn: 'Workflow + LLM',
-    formAr: 'سير العمل + LLM',
-    color: 'purple',
-    desc: '识别跨发票的趋势——提交频率、规避阈值、账期漂移——对比缴款方历史常规。',
-    descEn: 'Identifies cross-invoice trends — submission frequency, threshold evasion, payment-term drift — against payer norms.',
-    descAr: 'يحدد الأنماط عبر الفواتير — تكرار الإرسال، تفادي الحدود، انحراف آجال الدفع — مقارنة بسلوك الجهة الدافعة المعتاد.',
-    uc: 'UC-03 / FR-008',
-    model: '豆包文本模型 · 温度 0.3',
-    modelEn: 'Doubao Text · Temp 0.3',
-    modelAr: 'Doubao نص · حرارة 0.3',
-    status: 'online',
-    calls: 3520,
-    acc: 90.5
-  },
-  {
-    id: 'routing',
-    name: '审批路由 Agent',
-    nameEn: 'Approval Routing Agent',
-    nameAr: 'وكيل توجيه الاعتماد',
-    en: 'Routing',
-    short: '路由',
-    shortEn: 'Routing',
-    shortAr: 'التوجيه',
-    form: '工作流应用',
-    formEn: 'Workflow App',
-    formAr: 'تطبيق سير العمل',
-    color: 'blue',
-    desc: '按授权矩阵校验审批权限，按金额/部门动态分发审批链，生成审批卡片，SLA 逾期提醒。',
-    descEn:
-      'Validates approval authority against the authorization matrix, dynamically dispatches approval chains by amount/department, generates approval cards, and sends SLA reminders.',
-    descAr:
-      'يتحقق من صلاحية الموافقة وفق مصفوفة التفويض، يوزع سلاسل الموافقة ديناميكياً حسب المبلغ/القسم، ينشئ بطاقات موافقة، ويرسل تنبيهات SLA.',
-    uc: 'UC-04 / FR-007/009',
-    model: '豆包文本模型 · 温度 0.1',
-    modelEn: 'Doubao Text · Temp 0.1',
-    modelAr: 'Doubao نص · حرارة 0.1',
-    status: 'online',
-    calls: 9640,
-    acc: 100
-  },
-  {
-    id: 'forecasting',
-    name: '催收预测 Agent',
-    nameEn: 'Collection Probability Forecasting Agent',
-    nameAr: 'وكيل التنبؤ باحتمالية التحصيل',
-    en: 'Forecasting',
-    short: '预测',
-    shortEn: 'Forecasting',
-    shortAr: 'التنبؤ',
-    form: '工作流 + 大模型',
-    formEn: 'Workflow + LLM',
-    formAr: 'سير العمل + LLM',
-    color: 'purple',
-    desc: '基于历史收缴率/诉讼状态/宏观指标预测回收概率，延迟风险预警，Mumtathil 罚款同步。',
-    descEn:
-      'Predicts recovery probability from historical collection rates, litigation status, and macro indicators; warns of delay risk and syncs Mumtathil penalties.',
-    descAr:
-      'يتنبأ باحتمال التحصيل من معدلات التحصيل التاريخية وحالة التقاضي والمؤشرات الكلية؛ ينبه لمخاطر التأخير ويزامن عقوبات Mumtathil.',
-    uc: 'UC-05、UC-12 / FR-010',
-    model: '豆包文本模型 · 温度 0.3',
-    modelEn: 'Doubao Text · Temp 0.3',
-    modelAr: 'Doubao نص · حرارة 0.3',
-    status: 'online',
-    calls: 7320,
-    acc: 86.1
-  },
-  {
-    id: 'analytics',
-    name: '分析问答 Agent',
-    nameEn: 'Performance Analytics & Smart Chat Agent',
-    nameAr: 'وكيل تحليلات الأداء والمحادثة الذكية',
-    en: 'Analytics',
-    short: '分析',
-    shortEn: 'Analytics',
-    shortAr: 'التحليلات',
-    form: '对话型 + 工作流',
-    formEn: 'Conversational + Workflow',
-    formAr: 'حواري + سير العمل',
-    color: 'purple',
-    desc: '6 个核心 KPI 看板，阿拉伯语/中文自然语言问答(NL2SQL)，定期收入报告，待定账单修正建议。',
-    descEn:
-      '6 core KPI dashboards, Arabic/Chinese natural-language Q&A (NL2SQL), periodic revenue reports, and correction suggestions for pending invoices.',
-    descAr:
-      '6 لوحات مؤشرات أداء أساسية، أسئلة وأجوبة باللغة الطبيعية بالعربية/الصينية (NL2SQL)، تقارير إيرادات دورية، واقتراحات تصحيح للفواتير المعلقة.',
-    uc: 'UC-06/07/08/10',
-    model: '豆包多语言模型 · 温度 0.2-0.5',
-    modelEn: 'Doubao Multilingual · Temp 0.2-0.5',
-    modelAr: 'Doubao متعدد اللغات · حرارة 0.2-0.5',
-    status: 'online',
-    calls: 15870,
-    acc: 94.2
-  }
-];
 /* ---------- Invoices ---------- */
 // Every invoice also carries the Amanah/beneficiary-ID fields a real
 // extract joins in (see gfsForInvoice/collectionStatusFor below) — this is
@@ -402,10 +24,10 @@ export const INVOICES = [
     id: '177-882607310000', billerId: '177', sadadNo: '882607310000',
     payType: 'deferred',
     centralSource: true,
-    entity: 'Al-Rajhi 建设集团',
+    entity: 'Al-Rajhi Construction Group',
     entityEn: 'Al-Rajhi Construction Group',
     entityAr: 'مجموعة الراجحي للإنشاءات',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
     beneficiaryId: '1042883055',
     amount: 1749000,
     currency: 'SAR',
@@ -422,10 +44,10 @@ export const INVOICES = [
     id: '177-882607300000', billerId: '177', sadadNo: '882607300000',
     payType: 'deferred',
     centralSource: true,
-    entity: 'NEOM 物流服务',
+    entity: 'NEOM Logistics',
     entityEn: 'NEOM Logistics',
     entityAr: 'نيوم للخدمات اللوجستية',
-    amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك',
+    amanah: 'Tabuk Amanah', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك',
     beneficiaryId: '7009988766',
     violationNumber: '10000020226730',
     amount: 307000,
@@ -446,7 +68,7 @@ export const INVOICES = [
     entity: 'Saudi Tech Solutions',
     entityEn: 'Saudi Tech Solutions',
     entityAr: 'الحلول التقنية السعودية',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
     municipality: 'Al-Olaya', municipalityEn: 'Al-Olaya Municipality', municipalityAr: 'بلدية العليا',
     beneficiaryId: '1022334455',
     amount: 87500,
@@ -470,7 +92,7 @@ export const INVOICES = [
     entity: 'Gulf Facility Mgmt',
     entityEn: 'Gulf Facility Mgmt',
     entityAr: 'إدارة مرافق الخليج',
-    amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية',
+    amanah: 'Eastern Province Amanah', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية',
     beneficiaryId: '1041883055',
     violationNumber: '10000020226728',
     amount: 1099000,
@@ -488,10 +110,10 @@ export const INVOICES = [
     id: '177-882607270000', billerId: '177', sadadNo: '882607270000',
     payType: 'deferred',
     centralSource: true,
-    entity: 'Aramco 后勤供应',
+    entity: 'Aramco Logistics Supply',
     entityEn: 'Aramco Logistics Supply',
     entityAr: 'أرامكو للإمداد اللوجستي',
-    amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية',
+    amanah: 'Eastern Province Amanah', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية',
     municipality: 'Al-Khobar', municipalityEn: 'Al-Khobar Municipality', municipalityAr: 'بلدية الخبر',
     beneficiaryId: '2055667788',
     hasOpenObjection: true,
@@ -510,10 +132,10 @@ export const INVOICES = [
     id: '010-882607260000', billerId: '010', sadadNo: '882607260000',
     payType: 'prepaid',
     centralSource: false,
-    entity: 'Riyadh 市政工程',
+    entity: 'Riyadh Municipal Works',
     entityEn: 'Riyadh Municipal Works',
     entityAr: 'أعمال بلدية الرياض',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض',
     beneficiaryId: '1077889900',
     licenseNumber: '450210465726',
     amount: 1073000,
@@ -531,11 +153,12 @@ export const INVOICES = [
     id: '027-882607250000', billerId: '027', sadadNo: '882607250000',
     payType: 'prepaid',
     centralSource: false,
-    entity: 'STC 通信服务',
+    entity: 'STC Telecom Services',
     entityEn: 'STC Telecom Services',
     entityAr: 'STC لخدمات الاتصالات',
-    amanah: '麦加', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة',
+    amanah: 'Makkah Amanah', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة',
     municipality: 'Al-Aziziyah', municipalityEn: 'Al-Aziziyah Municipality', municipalityAr: 'بلدية العزيزية',
+    municipalitySourceValues: ['بلدية العزيزية', 'بلدية عسفان'], // two source systems name different municipalities for this invoice (one is not in the reference): kept as a CONFLICT for review, never merged
     beneficiaryId: '1033445566',
     licenseNumber: '450310556725',
     amount: 272500,
@@ -553,10 +176,10 @@ export const INVOICES = [
     id: '177-882607240000', billerId: '177', sadadNo: '882607240000',
     payType: 'deferred',
     centralSource: true,
-    entity: 'Bahri 海运物流',
+    entity: 'Bahri Maritime Logistics',
     entityEn: 'Bahri Maritime Logistics',
     entityAr: 'البحري للخدمات اللوجستية البحرية',
-    amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة',
+    amanah: 'Jeddah Amanah', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة',
     municipality: 'Al-Shati', municipalityEn: 'Al-Shati Municipality', municipalityAr: 'بلدية الشاطئ',
     beneficiaryId: '3066778899',
     amount: 1601500,
@@ -574,10 +197,10 @@ export const INVOICES = [
     id: '177-882607220000', billerId: '177', sadadNo: '882607220000',
     payType: 'deferred',
     centralSource: true,
-    entity: 'Al-Noor 贸易',
+    entity: 'Al-Noor Trading',
     entityEn: 'Al-Noor Trading',
     entityAr: 'النور للتجارة',
-    amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة',
+    amanah: 'Jeddah Amanah', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة',
     beneficiaryId: '1044556677',
     amount: 687500,
     currency: 'SAR',
@@ -599,57 +222,57 @@ export const INVOICES = [
   // preset collapsing to the same single-week cluster above.
   {
     id: '177-882508100000', billerId: '177', sadadNo: '882508100000', payType: 'deferred', centralSource: true,
-    entity: 'Red Sea 承包', entityEn: 'Red Sea Global Contracting', entityAr: 'البحر الأحمر للمقاولات',
-    amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '3088112233',
+    entity: 'Red Sea Global Contracting', entityEn: 'Red Sea Global Contracting', entityAr: 'البحر الأحمر للمقاولات',
+    amanah: 'Tabuk Amanah', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '3088112233',
     amount: 599000, currency: 'SAR', source: 'Baladi', co: 'CO-86210', vat: '3008811223300010',
     date: '2025-08-14', status: 'approved', risk: 9, confidence: 0.97, tag: 'normal'
   },
   {
     id: '028-882508100000', billerId: '028', sadadNo: '882508100000', payType: 'prepaid', centralSource: false,
-    entity: 'Jeddah 开发公司', entityEn: 'Jeddah Development Co.', entityAr: 'جدة للتطوير',
-    amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1022001100',
+    entity: 'Jeddah Development Co.', entityEn: 'Jeddah Development Co.', entityAr: 'جدة للتطوير',
+    amanah: 'Jeddah Amanah', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1022001100',
     amount: 266500, currency: 'SAR', source: 'Amanah Internal Reports (Jeddah Amanah)', co: 'CO-86340', vat: '3002200110000011',
     date: '2025-09-10', status: 'approved', risk: 6, confidence: 0.98, tag: 'normal'
   },
   {
     id: '177-882509020000', billerId: '177', sadadNo: '882509020000', payType: 'deferred', centralSource: true,
-    entity: 'NEOM 物流服务', entityEn: 'NEOM Logistics', entityAr: 'نيوم للخدمات اللوجستية',
-    amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '7009988766',
+    entity: 'NEOM Logistics', entityEn: 'NEOM Logistics', entityAr: 'نيوم للخدمات اللوجستية',
+    amanah: 'Tabuk Amanah', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '7009988766',
     amount: 630500, currency: 'SAR', source: 'Mumathil', co: 'CO-86510', vat: '3009988776600001',
     date: '2025-10-05', status: 'approved', risk: 11, confidence: 0.96, tag: 'normal'
   },
   {
     id: '177-882509400000', billerId: '177', sadadNo: '882509400000', payType: 'deferred', centralSource: true,
-    entity: 'Al-Ahsa 农业机构', entityEn: 'Al-Ahsa Agricultural Est.', entityAr: 'مؤسسة الأحساء الزراعية',
-    amanah: '哈萨', amanahEn: 'Al-Ahsa Amanah', amanahAr: 'أمانة محافظة الأحساء', beneficiaryId: '1044115566',
+    entity: 'Al-Ahsa Agricultural Est.', entityEn: 'Al-Ahsa Agricultural Est.', entityAr: 'مؤسسة الأحساء الزراعية',
+    amanah: 'Al-Ahsa Amanah', amanahEn: 'Al-Ahsa Amanah', amanahAr: 'أمانة محافظة الأحساء', beneficiaryId: '1044115566',
     amount: 169500, currency: 'SAR', source: 'Foras', co: 'CO-86690', vat: '3004411556600012',
     date: '2025-11-18', status: 'duplicate', risk: 0, confidence: 0.93, tag: 'dup'
   },
   {
     id: '177-882509750000', billerId: '177', sadadNo: '882509750000', payType: 'deferred', centralSource: true,
-    entity: 'Al-Rajhi 建设集团', entityEn: 'Al-Rajhi Construction Group', entityAr: 'مجموعة الراجحي للإنشاءات',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1042883055',
+    entity: 'Al-Rajhi Construction Group', entityEn: 'Al-Rajhi Construction Group', entityAr: 'مجموعة الراجحي للإنشاءات',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1042883055',
     amount: 937500, currency: 'SAR', source: 'Foras', co: 'CO-86840', vat: '3001234567800003',
     date: '2025-12-22', status: 'approved', risk: 14, confidence: 0.97, tag: 'normal'
   },
   {
     id: '177-882605200000', billerId: '177', sadadNo: '882605200000', payType: 'deferred', centralSource: true,
-    entity: 'Bahri 海运物流', entityEn: 'Bahri Maritime Logistics', entityAr: 'البحري للخدمات اللوجستية البحرية',
-    amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '3066778899',
+    entity: 'Bahri Maritime Logistics', entityEn: 'Bahri Maritime Logistics', entityAr: 'البحري للخدمات اللوجستية البحرية',
+    amanah: 'Jeddah Amanah', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '3066778899',
     amount: 2641000, currency: 'SAR', source: 'Baladi', co: 'CO-87010', vat: '3006677889900005',
     date: '2026-01-12', status: 'approved', risk: 20, confidence: 0.92, tag: 'normal'
   },
   {
     id: '027-882605200000', billerId: '027', sadadNo: '882605200000', payType: 'prepaid', centralSource: false,
-    entity: 'STC 通信服务', entityEn: 'STC Telecom Services', entityAr: 'STC لخدمات الاتصالات',
-    amanah: '麦加', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة', beneficiaryId: '1033445566',
+    entity: 'STC Telecom Services', entityEn: 'STC Telecom Services', entityAr: 'STC لخدمات الاتصالات',
+    amanah: 'Makkah Amanah', amanahEn: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة', beneficiaryId: '1033445566',
     amount: 182000, currency: 'SAR', source: 'Amanah Internal Reports (Makkah Amanah)', co: 'CO-87070', vat: '3003344556600009',
     date: '2026-01-28', status: 'approved', risk: 4, confidence: 0.99, tag: 'normal'
   },
   {
     id: '177-882605450000', billerId: '177', sadadNo: '882605450000', payType: 'deferred', centralSource: true,
-    entity: 'Tabuk 住房机构', entityEn: 'Tabuk Housing Authority', entityAr: 'هيئة إسكان تبوك',
-    amanah: '塔布克', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '1055002233',
+    entity: 'Tabuk Housing Authority', entityEn: 'Tabuk Housing Authority', entityAr: 'هيئة إسكان تبوك',
+    amanah: 'Tabuk Amanah', amanahEn: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', beneficiaryId: '1055002233',
     amount: 578000, currency: 'SAR', source: 'Mumathil', co: 'CO-87140', vat: '3005500223300013',
     date: '2026-02-15', status: 'review', risk: 39, confidence: 0.74, tag: 'taxfail',
     // Exclusion category: struck-off commercial registry / deceased debtor —
@@ -660,51 +283,51 @@ export const INVOICES = [
   {
     id: '177-882605600000', billerId: '177', sadadNo: '882605600000', payType: 'deferred', centralSource: true,
     entity: 'Gulf Facility Mgmt', entityEn: 'Gulf Facility Mgmt', entityAr: 'إدارة مرافق الخليج',
-    amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '1041883055',
+    amanah: 'Eastern Province Amanah', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '1041883055',
     amount: 1089500, currency: 'SAR', source: 'Mumathil', co: 'CO-87220', vat: '3001234567800003',
     date: '2026-03-09', status: 'approved', risk: 10, confidence: 0.98, tag: 'normal'
   },
   {
     id: '177-882605750000', billerId: '177', sadadNo: '882605750000', payType: 'deferred', centralSource: true,
     entity: 'Saudi Tech Solutions', entityEn: 'Saudi Tech Solutions', entityAr: 'الحلول التقنية السعودية',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1022334455',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1022334455',
     amount: 625500, currency: 'SAR', source: 'Foras', co: 'CO-87300', vat: '3002233445500007',
     date: '2026-03-30', status: 'approved', risk: 7, confidence: 0.98, tag: 'normal'
   },
   {
     id: '177-882605900000', billerId: '177', sadadNo: '882605900000', payType: 'deferred', centralSource: true,
-    entity: 'Aramco 后勤供应', entityEn: 'Aramco Logistics Supply', entityAr: 'أرامكو للإمداد اللوجستي',
-    amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '2055667788',
+    entity: 'Aramco Logistics Supply', entityEn: 'Aramco Logistics Supply', entityAr: 'أرامكو للإمداد اللوجستي',
+    amanah: 'Eastern Province Amanah', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '2055667788',
     amount: 1465500, currency: 'SAR', source: 'Baladi', co: 'CO-87380', vat: '3005566778800002',
     date: '2026-04-20', status: 'approved', risk: 17, confidence: 0.95, tag: 'normal'
   },
   {
     id: '010-882606050000', billerId: '010', sadadNo: '882606050000', payType: 'prepaid', centralSource: false,
-    entity: 'Riyadh 市政工程', entityEn: 'Riyadh Municipal Works', entityAr: 'أعمال بلدية الرياض',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1077889900',
+    entity: 'Riyadh Municipal Works', entityEn: 'Riyadh Municipal Works', entityAr: 'أعمال بلدية الرياض',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '1077889900',
     amount: 1109000, currency: 'SAR', source: 'Amanah Internal Reports (Riyadh Amanah)', co: 'CO-87450', vat: '3007788990000004',
     date: '2026-05-11', status: 'approved', risk: 12, confidence: 0.96, tag: 'normal'
   },
   {
     id: '177-882606200000', billerId: '177', sadadNo: '882606200000', payType: 'deferred', centralSource: true,
-    entity: 'Al-Noor 贸易', entityEn: 'Al-Noor Trading', entityAr: 'النور للتجارة',
-    amanah: '吉达', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1044556677',
+    entity: 'Al-Noor Trading', entityEn: 'Al-Noor Trading', entityAr: 'النور للتجارة',
+    amanah: 'Jeddah Amanah', amanahEn: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', beneficiaryId: '1044556677',
     amount: 670000, currency: 'SAR', source: 'Mumathil', co: 'CO-87560', vat: '3004455667700006',
     date: '2026-05-27', status: 'approved', risk: 8, confidence: 0.97, tag: 'normal',
     collectedVia: 'voluntary'
   },
   {
     id: '177-882606350000', billerId: '177', sadadNo: '882606350000', payType: 'deferred', centralSource: true,
-    entity: 'Metro 运输', entityEn: 'Metro Transport', entityAr: 'مترو للنقل',
-    amanah: '利雅得', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '3066004455',
+    entity: 'Metro Transport', entityEn: 'Metro Transport', entityAr: 'مترو للنقل',
+    amanah: 'Riyadh Amanah', amanahEn: 'Riyadh Amanah', amanahAr: 'أمانة منطقة الرياض', beneficiaryId: '3066004455',
     amount: 1363500, currency: 'SAR', source: 'Baladi', co: 'CO-87630', vat: '3006600445500014',
     date: '2026-06-08', status: 'approved', risk: 15, confidence: 0.95, tag: 'normal',
     collectedVia: 'enforcement'
   },
   {
     id: '177-882606500000', billerId: '177', sadadNo: '882606500000', payType: 'deferred', centralSource: true,
-    entity: 'Coastal 物流', entityEn: 'Coastal Logistics', entityAr: 'الساحلية للخدمات اللوجستية',
-    amanah: '东部省', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '3066770011',
+    entity: 'Coastal Logistics', entityEn: 'Coastal Logistics', entityAr: 'الساحلية للخدمات اللوجستية',
+    amanah: 'Eastern Province Amanah', amanahEn: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', beneficiaryId: '3066770011',
     amount: 572000, currency: 'SAR', source: 'Foras', co: 'CO-87700', vat: '3006677001100015',
     date: '2026-06-24', status: 'pending', risk: 22, confidence: 0.9, tag: 'normal',
     // Investment-category invoice (Foras) with no linked Furas contract —
@@ -716,43 +339,43 @@ export const INVOICES = [
   // the map, the Amanah filter, and the target-achievement ring gauges.
   {
     id: '177-882608010000', billerId: '177', sadadNo: '882608010000', payType: 'deferred', centralSource: true,
-    entity: 'Najran 边境贸易公司', entityEn: 'Najran Border Trading Co.', entityAr: 'شركة نجران للتجارة الحدودية',
-    amanah: '纳季兰', amanahEn: 'Najran Amanah', amanahAr: 'أمانة منطقة نجران', beneficiaryId: '1099887701',
+    entity: 'Najran Border Trading Co.', entityEn: 'Najran Border Trading Co.', entityAr: 'شركة نجران للتجارة الحدودية',
+    amanah: 'Najran Amanah', amanahEn: 'Najran Amanah', amanahAr: 'أمانة منطقة نجران', beneficiaryId: '1099887701',
     amount: 415000, currency: 'SAR', source: 'Baladi', co: 'CO-88301', vat: '3009988770100016',
     date: '2025-09-05', status: 'approved', risk: 11, confidence: 0.97, tag: 'normal'
   },
   {
     id: '177-882608020000', billerId: '177', sadadNo: '882608020000', payType: 'prepaid', centralSource: false,
-    entity: 'Arar 物流枢纽', entityEn: 'Arar Logistics Hub', entityAr: 'مركز عرعر اللوجستي',
-    amanah: '北部边境', amanahEn: 'Northern Borders Amanah', amanahAr: 'أمانة منطقة الحدود الشمالية', beneficiaryId: '1088776602',
+    entity: 'Arar Logistics Hub', entityEn: 'Arar Logistics Hub', entityAr: 'مركز عرعر اللوجستي',
+    amanah: 'Northern Borders Amanah', amanahEn: 'Northern Borders Amanah', amanahAr: 'أمانة منطقة الحدود الشمالية', beneficiaryId: '1088776602',
     amount: 268000, currency: 'SAR', source: 'Mumathil', co: 'CO-88321', vat: '3008877660200017',
     date: '2026-02-01', status: 'pending', risk: 27, confidence: 0.89, tag: 'normal'
   },
   {
     id: '177-882608030000', billerId: '177', sadadNo: '882608030000', payType: 'deferred', centralSource: true,
-    entity: 'Hail 农业工业公司', entityEn: 'Hail Agri Industries', entityAr: 'حائل للصناعات الزراعية',
-    amanah: '哈伊勒', amanahEn: "Ha'il Amanah", amanahAr: 'أمانة منطقة حائل', beneficiaryId: '1077665503',
+    entity: 'Hail Agri Industries', entityEn: 'Hail Agri Industries', entityAr: 'حائل للصناعات الزراعية',
+    amanah: "Ha'il Amanah", amanahEn: "Ha'il Amanah", amanahAr: 'أمانة منطقة حائل', beneficiaryId: '1077665503',
     amount: 512500, currency: 'SAR', source: 'Foras', co: 'CO-88341', vat: '3007766550300018',
     date: '2025-10-18', status: 'approved', risk: 9, confidence: 0.98, tag: 'normal'
   },
   {
     id: '177-882608040000', billerId: '177', sadadNo: '882608040000', payType: 'deferred', centralSource: true,
-    entity: 'Abha 高地开发商', entityEn: 'Abha Highland Developers', entityAr: 'مطورو أبها للمرتفعات',
-    amanah: '阿西尔', amanahEn: 'Asir Amanah', amanahAr: 'أمانة منطقة عسير', beneficiaryId: '1066554404',
+    entity: 'Abha Highland Developers', entityEn: 'Abha Highland Developers', entityAr: 'مطورو أبها للمرتفعات',
+    amanah: 'Asir Amanah', amanahEn: 'Asir Amanah', amanahAr: 'أمانة منطقة عسير', beneficiaryId: '1066554404',
     amount: 891000, currency: 'SAR', source: 'Baladi', co: 'CO-88361', vat: '3006655440400019',
     date: '2025-11-30', status: 'review', risk: 41, confidence: 0.7, tag: 'taxfail'
   },
   {
     id: '006-882608050000', billerId: '006', sadadNo: '882608050000', payType: 'prepaid', centralSource: false,
-    entity: 'Madinah 酒店集团', entityEn: 'Madinah Hospitality Group', entityAr: 'مجموعة المدينة للضيافة',
-    amanah: '麦地那', amanahEn: 'Al Madinah Amanah', amanahAr: 'أمانة المدينة المنورة', beneficiaryId: '1055443305',
+    entity: 'Madinah Hospitality Group', entityEn: 'Madinah Hospitality Group', entityAr: 'مجموعة المدينة للضيافة',
+    amanah: 'Al Madinah Amanah', amanahEn: 'Al Madinah Amanah', amanahAr: 'أمانة المدينة المنورة', beneficiaryId: '1055443305',
     amount: 1245000, currency: 'SAR', source: 'Amanah Internal Reports (Al Madinah Amanah)', co: 'CO-88381', vat: '3005544330500020',
     date: '2026-01-15', status: 'approved', risk: 13, confidence: 0.96, tag: 'normal'
   },
   {
     id: '177-882608060000', billerId: '177', sadadNo: '882608060000', payType: 'deferred', centralSource: true,
-    entity: 'Qassim 农业科技', entityEn: 'Qassim AgroTech', entityAr: 'القصيم للتقنية الزراعية',
-    amanah: '卡西姆', amanahEn: 'Al-Qassim Amanah', amanahAr: 'أمانة منطقة القصيم', beneficiaryId: '1044332206',
+    entity: 'Qassim AgroTech', entityEn: 'Qassim AgroTech', entityAr: 'القصيم للتقنية الزراعية',
+    amanah: 'Al-Qassim Amanah', amanahEn: 'Al-Qassim Amanah', amanahAr: 'أمانة منطقة القصيم', beneficiaryId: '1044332206',
     amount: 356500, currency: 'SAR', source: 'Foras', co: 'CO-88401', vat: '3004433220600021',
     date: '2026-03-22', status: 'pending', risk: 24, confidence: 0.91, tag: 'normal',
     // Investment-category invoice (Foras) with no linked Furas contract.
@@ -760,22 +383,22 @@ export const INVOICES = [
   },
   {
     id: '177-882608070000', billerId: '177', sadadNo: '882608070000', payType: 'prepaid', centralSource: false,
-    entity: 'Al Bahah 旅游地产', entityEn: 'Al Bahah Tourism Estates', entityAr: 'عقارات الباحة السياحية',
-    amanah: '巴哈', amanahEn: 'Al Bahah Amanah', amanahAr: 'أمانة منطقة الباحة', beneficiaryId: '1033221107',
+    entity: 'Al Bahah Tourism Estates', entityEn: 'Al Bahah Tourism Estates', entityAr: 'عقارات الباحة السياحية',
+    amanah: 'Al Bahah Amanah', amanahEn: 'Al Bahah Amanah', amanahAr: 'أمانة منطقة الباحة', beneficiaryId: '1033221107',
     amount: 198000, currency: 'SAR', source: 'Baladi', co: 'CO-88421', vat: '3003322110700022',
     date: '2025-12-08', status: 'approved', risk: 6, confidence: 0.98, tag: 'normal'
   },
   {
     id: '177-882608080000', billerId: '177', sadadNo: '882608080000', payType: 'deferred', centralSource: true,
-    entity: 'Jazan 港口服务', entityEn: 'Jazan Port Services', entityAr: 'خدمات ميناء جازان',
-    amanah: '吉赞', amanahEn: 'Jazan Amanah', amanahAr: 'أمانة منطقة جازان', beneficiaryId: '1022110008',
+    entity: 'Jazan Port Services', entityEn: 'Jazan Port Services', entityAr: 'خدمات ميناء جازان',
+    amanah: 'Jazan Amanah', amanahEn: 'Jazan Amanah', amanahAr: 'أمانة منطقة جازان', beneficiaryId: '1022110008',
     amount: 733500, currency: 'SAR', source: 'Mumathil', co: 'CO-88441', vat: '3002211000800023',
     date: '2026-04-05', status: 'duplicate', risk: 0, confidence: 0.94, tag: 'dup'
   },
   {
     id: '103-882608090000', billerId: '103', sadadNo: '882608090000', payType: 'prepaid', centralSource: false,
-    entity: 'Al Jawf 农业公司', entityEn: 'Al Jawf Agricultural Co.', entityAr: 'شركة الجوف الزراعية',
-    amanah: '焦夫', amanahEn: 'Al Jawf Amanah', amanahAr: 'أمانة منطقة الجوف', beneficiaryId: '1011009909',
+    entity: 'Al Jawf Agricultural Co.', entityEn: 'Al Jawf Agricultural Co.', entityAr: 'شركة الجوف الزراعية',
+    amanah: 'Al Jawf Amanah', amanahEn: 'Al Jawf Amanah', amanahAr: 'أمانة منطقة الجوف', beneficiaryId: '1011009909',
     amount: 287000, currency: 'SAR', source: 'Amanah Internal Reports (Al Jawf Amanah)', co: 'CO-88461', vat: '3001100990900024',
     date: '2026-05-19', status: 'approved', risk: 8, confidence: 0.97, tag: 'normal'
   }
@@ -786,11 +409,11 @@ export const INVOICES = [
    revenue account regardless of which of the 4 platforms actually issued
    it — derived here once rather than repeated on all 24 records. */
 const GFS_BY_SOURCE = {
-  Foras: { code: '1421901', name: '投资类收费', nameEn: 'Investment Fees', nameAr: 'رسوم الاستثمار' },
-  Mumathil: { code: '1438001', name: '违规与罚款', nameEn: 'Penalties & Fines', nameAr: 'جزاءات وغرامات مفروضة بموجب أنظمة الجهة' },
-  Baladi: { code: '142113', name: '市政杂项收费', nameEn: 'Municipal Fees', nameAr: 'رسوم بلدية متنوعة' }
+  Foras: { code: '1421901', name: 'Investment Fees', nameEn: 'Investment Fees', nameAr: 'رسوم الاستثمار' },
+  Mumathil: { code: '1438001', name: 'Penalties & Fines', nameEn: 'Penalties & Fines', nameAr: 'جزاءات وغرامات مفروضة بموجب أنظمة الجهة' },
+  Baladi: { code: '142113', name: 'Municipal Fees', nameEn: 'Municipal Fees', nameAr: 'رسوم بلدية متنوعة' }
 };
-const GFS_INTERNAL = { code: '142162', name: '商业活动许可费', nameEn: 'Commercial License Fees', nameAr: 'اصدار رخص الانشطة التجارية' };
+const GFS_INTERNAL = { code: '142162', name: 'Commercial License Fees', nameEn: 'Commercial License Fees', nameAr: 'اصدار رخص الانشطة التجارية' };
 
 export function gfsForInvoice(inv) {
   if (!inv) return null;
@@ -801,17 +424,17 @@ export function gfsForInvoice(inv) {
 
 /* ---------- Status dictionary ---------- */
 export const STATUS = {
-  pending: { label: '待处理', labelEn: 'Pending', labelAr: 'قيد الانتظار', color: 'blue' },
-  approved: { label: '已通过', labelEn: 'Approved', labelAr: 'تمت الموافقة', color: 'green' },
-  anomaly: { label: '欺诈警告', labelEn: 'Fraud Warning', labelAr: 'تحذير احتيال', color: 'red' },
+  pending: { label: 'Pending', labelEn: 'Pending', labelAr: 'قيد الانتظار', color: 'blue' },
+  approved: { label: 'Approved', labelEn: 'Approved', labelAr: 'تمت الموافقة', color: 'green' },
+  anomaly: { label: 'Fraud Warning', labelEn: 'Fraud Warning', labelAr: 'تحذير احتيال', color: 'red' },
   duplicate: {
-    label: '重复拦截',
+    label: 'Duplicate Blocked',
     labelEn: 'Duplicate Blocked',
     labelAr: 'منع التكرار',
     color: 'gold'
   },
-  review: { label: '待人工复核', labelEn: 'Review Needed', labelAr: 'مراجعة بشرية', color: 'orange' },
-  rejected: { label: '已驳回', labelEn: 'Rejected', labelAr: 'مرفوض', color: 'grey' }
+  review: { label: 'Review Needed', labelEn: 'Review Needed', labelAr: 'مراجعة بشرية', color: 'orange' },
+  rejected: { label: 'Rejected', labelEn: 'Rejected', labelAr: 'مرفوض', color: 'grey' }
 };
 /* ---------- Payer master (Sanad / ERP registry) ----------
    Referenced by the validation & anomaly agents so intermediate tool results
@@ -849,9 +472,9 @@ export const RECON = {
     contract: 'SANAD-CT-2231',
     currency: 'SAR',
     lines: [
-      { no: 1, item: { zh: '场地占用费 (m²)', en: 'Site occupation fee (m²)', ar: 'رسوم إشغال الموقع (م²)' }, qty: 2000, poQty: 2000, grnQty: 2000, invUnit: 375, poUnit: 375, benchUnit: 372 },
-      { no: 2, item: { zh: '建筑废弃物处理费 (吨)', en: 'Construction-waste disposal fee (ton)', ar: 'رسوم التخلص من مخلفات البناء (طن)' }, qty: 250, poQty: 250, grnQty: 250, invUnit: 1400, poUnit: 1400, benchUnit: 1385 },
-      { no: 3, item: { zh: '脚手架许可月费 (月)', en: 'Scaffolding permit fee (month)', ar: 'رسوم ترخيص السقالات الشهرية (شهر)' }, qty: 5, poQty: 5, grnQty: 5, invUnit: 30000, poUnit: 30000, benchUnit: 29500 }
+      { no: 1, item: { en: 'Site occupation fee (m²)', ar: 'رسوم إشغال الموقع (م²)' }, qty: 2000, poQty: 2000, grnQty: 2000, invUnit: 375, poUnit: 375, benchUnit: 372 },
+      { no: 2, item: { en: 'Construction-waste disposal fee (ton)', ar: 'رسوم التخلص من مخلفات البناء (طن)' }, qty: 250, poQty: 250, grnQty: 250, invUnit: 1400, poUnit: 1400, benchUnit: 1385 },
+      { no: 3, item: { en: 'Scaffolding permit fee (month)', ar: 'رسوم ترخيص السقالات الشهرية (شهر)' }, qty: 5, poQty: 5, grnQty: 5, invUnit: 30000, poUnit: 30000, benchUnit: 29500 }
     ],
     vat: { subtotal: 1250000, declared: 187500, expected: 187500, rate: 15 },
     taxId: { value: '3001234567800003', valid: true }
@@ -866,8 +489,8 @@ export const RECON = {
     // Invoice↔CO↔Accrual are internally consistent (3-way verification PASSES at Validation);
     // the anomaly signal is fee-vs-tariff, caught downstream by Anomaly & Fraud Detection.
     lines: [
-      { no: 1, item: { zh: '重型车辆通行许可费 (车次)', en: 'Heavy-vehicle route permit fee (trip)', ar: 'رسوم تصريح مسار المركبات الثقيلة (رحلة)' }, qty: 120, poQty: 120, grnQty: 120, invUnit: 3200, poUnit: 3200, benchUnit: 2320 },
-      { no: 2, item: { zh: '燃油与环保附加费', en: 'Fuel & environmental levy', ar: 'رسوم الوقود والبيئة الإضافية' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 102000, poUnit: 102000, benchUnit: 98000 }
+      { no: 1, item: { en: 'Heavy-vehicle route permit fee (trip)', ar: 'رسوم تصريح مسار المركبات الثقيلة (رحلة)' }, qty: 120, poQty: 120, grnQty: 120, invUnit: 3200, poUnit: 3200, benchUnit: 2320 },
+      { no: 2, item: { en: 'Fuel & environmental levy', ar: 'رسوم الوقود والبيئة الإضافية' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 102000, poUnit: 102000, benchUnit: 98000 }
     ],
     vat: { subtotal: 486000, declared: 72900, expected: 72900, rate: 15 },
     taxId: { value: '3009988776600001', valid: true }
@@ -881,7 +504,7 @@ export const RECON = {
     currency: 'SAR',
     duplicateOf: '177-882607310000',
     lines: [
-      { no: 1, item: { zh: '设施运营许可费 (月)', en: 'Facility operating license fee (month)', ar: 'رسوم ترخيص تشغيل المرفق (شهر)' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 1250000, poUnit: 1250000, benchUnit: 1250000 }
+      { no: 1, item: { en: 'Facility operating license fee (month)', ar: 'رسوم ترخيص تشغيل المرفق (شهر)' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 1250000, poUnit: 1250000, benchUnit: 1250000 }
     ],
     vat: { subtotal: 1250000, declared: 187500, expected: 187500, rate: 15 },
     taxId: { value: '3001234567800003', valid: true }
@@ -896,9 +519,9 @@ export const RECON = {
     // Line 1 unit rate differs from the Collection Order → total variance +2.4%; VAT declared
     // ≠ ZATCA-expected; tax-ID fails ZATCA check-digit validation.
     lines: [
-      { no: 1, item: { zh: '仓储分区许可费 (月)', en: 'Warehouse zoning fee (month)', ar: 'رسوم تقسيم المستودعات (شهر)' }, qty: 12, poQty: 12, grnQty: 12, invUnit: 180000, poUnit: 173750, benchUnit: 172000 },
-      { no: 2, item: { zh: '车队登记续期费', en: 'Fleet registration renewal fee', ar: 'رسوم تجديد تسجيل الأسطول' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 620000, poUnit: 620000, benchUnit: 610000 },
-      { no: 3, item: { zh: '装卸与清关征费', en: 'Handling & customs levy', ar: 'رسوم المناولة والتخليص الجمركي' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 400000, poUnit: 400000, benchUnit: 395000 }
+      { no: 1, item: { en: 'Warehouse zoning fee (month)', ar: 'رسوم تقسيم المستودعات (شهر)' }, qty: 12, poQty: 12, grnQty: 12, invUnit: 180000, poUnit: 173750, benchUnit: 172000 },
+      { no: 2, item: { en: 'Fleet registration renewal fee', ar: 'رسوم تجديد تسجيل الأسطول' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 620000, poUnit: 620000, benchUnit: 610000 },
+      { no: 3, item: { en: 'Handling & customs levy', ar: 'رسوم المناولة والتخليص الجمركي' }, qty: 1, poQty: 1, grnQty: 1, invUnit: 400000, poUnit: 400000, benchUnit: 395000 }
     ],
     vat: { subtotal: 3180000, declared: 472800, expected: 477000, rate: 15 },
     taxId: { value: '3005566778800002', valid: false }
@@ -922,12 +545,12 @@ export const SANAD_ENFORCEMENT = {
   ordersUnlinked: 153,
   ordersUnlinkedValue: 10000000,
   sample: [
-    { enforceNum: 'EN-2607714', amanahEn: 'Riyadh Amanah', amanah: '利雅得', amanahAr: 'أمانة الرياض', amount: 355000, defendant: { en: 'Individual (investor)', zh: '个人（投资者）', ar: 'فرد (مستثمر)' } },
-    { enforceNum: 'EN-2119843', amanahEn: 'Eastern Province Amanah', amanah: '东部省', amanahAr: 'أمانة المنطقة الشرقية', amount: 590500, defendant: { en: 'Registered company', zh: '注册公司', ar: 'شركة مسجلة في المملكة' } },
-    { enforceNum: 'EN-2884026', amanahEn: 'Jeddah Amanah', amanah: '吉达', amanahAr: 'أمانة محافظة جدة', amount: 875250, defendant: { en: 'Registered company', zh: '注册公司', ar: 'شركة مسجلة في المملكة' } },
-    { enforceNum: 'EN-2093317', amanahEn: 'Tabuk Amanah', amanah: '塔布克', amanahAr: 'أمانة منطقة تبوك', amount: 412500, defendant: { en: 'Registered company', zh: '注册公司', ar: 'شركة مسجلة في المملكة' } },
-    { enforceNum: 'EN-2451982', amanahEn: 'Makkah Amanah', amanah: '麦加', amanahAr: 'أمانة منطقة مكة المكرمة', amount: 268000, defendant: { en: 'Individual (investor)', zh: '个人（投资者）', ar: 'فرد (مستثمر)' } },
-    { enforceNum: 'EN-2760541', amanahEn: 'Al Madinah Amanah', amanah: '麦地那', amanahAr: 'أمانة المدينة المنورة', amount: 1245000, defendant: { en: 'Registered company', zh: '注册公司', ar: 'شركة مسجلة في المملكة' } }
+    { enforceNum: 'EN-2607714', amanahEn: 'Riyadh Amanah', amanah: 'Riyadh Amanah', amanahAr: 'أمانة الرياض', amount: 355000, defendant: { en: 'Individual (investor)', ar: 'فرد (مستثمر)' } },
+    { enforceNum: 'EN-2119843', amanahEn: 'Eastern Province Amanah', amanah: 'Eastern Province Amanah', amanahAr: 'أمانة المنطقة الشرقية', amount: 590500, defendant: { en: 'Registered company', ar: 'شركة مسجلة في المملكة' } },
+    { enforceNum: 'EN-2884026', amanahEn: 'Jeddah Amanah', amanah: 'Jeddah Amanah', amanahAr: 'أمانة محافظة جدة', amount: 875250, defendant: { en: 'Registered company', ar: 'شركة مسجلة في المملكة' } },
+    { enforceNum: 'EN-2093317', amanahEn: 'Tabuk Amanah', amanah: 'Tabuk Amanah', amanahAr: 'أمانة منطقة تبوك', amount: 412500, defendant: { en: 'Registered company', ar: 'شركة مسجلة في المملكة' } },
+    { enforceNum: 'EN-2451982', amanahEn: 'Makkah Amanah', amanah: 'Makkah Amanah', amanahAr: 'أمانة منطقة مكة المكرمة', amount: 268000, defendant: { en: 'Individual (investor)', ar: 'فرد (مستثمر)' } },
+    { enforceNum: 'EN-2760541', amanahEn: 'Al Madinah Amanah', amanah: 'Al Madinah Amanah', amanahAr: 'أمانة المدينة المنورة', amount: 1245000, defendant: { en: 'Registered company', ar: 'شركة مسجلة في المملكة' } }
   ]
 };
 

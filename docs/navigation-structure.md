@@ -13,7 +13,9 @@ Synthetic-data demonstration; not production-ready. Preserves every calculation,
 
 ## 2. The structure
 
-**Main bar:** لوحة المعلومات والتقارير · التخطيط المالي والاستراتيجي · إدارة التنفيذ · **وحدات تشغيلية ▾** · **إعدادات النظام** (set apart at the far end, with a gear icon).
+> **Update (7 Nov 2026):** «التخطيط المالي والاستراتيجي» (`/planning`) is now the revenue-plans page («خطط الإيرادات», `/planning/:planId`) — see `docs/planning-review/14-revenue-plans-implementation-status.md`. Its targets are shared plans on the data service, not browser-stored values; the old browser value `ib_plan_targets_v1` is only read by the legacy import notice. The navigation label above is unchanged.
+
+**Main bar:** لوحة المعلومات والتقارير · التخطيط المالي والاستراتيجي · إدارة أوامر التنفيذ · **وحدات تشغيلية ▾** · **إعدادات النظام** (set apart at the far end, with a gear icon).
 
 * **وحدات تشغيلية** (daily work): قائمة الفواتير المحصّلة · عدم التحصيل والاستبعادات · قائمة الفواتير غير المحصّلة · العقود والتنفيذ · **المخاطر والانحرافات**.
 * **إعدادات النظام** (rare, configuration and administration; one sub-navigation + breadcrumb «إعدادات النظام › …» on each page):
@@ -32,7 +34,7 @@ Synthetic-data demonstration; not production-ready. Preserves every calculation,
 
 ## 4. «جودة البيانات» — where existing data-quality monitoring belongs
 
-Data quality is monitoring of *the data*, owned by whoever administers it, and it sits beside the source-level status it explains (freshness, versions, matching results on «مصادر البيانات»). The page keeps the same worklist (same rows, same filters by finding, same «تحليل ومراجعة» action) for the five record-level findings and links to Noncollection and Enforcement management for the two that are decided there. The source page links to it («قائمة العمل على مستوى الفاتورة»), and the dashboard's data-completeness insight now drills to it.
+Data quality is monitoring of *the data*, owned by whoever administers it, and it sits beside the source-level status it explains (freshness, versions, matching results on «مصادر البيانات»). The page keeps the same worklist (same rows, same filters by finding, same «تحليل ومراجعة» action) for the five record-level findings and links to Noncollection and Enforcement orders management for the two that are decided there. The source page links to it («قائمة العمل على مستوى الفاتورة»), and the dashboard's data-completeness insight now drills to it.
 
 ## 5. Routes and links
 

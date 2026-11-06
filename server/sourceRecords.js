@@ -8,9 +8,10 @@
 // and the LINKS between systems. Nothing here adds an amount: every amount shown is the unified invoice amount, or a documented
 // breakdown of it. All persons, facilities and identifiers are synthetic.
 // ============================================================================
-import { ENTITIES, SOURCES, ITEMS, CHANNELS, F, grpOf, extOf, GRP, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, ITEMS, CHANNELS, F, grpOf, extOf, GRP, isoOf } from '../src/data/catalog.js';
 import { PARAMS, IMPORT_VERSIONS, SOURCE_PROFILE, GFS_BY_SOURCE, assumptionsFor } from '../src/data/sourceAssumptions.js';
 import { Rng, mix } from './world.js';
+import { municipalityOfRow } from './iimRow.js';
 import { invoiceIdFor, sadadOf, violationOf, payerName, crNoOf, DEED, LICENCE, DISCLOSURE, VISIT, SCHEDULE, REQUEST, facilityKeyOf, personName, nationalIdOf, mobileOf, hash } from './names.js';
 
 const BI = (ar, en) => ({ ar, en });
@@ -50,15 +51,15 @@ function disclosureInvoiceStatus(rec, pf, cutoff) {
 export function sourceRecord(st, i, rec, D, cutoff) {
   const idKey = st.idKey[i]; const year = Math.floor(idKey / 1e8);
   const src = SOURCES[st.src[i]]; const item = ITEMS[st.item[i]]; const ent = ENTITIES[st.ent[i]];
-  const muni = municipalityOf(st.ent[i], st.muni[i]);
+  const muni = municipalityOfRow(st, i); // the reference municipality / status of the row (the source field values below are the SIMULATED stand-in)
   const payer = payerName(st.payer[i]); const gross = rec.grossAmount;
   const sadad = rec.sadadNo; const pf = paymentFacts(rec);
   const r = new Rng(mix(40, idKey % 1000003, year));
   const flags = st.flags[i];
-  const amanaNo = String(1000 + st.ent[i] * 10); const baladyaNo = muni ? String(amanaNo * 1 + 1 + st.muni[i]) : null;
+  const amanaNo = String(1000 + st.ent[i] * 10);
   const geoFields = [
     fld('AMANA_NO', 'كود الأمانة', 'Amanah code', amanaNo), fld('ARABIC_AMANA_NAME', 'الأمانة', 'Amanah', ent.ar),
-    ...(muni ? [fld('BALADYA_NO', 'كود البلدية', 'Municipality code', baladyaNo), fld('ARABIC_BRANCH_BALADYA_NAME', 'البلدية', 'Municipality', muni.ar)] : [])
+    ...(muni.municipalityStatus === 'mapped' ? [fld('ARABIC_BALADYA_NAME', 'البلدية', 'Municipality', muni.municipalityAr)] : muni.municipalityStatus === 'direct_amanah' ? [fld('ARABIC_BALADYA_NAME', 'البلدية', 'Municipality', muni.municipalitySourceValue || ent.ar)] : [])
   ];
   const facilityKey = facilityKeyOf(st.payer[i]);
   const profile = SOURCE_PROFILE[src.key];
@@ -227,7 +228,7 @@ export function sourceRecord(st, i, rec, D, cutoff) {
       fld('CREATE_DATE', 'تاريخ الفاتورة', 'Bill date', rec.issueDate), fld('SERVICE_KEY', 'كود الخدمة', 'Service key', svc[0]), fld('SERVICE_NAME', 'اسم الخدمة', 'Service', svc[1]),
       fld('OWNER_ID', 'هوية المالك', 'Owner id', nat === 'سجل تجاري' ? crNoOf(st.payer[i]) : nationalIdOf(st.payer[i])), fld('OWNER_TYPE_ID', 'نوع الهوية', 'Owner type', nat === 'سجل تجاري' ? 2 : 1), fld('NATIONAL_NUMBER', 'الرقم الموحد', 'Unified number', nat === 'سجل تجاري' ? `700${pad(hash(st.payer[i], 54) % 1e7, 7)}` : null),
       fld('BILL_UPDATE_DATE', 'تاريخ التحديث', 'Updated', pf.last || rec.issueDate), fld('PAID_DATE', 'تاريخ السداد', 'Paid date', pf.last), fld('BILL_AMOUNT', 'مبلغ الفاتورة', 'Bill amount', gross),
-      fld('BILL_STATUS_KEY', 'كود الحالة', 'Status key', billStatus), fld('BILL_STATUS_NAME', 'وصف الحالة', 'Status', PARAMS.licenses.billStatusCodes[billStatus]), fld('AMANA_NO', 'كود الأمانة المحاسبي', 'Amanah accounting code', amanaNo), fld('BALADYA_NO', 'كود البلدية المحاسبي', 'Municipality accounting code', baladyaNo), fld('GIS_CODE', 'كود البلدية', 'GIS code', muni ? `GIS-${amanaNo}-${st.muni[i] + 1}` : null)
+      fld('BILL_STATUS_KEY', 'كود الحالة', 'Status key', billStatus), fld('BILL_STATUS_NAME', 'وصف الحالة', 'Status', PARAMS.licenses.billStatusCodes[billStatus]), fld('AMANA_NO', 'كود الأمانة المحاسبي', 'Amanah accounting code', amanaNo), fld('ARABIC_BALADYA_NAME', 'البلدية', 'Municipality', muni.municipalityStatus === 'mapped' ? muni.municipalityAr : null) /* no municipality code is shown: the reference workbook has none and none is invented */
     ]));
     if (fam === 'commercial_license' || fam === 'signboard_license') {
       const act = ACTIVITIES[hash(st.payer[i], 55) % ACTIVITIES.length];

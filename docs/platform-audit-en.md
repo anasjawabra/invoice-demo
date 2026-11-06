@@ -1,5 +1,8 @@
 # Platform audit — reporting, planning, navigation, journeys, content clarity, hierarchy and dates
 
+> **Update 2026-11-06 — language scope:** the Chinese interface language has been removed from the application. Arabic (default) and English are the only supported languages (see `docs/localization-cleanup.md`). Mentions of Chinese / `zh` below describe the state at the time this document was written and are kept for history; the open points about Chinese (F-27, Q7) are closed by removal.
+
+
 Contents: Part A §1–9 (journeys, findings F-01…F-31, consistency, corrected journeys, remediation, questions Q1–Q10, limits) · **Part B §10–16** (content and wording C-01…C-10, hierarchy, dates D-01…D-15, UX references, updated plan, questions Q11–Q18) · **Part C §17–23** (MOMAH/NHCI + DGA reference extracted, platform-wide visual and UX consistency, gap table G-01…G-26, proposed shared design system, consolidated remediation plan, questions Q19–Q27) · **Part D §26–32** (evidence update, plan-record status, consolidated backlog by root cause, work split A/B/C, ten essential questions, acceptance criteria, phased plan).
 
 **Document status:** analysis only — no code, configuration or business data was changed on purpose (one unintended test side-effect is disclosed in §9). Version 3 — updated 2026-10-09 with the decisions on the Part C questions (§24–25), the direct review of the screenshots and monthly reports, the consolidated backlog, the essential questions, acceptance criteria and the implementation plan (Part D, §26–32).

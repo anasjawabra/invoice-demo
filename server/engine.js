@@ -5,8 +5,12 @@
 // milliseconds instead of seconds and the browser never holds the invoices.
 // ============================================================================
 import { overdueDays } from '../src/data/lateness.js';
-import { ENTITIES, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, F, RULE_IDS, RULE_BIT, CSTAT, CHANNELS, ENTITY_INDEX, SOURCE_INDEX, ITEMS, dayNum, isoOf } from '../src/data/catalog.js';
+import { MUNI_SLOTS, slotOf, parseMuniKey, municipalityOfCode, MUNICIPALITY_NOT_SPECIFIED, MUNICIPALITY_DIRECT, MUNICIPALITY_UNRESOLVED } from '../src/data/municipalityModel.js';
 import { normalizeConfig, EXCLUSION_RULES, EXCLUSION_RULE_SET_VERSION, ratio, ppChange, NONCOLLECTION_CATEGORIES } from '../src/data/revenueMetrics.js';
+import { iimFields as iimFieldsOf } from './iimRow.js';
+import { parseCompositeKey, resolveByNumber } from '../src/data/invoiceIdentity.js';
+import { accessTable, entityReachable, slotIndex } from './accessMask.js';
 import { invoiceIdFor, idKeyFromSadad, idKeyFromSubscription, idKeyFromViolation, payerName, payerPool } from './names.js';
 import { HOUSING_PAYER_BASE } from './world.js';
 import { EXCLUSIONS_AUTO_APPLY, REFERRED_CANCELLED_STAYS_BILLED, parseInvoiceKey, PRODUCT_KEYS, productIdxOf, originIdxOf, mainClassIdx, MAIN_LIST, OTHER_MAIN_IDX, isServiceCompanyPayer, OBJECTION_STATUS_OF, OBJECTION_STATUSES } from '../src/data/iim.js';
@@ -78,8 +82,24 @@ export function lookupKey(st, key) {
 export const contractsByNumber = (st, no) => { const k = String(no || '').trim().toUpperCase(); return k ? (st.contracts || []).filter((c) => c && String(c.contractNo).toUpperCase() === k) : []; };
 // the contract only when the number identifies EXACTLY ONE record; with several records it returns null (never "the first one"), so nothing is linked by accident
 export const contractByNumber = (st, no) => { const m = contractsByNumber(st, no); return m.length === 1 ? m[0] : null; };
+// every invoice whose invoice number is `no` (a number can repeat across Amanahs / GFS codes: hand-anchored invoices already do). In the demo world the invoice number is the generated number.
+export const lookupInvoiceNo = (st, no) => lookupSadad(st, String(no || '').trim());
+/** a composite key → the ONE invoice carrying it, or -1 (never the first of several) */
+export function lookupComposite(st, key) {
+  const p = parseCompositeKey(key); if (!p) return -1;
+  const m = lookupInvoiceNo(st, p.invoiceId).filter((i) => iimFieldsOf(st, i).compositeKey === key);
+  return m.length === 1 ? m[0] : -1;
+}
+/** ANY reference a user or a stored record can hold: a composite key (exact), a legacy id `biller-sadad` (resolves only when it is unique), or a bare invoice number (candidates; several → ambiguous, never the first) */
+export function lookupRef(st, ref) {
+  const s = String(ref || '').trim(); if (!s) return { status: 'none', kind: 'empty', indexes: [] };
+  if (parseCompositeKey(s)) { const i = lookupComposite(st, s); return { status: i >= 0 ? 'unique' : 'none', kind: 'composite', indexes: i >= 0 ? [i] : [] }; }
+  if (parseInvoiceKey(s)) { const i = lookupId(st, s); return { status: i >= 0 ? 'unique' : 'none', kind: 'legacy_id', indexes: i >= 0 ? [i] : [] }; }
+  const c = lookupInvoiceNo(st, s); const r = resolveByNumber(c); return { status: r.status, kind: 'number', indexes: c };
+}
 export function lookupId(st, id) {
   const s = String(id || '').trim();
+  if (s.startsWith('ick1|')) return lookupComposite(st, s);
   if (st.fixtureById.has(s)) return st.fixtureById.get(s);
   const p = parseInvoiceKey(s); if (!p) return -1;
   const key = idKeyFromSadad(p.sadad); if (key == null) return -1;
@@ -100,14 +120,14 @@ export function idOf(st, i) { if (i >= st.nGen) return st.fixtures.get(i)?.id ??
 export function makeCtx(st, req = {}) {
   const cfg = normalizeConfig(req.cfg || {});
   const cutoffN = dayNum(cfg.cutoff);
-  const ctx = { st, cfg, cutoffN, owner: Number(req.owner) || 0, graceDays: cfg.graceDays || 0, periodEndMode: cfg.collectionsAsOf === 'periodEnd' };
+  const ctx = { st, cfg, cutoffN, owner: Number(req.owner) || 0, acc: accessTable(req.access) /* GEOGRAPHIC ACCESS (docs/access-control.md §5): absent = unrestricted for direct callers; handleApi always sets it */, graceDays: cfg.graceDays || 0, periodEndMode: cfg.collectionsAsOf === 'periodEnd' };
   let enabled = 0; RULES.forEach((r) => { if (cfg.rules[r.id] && !r.locked) enabled |= r.bit; });
   ctx.enabled = enabled; ctx.objOn = !!cfg.rules['OBJ-1']; ctx.sndOn = !!cfg.rules['SND-1']; ctx.styOn = !!cfg.rules['STY-1']; ctx.autoApply = EXCLUSIONS_AUTO_APPLY;
   ctx.crOk = [true, true, false, false, false]; // 0 none (legacy: always qualifies), 1 Active (never), then by cfg
   const names = ['', 'Active', 'Deleted', 'Suspended', 'Cancelled'];
   ctx.crOk = names.map((n, k) => (k === 0 ? true : (cfg.crStatuses || []).includes(n)));
   // overlay: review decisions + enforcement links held by the client
-  ctx.mark = null; ctx.ov = new Map();
+  ctx.mark = null; ctx.ov = new Map(); ctx.linkInfo = req.linkInfo || {}; // linkInfo: invoice → the reviewer-confirmed orders behind its link (order, reviewer, time, supporting document), only to SHOW the evidence: it never changes an amount
   const dec = req.decisions || {}; const links = req.links || {};
   const fileEx = req.fileExclusions || {};
   const need = Object.keys(dec).length + Object.keys(links).length + Object.keys(fileEx).length;
@@ -183,7 +203,8 @@ export function derive(ctx, i, asOfN) {
   // S9: a source cancellation caused by a REFERRAL (a confirmed link, or an order of the Sanad feed) is not a cancellation: the invoice stays billed and is excluded as «منفذ ضده – قضايا (سند)»
   const referred = st.exec[i] >= 0 || (link >= 2 && link <= 4);
   const stays = REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && referred;
-  const conflict = !REFERRED_CANCELLED_STAYS_BILLED && sourceCancelled && (link >= 2 || link === 5); // D22: «ملغاة ومحالة» is gone — a referred invoice counts only as referred
+  // A source-cancelled invoice that has a confirmed enforcement order (a confirmed link, or an order of the Sanad feed) — or whose confirmed link was withdrawn — is FLAGGED «تعارض بين المصدر والتنفيذ — يحتاج مراجعة». The flag changes no amount: the S9 treatment above stands (billed, excluded as linked to a confirmed order) and the source status is kept.
+  const conflict = sourceCancelled && (referred || link === 5);
   const cancelled = sourceCancelled && !stays;
   // D10 — exclusions come ONLY from uncollected invoices: a fully collected invoice is never excluded (the exclusion is ignored and counted as a data warning); a partly collected invoice keeps what was collected and only the uncollected remainder is excluded.
   const fullyCollected = !cancelled && billed > 0 && received >= billed;
@@ -221,7 +242,10 @@ export function derive(ctx, i, asOfN) {
   }
   D.cls = cls;
   // PAYMENT status, independent of enforcement / objection / linkage: what the payments say about this invoice
-  D.payStatus = cancelled ? 'cancelled' : excluded ? 'excluded' : outstanding <= 0 ? 'collected' : received > 0 ? 'partial' : daysOverdue > 0 ? 'overdue' : 'not_due';
+  // PAYMENT STATUS (D.payStatus): what the source's own amounts say — collected · partly paid · overdue · not yet due · cancelled. It NEVER depends on an exclusion: an excluded invoice is still unpaid / partly paid / overdue / not yet due,
+  // and «excluded» is a separate flag (D.excluded, with D.mask / D.primaryBit) and a collection class (CLASSES / D.cls) — not a payment status. Neither an enforcement referral nor an order closure changes it.
+  const remaining = Math.max(0, billed - received);
+  D.payStatus = cancelled ? 'cancelled' : remaining <= 0 ? 'collected' : received > 0 ? 'partial' : daysOverdue > 0 ? 'overdue' : 'not_due';
   return D;
 }
 
@@ -229,7 +253,7 @@ export function derive(ctx, i, asOfN) {
 export function resolveScope(ctx, scope = {}) {
   const st = ctx.st; const cfg = ctx.cfg;
   const toS = scope.to || cfg.cutoff; const fromS = scope.from || `${cfg.cutoff.slice(0, 4)}-01-01`;
-  const out = { owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? 'all', muni: scope.muni ?? 'all', item: scope.item ?? 'all', issuedFromN: scope.issuedFrom ? dayNum(scope.issuedFrom) : null, issuedToN: scope.issuedTo ? dayNum(scope.issuedTo) : null };
+  const out = { acc: ctx.acc, owner: ctx.owner, from: fromS, to: toS, fromN: dayNum(fromS), toN: Math.min(dayNum(toS), ctx.cutoffN), entOk: new Uint8Array(ENTITIES.length), srcOk: new Uint8Array(SOURCES.length), scopeType: scope.scopeType ?? 'all', muni: scope.muni ?? 'all', item: scope.item ?? 'all', issuedFromN: scope.issuedFrom ? dayNum(scope.issuedFrom) : null, issuedToN: scope.issuedTo ? dayNum(scope.issuedTo) : null };
   const orgKeys = scope.org?.amanahKeys || scope.orgKeys || null;
   const am = scope.amanah ?? 'all';
   const amSet = am === 'all' ? null : new Set([].concat(am));
@@ -238,6 +262,7 @@ export function resolveScope(ctx, scope = {}) {
     let ok = true;
     if (orgKeys && !orgKeys.includes(en)) ok = false; // regional organisations never see the Housing sector
     if (amSet && !amSet.has(en)) ok = false;
+    if (!entityReachable(ctx.acc, e)) ok = false; // the user's own geographic access: an entity none of whose records may be seen is out before any row is read
     out.entOk[e] = ok ? 1 : 0;
   }
   const srcF = scope.source ?? 'all';
@@ -246,8 +271,11 @@ export function resolveScope(ctx, scope = {}) {
   out.prodOk = prodSet ? Uint8Array.from(PRODUCT_KEYS.map((k) => (prodSet.has(k) ? 1 : 0))) : null;
   out.mainClass = scope.mainClass && scope.mainClass !== 'all' ? MAIN_LIST.indexOf(scope.mainClass) : -1; // revenue main class (تصنيف الإيراد الرئيسي)
   out.includeOther = !!scope.includeOther; // «أخرى» invoices are outside إجمالي المفوتر unless a view asks for them explicitly
-  out.muniIdx = out.muni !== 'all' ? Number(String(out.muni).split('|').pop() === 'Sales' ? 0 : ['North', 'Central', 'South'].indexOf(String(out.muni).split('|').pop())) : -1;
-  out.muniEnt = out.muni !== 'all' ? ENTITY_INDEX[String(out.muni).split('|')[0]] : -1;
+  // municipality filter: 'all' · '<Amanah>|<MREF-…>' · '<Amanah>|NOT_SPECIFIED' · '<Amanah>|DIRECT' · '<Amanah>|UNRESOLVED' (src/data/municipalityModel.js). A value that is not valid (the retired demo scheme, junk, another Amanah's municipality)
+  // selects NOTHING — it is reported in the snapshot scope (muniInvalid), never silently widened to «all». The Amanah permission (entOk) always applies on top.
+  { const pm = parseMuniKey(out.muni); out.muniInvalid = !!(pm && pm.invalid);
+    out.muniEnt = pm === null ? -1 : pm.invalid ? ENTITIES.length : pm.ent;
+    out.muniOk = pm && !pm.invalid ? Uint8Array.from({ length: 128 }, (_, c) => (pm.codes.includes(c) ? 1 : 0)) : null; }
   out.itemIdx = out.item !== 'all' ? ITEMS.findIndex((x) => x.key === out.item) : -1;
   out.scopeIdx = out.scopeType === 'central' ? 0 : out.scopeType === 'internal' ? 1 : -1; // مصدر الفاتورة: derived from the biller (177 = central)
   // invoice-status filter: a class name (collected, partial, overdue, not_due, cancelled, excluded, objection, ...) or 'open' (any invoice still owing: not collected / cancelled / excluded)
@@ -258,12 +286,12 @@ export function resolveScope(ctx, scope = {}) {
     else if (C[out.status] != null) set[C[out.status]] = 1; else set.fill(1);
     out.statusSet = set;
   }
-  out.key = `${out.from}|${out.to}|${am === 'all' ? 'all' : [].concat(am).join(',')}|${srcF}|${orgKeys ? orgKeys.join(',') : 'all'}|${out.scopeType}|${out.muni}|${out.item}|${out.status}|${prodSet ? [...prodSet].sort().join(',') : 'all'}|${out.mainClass}|${out.includeOther ? 1 : 0}`;
+  out.key = `${ctx.acc.key}|${out.from}|${out.to}|${am === 'all' ? 'all' : [].concat(am).join(',')}|${srcF}|${orgKeys ? orgKeys.join(',') : 'all'}|${out.scopeType}|${out.muni}|${out.item}|${out.status}|${prodSet ? [...prodSet].sort().join(',') : 'all'}|${out.mainClass}|${out.includeOther ? 1 : 0}`;
   return out;
 }
-const inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && sc.srcOk[st.src[i]] === 1
+const inScope = (st, sc, i) => (st.owner[i] === 0 || st.owner[i] === sc.owner) && sc.entOk[st.ent[i]] === 1 && (sc.acc.all || sc.acc.tab[slotIndex(st.ent[i], st.mref[i])] === 1) && sc.srcOk[st.src[i]] === 1
   && (sc.scopeIdx < 0 || originIdxOf(st.ent[i], st.scope[i]) === sc.scopeIdx) && (sc.itemIdx < 0 || st.item[i] === sc.itemIdx)
-  && (sc.muniEnt < 0 || (st.ent[i] === sc.muniEnt && st.muni[i] === sc.muniIdx))
+  && (sc.muniEnt < 0 || (st.ent[i] === sc.muniEnt && sc.muniOk !== null && sc.muniOk[st.mref[i]] === 1))
   && (!sc.prodOk || sc.prodOk[productIdxOf(st.src[i], st.item[i], originIdxOf(st.ent[i], st.scope[i]))] === 1)
   && inClass(st, sc, i);
 // D7 — إجمالي المفوتر excludes every invoice whose main class is «أخرى» (VAT, sale of documents, refunds …): such an invoice changes no KPI. A view may ask for them (includeOther) or for one main class.
@@ -289,7 +317,7 @@ const AGING = [{ key: '0', label: { ar: 'لم يحن استحقاقه', en: 'Not
 export const agingBucket = (days) => (days <= 0 ? 0 : days <= 30 ? 1 : days <= 90 ? 2 : days <= 180 ? 3 : 4);
 export { AGING };
 
-const labelOfEnt = (e) => ({ en: ENTITIES[e].en, ar: ENTITIES[e].ar, zh: ENTITIES[e].zh });
+const labelOfEnt = (e) => ({ en: ENTITIES[e].en, ar: ENTITIES[e].ar });
 const catOf = (bit) => RULES.find((r) => r.bit === bit);
 
 export function snapshot(st, req) {
@@ -308,9 +336,9 @@ export function snapshot(st, req) {
   const aging = new Float64Array(5 * 2); // amount, count
   const esm = new Map(); // entity × source × issue month: net, collected, gross (trend of every source inside every entity; same invoices and measure as the matrix above)
   const accMonth = new Map(); // issue-month cohort: 'YYYY-MM' -> Acc(1) measured at the reference date
-  const accMuni = new Acc(NE * 5); const accStatus = new Acc(CLASSES.length); const accDue = new Acc(5); // payment-status view of the dashboard: collected · overdue · not yet due (+ excluded · cancelled kept apart)
+  const accMuni = new Acc(NE * MUNI_SLOTS); const accStatus = new Acc(CLASSES.length); const accDue = new Acc(5); // payment-status view of the dashboard: collected · overdue · not yet due (+ excluded · cancelled kept apart)
   const agingC = new Float64Array(5 * 2); let ageSum = 0; let ageN = 0; let objAmt = 0; // planning buckets (current, 1-30, 31-60, 61-90, 90+), average days overdue, amount under objection
-  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length), byEnt: new Float64Array(NE) };
+  const recv = { total: 0, fromPeriodInvoices: 0, fromPriorInvoices: 0, onExcluded: 0, count: 0, byChannel: new Float64Array(CHANNELS.length), byEnt: new Float64Array(NE), byMuni: new Float64Array(NE * MUNI_SLOTS) };
   const q = { records: 0, conflicts: new TopK(40), conflictN: 0, conflictAtStake: 0, pendingAtStake: 0, pendingN: 0, pending: new TopK(40), missingN: 0, missing: new TopK(40), contractN: 0, contract: new TopK(40), unverifiedN: 0, uploaded: 0, checkable: 0 };
   const enfStock = { inExecution: { count: 0, outstanding: 0 }, suspended: { count: 0, outstanding: 0 }, closedOnly: { count: 0, outstanding: 0 }, sourceConflict: { count: 0, outstanding: 0 } }; // unique invoices by the state of their CONFIRMED enforcement orders at the reference date
   let ledgerInScope = 0; let issued = 0;
@@ -338,7 +366,7 @@ export function snapshot(st, req) {
       if (d < fromN || d > toN || d > ctx.cutoffN) continue;
       recv.count += 1;
       if (hasReason) { recv.onExcluded += st.pAmt[p]; continue; }
-      const a = st.pAmt[p]; recv.total += a; recv.byChannel[st.pCh[p]] += a; recv.byEnt[e] += a;
+      const a = st.pAmt[p]; recv.total += a; recv.byChannel[st.pCh[p]] += a; recv.byEnt[e] += a; recv.byMuni[e * MUNI_SLOTS + slotOf(e, st.mref[i])] += a;
       if (st.issue[i] >= fromN && st.issue[i] <= toN) recv.fromPeriodInvoices += a; else recv.fromPriorInvoices += a;
     }
     // ---- invoices issued in the period (population B)
@@ -348,7 +376,7 @@ export function snapshot(st, req) {
     issued += 1;
     per.tot.add(0, dd); per.ent.add(e, dd); per.src.add(s, dd); per.scope.add(originIdxOf(st.ent[i], st.scope[i]), dd); per.prod.add(productIdxOf(st.src[i], st.item[i], originIdxOf(st.ent[i], st.scope[i])), dd);
     { const ym = isoOf(st.issue[i]).slice(0, 7); let am = accMonth.get(ym); if (!am) { am = new Acc(1); accMonth.set(ym, am); } am.add(0, dd); }
-    accMuni.add(e * 5 + (municipalityOf(e, Math.min(st.muni[i], 4)) ? Math.min(st.muni[i], 4) : 3), dd); accStatus.add(dd.cls, dd); accDue.add(dd.cancelled ? 4 : dd.excluded ? 3 : dd.outstanding <= 0 ? 0 : dd.daysOverdue > 0 ? 1 : 2, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
+    accMuni.add(e * MUNI_SLOTS + slotOf(e, st.mref[i]), dd); accStatus.add(dd.cls, dd); accDue.add(dd.cancelled ? 4 : dd.excluded ? 3 : dd.outstanding <= 0 ? 0 : dd.daysOverdue > 0 ? 1 : 2, dd); // (F-22) every invoice WITHOUT a municipality of this entity shares ONE group — it used to be split by a hidden index into identical «no municipality» rows
     const viol = s === 1; const enf = dd.link >= 2 || (pc > 0 && (() => { for (let p = ps; p < ps + pc; p += 1) if (st.pCh[p] === 2) return true; return false; })());
     per.ent.addMeta(e, viol, enf); per.src.addMeta(s, viol, enf);
     entSrcGross[e * NS + s] += dd.gross; entSrcNet[e * NS + s] += dd.net;
@@ -387,7 +415,16 @@ export function snapshot(st, req) {
   const stockTot = stk.tot.toAgg(0);
   const byAmanah = groupOut(per.ent, NE, entLabel, (g) => ENTITIES[g].en);
   const byMonth = [...accMonth.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(([month, acc]) => ({ month, ...acc.toAgg(0) }));
-  const byMunicipality = []; for (let g = 0; g < NE * 5; g += 1) { if (accMuni.a[g * K + M.count] === 0) continue; const e = Math.floor(g / 5); const mu = municipalityOf(e, g % 5); byMunicipality.push({ key: `${ENTITIES[e].en}|${mu ? mu.key.split('|')[1] : '-'}`, amanah: ENTITIES[e].en, amanahLabel: labelOfEnt(e), municipality: mu ? { key: mu.key, ar: mu.ar, en: mu.en } : null, ...accMuni.toAgg(g) }); }
+  // municipality groups: every invoice of an Amanah is in exactly ONE group — a reference municipality, «not specified in source», «issued directly by the Amanah» or «needs review» (unmapped / conflicting source value) — so the groups add up to the Amanah's total
+  const byMunicipality = []; for (let g = 0; g < NE * MUNI_SLOTS; g += 1) {
+    if (accMuni.a[g * K + M.count] === 0) continue; const e = Math.floor(g / MUNI_SLOTS); const slot = g % MUNI_SLOTS; const en = ENTITIES[e].en;
+    let mu;
+    if (slot >= 4) { const m = municipalityOfCode(e, slot); mu = { key: m.key, ar: m.ar, en: m.en, refId: m.refId, status: 'mapped' }; }
+    else if (slot === 1) mu = { key: `${en}|DIRECT`, ar: MUNICIPALITY_DIRECT.ar, en: MUNICIPALITY_DIRECT.en, refId: null, status: 'direct_amanah' };
+    else if (slot === 2) mu = { key: `${en}|UNRESOLVED`, ar: MUNICIPALITY_UNRESOLVED.ar, en: MUNICIPALITY_UNRESOLVED.en, refId: null, status: 'needs_review' };
+    else mu = { key: `${en}|NOT_SPECIFIED`, ar: MUNICIPALITY_NOT_SPECIFIED.ar, en: MUNICIPALITY_NOT_SPECIFIED.en, refId: null, status: 'not_specified' };
+    byMunicipality.push({ key: mu.key, amanah: en, amanahLabel: labelOfEnt(e), municipality: mu, status: mu.status, ...accMuni.toAgg(g) });
+  }
   byMunicipality.sort((a, b) => b.outstanding - a.outstanding);
   const byDue = ['collected', 'overdue', 'not_due', 'excluded', 'cancelled'].map((key, k) => ({ key, ...accDue.toAgg(k) }));
   const byStatus = []; for (let k = 0; k < CLASSES.length; k += 1) { if (accStatus.a[k * K + M.count] === 0) continue; byStatus.push({ key: CLASSES[k], ...accStatus.toAgg(k) }); }
@@ -439,9 +476,11 @@ export function snapshot(st, req) {
     completenessNote: { en: `${q.checkable} of ${q.records} records have line-item evidence for an amount check; the rest could not be checked.`, ar: `${q.checkable} من ${q.records} سجلاً لديها بنود تفصيلية للتحقق من المبلغ؛ والباقي تعذّر فحصه.` }
   };
   const receivedByAmanah = {}; for (let e = 0; e < NE; e += 1) if (recv.byEnt[e]) receivedByAmanah[ENTITIES[e].en] = recv.byEnt[e]; // payments in the period by Amanah (payment-date basis; excluded/cancelled invoices left out)
+  // payments in the period by municipality group (revenue plans, municipal view): keyed by the municipality FILTER value; every payment is in exactly ONE group, so the groups add up to `recv.total`
+  const receivedByMunicipality = {}; for (let g = 0; g < NE * MUNI_SLOTS; g += 1) if (recv.byMuni[g]) { const e = Math.floor(g / MUNI_SLOTS); const slot = g % MUNI_SLOTS; const en = ENTITIES[e].en; receivedByMunicipality[slot >= 4 ? municipalityOfCode(e, slot).key : `${en}|${slot === 1 ? 'DIRECT' : slot === 2 ? 'UNRESOLVED' : 'NOT_SPECIFIED'}`] = recv.byMuni[g]; }
   const byChannel = {}; CHANNELS.forEach((c, k) => { if (recv.byChannel[k]) byChannel[c] = recv.byChannel[k]; });
   return {
-    scope: { from: sc.from, to: sc.to, status: req.scope?.status ?? 'all', amanah: req.scope?.amanah ?? 'all', source: req.scope?.source ?? 'all', scopeType: req.scope?.scopeType ?? 'all', muni: req.scope?.muni ?? 'all', org: req.scope?.org || null, ...(req.scope?.basis ? { basis: req.scope.basis } : {}) },
+    scope: { from: sc.from, to: sc.to, status: req.scope?.status ?? 'all', amanah: req.scope?.amanah ?? 'all', source: req.scope?.source ?? 'all', scopeType: req.scope?.scopeType ?? 'all', muni: req.scope?.muni ?? 'all', ...(sc.muniInvalid ? { muniInvalid: true } : {}), org: req.scope?.org || null, ...(req.scope?.basis ? { basis: req.scope.basis } : {}) },
     config: ctx.cfg, cutoff: ctx.cfg.cutoff, ruleSetVersion: EXCLUSION_RULE_SET_VERSION,
     population: { issuedInPeriod: issued, ledgerInScope },
     totals,
@@ -452,7 +491,7 @@ export function snapshot(st, req) {
     byAmanah, bySource, byProduct, byDue, byScope, byMonth, byMunicipality, byStatus, equation,
     basis: { invoices: 'issue_date', invoicesFrom: sc.from, invoicesTo: sc.to, collectionsAsOf: isoOf(periodAsOf), collectionsMode: periodAsOf === ctx.cutoffN ? 'reference_date' : 'period_end', referenceDate: ctx.cfg.cutoff, receiptsByPaymentDate: 'separate_indicator', timezone: 'Asia/Riyadh' },
     byAmanahSource, matrix,
-    receivedInPeriod: { byAmanah: receivedByAmanah, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
+    receivedInPeriod: { byAmanah: receivedByAmanah, byMunicipality: receivedByMunicipality, total: recv.total, fromPeriodInvoices: recv.fromPeriodInvoices, fromPriorInvoices: recv.fromPriorInvoices, onExcluded: recv.onExcluded, byChannel, count: recv.count },
     quality
   };
 }
@@ -503,7 +542,7 @@ export function bridge(st, req) {
   const sc = resolveScope(ctx, req.scope && { ...req.scope, from: '2000-01-01', to: ctx.cfg.cutoff });
   const reportN = req.reportDate ? dayNum(req.reportDate) : dayNum(`${ctx.cfg.cutoff.slice(0, 7)}-01`) - 1;
   const national = req.scope?.amanah === undefined || req.scope?.amanah === 'all';
-  const nat = national && (!req.scope?.source || req.scope.source === 'all') && !req.scope?.org?.amanahKeys;
+  const nat = national && ctx.acc.all && (!req.scope?.source || req.scope.source === 'all') && !req.scope?.org?.amanahKeys; // the report-only rows are national: a user whose geographic access is narrower than «all» never gets them (nor their national total)
   let reportMatched = 0; let invReport = 0; let lineCount = 0; let naive = 0; let paidAfter = 0; let creditAfter = 0; let cancelled = 0; let cancelledCount = 0; let exclNonOverlap = 0; let exclCount = 0; let exclApproved = 0; let exclUnapproved = 0; let overlapAmt = 0; let overlapCount = 0; let netFromReport = 0; let newInv = 0; let newCount = 0; let internal = 0; let internalCount = 0; let missed = 0;
   const D = ctx.D;
   for (let i = 0; i < st.n; i += 1) {
@@ -550,7 +589,7 @@ export function bridge(st, req) {
     reportDate: isoOf(reportN), detailsDate: ctx.cfg.cutoff,
     lineCount: lineCount + unmatchedLines, invoiceCountInReport: invReport + unmatchedCount, naiveSum: naive, dedupedTotal: reportMatched + unmatchedAmt, inflation, conflicts: [],
     steps, net, check: Math.round((stepsSum - net) * 100) / 100,
-    unmatched: { scopedOut: !nat, nationalCount: UNMATCHED_REPORT_ROWS.length, nationalAmount: UNMATCHED_REPORT_ROWS.reduce((s, u) => s + u.amount, 0), count: nat ? unmatchedCount : 0, amount: nat ? unmatchedAmt : 0, rows: nat ? UNMATCHED_REPORT_ROWS.map((u) => ({ invoiceNo: u.invoiceNo, invoiceValue: u.amount, lines: u.lines, hint: u.hint })) : [] },
+    unmatched: { scopedOut: !nat, nationalCount: ctx.acc.all ? UNMATCHED_REPORT_ROWS.length : 0, nationalAmount: ctx.acc.all ? UNMATCHED_REPORT_ROWS.reduce((s, u) => s + u.amount, 0) : 0, count: nat ? unmatchedCount : 0, amount: nat ? unmatchedAmt : 0, rows: nat ? UNMATCHED_REPORT_ROWS.map((u) => ({ invoiceNo: u.invoiceNo, invoiceValue: u.amount, lines: u.lines, hint: u.hint })) : [] },
     ruleSetApproval: { unapprovedAmount: exclUnapproved, approvedAmount: exclApproved }
   };
 }

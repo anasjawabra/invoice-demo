@@ -14,6 +14,7 @@
 // failed, cancelled.
 // ============================================================================
 import { normalizeConfig, normalizeScope, scopeKey, previousScope, targetAchievementFrom, DEFAULT_TARGETS } from '../data/revenueMetrics';
+import { targetsForScope } from '../data/referenceTarget';
 import { forecastReceipts, targetVsForecast } from '../data/revenueOutlook';
 import { buildDecisionCards, buildAnalysisResult, bi, money, mAr, worklistRows, anomalyRows, describeScope } from '../data/revenueInsights';
 import { caseSummary } from '../data/enforcementMatching';
@@ -93,11 +94,12 @@ const S = {
       }
       h.detail(bi('Breakdowns and the net-uncollected bridge reconcile to the totals', 'التفصيلات وجسر الرصيد القائم تتطابق مع الإجماليات'));
       if (!t.collectedOverNet.calculable) h.warn(bi('Collected ÷ net billed is not calculable (net billed is zero).', 'المحصّل ÷ صافي المفوتر غير قابل للاحتساب (صافي المفوتر صفر).'), { limitation: true });
-      ctx.targets = ctx.targets || DEFAULT_TARGETS;
+      ctx.targets = targetsForScope(ctx.targets || DEFAULT_TARGETS, ctx.scope); // the target of the report's VIEW scope: one Amanah → its allocation, one municipality → its explicit allocation or «لم يُحدد مستهدف لهذه البلدية» (spec §9)
       const through = ctx.scope.to < ctx.cfg.cutoff ? ctx.scope.to : ctx.cfg.cutoff;
       const fy = await ctx.data.series({ ...scopeOnly(ctx.scope), from: `${ctx.targets.fiscalYear}-01-01`, to: through }, { asOf: through });
       ctx.achievement = targetAchievementFrom(fy, ctx.scope, ctx.cfg, ctx.targets);
-      if (ctx.achievement.scopeCaveat) h.warn(bi('The annual target is national; it is not allocated to this narrower scope, so target achievement is shown for context only.', 'المستهدف السنوي وطني وغير موزع على هذا النطاق الأضيق، لذا يُعرض تحقق المستهدف للسياق فقط.'), { limitation: true });
+      if (ctx.achievement.unavailable) h.warn(bi(`The plan target is unavailable (${ctx.achievement.unavailableText?.en || ctx.achievement.unavailable}): no achievement against the plan is shown (not zero).`, `مستهدف الخطة غير متاح (${ctx.achievement.unavailableText?.ar || ctx.achievement.unavailable}): لا تُعرض نسبة إنجاز مقابل المخطط (وليس صفرًا).`), { limitation: true });
+      else if (ctx.achievement.scopeCaveat) h.warn((ctx.targets.scopeKind === 'available' ? bi('The plan target covers the entities available to you; it does not describe this narrower scope, so the achievement against the plan is shown for context only.', 'مستهدف الخطة يغطي الجهات المتاحة لك ولا يصف هذا النطاق الأضيق، لذا تُعرض نسبة الإنجاز مقابل المخطط للسياق فقط.') : bi('The plan target does not describe this narrower scope, so the achievement against the plan is shown for context only.', 'مستهدف الخطة لا يصف هذا النطاق الأضيق، لذا تُعرض نسبة الإنجاز مقابل المخطط للسياق فقط.')), { limitation: true });
     }
   },
   match: {
@@ -148,6 +150,32 @@ const S = {
       h.detail(bi(`${countFmt(wl.total)} outstanding invoice(s) in the collection worklist (top ${ctx.worklist.length} ranked); ${countFmt(an.total)} in the data-quality worklist`, `${countFmt(wl.total)} فاتورة متبقية في قائمة الفواتير غير المحصّلة (أعلى ${ctx.worklist.length} مرتبة)؛ ${countFmt(an.total)} في قائمة جودة البيانات`));
     }
   }),
+  // «تحليل أسباب عدم التحصيل»: ONE real data-service call classifies every unpaid invoice of the scope along separate dimensions and checks every identity; nothing is paced, nothing is simulated
+  classify: {
+    id: 'classify',
+    label: bi('Classify unpaid invoices and reconcile the totals', 'تصنيف الفواتير غير المسددة ومطابقة الإجماليات'),
+    active: bi('Separating payment, due-date, exclusion, process and data-quality positions', 'فصل وضع السداد والاستحقاق والاستبعاد والإجراء وجودة البيانات'),
+    async run(ctx, h) {
+      const nc = await ctx.data.noncollection(scopeOnly(ctx.scope));
+      ctx.nc = nc; const P = nc.populations;
+      h.units(P.netUnpaid.count, P.netUnpaid.count);
+      const bad = (nc.reconciliation || []).filter((r) => !r.ok);
+      if (bad.length) throw new Error('reconciliation_failed');
+      h.detail(bi(`${countFmt(P.netUnpaid.count)} unpaid invoice(s) classified; ${nc.reconciliation.length} reconciliation checks hold`, `صُنّفت ${countFmt(P.netUnpaid.count)} فاتورة غير مسددة؛ وتحققت ${nc.reconciliation.length} من فحوص المطابقة`));
+      if (nc.unmatched?.count) h.warn(bi(`${countFmt(nc.unmatched.count)} report-only record(s) (${money(nc.unmatched.amount)}) are kept apart and are not in any total.`, `${countFmt(nc.unmatched.count)} سجلاً من التقرير فقط (${mAr(nc.unmatched.amount)}) تُعرض منفصلة ولا تدخل في أي إجمالي.`), { limitation: true });
+      for (const q of (nc.quality || [])) if (q.count) h.warn(bi(`${countFmt(q.count)} unpaid invoice(s): ${q.labelEn}`, `${countFmt(q.count)} فاتورة غير مسددة: ${q.labelAr}`), { limitation: false });
+      if (P.dueUnknown.count) h.warn(bi(`${countFmt(P.dueUnknown.count)} unpaid invoice(s) have no due date, so they cannot be called overdue or not yet due.`, `${countFmt(P.dueUnknown.count)} فاتورة غير مسددة بلا تاريخ استحقاق؛ فلا تُصنَّف متأخرة أو غير مستحقة.`), { limitation: true });
+    }
+  },
+  prepareNc: {
+    id: 'prepare',
+    label: bi('Prepare the report', 'إعداد التقرير'),
+    active: bi('Preparing the report from the classified invoices', 'إعداد التقرير من الفواتير المصنّفة'),
+    async run(ctx, h) {
+      ctx.result = { kind: 'noncollection', analysis: ctx.nc, cutoff: ctx.nc.cutoff, scope: ctx.nc.scope, generatedAt: new Date().toISOString() };
+      h.detail(bi('Report ready', 'التقرير جاهز'));
+    }
+  },
   prepare: (kind) => ({
     id: 'prepare',
     label: bi('Prepare recommendations', 'إعداد التوصيات'),
@@ -175,21 +203,25 @@ const S = {
 export const TASK_KINDS = {
   revenue: {
     title: bi('Analyzing revenue performance', 'جارٍ تحليل أداء الإيرادات'),
+    resultTitle: bi('Revenue performance analysis', 'تحليل أداء الإيرادات'),
     stages: () => [S.scope(), S.retrieve, S.match, S.exclusionsReview, S.calculate, S.gaps(), S.prepare('revenue')],
     modal: true
   },
   noncollection: {
     title: bi('Analyzing reasons for noncollection', 'جارٍ تحليل أسباب عدم التحصيل'),
-    stages: () => [S.scope(), S.retrieve, S.match, S.exclusionsReview, S.calculate, S.gaps(), S.prepare('noncollection')],
+    resultTitle: bi('Non-Collection Analysis', 'تحليل أسباب عدم التحصيل'),
+    stages: () => [S.scope(), S.classify, S.prepareNc],
     modal: true
   },
   exclusions: {
     title: bi('Reviewing exclusions', 'جارٍ مراجعة الاستبعادات'),
+    resultTitle: bi('Exclusions review', 'مراجعة الاستبعادات'),
     stages: () => [S.scope(), S.retrieve, S.match, S.exclusionsReview, S.calculate, S.prepare('exclusions')],
     modal: true
   },
   invoice: {
     title: bi('Analyzing invoice', 'جارٍ تحليل الفاتورة'),
+    resultTitle: bi('Invoice analysis', 'تحليل الفاتورة'),
     stages: () => [
       S.scope(async (ctx, h) => {
         const id = ctx.params?.invoiceId;
@@ -231,26 +263,27 @@ export const TASK_KINDS = {
   },
   forecast: {
     title: bi('Generating the independent forecast', 'جارٍ إعداد التنبؤ المستقل'),
+    resultTitle: bi('Independent forecast', 'التنبؤ المستقل'),
     stages: () => [
       S.scope(),
       S.retrieve,
       S.calculate,
       {
         id: 'forecast_fit',
-        label: bi('Fit trend and measure backtest', 'مُلاءمة الاتجاه وقياس الاختبار الرجعي'),
-        active: bi('Fitting the trend on trailing receipts and running the one-step backtest; the target is not used', 'مُلاءمة الاتجاه على الإيرادات المحصلة السابقة وتشغيل الاختبار الرجعي؛ دون استخدام المستهدف'),
+        label: bi('Compute the baseline and measure the backtest', 'احتساب خط الأساس وقياس الاختبار الرجعي'),
+        active: bi('Averaging the last 3 complete months of receipts (method runrate3_v2, the planning page’s baseline), adding the rest of the current month by days, and running the small-sample backtest; the target is not used', 'حساب متوسط آخر 3 أشهر مكتملة من الإيرادات المحصلة (المنهج runrate3_v2، خط أساس صفحة التخطيط) وإضافة المتبقي من الشهر الحالي بالأيام وتشغيل الاختبار الرجعي لعينة صغيرة؛ دون استخدام المستهدف'),
         async run(ctx, h) {
           ctx.forecast = await runForecast(ctx, { targets: ctx.targets || DEFAULT_TARGETS });
           if (!ctx.forecast.ready) h.warn(ctx.forecast.reasonNotReady, { limitation: true });
           if (ctx.forecast.exceptional.length) h.warn(bi(`${ctx.forecast.exceptional.length} exceptional large payment(s) removed from the fitted series and shown separately.`, `${ctx.forecast.exceptional.length} دفعة استثنائية كبيرة أُزيلت من السلسلة المُلائمة وتُعرض منفصلة.`), { limitation: false });
           if (!ctx.forecast.backtest) h.warn(bi('Too little history for a measured backtest; no accuracy figure will be shown.', 'السجل قصير جداً لاختبار رجعي مقاس؛ ولن تُعرض نسبة دقة.'), { limitation: true });
-          h.detail(bi(ctx.forecast.ready ? 'Forecast fitted' : 'Forecast not available', ctx.forecast.ready ? 'تمت المُلاءمة' : 'التنبؤ غير متاح'));
+          h.detail(bi(ctx.forecast.ready ? 'Baseline forecast computed' : 'Forecast not available', ctx.forecast.ready ? 'تم احتساب التنبؤ الأساسي' : 'التنبؤ غير متاح'));
         }
       },
       {
         id: 'forecast_compare',
-        label: bi('Compare with target and prior versions', 'المقارنة مع المستهدف والنسخ السابقة'),
-        active: bi('Placing the independent forecast beside the approved target without merging them', 'وضع التنبؤ المستقل بجانب المستهدف المعتمد دون دمجهما'),
+        label: bi('Compare with the planning target', 'المقارنة مع مستهدف التخطيط'),
+        active: bi('Placing the independent forecast beside the reference-plan target (source plan and version named), the planned-to-date and the signed deviation, without merging them', 'وضع التنبؤ المستقل بجانب مستهدف الخطة المرجعية (مع اسم الخطة وإصدارها) والمخطط حتى تاريخه والانحراف الموقَّع دون دمجها'),
         async run(ctx, h) {
           ctx.targetPos = ctx.forecast.ready ? targetVsForecast(ctx.forecast, ctx.targets || DEFAULT_TARGETS) : null;
           ctx.cards = buildDecisionCards(ctx.snapshot, { enforcementCases: ctx.cases || [] });
@@ -263,10 +296,11 @@ export const TASK_KINDS = {
   },
   report: {
     title: bi('Generating the smart report', 'جارٍ إعداد التقرير الذكي'),
+    resultTitle: bi('Smart report', 'التقرير الذكي'),
     stages: () => [S.scope(), S.retrieve, S.calculate, S.exclusionsReview, S.gaps(bi('Analyze noncollection and forecast limits', 'تحليل عدم التحصيل وحدود التنبؤ')), {
       id: 'report_forecast',
       label: bi('Attach forecast and limitations', 'إرفاق التنبؤ والقيود'),
-      active: bi('Computing the independent forecast to state its limitations in the report', 'احتساب التنبؤ المستقل لبيان قيوده في التقرير'),
+      active: bi('Computing the independent baseline forecast to state its method, window and limitations in the report', 'احتساب التنبؤ الأساسي المستقل لبيان منهجه ونافذته وقيوده في التقرير'),
       async run(ctx, h) {
         ctx.forecast = await runForecast(ctx, { targets: ctx.targets || DEFAULT_TARGETS });
         ctx.targetPos = ctx.forecast.ready ? targetVsForecast(ctx.forecast, ctx.targets || DEFAULT_TARGETS) : null;
@@ -291,6 +325,7 @@ export function createTaskState(kind, { scope, params = {}, key = null, backgrou
   seq += 1;
   return {
     id: `task-${seq}`,
+    resultTitle: def.resultTitle || def.title,
     key: key || `${kind}|${scopeKey(scope)}|${JSON.stringify(params)}`,
     kind,
     title: def.title,

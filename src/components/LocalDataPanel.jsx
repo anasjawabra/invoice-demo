@@ -18,7 +18,7 @@ export default function LocalDataPanel() {
     const f = e.target.files?.[0]; e.target.value = ''; if (!f) return;
     try { const obj = JSON.parse(await f.text()); const v = validateBackup(obj); if (!v.ok) { setPending(null); setMsg({ ok: false, text: L('الملف ليس نسخة احتياطية صالحة لهذا النظام؛ لم يتغير شيء.', 'This file is not a valid backup for this system; nothing was changed.') }); return; } setPending({ obj, summary: v.summary }); setMsg(null); } catch { setPending(null); setMsg({ ok: false, text: L('تعذّرت قراءة الملف؛ لم يتغير شيء.', 'The file could not be read; nothing was changed.') }); }
   };
-  const confirm = () => { applyBackup(pending.obj, window.localStorage); window.location.reload(); };
+  const confirm = () => { applyBackup(pending.obj, window.localStorage, window.sessionStorage); window.location.reload(); };
   return (
     <details className="card st-card" id="local-data">
       <summary style={{ cursor: 'pointer', fontWeight: 700 }}>{L('أين تُحفظ بياناتي؟ النسخ الاحتياطي والاستعادة', 'Where is my data kept? Backup and restore')}</summary>

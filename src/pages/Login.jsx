@@ -1,41 +1,47 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
 import { useAuth } from '../context/AuthContext';
-import { ORGS } from '../data/mock';
+import { authErrorText } from '../data/accessModel';
+import LanguageSwitch from '../components/header/LanguageSwitch';
 
 export default function Login() {
-  const { t, lang, setLang, T } = useI18n();
-  const { login } = useAuth();
+  const { t, lang } = useI18n();
+  const { user, login, activate, notice, clearNotice } = useAuth();
   const nav = useNavigate();
+  const [sp, setSp] = useSearchParams();
+  const code = sp.get('activate') || ''; // /login?activate=<one-time code>: set the first password (or a new one) with the code an administrator gave you
+  const activating = !!code;
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [orgId, setOrgId] = useState(ORGS[0]?.id || 'mof-hq');
-  const [scopeByOrg, setScopeByOrg] = useState(true);
+  const [password2, setPassword2] = useState('');
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const loginTimer = useRef(null); useEffect(() => () => window.clearTimeout(loginTimer.current), []); // a pending sign-in must not navigate after the page was left
+  const [errCode, setErrCode] = useState('');
+  const alive = useRef(true); useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []); // a pending sign-in must not touch the page after it was left
+  useEffect(() => { if (user) nav('/', { replace: true }); }, [user, nav]);
 
-  // The consolidated HQ org is the "all-orgs" context used when org scoping
-  // is turned off, so downstream pages still have a valid org to render.
-  const consolidatedOrgId = ORGS[0]?.id || 'mof-hq';
+  const err = errCode ? authErrorText(errCode, lang) : '';
+  const noticeText = notice && !errCode ? authErrorText(notice.code === 'account_inactive' ? 'account_inactive' : 'unauthenticated', lang) : '';
 
-  function onSubmit(e) {
+  // The password is posted once to the data service and dropped. What the person sees afterwards is decided ONLY by their account (role + geographic scope), never by anything chosen on this page.
+  async function onSubmit(e) {
     e.preventDefault();
-    setErr('');
+    setErrCode(''); clearNotice();
+    if (activating) {
+      if (password.length < 8) { setErrCode('weak_password'); return; }
+      if (password !== password2) { setErrCode('password_mismatch'); return; }
+    }
     setBusy(true);
-
-    loginTimer.current = window.setTimeout(() => {
-      const effectiveOrgId = scopeByOrg ? orgId : consolidatedOrgId;
-      const ok = login(username.trim(), password, effectiveOrgId, scopeByOrg);
-      setBusy(false);
-      if (!ok) {
-        setErr(t('login_err'));
-        return;
-      }
-      nav('/insights', { replace: true });
-    }, 650);
+    let r;
+    try {
+      r = activating ? await activate(code, password) : await login(username.trim(), password);
+    } catch { r = { ok: false, error: 'network' }; }
+    if (!alive.current) return;
+    setBusy(false); setPassword(''); setPassword2('');
+    if (!r.ok) { setErrCode(r.error || 'invalid_credentials'); return; }
+    if (activating) setSp({}, { replace: true });
+    nav('/', { replace: true });
   }
 
   return (
@@ -61,116 +67,50 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="pill" aria-label="Language">
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'en' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setLang('en')}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
-                onClick={() => setLang('zh')}
-              >
-                中文
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => setLang('ar')}
-              >
-                العربية
-              </button>
-            </div>
+            <LanguageSwitch />
           </div>
 
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{t('welcome')}</h2>
-          <div className="lead">{t('login_lead')}</div>
+          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{activating ? (lang === 'en' ? 'Activate your account' : 'تفعيل الحساب') : t('welcome')}</h2>
+          <div className="lead">{activating ? (lang === 'en' ? 'Choose your password to finish. The activation code works once.' : 'اختر كلمة المرور لإكمال التفعيل. رمز التفعيل يُستخدم مرة واحدة.') : t('login_lead')}</div>
+          {noticeText ? <div className="rv-callout rv-callout--warn" role="status" style={{ marginBlock: 8 }}>{noticeText}</div> : null}
 
           <form onSubmit={onSubmit}>
-            <div className="field">
-              <div className="switch-row">
-                <label htmlFor="org-scope-switch" className="switch-row__label">
-                  {t('org_scope_toggle')}
-                </label>
-                <button
-                  id="org-scope-switch"
-                  type="button"
-                  role="switch"
-                  aria-checked={scopeByOrg}
-                  aria-label={t('org_scope_toggle')}
-                  className={`switch ${scopeByOrg ? 'switch--on' : ''}`}
-                  onClick={() => setScopeByOrg((v) => !v)}
-                >
-                  <span className="switch__track">
-                    <span className="switch__thumb" />
-                  </span>
-                </button>
-              </div>
-
-              <div className={`org-collapse ${scopeByOrg ? 'org-collapse--open' : ''}`} aria-hidden={!scopeByOrg}>
-                <div className="org-collapse__inner">
-                  <label className="org-select-label">{t('org_label')}</label>
-                  <select
-                    className="select"
-                    value={orgId}
-                    onChange={(e) => setOrgId(e.target.value)}
-                    disabled={!scopeByOrg}
-                  >
-                    <option value="" disabled>
-                      {t('org_ph')}
-                    </option>
-                    {ORGS.map((o) => (
-                      <option key={o.id} value={o.id}>
-                        {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
-                      </option>
-                    ))}
-                  </select>
-                  <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                    {t('org_login_hint')}
-                  </div>
-                </div>
-              </div>
-
-              {!scopeByOrg ? (
-                <div className="muted org-scope-off" style={{ fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-                  {t('org_scope_off_note')}
-                </div>
-              ) : null}
-            </div>
-
             <div className="row">
-              <div className="field">
-                <label>{t('label_user')}</label>
+              {!activating && <div className="field">
+                <label htmlFor="login-user">{t('label_user')}</label>
                 <input
+                  id="login-user"
                   className="input"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder={t('placeholder_user')}
                   autoComplete="username"
                 />
-              </div>
+              </div>}
               <div className="field">
-                <label>{t('label_pass')}</label>
+                <label htmlFor="login-pass">{activating ? (lang === 'en' ? 'New password' : 'كلمة المرور الجديدة') : t('label_pass')}</label>
                 <input
+                  id="login-pass"
                   className="input"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder={t('placeholder_pass')}
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete={activating ? 'new-password' : 'current-password'}
                 />
               </div>
+              {activating && <div className="field">
+                <label htmlFor="login-pass2">{lang === 'en' ? 'Confirm the password' : 'تأكيد كلمة المرور'}</label>
+                <input id="login-pass2" className="input" value={password2} onChange={(e) => setPassword2(e.target.value)} type="password" autoComplete="new-password" />
+              </div>}
             </div>
 
             <div className="field">
               <button className="btn btn-primary" style={{ width: '100%', height: 46 }} disabled={busy} type="submit">
-                {busy ? t('logging_in') : t('btn_login')}
+                {busy ? t('logging_in') : activating ? (lang === 'en' ? 'Activate and sign in' : 'تفعيل الحساب ودخول') : t('btn_login')}
               </button>
-              <div className="login-err">{err}</div>
+              <div className="login-err" role="alert" aria-live="assertive">{err}</div>
+              {activating && <div style={{ marginTop: 8 }}><button type="button" className="rv-link" onClick={() => { setSp({}, { replace: true }); setErrCode(''); }}>{lang === 'en' ? 'Back to sign in' : 'العودة إلى تسجيل الدخول'}</button></div>}
             </div>
           </form>
         </div>

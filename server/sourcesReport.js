@@ -3,11 +3,13 @@ import { SOURCES, SOURCE_INDEX as IS, ITEMS, F, GRP, grpOf, extOf, dayNum, isoOf
 import { SOURCE_PROFILE, ASSUMPTIONS, PARAMS } from '../src/data/sourceAssumptions.js';
 import { makeCtx, derive, snapshot } from './engine.js';
 import { mainClassIdx, originIdxOf, OTHER_MAIN_IDX } from '../src/data/iim.js';
+import { isVisible } from './accessMask.js';
+import { requestVisible } from './contracts.js';
 
 const shiftYear = (iso, d) => `${Number(iso.slice(0, 4)) + d}${iso.slice(4)}`;
 
 export function sourcesReport(st, req = {}) {
-  const ctx = makeCtx(st, req); const D = ctx.D;
+  const ctx = makeCtx(st, req); const D = ctx.D; const tab = ctx.acc; // counts only over the records the user's geographic access allows
   const today = ctx.cfg.cutoff; const y = today.slice(0, 4);
   const range = { ytd: [dayNum(`${y}-01-01`), ctx.cutoffN], prior: [dayNum(`${Number(y) - 1}-01-01`), dayNum(shiftYear(today, -1))] };
   const NS = SOURCES.length;
@@ -17,6 +19,7 @@ export function sourcesReport(st, req = {}) {
   let prevKey = -1; let otherYtd = 0; // «أخرى» invoices are outside إجمالي المفوتر: counted here, not in the headline population
   for (let i = 0; i < st.nGen; i += 1) {
     const k = st.idKey[i]; if (k <= prevKey) { checks.idsStrictlyIncreasing = false; if (k === prevKey) checks.duplicateIds += 1; } prevKey = k;
+    if (!isVisible(st, i, tab)) continue;
     const s = st.src[i]; const a = [acc.all[s]]; const iss = st.issue[i];
     if (iss >= range.ytd[0] && iss <= range.ytd[1]) a.push(acc.ytd[s]);
     if (iss >= range.prior[0] && iss <= range.prior[1]) a.push(acc.prior[s]);
@@ -52,7 +55,7 @@ export function sourcesReport(st, req = {}) {
       sum += st.gross[i]; if (!(sum > 0)) checks.groupShareNot100 += 1;
     }
   }
-  let fixturesYtd = 0; for (let i = st.nGen; i < st.n; i += 1) if (st.owner[i] === 0 && st.issue[i] >= range.ytd[0] && st.issue[i] <= range.ytd[1]) fixturesYtd += 1;
+  let fixturesYtd = 0; for (let i = st.nGen; i < st.n; i += 1) if (st.owner[i] === 0 && isVisible(st, i, tab) && st.issue[i] >= range.ytd[0] && st.issue[i] <= range.ytd[1]) fixturesYtd += 1;
   // financial view straight from the metric layer (the same numbers every screen shows)
   const sc = { from: `${y}-01-01`, to: today, amanah: 'all', source: 'all' };
   const scp = { from: `${Number(y) - 1}-01-01`, to: shiftYear(today, -1), amanah: 'all', source: 'all' };
@@ -71,6 +74,6 @@ export function sourcesReport(st, req = {}) {
     ytd: { ...acc.ytd[k], financial: finY[s.key] || null }, prior: { ...acc.prior[k], financial: finP[s.key] || null }, allTime: { invoices: acc.all[k].invoices, lines: acc.all[k].lines, payments: acc.all[k].payments },
     assumptions: ASSUMPTIONS.filter((a) => a.sources.includes('all') || a.sources.includes(s.key)).map((a) => a.id)
   }));
-  const enforcement = { whiteLandsOrders: st.requests.filter((q) => q.system === 'white_lands').length, sanadRequests: st.requests.filter((q) => (q.system || 'sanad') === 'sanad').length };
+  const visReq = st.requests.filter((q) => requestVisible(st, q, tab)); const enforcement = { whiteLandsOrders: visReq.filter((q) => q.system === 'white_lands').length, sanadRequests: visReq.filter((q) => (q.system || 'sanad') === 'sanad').length };
   return { fixturesYtd, today, period: { from: sc.from, to: sc.to, priorFrom: scp.from, priorTo: scp.to }, sources, totals, reconcile, checks, enforcement, params: PARAMS, generatedAt: isoOf(ctx.cutoffN) };
 }

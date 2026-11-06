@@ -65,13 +65,9 @@
   --radius-sm: 8px;    /* inputs */
   --radius-pill: 999px; /* buttons / badges / tabs */
 
-  /* Font stacks — IBM Plex Sans Arabic/Mono for the new look, falling back to the
-     existing system stack so Latin/Arabic pick up the new face while Chinese text
-     (which IBM Plex Sans Arabic has no glyphs for) silently falls through per-glyph
-     to the CJK system fonts already in the stack. */
+  /* Font stack — IBM Plex Sans Arabic/Mono (Arabic + Latin), falling back to the system stack. Arabic and English are the only interface languages. */
   --font: 'IBM Plex Sans Arabic', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
           'Helvetica Neue', 'Noto Naskh Arabic', 'Geeza Pro', 'Segoe UI Historic',
-          'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC',
           sans-serif;
   --num: var(--font); /* one family; tabular figures come from font-variant-numeric */
 }

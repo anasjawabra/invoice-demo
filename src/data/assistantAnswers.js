@@ -3,6 +3,7 @@
 // scope and data cutoff. No KPI is hard-coded here.
 import { compareSnapshots, formatRatio, CATEGORY_LABELS, NONCOLLECTION_CATEGORIES } from './revenueMetrics';
 import { describeScope, pickBi } from './revenueInsights';
+import { planPositionSentence } from './revenueOutlook';
 import { REVENUE_SOURCES } from './revenueLedger';
 import { fmtBn, fmtSar } from '../utils/money';
 
@@ -46,8 +47,11 @@ export function answerFor(intent, out, { lang = 'en' } = {}) {
     );
     if (intent === 'target_coverage') {
       const ach = out.achievement;
-      if (ach?.scopeCaveat) text += ' ' + L('The annual demo target is national, so target achievement is not shown for this narrower scope.', 'المستهدف السنوي التوضيحي وطني، لذا لا يُعرض تحقق المستهدف لهذا النطاق الأضيق.');
-      else if (ach) text += ' ' + L(`Collection target achievement is ${formatRatio(ach.achievement, lang)} (receipts ${M(ach.receiptsYtd)} ÷ cumulative demo target ${M(ach.targetYtd || 0)}). The target is a demo input, not an approved figure, and is not the annual goal set on the Strategic Dashboard.`, `تحقق مستهدف التحصيل ${formatRatio(ach.achievement, lang)} (الإيرادات المحصلة ${M(ach.receiptsYtd)} ÷ المستهدف التراكمي التوضيحي ${M(ach.targetYtd || 0)}). المستهدف مُدخل توضيحي وليس رقماً معتمداً، وهو غير هدف التحصيل السنوي المحدد في لوحة التخطيط المالي والاستراتيجي.`);
+      const src = ach?.sourceLine ? ` ${pickBi(ach.sourceLine, lang)}.` : '';
+      const dw = ach && ach.deviation != null ? (ach.deviation > 0 ? { en: 'above', ar: 'أعلى من' } : ach.deviation < 0 ? { en: 'below', ar: 'أقل من' } : { en: 'equal to', ar: 'مساوٍ لـ' }) : null;
+      if (ach?.unavailable) text += ' ' + L(`The target is unavailable, so no achievement is shown: ${ach.unavailableText?.en || ach.unavailable}`, `المستهدف غير متاح فلا يُعرض تحقق: ${ach.unavailableText?.ar || ach.unavailable}`);
+      else if (ach?.scopeCaveat) text += ' ' + L(`The plan target does not describe this narrower scope, so target achievement is not shown for it.${src}`, `مستهدف الخطة لا يصف هذا النطاق الأضيق، لذا لا يُعرض تحقق المستهدف له.${src}`);
+      else if (ach) text += ' ' + L(`Achievement against the plan to date is ${formatRatio(ach.achievement, lang)} (receipts ${M(ach.receiptsYtd)} ÷ planned to date ${M(ach.targetYtd || 0)}); the deviation is ${M(Math.abs(ach.deviation ?? 0))} ${dw ? dw.en : ''} the plan to date.${src}${ach.targetScope === 'available' ? ' Target scope: total of the entities available to you.' : ''} This is not the annual goal set on the Strategic Dashboard.`, `نسبة الإنجاز مقابل المخطط حتى تاريخه ${formatRatio(ach.achievement, lang)} (الإيرادات المحصلة ${M(ach.receiptsYtd)} ÷ المخطط حتى تاريخه ${M(ach.targetYtd || 0)})؛ والانحراف ${M(Math.abs(ach.deviation ?? 0))} ${dw ? dw.ar : ''} المخطط حتى تاريخه.${src}${ach.targetScope === 'available' ? ' نطاق المستهدف: إجمالي الجهات المتاحة لك.' : ''} وهذا غير هدف التحصيل السنوي المحدد في لوحة تخطيط إيرادات التحصيل.`);
     }
     if (intent === 'amanah_compare') {
       const rows = snap.byAmanah.filter((g) => g.net > 0);
@@ -77,12 +81,15 @@ export function answerFor(intent, out, { lang = 'en' } = {}) {
     if (!f?.ready) {
       text = `${head}. ${pickBi(f?.reasonNotReady || { en: 'The forecast is not available for this scope.', ar: 'التنبؤ غير متاح لهذا النطاق.' }, lang)}`;
     } else {
-      const lo = f.horizon.low.reduce((a, b) => a + b, 0); const hi = f.horizon.high.reduce((a, b) => a + b, 0);
+      // ONE forecast (planning review 0d): the planning page's baseline — complete months only, the rest of the cut-off month by days, no range and no probability; the target is the planning page's (illustrative until approved)
+      const win = f.method.window?.months || [];
+      const tgtEn = tp && tp.annualTarget != null ? `For reference, the annual revenue target of the plan (${pickBi(tp.targetSourceLine || { en: 'plan', ar: 'الخطة' }, 'en')}; an input independent of the forecast) is ${M(tp.annualTarget)} against a projected full year of ${M(tp.projectedTotal)} (${tp.forecastAchievementPct != null ? `${(tp.forecastAchievementPct * 100).toFixed(1)}% of the target` : ''}). ${planPositionSentence(tp, M, 'en')} ` : tp ? `${planPositionSentence(tp, M, 'en')} ` : '';
+      const tgtAr = tp && tp.annualTarget != null ? `للمرجع، المستهدف السنوي للإيراد في الخطة (${pickBi(tp.targetSourceLine || { en: 'plan', ar: 'الخطة' }, 'ar')}؛ مُدخل مستقل عن التنبؤ) ${M(tp.annualTarget)} مقابل سنة متوقعة ${M(tp.projectedTotal)} (${tp.forecastAchievementPct != null ? `${(tp.forecastAchievementPct * 100).toFixed(1)}% من المستهدف` : ''}). ${planPositionSentence(tp, M, 'ar')} ` : tp ? `${planPositionSentence(tp, M, 'ar')} ` : '';
       text = L(
-        `${head}. Independent forecast of receipts for ${f.horizon.months[0]} to ${f.horizon.months[f.horizon.months.length - 1]}: ${M(f.fiscalYear.projectedRemainder)} (indicative range ${M(lo)}–${M(hi)}). Method: ${pickBi(f.method.label, 'en')}. ${f.backtest ? `Measured backtest n=${f.backtest.n}${f.backtest.mape != null ? `, MAPE ${(f.backtest.mape * 100).toFixed(0)}%` : ''} (small sample).` : 'No measured backtest is possible, so no accuracy is claimed.'} ${f.exceptional.length ? `${f.exceptional.length} exceptional large payment(s) were removed from the fitted trend.` : ''} ${tp && tp.annualTarget != null ? `For reference, the approved annual target (a demo input, independent of the forecast) is ${M(tp.annualTarget)} against a projected full year of ${M(tp.projectedTotal)}.` : ''} ${demo}`,
-        `${head}. التنبؤ المستقل بالإيرادات المحصلة من ${f.horizon.months[0]} إلى ${f.horizon.months[f.horizon.months.length - 1]}: ${M(f.fiscalYear.projectedRemainder)} (نطاق إرشادي ${M(lo)}–${M(hi)}). المنهج: ${pickBi(f.method.label, 'ar')}. ${f.backtest ? `اختبار رجعي مقاس n=${f.backtest.n}${f.backtest.mape != null ? `، متوسط الخطأ النسبي ${(f.backtest.mape * 100).toFixed(0)}%` : ''} (عينة صغيرة).` : 'لا يمكن إجراء اختبار رجعي مقاس لذا لا تُدّعى نسبة دقة.'} ${f.exceptional.length ? `أُزيلت ${f.exceptional.length} دفعة استثنائية كبيرة من الاتجاه المُلائم.` : ''} ${tp && tp.annualTarget != null ? `للمرجع، المستهدف السنوي المعتمد (مُدخل توضيحي ومستقل عن التنبؤ) ${M(tp.annualTarget)} مقابل سنة متوقعة ${M(tp.projectedTotal)}.` : ''} ${demo}`
+        `${head}. Forecast of receipts for ${f.horizon.months[0]} to ${f.horizon.months[f.horizon.months.length - 1]}: ${M(f.fiscalYear.projectedRemainder)}. Method ${f.method.id}: ${pickBi(f.method.label, 'en')}${win.length ? ` (window ${win[0]} to ${win[win.length - 1]})` : ''}; the rest of the current month is added by days. ${pickBi(f.method.alignment, 'en')}. No range and no probability of reaching the target are given: the history cannot validate them. ${f.backtest ? `Measured backtest n=${f.backtest.n}${f.backtest.mape != null ? `, MAPE ${(f.backtest.mape * 100).toFixed(0)}%` : ''} (small sample).` : 'No measured backtest is possible, so no accuracy is claimed.'} ${tgtEn}${demo}`,
+        `${head}. التنبؤ بالإيرادات المحصلة من ${f.horizon.months[0]} إلى ${f.horizon.months[f.horizon.months.length - 1]}: ${M(f.fiscalYear.projectedRemainder)}. المنهج ${f.method.id}: ${pickBi(f.method.label, 'ar')}${win.length ? ` (النافذة ${win[0]} إلى ${win[win.length - 1]})` : ''}؛ ويُضاف المتبقي من الشهر الحالي بالأيام. ${pickBi(f.method.alignment, 'ar')}. لا يُقدَّم نطاق ولا احتمالية لبلوغ المستهدف: فالسجل لا يتيح التحقق منهما. ${f.backtest ? `اختبار رجعي مقاس n=${f.backtest.n}${f.backtest.mape != null ? `، متوسط الخطأ النسبي ${(f.backtest.mape * 100).toFixed(0)}%` : ''} (عينة صغيرة).` : 'لا يمكن إجراء اختبار رجعي مقاس لذا لا تُدّعى نسبة دقة.'} ${tgtAr}${demo}`
       );
-      facts.push({ k: L('Forecast (rest of year)', 'التنبؤ (بقية السنة)'), v: M(f.fiscalYear.projectedRemainder) }, { k: L('Indicative range', 'النطاق الإرشادي'), v: `${M(lo)}–${M(hi)}` });
+      facts.push({ k: L('Forecast (rest of year)', 'التنبؤ (بقية السنة)'), v: M(f.fiscalYear.projectedRemainder) }, { k: L('Method', 'المنهج'), v: f.method.id });
     }
   } else if (intent === 'invoice') {
     const x = out.result?.extra;

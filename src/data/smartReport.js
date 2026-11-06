@@ -1,12 +1,13 @@
 // ============================================================================
 // Smart report builder. Pure: takes the SAME snapshot (and forecast) the
 // initiating screen used, so a report can never show different numbers from
-// the screen that launched it. English and Arabic are authored; Chinese uses
-// the English text.
+// the screen that launched it. English and Arabic are authored (the only
+// interface languages).
 // ============================================================================
 import { formatRatio, CATEGORY_LABELS, NONCOLLECTION_CATEGORIES, EXCLUSION_RULES } from './revenueMetrics';
 import { REVENUE_SOURCES } from './revenueLedger';
 import { describeScope, pickBi, bi } from './revenueInsights';
+import { planPositionSentence } from './revenueOutlook';
 import { fmtMoney, scaled, unitOfValues, unitLabel } from '../utils/money';
 import { BRIDGE_LABELS } from './bridgeLabels';
 import { riyadhToday } from './clock';
@@ -48,7 +49,8 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
     { label: L('Collection rate', 'نسبة التحصيل'), value: ratioN, caption: L('Collected ÷ net billed × 100', 'المحصّل ÷ صافي المفوتر × 100') },
     { label: L('Net uncollected (standing balance)', 'الرصيد القائم'), value: M(snapshot.stock.netUncollected), caption: L(`All issue periods. Overdue ${M(snapshot.stock.overdue)}, not yet due ${M(snapshot.stock.notYetDue)} at ${snapshot.cutoff}. Different from the period's uncollected.`, `كل فترات الإصدار. متأخر ${M(snapshot.stock.overdue)} ولم يحن ${M(snapshot.stock.notYetDue)} عند ${snapshot.cutoff}. يختلف عن غير المحصّل للفترة.`) },
   ];
-  if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Collection target achievement', 'تحقيق مستهدف التحصيل'), value: formatRatio(achievement.achievement, ar ? 'ar' : 'en'), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs cumulative target ${M(achievement.targetYtd || 0)} (target is a demo input)`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المستهدف التراكمي ${M(achievement.targetYtd || 0)} (المستهدف مُدخل توضيحي)`) });
+  if (achievement && achievement.unavailable) keyMetrics.push({ label: L('Achievement against the plan to date', 'نسبة الإنجاز مقابل المخطط حتى تاريخه'), value: L('Unavailable', 'غير متاح'), caption: L(`${achievement.unavailableText?.en || 'The reference-plan target is unavailable'} (not zero)`, `${achievement.unavailableText?.ar || 'مستهدف الخطة المرجعية غير متاح'} (وليس صفرًا)`) });
+  else if (achievement && !achievement.scopeCaveat) keyMetrics.push({ label: L('Achievement against the plan to date', 'نسبة الإنجاز مقابل المخطط حتى تاريخه'), value: formatRatio(achievement.achievement, ar ? 'ar' : 'en'), caption: L(`Receipts YTD ${M(achievement.receiptsYtd)} vs planned to date ${M(achievement.targetYtd || 0)}; deviation ${M(achievement.deviation ?? 0)} (${achievement.deviation > 0 ? 'above' : achievement.deviation < 0 ? 'below' : 'equal to'} the plan to date)${achievement.sourceLine ? `. ${achievement.sourceLine.en}` : ''}${achievement.targetScope === 'available' ? '' : ''}`, `الإيرادات المحصلة ${M(achievement.receiptsYtd)} مقابل المخطط حتى تاريخه ${M(achievement.targetYtd || 0)}؛ الانحراف ${M(achievement.deviation ?? 0)} (${achievement.deviation > 0 ? 'أعلى من' : achievement.deviation < 0 ? 'أقل من' : 'مساوٍ لـ'} المخطط حتى تاريخه)${achievement.sourceLine ? `. ${achievement.sourceLine.ar}` : ''}`) });
 
   const analysisTable = {
     headers: [L('Amanah', 'الأمانة / الجهة'), L('Invoices', 'الفواتير'), L(`Gross (${unitName})`, `الإجمالي (${unitName})`), L(`Exclusions (${unitName})`, `الاستبعادات (${unitName})`), L(`Net (${unitName})`, `الصافي (${unitName})`), L(`Collected (${unitName})`, `المحصّل (${unitName})`), L(`Uncollected (${unitName})`, `غير المحصّل (${unitName})`), L('Collection rate', 'نسبة التحصيل')],
@@ -88,18 +90,21 @@ export function buildSmartReport({ snapshot, bridge = null, forecast, targetPos,
 
   const predictions = [];
   if (forecast?.ready) {
-    const lo = forecast.horizon.low.reduce((a, b) => a + b, 0);
-    const hi = forecast.horizon.high.reduce((a, b) => a + b, 0);
+    // ONE forecast (planning review 0d): the planning page's baseline; no range and no probability
     predictions.push({
-      prediction: L(`Independent forecast of receipts for the rest of fiscal year: ${M(forecast.fiscalYear.projectedRemainder)} (indicative range ${M(lo)}–${M(hi)}).`, `التنبؤ المستقل لإيرادات محصلة بقية السنة المالية: ${M(forecast.fiscalYear.projectedRemainder)} (نطاق إرشادي ${M(lo)}–${M(hi)}).`),
+      prediction: L(`Forecast of receipts for the rest of the fiscal year: ${M(forecast.fiscalYear.projectedRemainder)} (method ${forecast.method.id}; no range and no probability are given).`, `التنبؤ بإيرادات محصلة بقية السنة المالية: ${M(forecast.fiscalYear.projectedRemainder)} (المنهج ${forecast.method.id}؛ ولا يُقدَّم نطاق ولا احتمالية).`),
       timeframe: `${forecast.horizon.months[0]} → ${forecast.horizon.months[forecast.horizon.months.length - 1]}`,
       confidence: forecast.backtest ? L(`Measured backtest: n=${forecast.backtest.n}${forecast.backtest.mape != null ? `, MAPE ${(forecast.backtest.mape * 100).toFixed(0)}%` : ''} — small sample, not a guarantee`, `اختبار رجعي مقاس: n=${forecast.backtest.n}${forecast.backtest.mape != null ? `، متوسط الخطأ النسبي ${(forecast.backtest.mape * 100).toFixed(0)}%` : ''} — عينة صغيرة وليست ضماناً`) : L('Not measured (too little history); no accuracy figure is claimed', 'غير مقاس (سجل قصير)؛ ولا تُدّعى نسبة دقة'),
-      supporting: `${B(forecast.method.label)}; ${forecast.assumptions.map(B).join(' ')}`,
+      supporting: `${B(forecast.method.label)}; ${B(forecast.method.alignment)}; ${forecast.assumptions.map(B).join(' ')}`,
       changing: forecast.limitations.map(B).join(' ')
     });
     if (targetPos?.annualTarget != null) predictions.push({
-      prediction: L(`Position against the approved annual target (demo input ${M(targetPos.annualTarget)}): projected full year ${M(targetPos.projectedTotal)}; gap ${M(targetPos.gapToTarget)}. The forecast is independent of the target and was not adjusted to meet it.`, `الموقف مقابل المستهدف السنوي المعتمد (مُدخل توضيحي ${M(targetPos.annualTarget)}): السنة المتوقعة ${M(targetPos.projectedTotal)}؛ الفجوة ${M(targetPos.gapToTarget)}. التنبؤ مستقل عن المستهدف ولم يُعدَّل ليطابقه.`),
-      timeframe: L('Fiscal year', 'السنة المالية'), confidence: L('Indicative only', 'إرشادي فقط'), supporting: B(targetPos.note), changing: L('Any change to the target input or to receipts history.', 'أي تغيير في مُدخل المستهدف أو سجل الإيرادات المحصلة.')
+      prediction: L(`Position against the annual revenue target of the plan (${targetPos.targetSourceLine?.en || 'plan'}; ${M(targetPos.annualTarget)}): projected full year ${M(targetPos.projectedTotal)}${targetPos.forecastAchievementPct != null ? ` (${(targetPos.forecastAchievementPct * 100).toFixed(1)}% of the target)` : ''}; gap ${M(targetPos.gapToTarget)}. The forecast is independent of the target and was not adjusted to meet it. ${planPositionSentence(targetPos, M, 'en')}`, `الموقف مقابل المستهدف السنوي للإيراد في الخطة (${targetPos.targetSourceLine?.ar || 'الخطة'}؛ ${M(targetPos.annualTarget)}): السنة المتوقعة ${M(targetPos.projectedTotal)}${targetPos.forecastAchievementPct != null ? ` (${(targetPos.forecastAchievementPct * 100).toFixed(1)}% من المستهدف)` : ''}؛ الفجوة ${M(targetPos.gapToTarget)}. التنبؤ مستقل عن المستهدف ولم يُعدَّل ليطابقه. ${planPositionSentence(targetPos, M, 'ar')}`),
+      timeframe: L('Plan period', 'فترة الخطة'), confidence: L('Indicative only', 'إرشادي فقط'), supporting: B(targetPos.note), changing: L('Any change to the reference plan or to receipts history.', 'أي تغيير في الخطة المرجعية أو سجل الإيرادات المحصلة.')
+    });
+    else if (targetPos?.targetUnavailable) predictions.push({
+      prediction: L(`Position against the plan target: unavailable — ${targetPos.targetUnavailable.en}`, `الموقف مقابل مستهدف الخطة: غير متاح — ${targetPos.targetUnavailable.ar}`),
+      timeframe: L('Plan period', 'فترة الخطة'), confidence: L('Not available', 'غير متاح'), supporting: B(targetPos.note), changing: L('Setting or activating the reference plan.', 'تحديد الخطة المرجعية أو تفعيلها.')
     });
     if (forecast.exceptional.length) predictions.push({
       prediction: L(`Exceptional large payment(s) detected (${forecast.exceptional.map((e) => `${e.invoiceId} ${M(e.amount)}`).join('; ')}); removed from the fitted trend so underlying performance is not disguised.`, `رُصدت دفعات استثنائية كبيرة (${forecast.exceptional.map((e) => `${e.invoiceId} ${M(e.amount)}`).join('؛ ')})؛ أُزيلت من الاتجاه المُلائم حتى لا تُخفي الأداء الفعلي.`),

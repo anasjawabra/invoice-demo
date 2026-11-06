@@ -176,7 +176,7 @@ export function buildAttachmentModel({ atts, refs, resolved = null, snapshot = n
   }
 
   /* ---- 5. limits, always stated */
-  limits.push(L('لا يجري هذا النظام OCR ولا يحلل الصور؛ والتحليل هنا حسابي بقواعد محددة وليس نموذجاً لغوياً.', 'This system performs no OCR or image analysis; the analysis here is calculated with fixed rules, not a language model.'));
+  limits.push(L('لا يجري هذا النظام OCR ولا يحلل الصور.', 'This system performs no OCR or image analysis.'));
   limits.push(L('الربط المباشر بسند وتحصيل غير متصل في هذا العرض؛ المقارنة تتم مع بيانات النظام التجريبية الاصطناعية.', 'The live links to Sanad and Tahseel are not connected in this demo; the comparison is with the system’s synthetic demo data.'));
   sections.push({ key: 'limits', title: L('حدود التحليل', 'Limits of this analysis'), purpose: '', blocks: [{ type: 'list', items: limits }] });
   sections.unshift({ key: 'files', title: L('ما قُرئ من الملفات', 'What was read from the files'), purpose: '', blocks: fileBlocks });

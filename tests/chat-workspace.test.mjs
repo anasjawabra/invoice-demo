@@ -20,6 +20,9 @@ import { defaultSpec, interpret } from '../src/data/reportIntents.js';
 import { parsePeriod } from '../src/data/assistantRouter.js';
 import { suggestionsFor } from '../src/data/reportSuggestions.js';
 import { DEFAULT_TARGETS } from '../src/data/revenueMetrics.js';
+import { setPlansForTest } from '../src/data/plans/planStore.js';
+import { seededStore } from '../src/data/plans/planFixtures.js';
+setPlansForTest(seededStore()); // the targets of the reports come from the configured reference plan (the seed is the 2026 reference)
 
 let n = 0; const ok = (name, fn) => { fn(); n += 1; };
 const okA = async (name, fn) => { await fn(); n += 1; };
@@ -70,6 +73,9 @@ ok('intents: only / summary / regroup / files', () => {
   assert.equal(interpretChat('تقرير الإيرادات لشهر مارس حسب الأمانة', R), null, 'a period next to a dimension is a new report');
   assert.equal(interpretChat('قارن بالشهر الماضي', R), null);
 });
+
+/* ---------------- complete request interpretation (own file: tests/request-interpretation.test.mjs) ---------------- */
+const reqInterp = await import('./request-interpretation.test.mjs'); n += reqInterp.groups;
 
 /* ---------------- reading files ---------------- */
 const asFile = (name, bytes, type = '') => { const f = new File([bytes], name, { type }); return f; };
@@ -151,8 +157,9 @@ ok('views: chart type and only-parts apply to the model and are reflected in eve
   const cash = { months: snap.byMonth.map((x) => x.month), values: snap.byMonth.map((x) => x.collected) };
   const model = buildReportModel({ spec, lang: 'ar', out, cash, targets: DEFAULT_TARGETS, cases: [], meta: { size: 'compact', counts: { invoicesTotal: st.n } } });
   assert.equal(hasCharts(model), true); assert.equal(hasTables(model), true);
-  const line = applyView(model, { chartKind: 'line' }); assert.ok(line.changed >= 1); assert.ok(line.model.sections.flatMap((s) => s.blocks).filter((b) => b.type === 'chart').every((b) => b.kind === 'line'));
-  assert.ok(chartSvg(line.model.sections.flatMap((s) => s.blocks).find((b) => b.type === 'chart'), { lang: 'ar' }).includes('<path'), 'line chart is drawn as a path');
+  const line = applyView(model, { chartKind: 'line' }); assert.ok(line.changed >= 1); const FIXED = ['waterfall', 'stacked_hbar', 'heatmap']; const lc = line.model.sections.flatMap((s) => s.blocks).filter((b) => b.type === 'chart');
+  assert.ok(lc.filter((b) => (!FIXED.includes(b.kind) && b.basis !== 'cumulative' && b.dim?.ordered !== false) || b.kind === 'line').every((b) => b.kind === 'line')); assert.ok(lc.filter((b) => FIXED.includes(b.kind)).length >= 2, 'a waterfall / part-of-whole bar keeps its kind: its kind is its meaning');
+  assert.ok(chartSvg(line.model.sections.flatMap((s) => s.blocks).find((b) => b.type === 'chart' && b.kind === 'line'), { lang: 'ar' }).includes('<path'), 'line chart is drawn as a path');
   const pie = applyView(model, { chartKind: 'pie' }); assert.ok(pie.skipped >= 1 && pie.changed === 0, 'a multi-series chart is not turned into a pie');
   const only = applyView(model, mergeView(emptyView(), { only: 'tables' })).model; assert.equal(only.headline.length, 0); assert.ok(only.sections.every((s) => s.blocks.every((b) => b.type === 'table')));
   const htmlLine = modelToHtml(line.model); assert.ok(htmlLine.includes('<path'), 'the printed document carries the chart as the user last set it');
@@ -186,6 +193,14 @@ ok('report tables: the Amanah and source rows carry a link to the uncollected in
   assert.ok(sg.some((x) => x.ar === 'أضف الاتجاه الشهري'), 'a missing analysis is offered');
   const one = suggestionsFor(model, { ...spec, scope: { ...spec.scope, amanah: 'Riyadh Amanah' } }); assert.ok(!one.some((x) => x.ar === `اعرض ${topAm} فقط`), 'with one Amanah selected, no other Amanah is suggested');
   assert.deepEqual(suggestionsFor({ empty: true, sections: [] }, spec), []);
+});
+
+ok('Smart Reports: entering the page ALWAYS lands on the main page (never the last conversation); a navigation click while inside a conversation returns to it; history stays available', () => {
+  const src = fs.readFileSync('src/pages/SmartReports.jsx', 'utf8');
+  assert.ok(/const \[activeId, setActiveId\] = useState\(null\)/.test(src), 'the active conversation starts as null = the landing «ماذا تريد أن تعرف؟»');
+  assert.ok(!/activeIdInit|find\(\(c\) => canView\(c\.access, viewer\)\)\?\.id/.test(src), 'no restoration of the latest conversation on entry');
+  assert.ok(/useLocation\(\)\.key/.test(src) && /setActiveId\(null\)/.test(src), 'a router navigation to the route (location key change) resets to the main page');
+  assert.ok(/سجل المحادثات/.test(src), 'earlier conversations remain reachable from the history');
 });
 
 console.log(`chat workspace: ${n} test groups passed`);

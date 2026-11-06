@@ -1,16 +1,26 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useAuth } from './AuthContext';
-import { ORGS } from '../data/mock';
+import { useAuth, useAccess } from './AuthContext';
+import { DATA_MODULES } from '../data/accessModel';
+import { geoScopeAllowsRecord, geoScopeKey } from '../data/geoScope';
+import { allowedEntityKeys } from '../data/reportAccess';
+import { isForbidden } from '../api/client';
+import { displayName } from '../utils/identity';
 import { ANCHOR_ENFORCEMENT_SEED, DATA_CUTOFF, DATA_START } from '../data/revenueLedger';
 import { checkRange } from '../data/dateRange';
 import { PRESETS } from '../data/periodPresets';
-import { normalizeConfig, DEFAULT_TARGETS, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
+import { normalizeConfig, scopeKey, DEFAULT_CONFIG } from '../data/revenueMetrics';
+import { viewerTargets } from '../data/viewerTargets';
+import { usePlans } from '../data/plans/usePlans';
 import { buildEffectiveCases, invoiceStatusMap, orderStatusOf, recordFileRestored, recordDocument, recordSupplementalExtraction, proposeLink, confirmLink, rejectLink, removeLink, dismissReference, reviewContractReference, recordManualReferences, restoreLegacyRecord } from '../data/orderMatching';
 import { loadEnforcement, saveEnforcement } from '../data/enforcementStore';
 import { createTaskState, runTask } from '../analysis/analysisTasks';
 import { loadComparison } from '../data/comparison';
 import { addDaysIso, startOfYear, startOfMonth, prevMonthEnd, lastCompleteMonths } from '../data/clock';
 import { api, bumpEpoch } from '../api/client';
+import { NoPermission } from '../components/access/AccessGuards';
+import { useSourceRecords } from './SourceRecordsContext';
+import { linkInfoMap } from '../data/relations';
+import { amanahOfMuniKey } from '../data/municipalityModel';
 
 const RevenueCtx = createContext(null);
 
@@ -18,7 +28,7 @@ const RevenueCtx = createContext(null);
 export const SCOPE_PRESETS = Object.fromEntries(PRESETS.map((p) => [p.key, p.range(DATA_CUTOFF)])); // from the shared registry (src/data/periodPresets.js)
 const legacyPreset = (p) => (p === 'fytd' ? 'ytd' : p);
 
-const PACE_MS = 420;
+const PACE_MS = 0; // no artificial delay between stages: progress shows only work that is really done
 const hashOf = (str) => { let h = 5381; for (let i = 0; i < str.length; i += 1) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0; return `${str.length}.${h.toString(36)}`; };
 
 function usePersistent(key, initial) {
@@ -34,15 +44,44 @@ function usePersistent(key, initial) {
 
 export function RevenueProvider({ children }) {
   const { user } = useAuth();
-  const org = user?.org || ORGS[0];
-  const canReview = user ? user.canReview !== false : false;
+  const access = useAccess();
+  // MODULE ACCESS (docs/access-control.md «SIMPLIFIED MODEL»): a module enables its own functionality — follow-up flags and notes ← `decisions`, exclusion file + exclusion decisions ← `exclusions`, enforcement links and documents ← `enforcement`,
+  // plan / target updates ← `planning`, invoice records ← `data_sources` — and ALL of them are additionally blocked when the role is read-only (the gates in accessModel.ACTIONS). The server enforces the same rules on what it serves.
+  // `canReview` is only a DERIVED convenience for code that has not moved to granular checks: true iff the person holds a module with something to change AND the role is not read-only (read-only Auditor: false; Administrator: true).
+  const { can } = access;
+  const canReview = !!user && access.canReview;
+  const hasData = DATA_MODULES.some(can); // a person who holds no data module (e.g. only the administration pages) needs no metric snapshot
+  const canDo = useMemo(() => {
+    const g = access.gates;
+    return {
+      followup: g['decision.followup'].allowed, exclusionUpload: g['exclusion.upload'].allowed, exclusionManage: g['exclusion.manage'].allowed, enforcementReview: g['enforcement.review'].allowed, enforcementUpload: g['enforcement.upload'].allowed,
+      planningUpdate: g['planning.update'].allowed, dataUpload: g['data.upload'].allowed
+    };
+  }, [access.gates]);
 
   const [scopeRaw, setScope] = usePersistent('ib_rev_scope', { preset: 'ytd', ...SCOPE_PRESETS.ytd, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all', product: [], mainClass: 'all' });
   // a stored preset always follows TODAY's date (a new day moves "year to date" / "this month" forward)
-  const scope = useMemo(() => { const p = legacyPreset(scopeRaw.preset); return p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : { ...scopeRaw }; }, [scopeRaw]); // scopeType = مصدر الفاتورة (all / central / internal): a real filter since the 18 Oct meeting // the central / internal filter no longer exists: a value stored earlier is ignored
+  const scope = useMemo(() => {
+    const p = legacyPreset(scopeRaw.preset); const base = p && p !== 'custom' && SCOPE_PRESETS[p] ? { ...scopeRaw, preset: p, ...SCOPE_PRESETS[p] } : { ...scopeRaw };
+    // a municipality belongs to ONE Amanah and must be a REFERENCE municipality key: a stored value from the retired demo scheme («Jeddah Amanah|North»), another Amanah's municipality or junk becomes «all» (never blank, never silently another filter)
+    if (base.muni && base.muni !== 'all' && (amanahOfMuniKey(base.muni) === null || base.amanah !== amanahOfMuniKey(base.muni))) return { ...base, muni: 'all' };
+    return base;
+  }, [scopeRaw]);
+  // …and the stored value is repaired once, with a visible notice (ScopeFilters shows it)
+  const [scopeNotice, setScopeNotice] = useState(null);
+  useEffect(() => {
+    if (scopeRaw.muni && scopeRaw.muni !== 'all' && scope.muni === 'all') {
+      setScope((s) => ({ ...s, muni: 'all' }));
+      setScopeNotice({ ar: 'أُعيد اختيار البلدية إلى «كل البلديات» لأن القيمة المحفوظة لا تطابق بلديات المرجع أو لا تتبع الأمانة المختارة', en: 'The municipality was reset to “All municipalities”: the stored value does not match the reference municipalities or does not belong to the selected Amanah' });
+    }
+  }, [scopeRaw.muni, scope.muni]); // eslint-disable-line react-hooks/exhaustive-deps // scopeType = مصدر الفاتورة (all / central / internal): a real filter since the 18 Oct meeting // the central / internal filter no longer exists: a value stored earlier is ignored
   const [cfg, setCfg] = usePersistent('ib_rev_cfg4', { graceDays: DEFAULT_CONFIG.graceDays, collectionsAsOf: DEFAULT_CONFIG.collectionsAsOf, rules: DEFAULT_CONFIG.rules });
-  // The only editable target is the annual collection goal on the Strategic Dashboard (saved plans: src/data/collectionGoal.js). Nothing edited the old per-session copy of these demo defaults, so it is no longer stored.
-  const targets = DEFAULT_TARGETS;
+  // The only editable target is the annual collection goal on the Strategic Dashboard (saved plans: «خطط الإيرادات», src/data/plans). Nothing edited the old per-session copy of these demo defaults, so it is no longer stored.
+  const plansSnap = usePlans(); // the revenue-plans cache (server-owned): a new in-force version / reference reaches every surface through a NEW targets object
+  // the entities the signed-in ACCOUNT may see (its own geographic scope over the data modules; null = every entity) — the only source of the viewer's entity list
+  const viewerKeysKey = geoScopeKey(access.geoScope);
+  const viewerKeys = useMemo(() => allowedEntityKeys(access.geoScope), [viewerKeysKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const targets = useMemo(() => viewerTargets(viewerKeys, { fresh: true }), [viewerKeys, plansSnap.version]); // eslint-disable-line react-hooks/exhaustive-deps — the CONFIGURED REFERENCE PLAN's target of the viewer's own entities (the plan's own target for an unrestricted viewer) — src/data/viewerTargets.js · referenceTarget.js; `targets.reference` names the source plan + version or the unavailable state
   const [decisions, setDecisions] = usePersistent('ib_rev_decisions', {});
   // the older review state (sessionStorage) is only READ, shown as it was; the enforcement work of this version is kept in ib_enforcement_v1 and written only on a user action
   const casesSaved = useMemo(() => { try { const raw = sessionStorage.getItem('ib_rev_cases'); return raw ? JSON.parse(raw) : null; } catch { return null; } }, []);
@@ -59,32 +98,48 @@ export function RevenueProvider({ children }) {
   /* ---------- the data service ---------- */
   const [meta, setMeta] = useState(null);
   const [serverCases, setServerCases] = useState(null);
+  const { importedCases } = useSourceRecords(); // Sanad requests imported from Excel (synthetic demo records): they join the Sanad feed under the key SND-<request no.>
   const [loadError, setLoadError] = useState(null);
+  // another person (or a changed access of the same person) never sees the previous person's figures: everything the service gave is dropped and read again
+  const [snapshot, setSnapshot] = useState(null);
+  const [prevSnapshot, setPrevSnapshot] = useState(null);
+  const [comparison, setComparison] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0); // «retry» after a failed refresh
+  const identityRef = useRef(null);
+  const identityKey = user ? `${user.id}|${access.accessKey}` : '';
+  useEffect(() => {
+    if (identityRef.current === identityKey) return;
+    identityRef.current = identityKey;
+    bumpEpoch(); setMeta(null); setServerCases(null); setSnapshot(null); setPrevSnapshot(null); setComparison(null); setLoadError(null); setLoading(true); setReloadKey((k) => k + 1);
+  }, [identityKey]);
   useEffect(() => {
     if (!user) return undefined; // F-31: nothing is requested (and nothing blocks the page) before sign-in
     let off = false;
-    Promise.all([api.meta(), api.sanadCases()]).then(([m, c]) => { if (!off) { setMeta(m); setServerCases(c.cases); } }).catch((e) => { if (!off) setLoadError(e); });
+    Promise.all([api.meta(), can('enforcement') ? api.sanadCases() : Promise.resolve({ cases: [] })]).then(([m, c]) => { if (!off) { setMeta(m); setServerCases(c.cases); } }).catch((e) => { if (!off) setLoadError(e); });
     return () => { off = true; };
-  }, [!!user]);
+  }, [!!user, access.accessKey]); // eslint-disable-line react-hooks/exhaustive-deps // a change of the person's permissions / scope re-reads what the service shows
 
   // Enforcement orders: hand-anchored cases + the Sanad feed (demo data), then the person's own work (documents, proposed / confirmed / rejected links) on top.
   const casesBase = useMemo(() => {
     if (!serverCases) return casesSaved || ANCHOR_ENFORCEMENT_SEED;
     const saved = new Map((casesSaved || []).map((c) => [c.enforceNum, c]));
-    return [...ANCHOR_ENFORCEMENT_SEED, ...serverCases].map((c) => saved.get(c.enforceNum) || c);
-  }, [casesSaved, serverCases]);
+    return [...ANCHOR_ENFORCEMENT_SEED, ...serverCases, ...importedCases].map((c) => saved.get(c.enforceNum) || c);
+  }, [casesSaved, serverCases, importedCases]);
   const casesAll = useMemo(() => buildEffectiveCases(casesBase, enfStore), [casesBase, enfStore]);
-  const cases = useMemo(() => (org.amanahKeys ? casesAll.filter((c) => org.amanahKeys.includes(c.amanahEn)) : casesAll), [casesAll, org]);
+  // the person's own geographic access can only NARROW the orders (the synthetic seed orders carry an Amanah, no municipality: a municipality-restricted person sees only what their access names as «not specified»)
+  const enfScope = access.effectiveScope('enforcement');
+  const cases = useMemo(() => casesAll.filter((c) => geoScopeAllowsRecord(enfScope, { amanah: c.amanahEn, municipalityStatus: 'not_specified', municipalityRefId: null })), [casesAll, enfScope]);
   // invoice → the status its confirmed order(s) give it (open / suspended / closed); a merely proposed link is sent as «candidate» and changes nothing
   const links = useMemo(() => invoiceStatusMap(casesAll), [casesAll]);
+  const linkInfo = useMemo(() => linkInfoMap(casesAll), [casesAll]); // the evidence behind reviewer-confirmed links (shown on the exclusion; changes no amount)
 
-  const orgKeys = org.amanahKeys || null;
-  const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all', org }), [scope, org]);
+  const scopeEff = useMemo(() => ({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all' }), [scope]);
   const currentScopeKey = useMemo(() => scopeKey(scopeEff), [scopeEff]);
   const dataVersion = useMemo(() => `${uploads.count}|${JSON.stringify(decisions).length}|${hashOf(JSON.stringify(links))}|${hashOf(JSON.stringify(fileExclusions))}|${JSON.stringify(cfg)}`, [uploads.count, decisions, links, fileExclusions, cfg]);
 
-  // request body used by every data-service call (the scope carries only what the service needs from the organisation)
-  const requestFor = useCallback((sc, extra = {}) => ({ scope: { ...sc, org: orgKeys ? { amanahKeys: orgKeys } : null }, cfg: cfgN, decisions, links, fileExclusions, ...extra }), [orgKeys, cfgN, decisions, links, fileExclusions]);
+  // request body used by every data-service call (the service takes the person's identity and scope from the bearer token, never from the body)
+  const requestFor = useCallback((sc, extra = {}) => ({ scope: sc, cfg: cfgN, decisions, links, linkInfo, fileExclusions, ...extra }), [cfgN, decisions, links, linkInfo, fileExclusions]);
 
   // the same provider the analysis tasks use, for pages that need extra aggregates (series, bridge, contracts, ...)
   const data = useMemo(() => ({
@@ -93,13 +148,16 @@ export function RevenueProvider({ children }) {
     series: (sc, extra) => api.series(requestFor(sc, extra)),
     worklist: (sc, limit, extra) => api.worklist(requestFor(sc, { limit, ...extra })),
     anomalies: (sc, limit, extra) => api.anomalies(requestFor(sc, { limit, ...extra })),
-    list: (sc, extra) => api.list(requestFor(sc, extra)),
+    list: (sc, extra) => api.list(requestFor(sc, extra)), // extra: { filters, page, pageSize, sort, facets, withPriority } — facets/withPriority/the new filters are documented in docs/invoice-lists-redesign.md
+    noncollection: (sc, extra) => api.noncollection(requestFor(sc, extra)),
+    distributions: (sc, extra) => api.distributions(requestFor(sc, extra)),
+    planActions: (sc, extra) => api.planActions(requestFor(sc, extra)),
     invoice: (id) => api.invoice(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { id })),
     contracts: (sc) => api.contracts(requestFor(sc)),
     contract: (no) => api.contract(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { no })),
     quality: (sc) => api.quality(requestFor(sc)),
     sources: (sc) => api.sources(requestFor(sc || { from: '2000-01-01', to: DATA_CUTOFF })),
-    // a plain GET URL; review decisions / links ride along only while they are small enough for a URL
+    // a plain GET URL; the CSV holds ALL rows matching extra.filters (never one page; facets/page/sort are ignored by the file); review decisions / links ride along only while they are small enough for a URL
     exportUrl: (sc, extra) => {
       const full = requestFor(sc, extra);
       const small = JSON.stringify({ d: full.decisions, l: full.links, f: full.fileExclusions }).length < 3000;
@@ -107,13 +165,9 @@ export function RevenueProvider({ children }) {
     }
   }), [requestFor]);
 
-  const [snapshot, setSnapshot] = useState(null);
-  const [prevSnapshot, setPrevSnapshot] = useState(null);
-  const [comparison, setComparison] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [reloadKey, setReloadKey] = useState(0); // «retry» after a failed refresh
   useEffect(() => {
     if (!meta) return undefined;
+    if (!hasData) { setLoading(false); return undefined; } // nothing to compute for a person without a data module
     const ac = new AbortController(); setLoading(true); setLoadError(null);
     api.snapshot(requestFor({ from: scope.from, to: scope.to, amanah: scope.amanah, source: scope.source, scopeType: scope.scopeType || 'all', muni: scope.muni || 'all', status: scope.status || 'all', product: scope.product || [], mainClass: scope.mainClass || 'all' }), { signal: ac.signal })
       .then(async (main) => {
@@ -122,7 +176,7 @@ export function RevenueProvider({ children }) {
       })
       .catch((e) => { if (!ac.signal.aborted && e.name !== 'AbortError') { setLoadError(e); setLoading(false); } });
     return () => ac.abort();
-  }, [meta, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, scope.product, scope.mainClass, requestFor, data, cfgN, reloadKey]);
+  }, [meta, hasData, scope.from, scope.to, scope.amanah, scope.source, scope.scopeType, scope.muni, scope.status, scope.product, scope.mainClass, requestFor, data, cfgN, reloadKey]);
 
   /* ---------- scope ---------- */
   const setPreset = useCallback((preset) => {
@@ -145,9 +199,9 @@ export function RevenueProvider({ children }) {
 
   /* ---------- human review (analytical layer only) ---------- */
   const decideExclusion = useCallback((invoiceId, decision, note = '', ruleId = null) => {
-    if (!canReview) return { ok: false, error: 'no_permission' };
+    if (!canDo.exclusionManage) return { ok: false, error: 'no_permission' };
     if (!['approved', 'rejected', 'pending'].includes(decision)) return { ok: false, error: 'bad_decision' };
-    const reviewer = { en: `${user?.nameEn || user?.name || 'Reviewer'} (${user?.roleEn || 'role'})`, ar: `${user?.nameAr || user?.name || 'مراجع'}` };
+    const reviewer = { en: `${displayName(user, 'en') || 'Reviewer'} (${user?.roleEn || 'role'})`, ar: `${displayName(user, 'ar') || 'مراجع'}` };
     const today = DATA_CUTOFF;
     setDecisions((prev) => {
       const inv = prev[invoiceId] || { byRule: {} };
@@ -167,34 +221,35 @@ export function RevenueProvider({ children }) {
       };
     });
     return { ok: true };
-  }, [canReview, user, setDecisions]);
+  }, [canDo.exclusionManage, user, setDecisions]);
 
 
   /* ---------- the exclusion upload template (IIM-30): rows are checked by the data service, applied only after the person confirms ---------- */
   const checkExclusionRows = useCallback((rows) => api.exclusionCheck(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { rows })), [requestFor]);
   const applyFileExclusions = useCallback(({ file, accepted, rejected = 0 }) => {
-    if (!canReview) return { ok: false, error: 'no_permission' };
+    if (!canDo.exclusionManage) return { ok: false, error: 'no_permission' };
     if (!accepted?.length) return { ok: false, error: 'nothing_to_apply' };
-    const by = user?.nameAr || user?.nameEn || user?.name || 'user'; const at = new Date().toISOString();
+    const by = displayName(user, 'ar') || 'user'; const at = new Date().toISOString();
     setFileExclusions((prev) => { const next = { ...prev }; for (const r of accepted) next[r.invoiceId] = { ruleId: r.ruleId, file, at, by }; return next; });
     setExclusionUploads((prev) => [{ file, at, by, accepted: accepted.length, rejected, amount: accepted.reduce((t, r) => t + (r.outstanding || 0), 0) }, ...prev].slice(0, 20));
     return { ok: true, applied: accepted.length };
-  }, [canReview, user, setFileExclusions, setExclusionUploads]);
+  }, [canDo.exclusionManage, user, setFileExclusions, setExclusionUploads]);
 
   /* ---------- enforcement orders: the person's work (every action is attributed, dated and kept in the order's history) ---------- */
-  const enfAct = useCallback((enforceNum, fn) => {
-    if (!canReview) return { ok: false, error: 'no_permission' };
+  // kind 'review' (links, references, legacy records → enforcement.review) or 'upload' (documents and their extraction → enforcement.upload)
+  const enfAct = useCallback((enforceNum, fn, kind = 'review') => {
+    if (!(kind === 'upload' ? canDo.enforcementUpload : canDo.enforcementReview)) return { ok: false, error: 'no_permission' };
     const c = cases.find((x) => x.enforceNum === enforceNum); if (!c) return { ok: false, error: 'not_accessible' };
-    const r = fn(enfRef.current, { by: user?.nameEn || user?.name || 'Reviewer', at: new Date().toISOString(), orderStatus: orderStatusOf(c) });
+    const r = fn(enfRef.current, { by: displayName(user, 'en') || 'Reviewer', at: new Date().toISOString(), orderStatus: orderStatusOf(c) });
     if (r.error) return { ok: false, error: r.error };
     if (!r.unchanged) { enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); }
     return { ok: true, unchanged: !!r.unchanged };
-  }, [cases, canReview, user]);
+  }, [cases, canDo.enforcementReview, canDo.enforcementUpload, user]);
   const enforcement = useMemo(() => ({
-    recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o)),
-    restoreFile: (en, docId, name) => enfAct(en, (st, o) => recordFileRestored(st, en, docId, { ...o, name })),
-    recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o)),
-    restoreLegacy: (oldId, targetId) => { if (!canReview) return { ok: false, error: 'no_permission' }; const r = restoreLegacyRecord(enfRef.current, oldId, targetId, { by: user?.nameEn || user?.name || 'Reviewer', at: new Date().toISOString() }); if (r.error) return { ok: false, error: r.error }; enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); return { ok: true }; },
+    recordDocument: (en, doc) => enfAct(en, (st, o) => recordDocument(st, en, doc, o), 'upload'),
+    restoreFile: (en, docId, name) => enfAct(en, (st, o) => recordFileRestored(st, en, docId, { ...o, name }), 'upload'),
+    recordSupplement: (en, docId, extraction) => enfAct(en, (st, o) => recordSupplementalExtraction(st, en, docId, extraction, o), 'upload'),
+    restoreLegacy: (oldId, targetId) => { if (!canDo.enforcementReview) return { ok: false, error: 'no_permission' }; const r = restoreLegacyRecord(enfRef.current, oldId, targetId, { by: displayName(user, 'en') || 'Reviewer', at: new Date().toISOString() }); if (r.error) return { ok: false, error: r.error }; enfRef.current = r.store; setEnfStore(r.store); saveEnforcement(r.store); return { ok: true }; },
     addManual: (en, extraction) => enfAct(en, (st, o) => recordManualReferences(st, en, extraction, o)),
     propose: (en, input) => enfAct(en, (st, o) => proposeLink(st, en, input, o)),
     confirm: (en, invoiceId, args = {}) => enfAct(en, (st, o) => confirmLink(st, en, invoiceId, { ...args, ...o })),
@@ -206,26 +261,27 @@ export function RevenueProvider({ children }) {
     // the references of an order, resolved against the invoices by the data service (reference matching only — never by amount)
     resolve: (refs) => api.orderMatch(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { refs })),
     debtorInvoices: (debtor, excludeIds) => api.orderDebtorInvoices(requestFor({ from: '2000-01-01', to: DATA_CUTOFF }, { debtor, excludeIds }))
-  }), [enfAct, requestFor, canReview, user]);
+  }), [enfAct, requestFor, canDo.enforcementReview, user]);
 
   /* ---------- analyst notes (analytical layer only) ---------- */
   const addNote = useCallback((invoiceId, text) => {
-    if (!canReview) return { ok: false, error: 'no_permission' };
-    const by = user?.nameAr || user?.nameEn || user?.name || 'Analyst';
+    if (!canDo.followup) return { ok: false, error: 'no_permission' };
+    const by = displayName(user, 'ar') || 'Analyst';
     setNotes((n) => ({ ...n, [invoiceId]: [...(n[invoiceId] || []), { at: DATA_CUTOFF, by, text }] }));
     return { ok: true };
-  }, [canReview, user, setNotes]);
+  }, [canDo.followup, user, setNotes]);
 
   /* ---------- uploads (held by the data service for this session) ---------- */
   const commitUpload = useCallback(async (importResult) => {
+    if (!canDo.dataUpload) throw Object.assign(new Error('no_permission'), { status: 403, forbidden: true });
     const r = await api.upload(importResult.accepted);
     setUploads((u) => ({
       count: u.count + (r.added || 0),
       log: [...u.log, { ...importResult.meta, fileName: importResult.fileName, uploadedAt: new Date().toISOString(), accepted: r.added || 0, rejected: importResult.rejected.length + (r.duplicates?.length || 0), rowsRead: importResult.rowsRead, linesRead: importResult.linesRead, duplicateLines: importResult.duplicateLines, uploadCutoff: importResult.uploadCutoff, validations: importResult.validations }]
     }));
     return r;
-  }, [setUploads]);
-  const clearUploads = useCallback(async () => { await api.clearUploads(); setUploads({ log: [], count: 0 }); }, [setUploads]);
+  }, [setUploads, canDo.dataUpload]);
+  const clearUploads = useCallback(async () => { if (!canDo.dataUpload) throw Object.assign(new Error('no_permission'), { status: 403, forbidden: true }); await api.clearUploads(); setUploads({ log: [], count: 0 }); }, [setUploads, canDo.dataUpload]);
 
   /* ---------- configuration ---------- */
   const setRuleEnabled = useCallback((id, enabled) => setCfg((c) => ({ ...c, rules: { ...c.rules, [id]: enabled } })), [setCfg]);
@@ -246,7 +302,7 @@ export function RevenueProvider({ children }) {
 
   const startAnalysis = useCallback((kind, params = {}, opts = {}) => {
     const L = live.current;
-    const scopeForTask = opts.scope ? { ...opts.scope, org } : L.scopeEff;
+    const scopeForTask = opts.scope ? { ...opts.scope } : L.scopeEff;
     const followsGlobal = opts.followsGlobal ?? !opts.scope;
     const state = createTaskState(kind, { scope: scopeForTask, params, background: !!opts.background, paceMs: opts.paceMs ?? PACE_MS });
     state.followsGlobal = followsGlobal;
@@ -268,6 +324,9 @@ export function RevenueProvider({ children }) {
 
     const data = {
       snapshot: (sc, extra) => api.snapshot(L.requestFor(sc, extra), { signal: ac.signal }),
+      noncollection: (sc, extra) => api.noncollection(L.requestFor(sc, extra), { signal: ac.signal }),
+      distributions: (sc, extra) => api.distributions(L.requestFor(sc, extra), { signal: ac.signal }),
+      planActions: (sc, extra) => api.planActions(L.requestFor(sc, extra), { signal: ac.signal }),
       bridge: (sc, extra) => api.bridge(L.requestFor(sc, extra), { signal: ac.signal }),
       series: (sc, extra) => api.series(L.requestFor(sc, extra), { signal: ac.signal }),
       worklist: (sc, limit) => api.worklist(L.requestFor(sc, { limit }), { signal: ac.signal }),
@@ -284,7 +343,7 @@ export function RevenueProvider({ children }) {
       return final;
     });
     return { id: state.id, duplicate: false, promise };
-  }, [org]);
+  }, []);
 
   const cancelTask = useCallback((id) => { controllers.current.get(id)?.abort(); }, []);
   const sendToBackground = useCallback((id) => {
@@ -309,8 +368,8 @@ export function RevenueProvider({ children }) {
 
 
   const value = {
-    user, org, canReview, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
-    scope, scopeEff, currentScopeKey, resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, setProduct, setMainClass,
+    user, canReview, can, canDo, access, gates: access.gates, meta, loading, loadError, retryLoad: () => setReloadKey((k) => k + 1), ready: !!(meta && snapshot && prevSnapshot && comparison),
+    scope, scopeEff, currentScopeKey, scopeNotice, clearScopeNotice: () => setScopeNotice(null), resetScope, setPreset, setCustomRange, setAmanah, setSource, setScopeType, setMuni, setStatus, setProduct, setMainClass,
     cfg: cfgN, setCrStatuses, setRuleEnabled, setGraceDays, setCollectionsAsOf, resetConfig,
     targets,
     snapshot, prevSnapshot, comparison, decisions, links, dataVersion, requestFor, data,
@@ -321,7 +380,7 @@ export function RevenueProvider({ children }) {
     tasks, modalTaskId, resultTaskId, viewResult, closeResult, startAnalysis, cancelTask, sendToBackground, dismissTask, closeModal, openTask, isStale
   };
   // F-31: the sign-in page does not wait for (or fail with) the data service; the provider keeps one stable shape so signing in or out never remounts the tree
-  const gate = !user ? null : (loadError && !snapshot) ? <DataServiceError error={loadError} /> : !value.ready ? <DataServiceLoading /> : null;
+  const gate = !user ? null : (loadError && !snapshot) ? (isForbidden(loadError) ? <div style={{ padding: 24 }}><NoPermission /></div> : <DataServiceError error={loadError} />) : (!value.ready && hasData) ? <DataServiceLoading /> : null;
   return <RevenueCtx.Provider value={value}>{gate || children}</RevenueCtx.Provider>;
 }
 

@@ -17,12 +17,14 @@ export const ORDER_STATUS = { 'قيد التنفيذ': 'open', 'موقوف': 'su
 export const orderStatusOf = (c) => ORDER_STATUS[c?.requestStatus] || 'open'; // hand-anchored cases carry no status: they were treated as in execution
 export const STATUS_RANK = { open: 3, suspended: 2, closed: 1 };
 
+const docsOf = (l) => [...new Set((l.evidence || []).map((e) => e.docName).filter(Boolean))]; // the supporting document(s) the reviewer's confirmation rests on
+
 // → { confirmed:[order…], proposed:[order…], referredEver, current: 'in_execution'|'suspended'|'none', closedOnly, orders }
 export function enforcementOf(invoiceId, cases) {
   const confirmed = []; const proposed = []; const withdrawn = [];
   for (const c of cases) for (const l of c.links || []) {
     if (l.invoiceId !== invoiceId) continue;
-    const item = { enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null };
+    const item = { enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null, documents: docsOf(l) };
     if (l.status === 'confirmed') confirmed.push(item); else if (l.status === 'candidate') proposed.push(item); else if (l.ledgerStatus === 'removed') withdrawn.push(item);
   }
   return summarize(confirmed, proposed, withdrawn);
@@ -45,11 +47,22 @@ export function buildIndex(cases) {
   for (const c of cases) for (const l of c.links || []) {
     const bucket = l.status === 'confirmed' ? conf : l.status === 'candidate' ? prop : l.ledgerStatus === 'removed' ? wd : null; if (!bucket) continue;
     if (!bucket.has(l.invoiceId)) bucket.set(l.invoiceId, []);
-    bucket.get(l.invoiceId).push({ enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null });
+    bucket.get(l.invoiceId).push({ enforceNum: c.enforceNum, system: c.system, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, orderAmount: c.amount, openedDate: c.openedDate, origin: l.origin || null, reviewedAt: l.reviewedAt || null, reviewedBy: l.reviewedBy || null, documents: docsOf(l) });
   }
   const out = new Map();
   for (const id of new Set([...conf.keys(), ...prop.keys(), ...wd.keys()])) out.set(id, summarize(conf.get(id) || [], prop.get(id) || [], wd.get(id) || []));
   return out;
+}
+
+// the evidence behind each REVIEWER-confirmed link, sent next to the status map only so the exclusion can SHOW it (order, status, reviewer, time, supporting document). It never changes an amount.
+// Links that arrive from the Sanad feed itself carry no reviewer and are left out (the data service already knows those orders).
+export function linkInfoMap(cases) {
+  const m = {};
+  for (const c of cases) for (const l of c.links || []) {
+    if (l.status !== 'confirmed' || !l.reviewedBy || l.origin === 'sanad_structured') continue;
+    (m[l.invoiceId] = m[l.invoiceId] || []).push({ enforceNum: c.enforceNum, orderStatus: orderStatusOf(c), closeReason: c.closeReason || null, reviewedBy: l.reviewedBy, reviewedAt: l.reviewedAt || null, documents: docsOf(l) });
+  }
+  return m;
 }
 
 // what the data service receives: invoice → the strongest status of its confirmed orders (open > suspended > closed); proposals as «candidate» (no effect)

@@ -14,7 +14,7 @@ import { daysBetween, REVENUE_SOURCES, DATA_CUTOFF } from './revenueLedger';
 import { CATEGORY_LABELS, formatRatio, pct1, EXCLUSION_RULES, NOT_CALCULABLE_LABEL } from './revenueMetrics';
 import { caseSummary } from './enforcementMatching';
 import { fmtBn } from '../utils/money';
-import { municipalitiesOf } from './catalog';
+import { muniLabel } from './municipalityModel';
 
 const cnt = (n) => Number(n || 0).toLocaleString('en-US');
 export const bi = (en, ar) => ({ en, ar });
@@ -269,7 +269,7 @@ export function describeScope(scope, lang = 'en') {
   const ar = lang === 'ar';
   const extra = [];
   if (scope.scopeType && scope.scopeType !== 'all') extra.push(scope.scopeType === 'internal' ? (ar ? 'داخلي' : 'Internal') : (ar ? 'مركزي' : 'Central'));
-  if (scope.muni && scope.muni !== 'all') { const [ent] = String(scope.muni).split('|'); const m = municipalitiesOf(ent).find((x) => x && x.key === scope.muni); extra.push(m ? (ar ? m.ar : m.en) : scope.muni); }
+  if (scope.muni && scope.muni !== 'all') extra.push(muniLabel(scope.muni, ar ? 'ar' : 'en'));
   return `${scope.from} → ${scope.to} · ${a} · ${s}${extra.length ? ` · ${extra.join(' · ')}` : ''}`;
 }
 
@@ -355,15 +355,18 @@ export function buildAnalysisResult(kind, { snapshot, bridge = null, references 
 
   if (forecast) {
     if (forecast.ready) {
-      out.indicators.push(indicator(bi('Independent forecast: remaining-year receipts', 'التنبؤ المستقل: إيرادات محصلة المتبقي من السنة'), money(forecast.fiscalYear.projectedRemainder), 'calculated', bi('Trend method; indicative range only', 'طريقة الاتجاه؛ نطاق إرشادي فقط')));
+      out.indicators.push(indicator(bi('Independent forecast: remaining-year receipts', 'التنبؤ المستقل: إيرادات محصلة المتبقي من السنة'), money(forecast.fiscalYear.projectedRemainder), 'calculated', bi(`Method ${forecast.method.id}: average of the last 3 complete months, plus the rest of the current month; no range, no probability; not aligned with the forecasting teams`, `المنهج ${forecast.method.id}: متوسط آخر 3 أشهر مكتملة مع المتبقي من الشهر الحالي؛ بلا نطاق ولا احتمالية؛ غير مُواءَم مع فرق التوقع`)));
       out.limitations.push(...forecast.limitations);
       out.assumptions.push(...forecast.assumptions);
     } else out.missing.push({ kind: 'fact', text: forecast.reasonNotReady, invoices: [] });
   }
   if (targetPos?.annualTarget != null && targetPos.projectedTotal != null) {
-    out.indicators.push(indicator(bi('Approved annual target (demo input)', 'المستهدف السنوي المعتمد (مُدخل توضيحي)'), money(targetPos.annualTarget), 'fact', bi('Target is an input; forecast is independent', 'المستهدف مُدخل؛ والتنبؤ مستقل')));
+    out.indicators.push(indicator(bi('Annual revenue target of the plan', 'المستهدف السنوي للإيراد في الخطة'), money(targetPos.annualTarget), 'fact', bi(`${targetPos.targetSourceLine?.en || 'The reference plan'} is an input; the forecast is independent`, `${targetPos.targetSourceLine?.ar || 'الخطة المرجعية'} مُدخل؛ والتنبؤ مستقل`)));
+    if (targetPos.forecastAchievementPct != null) out.indicators.push(indicator(bi('Expected achievement of the target (forecast ÷ target)', 'نسبة تحقيق المستهدف المتوقعة (التنبؤ ÷ المستهدف)'), formatRatio({ calculable: true, value: targetPos.forecastAchievementPct }), 'calculated', bi('Not a probability', 'ليست احتمالية')));
+  } else if (targetPos?.targetUnavailable) {
+    out.indicators.push(indicator(bi('Annual revenue target of the plan', 'المستهدف السنوي للإيراد في الخطة'), 'غير متاح · Unavailable', 'fact', targetPos.targetUnavailable));
   }
-  if (achievement) out.indicators.push(indicator(bi('Target achievement (receipts YTD ÷ cumulative target)', 'تحقيق المستهدف (الإيرادات المحصلة ÷ المستهدف التراكمي)'), formatRatio(achievement.achievement), 'calculated'));
+  if (achievement) out.indicators.push(indicator(bi('Achievement against the plan to date (receipts YTD ÷ planned to date)', 'نسبة الإنجاز مقابل المخطط حتى تاريخه (الإيرادات المحصلة ÷ المخطط حتى تاريخه)'), achievement.unavailable ? 'غير متاح · Unavailable' : formatRatio(achievement.achievement), achievement.unavailable ? 'fact' : 'calculated', achievement.unavailable ? achievement.unavailableText : achievement.sourceLine || undefined));
 
   out.links = [{ to: '/collection', label: bi('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة') }, { to: '/invoices', label: bi('Invoice library', 'قائمة الفواتير المحصّلة') }];
   if (invoiceId) out.links.unshift({ to: `/invoices/${encodeURIComponent(invoiceId)}`, label: bi(`Invoice ${invoiceId}`, `الفاتورة ${invoiceId}`) });

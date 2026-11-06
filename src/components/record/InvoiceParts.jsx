@@ -1,77 +1,65 @@
-// The invoice page's own building blocks: a money panel (invoice value, collection status, payment date), a payment panel (the payment date, how it
-// compares with the due date, and a timeline from issue to the reference date), grouped facts, and an in-page section navigation.
+// The invoice page's own building blocks: the compact financial summary, grouped facts, and an in-page section navigation.
 import React from 'react';
-import { daysBetween } from '../../data/revenueLedger';
 import { useL } from '../../utils/bi';
 import { fmtDateText } from '../../data/clock';
-import { pctColor } from '../strategic/EntityMap';
+import { pctColor } from '../strategic/PctScale';
+import { EXCLUSION_REASON_OF_RULE } from '../../data/iim';
 
 const pc = (v) => `${(v * 100).toFixed(v > 0 && v < 0.1 ? 1 : 0)}%`;
 
-// IIM-13 — the financial summary shows ONLY: invoice value (قيمة الفاتورة), collection status and the payment date. The remaining balance and the separate collected figure are
-// not shown here; the bar is the collected share of the invoice value. An excluded invoice shows the reason (and the excluded amount as small print).
-export function MoneyPanel({ der, rec, sar, L, ar }) {
+// The compact financial summary at the top of the invoice page: invoice amount, collected amount and the remaining unpaid amount (net of nothing else: exclusions, cancellation and overpayment are stated apart),
+// with the issue, due and payment dates beside them. The statuses (payment / enforcement / review) are in the header and are never repeated here.
+export function InvoiceSummary({ der, rec, im, pf, sar, L, ar }) {
   const value = der.gross; const share = value > 0 ? Math.min(der.collected / value, 1) : 0;
-  const late = der.outstanding > 0 && der.daysOverdue > 0;
-  const status = der.cancelled ? { ar: 'ملغاة', en: 'Cancelled', tone: 'neutral' } : der.collected >= value && value > 0 ? { ar: 'محصلة', en: 'Collected', tone: 'ok' } : der.collected > 0 ? { ar: 'محصلة جزئيًا', en: 'Partially collected', tone: 'warn' } : { ar: 'غير محصلة', en: 'Not collected', tone: late ? 'late' : 'neutral' };
-  const paid = rec?.iim?.paidDate; const ex = rec?.iim?.exclusion;
+  const unpaid = der.excluded ? der.exclusionAmount : der.outstanding; // the unpaid part of the invoice as the source states it: an excluded invoice is still unpaid — the exclusion only takes it out of the collectible base
+  const late = unpaid > 0 && der.daysOverdue > 0;
+  const date = (d) => (d ? fmtDateText(d, ar ? 'ar' : 'en') : '—');
+  const ex = im?.exclusion;
   return (
-    <section className="ip-card ip-money" aria-label={L('Financial summary', 'الملخص المالي')}>
-      <h2 className="ip-h">{L('Financial summary', 'الملخص المالي')}</h2>
-      <div className="ip-money__row">
-        <div><span className="ip-k">{L('Invoice value', 'قيمة الفاتورة')}</span><b className="ip-big" dir="ltr">{sar(value)}</b></div>
-        <div><span className="ip-k">{L('Collection status', 'حالة التحصيل')}</span><b className={`ip-big${status.tone === 'late' ? ' ip-bad' : ''}`}>{ar ? status.ar : status.en}</b></div>
-        <div><span className="ip-k">{L('Payment date', 'تاريخ السداد')}</span><b className="ip-big" dir="ltr">{paid ? fmtDateText(paid, ar ? 'ar' : 'en') : '—'}</b></div>
-      </div>
-      <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of the invoice value`, `المحصّل ${pc(share)} من قيمة الفاتورة`)}>
+    <section className="ip-card is-sum" aria-label={L('Financial summary', 'الملخص المالي')}>
+      <dl className="is-sum__row">
+        <div><dt>{L('Invoice amount', 'مبلغ الفاتورة')}</dt><dd dir="ltr">{sar(value)}</dd></div>
+        <div><dt>{L('Collected', 'المحصّل')}</dt><dd dir="ltr">{sar(der.collected)}</dd></div>
+        <div className={unpaid > 0 ? (late ? 'is-bad' : '') : ''}><dt>{L('Remaining unpaid', 'المتبقي غير المسدد')}</dt><dd dir="ltr">{sar(unpaid)}</dd>{der.excluded && <dd className="ex-banner__s">{L('excluded from the collectible base', 'مستبعد من القابل للتحصيل')}</dd>}</div>
+        <div><dt>{L('Issue date', 'تاريخ الإصدار')}</dt><dd dir="ltr">{date(rec.issueDate)}</dd></div>
+        <div><dt>{L('Due date', 'تاريخ الاستحقاق')}</dt><dd dir="ltr">{date(rec.dueDate)}</dd></div>
+        <div><dt>{L('Payment date', 'تاريخ السداد')}</dt><dd dir="ltr">{date(im?.paidDate)}</dd></div>
+      </dl>
+      <div className="ip-bar" role="img" aria-label={L(`Collected ${pc(share)} of the invoice amount`, `المحصّل ${pc(share)} من مبلغ الفاتورة`)}>
         <i className="ip-bar__paid" style={{ width: `${share * 100}%`, background: pctColor('share', share) || undefined }} />{value > 0 && share < 1 && <i className={`ip-bar__left${late ? ' ip-bar__left--late' : ''}`} style={{ width: `${(1 - share) * 100}%` }} />}
       </div>
-      {ex && <dl className="ip-sub"><div><dt>{L('Exclusion reason', 'سبب الاستبعاد')}</dt><dd>{ar ? ex.reasonAr : ex.reasonEn}</dd></div><div><dt>{L('Excluded amount', 'المبلغ المستبعد')}</dt><dd dir="ltr">{sar(der.exclusionsTotal)}</dd></div></dl>}
-      {der.overpayment > 0 && <dl className="ip-sub"><div><dt>{L('Paid above the invoice value', 'مدفوع فوق قيمة الفاتورة')}</dt><dd dir="ltr">{sar(der.overpayment)}</dd></div></dl>}
+      {(der.overpayment > 0 || der.cancelled) && <dl className="ip-sub">
+        {der.cancelled && <div><dt>{L('Cancelled in the source', 'ملغاة في المصدر')}</dt><dd>{L('yes', 'نعم')}</dd></div>}
+        {der.overpayment > 0 && <div><dt>{L('Paid above the invoice amount', 'مدفوع فوق مبلغ الفاتورة')}</dt><dd dir="ltr">{sar(der.overpayment)}</dd></div>}
+      </dl>}
     </section>
   );
 }
 
-// the payment date, stated plainly first; then the dates that explain it and a timeline of the invoice's life
-export function PaymentPanel({ pf, rec, today, ar, sar, L }) {
-  const dt = (d) => fmtDateText(d, ar ? 'ar' : 'en');
-  const days = (n) => L(`${n} day${n === 1 ? '' : 's'}`, `${n} ${n === 1 ? 'يوم' : n === 2 ? 'يومان' : n >= 3 && n <= 10 ? 'أيام' : 'يوماً'}`);
-  const off = (n) => (n < 0 ? L(`${days(-n)} before the due date`, `قبل الاستحقاق بـ ${days(-n)}`) : n > 0 ? L(`${days(n)} after the due date`, `بعد الاستحقاق بـ ${days(n)}`) : L('on the due date', 'في يوم الاستحقاق'));
-  let head; let tone; let line;
-  if (pf.state === 'settled') { head = L(`Fully paid on ${dt(pf.settled)}`, `سُدّدت بالكامل في ${dt(pf.settled)}`); tone = pf.settledOffset > 0 ? 'late' : 'ok'; line = `${off(pf.settledOffset)}${pf.daysFromIssue != null ? ` · ${L(`${days(pf.daysFromIssue)} after issue`, `بعد ${days(pf.daysFromIssue)} من الإصدار`)}` : ''}`; }
-  else if (pf.state === 'partial') { head = L(`Partly paid — last payment ${dt(pf.last)}`, `سُدّدت جزئياً — آخر دفعة ${dt(pf.last)}`); tone = pf.daysOverdue > 0 ? 'late' : 'warn'; line = `${L('Remaining', 'المتبقي')} ${sar(pf.remaining)}${pf.daysOverdue > 0 ? ` · ${L(`overdue ${days(pf.daysOverdue)}`, `متأخرة ${days(pf.daysOverdue)}`)}` : ''}`; }
-  else if (pf.state === 'unpaid') { head = L(`No payment up to ${dt(today)}`, `لا يوجد سداد حتى ${dt(today)}`); tone = pf.daysOverdue > 0 ? 'late' : 'neutral'; line = pf.daysOverdue > 0 ? L(`Overdue ${days(pf.daysOverdue)}`, `متأخرة ${days(pf.daysOverdue)} عن الاستحقاق`) : L(`Due in ${days(pf.daysToDue)}`, `تستحق بعد ${days(pf.daysToDue)}`); }
-  else { head = pf.state === 'cancelled' ? L('Cancelled — not counted for collection', 'ملغاة — لا تُحتسب للتحصيل') : L('Excluded — not counted for collection', 'مستبعدة — لا تُحتسب للتحصيل'); tone = 'neutral'; line = pf.count ? L(`${pf.count} payment(s) are recorded and shown below, but they are not counted as collected.`, `سُجّلت ${pf.count} دفعة وتظهر أدناه، لكنها لا تُحتسب محصّلة.`) : L('No payment is recorded.', 'لا توجد دفعات مسجلة.'); }
-
-  // timeline: issue → due → payments → reference date, placed by date
-  const marks = [{ d: rec.issueDate, t: 'issue' }, { d: rec.dueDate, t: 'due' }, ...pf.rows.map((r) => ({ d: r.date, t: 'pay', r })), { d: today, t: 'ref' }].filter((m) => m.d);
-  const min = rec.issueDate; const max = [today, pf.last, rec.dueDate].filter(Boolean).sort().pop();
-  const span = Math.max(daysBetween(min, max), 1); const at = (d) => Math.min(Math.max((daysBetween(min, d) / span) * 100, 0), 100);
-  const endDate = pf.state === 'settled' ? pf.settled : today;
-  const lateFrom = rec.dueDate && endDate > rec.dueDate && (pf.state !== 'settled' || pf.settledOffset > 0) && pf.state !== 'cancelled' && pf.state !== 'excluded';
+// «سبب الاستبعاد» — ONE compact banner on an excluded invoice (the same invoice page as every other invoice): the effective reason, the amount excluded beside the original invoice amount,
+// and the other applicable reasons on demand. It states that the payment status is unchanged; the evidence and the history stay in the sections below.
+export function ExclusionBanner({ der, im, reasons, uploadedFile, sar, L, ar }) {
+  const ex = im?.exclusion; if (!ex || !(der.exclusionsTotal > 0)) return null;
+  const others = (reasons || []).filter((id) => id !== ex.ruleId).map((id) => EXCLUSION_REASON_OF_RULE[id]).filter(Boolean);
   return (
-    <section className="ip-card ip-pay" aria-label={L('Payment date', 'تاريخ السداد')}>
-      <h2 className="ip-h">{L('Payment date', 'تاريخ السداد')}</h2>
-      <div className={`ip-pay__head ip-pay__head--${tone}`} role="status"><b>{head}</b><span>{line}</span></div>
-      <div className="ip-track" aria-hidden="true">
-        <i className="ip-track__line" />
-        <i className="ip-track__seg ip-track__seg--life" style={{ insetInlineStart: 0, width: `${at(rec.dueDate)}%` }} />
-        {lateFrom && <i className="ip-track__seg ip-track__seg--late" style={{ insetInlineStart: `${at(rec.dueDate)}%`, width: `${Math.max(at(endDate) - at(rec.dueDate), 0)}%` }} />}
-        {marks.map((m, i) => <i key={i} className={`ip-mark ip-mark--${m.t}`} style={{ insetInlineStart: `${at(m.d)}%` }} title={`${{ issue: L('Issued', 'الإصدار'), due: L('Due', 'الاستحقاق'), pay: L('Payment', 'دفعة'), ref: L('Reference date', 'تاريخ المرجع') }[m.t]}: ${dt(m.d)}${m.r ? ` · ${sar(m.r.amount)}` : ''}`} />)}
+    <section className="ip-card ex-banner" aria-label={L('Exclusion reason', 'سبب الاستبعاد')}>
+      <div className="ex-banner__main">
+        <div><span className="ex-banner__k">{L('Exclusion reason', 'سبب الاستبعاد')}</span><b className="ex-banner__v">{ar ? ex.reasonAr : ex.reasonEn}</b></div>
+        <div><span className="ex-banner__k">{L('Excluded amount', 'المبلغ المستبعد')}</span><b className="ex-banner__v" dir="ltr">{sar(der.exclusionsTotal)}</b><span className="ex-banner__s">{L('of the invoice amount', 'من مبلغ الفاتورة')} <span dir="ltr">{sar(der.gross)}</span></span></div>
+        {ex.sourceAr && <div><span className="ex-banner__k">{L('Source of the exclusion', 'مصدر الاستبعاد')}</span><b className="ex-banner__v">{ar ? ex.sourceAr : ex.sourceEn}</b>{uploadedFile && <span className="ex-banner__s" dir="ltr">{uploadedFile}</span>}</div>}
       </div>
-      <ul className="ip-legend">
-        <li><i className="ip-mark ip-mark--issue" /> {L('Issued', 'الإصدار')} <b>{dt(rec.issueDate)}</b></li>
-        <li><i className="ip-mark ip-mark--due" /> {L('Due', 'الاستحقاق')} <b>{dt(rec.dueDate)}</b></li>
-        {pf.first && <li><i className="ip-mark ip-mark--pay" /> {L('First payment', 'أول دفعة')} <b>{dt(pf.first)}</b></li>}
-        {pf.last && pf.last !== pf.first && <li><i className="ip-mark ip-mark--pay" /> {pf.state === 'settled' ? L('Last payment', 'آخر دفعة') : L('Last payment', 'آخر دفعة')} <b>{dt(pf.last)}</b></li>}
-        {pf.settled && <li><i className="ip-mark ip-mark--paid" /> {L('Fully paid', 'تاريخ السداد الكامل')} <b>{dt(pf.settled)}</b></li>}
-        <li><i className="ip-mark ip-mark--ref" /> {L('Reference date', 'تاريخ المرجع')} <b>{dt(today)}</b></li>
-      </ul>
+      <div className="ex-banner__note">{L('The exclusion does not change the payment status; the invoice stays as the source states it.', 'الاستبعاد لا يغيّر حالة السداد؛ وتبقى الفاتورة كما يذكرها المصدر.')}</div>
+      {others.length > 0 && (
+        <details className="ex-more">
+          <summary>{L(`${others.length} other applicable reason(s)`, `${others.length} سبب آخر منطبق`)}</summary>
+          <ul>{others.map((r) => <li key={r.ruleId}>{ar ? r.ar : r.en}</li>)}</ul>
+          <div className="muted" style={{ fontSize: 12 }}>{L('The amount is excluded once, under the effective reason above.', 'يُستبعد المبلغ مرة واحدة تحت السبب الفعلي أعلاه.')}</div>
+        </details>
+      )}
     </section>
   );
 }
 
-// grouped facts: every fact belongs to ONE group so the eye knows where to look
 export function InfoGroups({ groups }) {
   return (
     <div className="ip-groups">

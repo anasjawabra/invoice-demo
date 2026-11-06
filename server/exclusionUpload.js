@@ -6,8 +6,19 @@ import { iimFields } from './iimRow.js';
 import { isoOf } from '../src/data/catalog.js';
 import { parseInvoiceKey, MAIN } from '../src/data/iim.js';
 import { reasonRuleOf, entityIndexOf } from '../src/data/exclusionUpload.js';
+import { isVisible } from './accessMask.js';
 
 const AMOUNT_TOLERANCE = 1; // riyal
+
+/** Which invoice an uploaded row means, among the invoices of ONE Amanah that carry its number: the row's GFS code (account) tells them apart; when it still leaves several — or no account was given and several remain —
+ *  the row is rejected as ambiguous with every candidate's composite key. NEVER the first match. Pure (the data service passes the lookups), so it can be tested with isolated data. */
+export function pickUploadInvoice(mine, acct, gfsOf, keyOf) {
+  const byGfs = acct ? mine.filter((x) => gfsOf(x) === acct) : mine;
+  if (byGfs.length > 1) return { code: 'invoice_ambiguous', candidates: byGfs.map(keyOf) };
+  const index = byGfs.length === 1 ? byGfs[0] : mine.length === 1 ? mine[0] : -1;
+  if (index < 0) return acct ? { code: 'account_mismatch' } : { code: 'invoice_ambiguous', candidates: mine.map(keyOf) };
+  return { index };
+}
 
 export function checkExclusionRows(st, req) {
   const ctx = makeCtx(st, req); const out = []; const seen = new Set();
@@ -21,10 +32,14 @@ export function checkExclusionRows(st, req) {
     // the invoice: the full number (biller-Sadad) or the Sadad number alone — the Amanah decides which of the invoices that carry it
     let cands = [];
     if (parseInvoiceKey(no)) { const i = lookupId(st, no); if (i >= 0) cands = [i]; } else if (/^\d{6,14}$/.test(no)) cands = lookupSadad(st, no);
-    const visible = cands.filter((i) => st.owner[i] === 0 || st.owner[i] === (req.owner || 0));
+    const visible = cands.filter((i) => (st.owner[i] === 0 || st.owner[i] === (req.owner || 0)) && isVisible(st, i, ctx.acc)); // an invoice outside the user's geographic access answers exactly like a missing one
     if (!visible.length) { fail('invoice_not_found'); continue; }
     const mine = visible.filter((i) => st.ent[i] === ent); if (!mine.length) { fail('other_amanah'); continue; }
-    const i = mine[0]; res.invoiceId = idOf(st, i);
+    // the Amanah is part of the invoice's identity; the GFS code of the row (account) is the next component: several invoices that share a number inside ONE Amanah are told apart by it — never "the first"
+    const pick = pickUploadInvoice(mine, String(r.account || '').trim(), (x) => String(iimFields(st, x).gfsCode || ''), (x) => iimFields(st, x).compositeKey);
+    if (pick.code) { if (pick.candidates) res.candidates = pick.candidates; fail(pick.code); continue; }
+    const i = pick.index;
+    res.invoiceId = idOf(st, i); res.compositeKey = iimFields(st, i).compositeKey;
     if (seen.has(res.invoiceId)) { fail('duplicate_in_file'); continue; } seen.add(res.invoiceId);
     const D = derive(ctx, i, ctx.cutoffN);
     res.amount = D.billed; res.outstanding = D.outstanding;

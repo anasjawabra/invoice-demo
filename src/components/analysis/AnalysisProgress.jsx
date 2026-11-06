@@ -40,18 +40,27 @@ export function summarizeProgress(task) {
   return { total, done, activeIdx, active };
 }
 
-export default function AnalysisProgress({ task, variant = 'modal', stale = false, onCancel, onBackground, onClose, onView }) {
-  const { L, B, ar, lang } = useL();
-  if (!task) return null;
-  const { total, done, active } = summarizeProgress(task);
-  const terminal = isTerminal(task);
-  const lastDone = [...task.stages].reverse().find((s) => s.status === 'completed');
-  const label = STATUS_LABEL[task.status];
-  const stageUnits = active?.units && active.units.total > 0 ? active.units : null;
-  const pct = stageUnits ? Math.round((stageUnits.done / stageUnits.total) * 100) : null;
-  const warnings = task.warnings || [];
-  const failed = task.stages.find((s) => s.status === 'failed');
+const CHIP_LABEL = {
+  queued: { en: 'Preparing analysis', ar: 'جارٍ تحضير التحليل' },
+  running: { en: 'Preparing analysis', ar: 'جارٍ تحضير التحليل' },
+  completed: { en: 'Completed', ar: 'اكتمل' },
+  completed_with_limitations: { en: 'Completed with limitations', ar: 'اكتمل مع قيود' },
+  failed: { en: 'Failed', ar: 'فشل' },
+  cancelled: { en: 'Cancelled', ar: 'أُلغي' }
+};
 
+// A compact progress card: the name of the analysis (never «analysis in progress» on a finished report), one status chip, only the stages that really ran or are running,
+// a count of material issues with the details behind a fold. No orb, no demo-mode footer, no percentage that is not a count of real work.
+export default function AnalysisProgress({ task, variant = 'modal', stale = false, onCancel, onBackground, onClose, onView }) {
+  const { L, B, lang } = useL();
+  if (!task) return null;
+  const terminal = isTerminal(task);
+  const ran = task.stages.filter((s) => s.status !== 'skipped' && s.status !== 'not_run');
+  const done = ran.filter((s) => s.status === 'completed').length;
+  const active = task.stages.find((s) => s.status === 'active');
+  const stageUnits = active?.units && active.units.total > 0 ? active.units : null;
+  const issues = task.warnings || [];
+  const failed = task.stages.find((s) => s.status === 'failed');
   const failMsg = failed ? ({
     invalid_period: L('The period is invalid (start is after end). Nothing was calculated.', 'الفترة غير صالحة (البداية بعد النهاية). لم يُحسب شيء.'),
     reconciliation_failed: L('Totals did not reconcile with their breakdowns, so results were withheld.', 'لم تتطابق الإجماليات مع تفصيلاتها، لذلك حُجبت النتائج.'),
@@ -60,98 +69,38 @@ export default function AnalysisProgress({ task, variant = 'modal', stale = fals
     baseline_unavailable: L('Not enough history to build the independent baseline, so the scenario cannot be calculated.', 'لا يوجد سجل كافٍ لبناء خط الأساس المستقل، لذا تعذّر احتساب السيناريو.'),
     injected_failure: L('A processing step failed.', 'فشلت خطوة معالجة.')
   }[failed.error] || L('A processing step failed. No results were produced.', 'فشلت خطوة معالجة. لم تُنتج نتائج.')) : null;
+  const name = B(task.resultTitle || task.title);
+  const shown = ran.length ? ran : task.stages.slice(0, 1);
 
   return (
-    <div className={`ap ap--${variant} ap--${task.status}`} role="group" aria-label={B(task.title)} data-task-status={task.status}>
-      {variant !== 'dock' && (
-        <div className="ap__emblem" aria-hidden="true">
-          <div className={`ap__orb${task.status === 'running' || task.status === 'queued' ? ' ap__orb--live' : ''}`}>
-            {task.status === 'failed' ? (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
-            ) : task.status === 'cancelled' ? (
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><rect x="7" y="7" width="10" height="10" rx="2" /></svg>
-            ) : terminal ? (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4L12 3z" /><path d="M18 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8.8-2z" /></svg>
-            )}
-          </div>
-        </div>
+    <div className={`pg pg--${variant} pg--${task.status}`} role="group" aria-label={name} data-task-status={task.status}>
+      <div className="pg__head">
+        <div className="pg__titles"><div className="pg__title">{name}</div><div className="pg__ctx" dir="auto">{describeScope(task.scope, lang)}</div></div>
+        <span className={`pg__chip pg__chip--${task.status}`} role="status">{B(CHIP_LABEL[task.status])}</span>
+      </div>
+      <ol className="pg__stages">
+        {shown.map((s, i) => (
+          <li key={s.id} className={`pg__stage pg__stage--${s.status}`} aria-current={s.status === 'active' ? 'step' : undefined}>
+            <span className="pg__ico"><StageIcon status={s.status} index={i} /></span>
+            <span className="pg__txt"><b>{B(s.label)}</b>{(s.status === 'completed' && s.detail) ? <small>{B(s.detail)}</small> : s.status === 'active' ? <small>{B(s.active)}{stageUnits ? ` · ${stageUnits.done} / ${stageUnits.total}` : ''}</small> : null}</span>
+          </li>
+        ))}
+      </ol>
+      {terminal && <div className="pg__count">{L(`${done} of ${ran.length} stages completed`, `اكتملت ${done} من ${ran.length} مراحل`)}</div>}
+      {issues.length > 0 && (
+        <details className="pg__issues">
+          <summary>{L(`${issues.length} material issue(s)`, `${issues.length} ملاحظة جوهرية`)}</summary>
+          <ul>{issues.map((w, i) => <li key={i}>{B(w.text)}</li>)}</ul>
+        </details>
       )}
-
-      <div className="ap__body">
-        <div className="ap__eyebrow">
-          <span>{L('AI revenue analysis', 'تحليل الإيرادات بالذكاء الاصطناعي')}</span>
-          <span className={`ap__chip ap__chip--${task.status}`}>{B(label)}</span>
-        </div>
-        <div className="ap__title">{B(task.title)}</div>
-        <div className="ap__context" dir="auto">{describeScope(task.scope, lang)}</div>
-
-        {!terminal && (
-          <div className="ap__current" aria-live="polite">
-            {active ? B(active.detail) : lastDone ? `${L('Completed', 'اكتملت')}: ${B(lastDone.label)}` : L('Waiting to start…', 'بانتظار البدء…')}
-          </div>
-        )}
-
-        {/* Overall: completed-stage count only; no fabricated percentage. */}
-        <div className="ap__segments" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label={L(`${done} of ${total} stages completed`, `${done} من ${total} مراحل اكتملت`)}>
-          {task.stages.map((s) => <i key={s.id} className={`ap__seg ap__seg--${s.status}`} />)}
-        </div>
-        <div className="ap__count">
-          {L(`${done} of ${total} stages completed`, `اكتملت ${done} من ${total} مراحل`)}
-          {active && <span> · {L('Active', 'النشطة')}: {B(active.label)}</span>}
-        </div>
-        {stageUnits && !terminal && (
-          <div className="ap__units" aria-live="polite">
-            <div className="ap__unitbar"><i style={{ width: `${pct}%` }} /></div>
-            <span dir="ltr">{stageUnits.done} / {stageUnits.total} {L('records', 'سجلات')} · {pct}%</span>
-          </div>
-        )}
-
-        <ol className="ap__stages">
-          {task.stages.map((s, i) => (
-            <li key={s.id} className={`ap__stage ap__stage--${s.status}`} aria-current={s.status === 'active' ? 'step' : undefined}>
-              <span className="ap__stageicon"><StageIcon status={s.status} index={i} /></span>
-              <span className="ap__stagetext">
-                <b>{B(s.label)}</b>
-                <small>{s.status === 'skipped' && s.skipNote ? B(s.skipNote) : s.status === 'completed' && s.detail ? B(s.detail) : s.status === 'active' ? B(s.active) : B(STAGE_STATE_LABEL[s.status])}</small>
-              </span>
-              <em className="ap__stagestate">{B(STAGE_STATE_LABEL[s.status])}</em>
-            </li>
-          ))}
-        </ol>
-
-        {warnings.length > 0 && (
-          <ul className="ap__warnings" aria-label={L('Data warnings', 'تنبيهات البيانات')}>
-            {warnings.slice(0, variant === 'inline' ? 2 : 6).map((w, i) => (
-              <li key={i}><span aria-hidden="true">!</span>{B(w.text)}</li>
-            ))}
-            {warnings.length > (variant === 'inline' ? 2 : 6) && <li className="ap__more">+{warnings.length - (variant === 'inline' ? 2 : 6)} {L('more', 'أخرى')}</li>}
-          </ul>
-        )}
-        {failMsg && <div className="ap__fail" role="alert">{failMsg}</div>}
-        {task.status === 'cancelled' && <div className="ap__fail ap__fail--soft">{L('Cancelled by the user. No results were produced; completed stages above were not saved as findings.', 'ألغاها المستخدم. لم تُنتج نتائج؛ ولم تُحفظ المراحل المكتملة أعلاه كنتائج.')}</div>}
-        {stale && terminal && <div className="ap__stale">{L('Filters or data changed after this analysis ran — re-run it before relying on it.', 'تغيّرت التصفية أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
-
-        <div className="ap__foot">
-          <span className="ap__demo" title={task.paced ? L('Stage display is paced for readability; the calculations themselves run on in-browser illustrative data.', 'عرض المراحل مُبطَّأ للقراءة؛ أما الحسابات فتجري على بيانات توضيحية داخل المتصفح.') : ''}>
-            {L('Demo mode · simulated execution on illustrative data', 'وضع العرض · تنفيذ محاكى على بيانات توضيحية')}
-          </span>
-          <span className="ap__actions">
-            {!terminal && onBackground && variant === 'modal' && task.kind !== 'invoice' && (
-              <button type="button" className="ap__btn" onClick={onBackground}>{L('Run in background', 'تشغيل في الخلفية')}</button>
-            )}
-            {!terminal && task.cancellable && onCancel && (
-              <button type="button" className="ap__btn ap__btn--danger" onClick={onCancel}>{L('Cancel', 'إلغاء')}</button>
-            )}
-            {terminal && task.result && onView && (
-              <button type="button" className="ap__btn ap__btn--primary" onClick={onView}>{L('View results', 'عرض النتائج')}</button>
-            )}
-            {terminal && onClose && (
-              <button type="button" className="ap__btn" onClick={onClose}>{L('Close', 'إغلاق')}</button>
-            )}
-          </span>
-        </div>
+      {failMsg && <div className="pg__fail" role="alert">{failMsg}</div>}
+      {task.status === 'cancelled' && <div className="pg__fail pg__fail--soft">{L('Cancelled. No results were produced.', 'أُلغي التحليل. لم تُنتج نتائج.')}</div>}
+      {stale && terminal && <div className="pg__stale">{L('Filters or data changed after this analysis ran — run it again before relying on it.', 'تغيّرت التصفية أو البيانات بعد تشغيل هذا التحليل — أعد تشغيله قبل الاعتماد عليه.')}</div>}
+      <div className="pg__actions">
+        {!terminal && onBackground && variant === 'modal' && task.kind !== 'invoice' && <button type="button" className="btn btn-sm" onClick={onBackground}>{L('Run in background', 'تشغيل في الخلفية')}</button>}
+        {!terminal && task.cancellable && onCancel && <button type="button" className="btn btn-sm" onClick={onCancel}>{L('Cancel', 'إلغاء')}</button>}
+        {terminal && task.result && onView && <button type="button" className="btn btn-sm btn-primary" onClick={onView}>{L('View results', 'عرض النتائج')}</button>}
+        {terminal && onClose && <button type="button" className="btn btn-sm" onClick={onClose}>{L('Close', 'إغلاق')}</button>}
       </div>
     </div>
   );
@@ -170,7 +119,7 @@ export function AnalysisModal({ task, stale, onCancel, onBackground, onClose, on
   }, [task?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!task) return null;
   return (
-    <div className="ap-overlay" role="dialog" aria-modal="true" aria-label="AI analysis progress" onMouseDown={(e) => { if (e.target === e.currentTarget && isTerminal(task)) onClose?.(); }}>
+    <div className="ap-overlay" role="dialog" aria-modal="true" aria-label="Analysis progress" onMouseDown={(e) => { if (e.target === e.currentTarget && isTerminal(task)) onClose?.(); }}>
       <div ref={ref} tabIndex={-1} className="ap-dialog">
         <AnalysisProgress task={task} variant="modal" stale={stale} onCancel={onCancel} onBackground={onBackground} onClose={onClose} onView={onView} />
       </div>

@@ -8,15 +8,33 @@
 //   change             = collected now − collected in the like-for-like previous period (equal elapsed time), in value and in %
 //   share shift        = the source's share now − its share in that previous period (percentage points)
 //   attainment of the revenue appropriation «نسبة تحقيق الاعتماد مقابل الإيراد» = payments received (payment date, any invoice) ÷ appropriation — a DIFFERENT measure from the collection rate, available only for the fiscal year to date and only for ALL sources together
+//   (planning review 0h / D-01) this measure is NOT «the annual revenue target»: its basis is the revenue appropriation (revAdjusted), a different input from the planning page's coverage × budget target.
+//                        It keeps its own name and exposes its basis as `APPROPRIATION_BASIS` / `targetBasis`; the planned-to-date it compares with is the ONE implementation of planningBasis.plannedToDate.
 //   pace deviation     = payments received − the appropriation spread evenly over the elapsed time (the business direction; no approved milestone plan exists) — shown as a deviation from the time-proportional target, never as «lateness»
 // There is NO per-source target: the appropriation is never split across sources.
+// SCOPE (insights redesign, X1): `buildAnalysis` reads whatever snapshot it is GIVEN — pass the snapshot of the PAGE scope (period, Amanah, municipality, source …), never a national one. The appropriation attainment
+// is only offered for a scope it describes (the fiscal year to date, ALL sources, no municipality / product / classification / status / invoice-type narrowing): `scopeNarrowed(scope)` says when it is not, and `targetReason` why.
+// The regional map of the redesigned dashboard lives in src/data/regional/ (scope-true dataset, invoice-based collection-rate bands); `mapValue` below is kept for the old surface and now colours `collected` by AMOUNT.
 import { ENTITIES } from './catalog';
 import { REVENUE_SOURCES } from './revenueLedger';
 import { appropriationOf, APPROPRIATION_YEAR } from './appropriations';
-import { evenPlan, plannedToDate } from './collectionGoal';
+import { evenPlan, plannedToDate } from './planningBasis';
+import { KSA_PROVINCES } from './ksaProvinces';
 
 export const SOURCE_KEYS = Object.keys(REVENUE_SOURCES);
+// the basis of the dashboard's attainment measure, printed beside it (it is not the planning page's annual target)
+export const APPROPRIATION_BASIS = {
+  id: 'revenue_appropriation',
+  name: { ar: 'نسبة تحقيق الاعتماد مقابل الإيراد', en: 'Appropriation attainment' },
+  basis: { ar: 'المدفوعات المستلمة بتاريخ الدفع ÷ الاعتماد مقابل الإيراد بعد التعديل (فصول 1–3)؛ مقياس مستقل عن «المستهدف السنوي للإيراد» في صفحة التخطيط (مستهدف التغطية × الميزانية المبلغة).', en: 'Payments received (payment date) ÷ the revenue appropriation after adjustment (chapters 1–3); a measure apart from the planning page’s «annual revenue target» (coverage target × communicated budget).' },
+  planProfile: { ar: 'مقارنة الوتيرة بتوزيع متساوٍ للاعتماد على 12 شهرًا (افتراض)', en: 'Pace compared with the appropriation spread evenly over 12 months (an assumption)' }
+};
 const EPS = 1e-9;
+/** a scope the appropriation (a whole-entity, all-source, year-to-date figure) does NOT describe: a source, municipality, product, classification, status or invoice-type filter */
+export function scopeNarrowed(scope = {}) {
+  const off = (v) => v == null || v === 'all' || v === '';
+  return !off(scope.source) || !off(scope.muni) || !off(scope.status) || !off(scope.scopeType) || !off(scope.mainClass) || (Array.isArray(scope.product) && scope.product.length > 0);
+}
 const div = (a, b) => (b > EPS ? a / b : null);
 
 const cellMap = (snap) => {
@@ -54,12 +72,13 @@ function measureOf(curCells, prevCells) {
 
 /**
  * @param {object} i
- * @param {object} i.cur           national snapshot of the period (all entities, all sources)
- * @param {object|null} i.prev     national snapshot of the like-for-like previous period
+ * @param {object} i.cur           the snapshot of the PAGE scope for the period (not a national one)
+ * @param {object|null} i.prev     the snapshot of the like-for-like previous period of the SAME scope
+ * @param {object} [i.scope]       the page scope (rev.scopeEff) when it carries filters the snapshot does not echo (product, classification); default cur.scope
  * @param {boolean} i.comparable   the previous period lies inside the data coverage and is non-empty
  * @param {string} i.today         the reference date
  */
-export function buildAnalysis({ cur, prev, comparable, today }) {
+export function buildAnalysis({ cur, prev, comparable, today, scope = null }) {
   const useP = !!(comparable && prev);
   const cc = cellMap(cur); const pc = useP ? cellMap(prev) : null;
   const entityKeys = ENTITIES.map((e) => e.en).filter((k) => [...cc.keys()].some((x) => x.startsWith(`${k}|`)) || (pc && [...pc.keys()].some((x) => x.startsWith(`${k}|`))));
@@ -74,7 +93,8 @@ export function buildAnalysis({ cur, prev, comparable, today }) {
   // payments received (payment date) by entity and the appropriation — only for the fiscal year to date
   const to = cur?.scope?.to; const from = cur?.scope?.from;
   const reporting = to && cur.cutoff && to > cur.cutoff ? cur.cutoff : to;
-  const fy = from === `${APPROPRIATION_YEAR}-01-01` && reporting && reporting.slice(0, 4) === String(APPROPRIATION_YEAR);
+  const narrowed = scopeNarrowed({ ...(cur?.scope || {}), ...(scope || {}) });
+  const fy = !narrowed && from === `${APPROPRIATION_YEAR}-01-01` && reporting && reporting.slice(0, 4) === String(APPROPRIATION_YEAR);
   const payBy = cur?.receivedInPeriod?.byAmanah || {};
   const targetOf = (key) => {
     if (!fy) return null;
@@ -130,20 +150,31 @@ export function buildAnalysis({ cur, prev, comparable, today }) {
   const ministryTarget = withTarget.length ? withTarget.reduce((t, e) => ({ appropriation: t.appropriation + e.target.appropriation, pay: t.pay + e.target.pay, expected: t.expected + e.target.expected }), { appropriation: 0, pay: 0, expected: 0 }) : null;
   if (ministryTarget) { ministryTarget.attainment = ministryTarget.pay / ministryTarget.appropriation; ministryTarget.deviation = ministryTarget.pay - ministryTarget.expected; ministryTarget.deviationPct = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected - 1 : null; ministryTarget.paceRatio = ministryTarget.expected > 0 ? ministryTarget.pay / ministryTarget.expected : null; }
 
-  return { comparable: useP, total, entities, sources, entityKeys, sourceKeys, deviations, ministryTarget, targetAvailable: !!fy, checks, reporting, cur, prev, cc, pc, group };
+  return { comparable: useP, total, entities, sources, entityKeys, sourceKeys, deviations, ministryTarget, targetBasis: APPROPRIATION_BASIS, targetAvailable: !!fy, targetReason: fy ? null : narrowed ? 'target_scope' : 'target_period', checks, reporting, cur, prev, cc, pc, group };
+}
+
+// the largest collected amount of one map group (a region = the sum of its Amanahs; an Amanah that belongs to no region counts alone): the denominator of the amount-based colour
+function largestGroupCollected(A, source = null) {
+  const groups = new Map();
+  for (const k of A.entityKeys) { const g = KSA_PROVINCES.find((p) => p.amanahKeys.includes(k)); const id = g ? g.iso : `e:${k}`; groups.set(id, (groups.get(id) || []).concat(k)); }
+  let max = 0;
+  for (const keys of groups.values()) { const cells = keys.flatMap((k) => (source ? [A.cc.get(`${k}|${source}`)] : A.sourceKeys.map((s) => A.cc.get(`${k}|${s}`)))).filter(Boolean); max = Math.max(max, sum(cells, (c) => c.collected)); }
+  return max;
 }
 
 /* ---------------------------------------------------------------- the map: one measure, optionally one source, for any group of entities (a region = the sum of its Amanahs) */
 export const MAP_MEASURES = ['collected', 'attainment', 'deviation', 'change'];
 
-// → { available, reason, ratio (the colour: 1 = 100 % = green), text: {value, pct}, parts } — never a zero for a missing figure
+// → { available, reason, ratio (the colour position: attainment / deviation / change = 1 at 100 %; `collected` = the share of the LARGEST group's amount, so the colour follows the AMOUNT), value, pct, … } — never a zero for a missing figure
+// `collected`: value = the collected amount; ratio = amount ÷ the largest region's collected amount (sequential intensity, NOT the collection rate); pct / rate = the collection rate (a supporting figure only).
 export function mapValue(A, keys, measure, source = null) {
   const cells = (map) => keys.flatMap((k) => (source ? [map?.get(`${k}|${source}`)] : A.sourceKeys.map((s) => map?.get(`${k}|${s}`)))).filter(Boolean);
   const cur = cells(A.cc);
   if (measure === 'collected') {
     const net = sum(cur, (c) => c.net); const col = sum(cur, (c) => c.collected);
     if (!cur.length || !(net > EPS)) return { available: false, reason: 'no_invoices' };
-    return { available: true, ratio: col / net, value: col, pct: col / net, zero: col <= EPS };
+    const max = largestGroupCollected(A, source);
+    return { available: true, ratio: max > EPS ? col / max : 0, value: col, pct: col / net, rate: col / net, zero: col <= EPS, scale: 'amount', max };
   }
   if (measure === 'change') {
     if (!A.comparable) return { available: false, reason: 'no_comparison' };
@@ -153,7 +184,7 @@ export function mapValue(A, keys, measure, source = null) {
   }
   // attainment / deviation: the appropriation belongs to the entity as a whole — never split across sources
   if (source) return { available: false, reason: 'no_source_target' };
-  if (!A.targetAvailable) return { available: false, reason: 'target_period' };
+  if (!A.targetAvailable) return { available: false, reason: A.targetReason || 'target_period' };
   const ts = keys.map((k) => A.entities.find((e) => e.key === k)?.target).filter(Boolean);
   if (!ts.length) return { available: false, reason: 'no_appropriation' };
   const approp = sum(ts, (t) => t.appropriation); const pay = sum(ts, (t) => t.pay); const exp = sum(ts, (t) => t.expected);

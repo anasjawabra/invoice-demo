@@ -101,6 +101,8 @@ OUTSIDE = 'OUTSIDE-SUBSET'
 pz = set(Cs['pzinskey']); pz_src = set(C['pzinskey']); rlk = Cs['renewedcontractid']
 outside_mask = rlk.notna() & ~rlk.isin(pz) & rlk.isin(pz_src); Cs.loc[outside_mask, 'renewedcontractid'] = OUTSIDE
 n_outside = int(outside_mask.sum()); n_missing_in_source = int((rlk.notna() & ~rlk.isin(pz) & ~rlk.isin(pz_src)).sum())
+plk = Cs['primarycontractid']   # the other direction of the renewal chain: same marker rule
+p_outside = plk.notna() & ~plk.isin(pz) & plk.isin(pz_src); Cs.loc[p_outside, 'primarycontractid'] = OUTSIDE
 
 # investor ids identify people and entities, and the record keys embed them: replace every id with a consistent fake one (same id -> same fake id, so matching, repeats and gaps are preserved).
 # The fake ids come from a seeded shuffle, not from the real value, so they cannot be recomputed from an id.
@@ -112,7 +114,8 @@ def pseudo_key(x): return x if not isinstance(x, str) else ID10.sub(lambda m: fa
 for df in sub.values():
     if 'investorid' in df.columns: df['investorid'] = df['investorid'].map(lambda x: '-'.join(fake[t] for t in str(x).split('-')) if isinstance(x, str) else x)
     if 'pzinskey' in df.columns: df['pzinskey'] = df['pzinskey'].map(pseudo_key)
-    if 'renewedcontractid' in df.columns: df['renewedcontractid'] = df['renewedcontractid'].map(pseudo_key)
+    for lk in ('renewedcontractid', 'primarycontractid'):
+        if lk in df.columns: df[lk] = df[lk].map(pseudo_key)
 
 # ---------- blank everything outside the whitelist; bill numbers keep only their «filled» pattern
 os.makedirs(OUT, exist_ok=True)

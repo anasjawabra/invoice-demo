@@ -3,11 +3,14 @@
 // Excel also gets exact SAR amounts. Nothing is recomputed here.
 import { Document, Packer, Paragraph, HeadingLevel, Table, TableRow, TableCell, TextRun, AlignmentType, WidthType, ImageRun } from 'docx';
 import * as XLSX from 'xlsx';
-import pptxgen from 'pptxgenjs';
+import { assembleDeck, rasterizeSvg } from './pptxTemplate';
+import { chartExportTable, chartExactAmounts, isLegacyChart } from './chartExportData';
+import { planDeck } from './pptxDeckPlan';
 import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../data/reportFormat';
 import { fmtSar } from './money';
 import { riyadhDateOf, fmtRiyadh } from '../data/clock';
-import { chartSvg, chartPng } from './chartDraw';
+import { chartPng } from './chartKinds';
+import { buildPdfHtml } from './pdfReport';
 
 function download(blob, filename) {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(() => URL.revokeObjectURL(url), 2000);
@@ -22,7 +25,8 @@ const NA = { ar: 'غير متاحة', en: 'Not available' };
 const rateText = (r, lang = 'ar') => (r && r.calculable ? `${(r.value * 100).toFixed(1)}%` : NA[lang]);
 const pick = (o, lang) => (o == null ? '' : typeof o === 'string' ? o : (lang === 'ar' ? o.ar : o.en) || o.en || '');
 const dataLine = (model, lang) => model.dataNote || (lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة' : 'Synthetic demo data — not the Ministry’s actual data');
-export const reportFileName = (model, ext) => `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').slice(0, 50)}-${riyadhDateOf(model.generatedAt)}.${ext}`;
+// title · period · language: «Revenue-and-collection-report_2026-01-01_2026-10-09_ar.pdf»
+export const reportFileName = (model, ext) => { const sc = model._inputs?.spec?.scope || model.meta?.period; const period = sc?.from && sc?.to ? `${sc.from}_${sc.to}` : riyadhDateOf(model.generatedAt); const ver = model.meta?.version ? `_v${model.meta.version}` : ''; return `${(model.title || 'report').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '').slice(0, sc?.muni && sc.muni !== 'all' ? 90 : 50)}_${period}${ver}_${model.lang === 'ar' ? 'ar' : 'en'}.${ext}`; };
 
 // the flat, text form of a model (shared by Word and PowerPoint)
 export function modelToLines(model) {
@@ -33,6 +37,7 @@ export function modelToLines(model) {
     else if (b.type === 'kpis') items.push({ k: 'table', title: L('المؤشرات', 'Indicators'), headers: [L('المؤشر', 'Measure'), L('القيمة', 'Value'), L('ملاحظة', 'Note')], rows: b.items.map((m) => [m.label, m.value, m.sub]) });
     else if (b.type === 'relations') items.push({ k: 'table', title: L('العلاقات المالية', 'Financial relationships'), headers: [L('العلاقة', 'Relationship'), L('الصيغة', 'Formula')], rows: [[L('إجمالي المفوتر', 'Gross billed'), `${fmtSar(b.totals.gross, lang)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(b.totals.exclusions, lang)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(b.totals.net, lang)}`], [L('صافي المفوتر', 'Net billed'), `${fmtSar(b.totals.net, lang)} = ${L('المحصّل', 'collected')} ${fmtSar(b.totals.collected, lang)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(b.totals.outstanding, lang)}`], [L('نسبة التحصيل', 'Collection rate'), `${rateText(b.totals.collectedOverNet, lang)} (${L('المحصّل ÷ صافي المفوتر', 'collected ÷ net billed')})`], [L('نسبة الاستبعاد', 'Exclusion rate'), `${rateText(b.totals.exclusionRate, lang)} (${L('الاستبعادات ÷ إجمالي المفوتر', 'exclusions ÷ gross billed')})`]] });
     else if (b.type === 'table') { const t = tableToText(b, lang); items.push({ k: 'table', title: `${b.title}${t.unitText ? ` — ${L('المبالغ بوحدة', 'amounts in')}: ${t.unitText}` : ''}`, headers: t.headers, rows: t.total ? [...t.rows, t.total] : t.rows, note: b.note, source: b }); }
+    else if (b.type === 'chart' && !isLegacyChart(b)) { const t = chartExportTable(b, lang); items.push({ k: 'table', chart: b, title: t.unitText ? `${b.title} — ${L('المبالغ بوحدة', 'amounts in')}: ${t.unitText}` : b.title, headers: t.headers, rows: t.rows }); } // chart-library kinds: the kind's own table (scatter points, histogram bins, tree leaves, flows …)
     else if (b.type === 'chart') { const { unitText, cu } = chartInfo(b, lang); items.push({ k: 'table', chart: b, title: unitText ? `${b.title} — ${L('المبالغ بوحدة', 'amounts in')}: ${unitText}` : b.title, headers: [L('البند', 'Item'), ...b.series.map((s) => s.label)], rows: b.labels.map((lab, i) => [lab, ...b.series.map((s) => (s.values[i] == null ? '—' : String(cu.tick(s.values[i]))))]) }); }
     else if (b.type === 'insights') { if (b.title) items.push({ k: 'h3', text: b.title }); b.items.forEach((it) => { items.push({ k: 'p', bold: true, text: pick(it.title, lang) }); items.push({ k: 'p', text: fillTokens(pick(it.body, lang), it.tokens, lang) }); if (it.evidence.length) items.push({ k: 'p', text: it.evidence.map((e) => `${pick(e.k, lang)}: ${fmtEvidence(e, lang)}`).join(' · ') }); items.push({ k: 'p', text: `${L('الأساس', 'Basis')}: ${pick(it.basis, lang)}${it.caveat ? ` — ${L('تحفظ', 'Caveat')}: ${pick(it.caveat, lang)}` : ''}` }); }); }
     else if (b.type === 'callout') items.push({ k: 'p', text: b.text });
@@ -101,6 +106,10 @@ export function buildWorkbook(model) {
       if (b.total) { aoa.push(b.total.map(num)); b.headers.forEach((h, j) => { if (h.kind === 'money' && typeof b.total[j] === 'number') exact.push([b.title, String(b.total[0]), h.label, b.total[j]]); }); } // totals carry their exact SAR amount too
       if (b.note) aoa.push([], [b.note]);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sheetName(b.title));
+    } else if (b.type === 'chart' && !isLegacyChart(b)) {
+      const t = chartExportTable(b, lang); const numeric = (v) => (/^-?[\d,]+(\.\d+)?$/.test(String(v).trim()) ? Number(String(v).replace(/,/g, '')) : v);
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[b.sectionTitle && b.sectionTitle !== b.title ? `${b.sectionTitle} — ${b.title}` : b.title], ...(t.unitText ? [[`${L('المبالغ بوحدة', 'amounts in')}: ${t.unitText}`]] : []), t.headers, ...t.rows.map((r) => r.map(numeric))]), sheetName(b.title));
+      chartExactAmounts(b).forEach(([row, col, v]) => exact.push([b.title, row, col, v])); // the exact SAR behind every amount the chart shows
     } else if (b.type === 'chart') {
       const { cu } = chartInfo(b, lang);
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([[b.sectionTitle && b.sectionTitle !== b.title ? `${b.sectionTitle} — ${b.title}` : b.title], [L('البند', 'Item'), ...b.series.map((s) => (b.plain ? s.label : `${s.label} (${cu.title.split('—')[1]?.trim()})`))], ...b.labels.map((lab, i) => [lab, ...b.series.map((s) => (s.values[i] == null ? '' : Number((s.values[i] / cu.unit.div).toFixed(6))))])]), sheetName(b.title));
@@ -119,49 +128,28 @@ export function exportModelToXlsx(model, filename = reportFileName(model, 'xlsx'
 /* ---------------------------- PowerPoint ---------------------------- */
 // rows per slide: a long table continues on the next slide, so no row (and never the total row, which is last) is dropped
 export const paginateRows = (rows, per = 11) => { const out = []; for (let i = 0; i < rows.length; i += per) out.push(rows.slice(i, i + per)); return out.length ? out : [[]]; };
+// The deck is built on the MOMAH TEMPLATE for the report's language (src/utils/pptxTemplate.js): the template's own title, content and end layouts, theme, logo and rule.
+// `templateBytes` lets a caller (a test, a script) supply the template; in the browser it is fetched from /templates/momah-{en,ar}.pptx.
+// opts.rasterize(svg, w, h) → PNG bytes | null: the PNG fallback of the chart pictures (kinds with no native PowerPoint form). The browser passes the canvas rasteriser; tests / scripts may pass their own; without one the SVG is embedded with a placeholder PNG.
+export async function buildTemplatePptx(model, templateBytes, opts = {}) {
+  const lang = model.lang === 'ar' ? 'ar' : 'en'; const L = (a, e) => (lang === 'ar' ? a : e);
+  // version · generated · data cut-off: from model.meta when present, else from the model's own fields (every part is optional, none is invented)
+  const m = model.meta || {}; const gen = m.generatedAt || model.generatedAt; const cut = m.cutoff || model.cutoff;
+  const ltr = (t) => (lang === 'ar' ? `\u2066${t}\u2069` : String(t)); // numbers and dates stay left-to-right inside an Arabic line
+  const stamp = [m.version != null && m.version !== '' ? `${L('الإصدار', 'Version')} ${ltr(m.version)}` : '', gen ? `${L('أُنشئ', 'Generated')} ${ltr(fmtRiyadh(gen))}` : '', cut ? `${L('بيانات حتى', 'Data as of')} ${ltr(cut)}` : ''].filter(Boolean).join(' · ');
+  const relationsRows = (b) => [[L('إجمالي المفوتر', 'Gross billed'), `${fmtSar(b.totals.gross, lang)} = ${L('الاستبعادات', 'exclusions')} ${fmtSar(b.totals.exclusions, lang)} + ${L('صافي المفوتر', 'net billed')} ${fmtSar(b.totals.net, lang)}`], [L('صافي المفوتر', 'Net billed'), `${fmtSar(b.totals.net, lang)} = ${L('المحصّل', 'collected')} ${fmtSar(b.totals.collected, lang)} + ${L('غير المحصّل', 'uncollected')} ${fmtSar(b.totals.outstanding, lang)}`], [L('نسبة التحصيل', 'Collection rate'), `${rateText(b.totals.collectedOverNet, lang)} (${L('المحصّل ÷ صافي المفوتر', 'collected ÷ net billed')})`], [L('نسبة الاستبعاد', 'Exclusion rate'), `${rateText(b.totals.exclusionRate, lang)} (${L('الاستبعادات ÷ إجمالي المفوتر', 'exclusions ÷ gross billed')})`]];
+  const { slides } = planDeck({ model, helpers: { ctxRows: exportContext(model, lang), dataLine: dataLine(model, lang), stamp, relationsRows } });
+  return assembleDeck(templateBytes, { lang, title: model.title, docTitle: model.title, subtitle: model.subtitle || '', note: [{ text: dataLine(model, lang) }, ...(stamp ? [{ text: stamp, sz: 12 }] : [])], slides }, opts);
+}
+async function templateBytesFor(lang) {
+  const name = `momah-${lang === 'ar' ? 'ar' : 'en'}.pptx`;
+  if (typeof window === 'undefined') { const fs = await import('node:fs'); return fs.readFileSync(new URL(`../../public/templates/${name}`, import.meta.url)); }
+  const r = await fetch(`${import.meta.env?.BASE_URL || '/'}templates/${name}`); if (!r.ok) throw new Error(`template_unavailable:${r.status}`);
+  return new Uint8Array(await r.arrayBuffer());
+}
 export async function exportModelToPptx(model, filename = reportFileName(model, 'pptx')) {
-  const rtl = model.lang === 'ar'; const PRIMARY = '1B8354';
-  const pptx = new pptxgen(); pptx.rtlMode = rtl;
-  const title = pptx.addSlide(); title.background = { color: PRIMARY };
-  title.addText(model.title, { x: 0.5, y: 2, w: 9, h: 1.2, fontSize: 30, bold: true, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
-  title.addText(`${model.subtitle}\n${dataLine(model, model.lang)}`, { x: 0.5, y: 3.3, w: 9, h: 1, fontSize: 14, color: 'FFFFFF', align: rtl ? 'right' : 'left', rtlMode: rtl });
-  const lines = modelToLines(model);
-  let slide = null; let y = 0; let heading = '';
-  const open = (h) => { slide = pptx.addSlide(); heading = h; slide.addText(h, { x: 0.4, y: 0.25, w: 9.2, h: 0.55, fontSize: 20, bold: true, color: PRIMARY, align: rtl ? 'right' : 'left', rtlMode: rtl }); y = 0.95; };
-  for (const it of lines) {
-    if (it.k === 'h2') { open(it.text); continue; }
-    if (!slide) open(rtl ? 'سياق التقرير' : 'Report context');
-    if (it.k === 'h3') continue;
-    if (it.k === 'table') {
-      if (it.chart) { // the chart as a native PowerPoint chart (editable in PowerPoint), then its data table
-        if (y > 1.3) open(heading);
-        const b = it.chart; const { cu } = chartInfo(b, model.lang); const kind = b.kind || 'bar';
-        const labs = b.labels.map((l) => String(l)); const sv = (v) => (v == null ? null : Number((v / cu.unit.div).toFixed(2)));
-        const type = kind === 'line' ? pptx.charts.LINE : kind === 'pie' ? pptx.charts.PIE : pptx.charts.BAR;
-        const data = (kind === 'pie' ? b.series.slice(0, 1) : b.series).map((s) => ({ name: s.label, labels: labs, values: s.values.map(sv) }));
-        slide.addText(b.title, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4;
-        slide.addChart(type, data, { x: 0.4, y, w: 9.2, h: 3.7, ...(kind === 'bar' || kind === 'hbar' ? { barDir: kind === 'hbar' ? 'bar' : 'col', barGrouping: 'clustered' } : {}), showLegend: data.length > 1 || kind === 'pie', legendPos: 'b', legendFontSize: 10, catAxisLabelFontSize: 9, valAxisLabelFontSize: 9, showValAxisTitle: kind !== 'pie', valAxisTitle: cu.title, valAxisTitleFontSize: 9, chartColors: ['194185', '1B8354', 'FDB022', 'B42318', '6941C6', '0E9384'], ...(kind === 'pie' ? { showPercent: true, showLabel: false, showValue: false } : {}) });
-        y += 3.8; open(heading);
-      }
-      // a table that does not fit is continued on the next slide (header repeated, "part n of m" in the title); the total row is the last row and is never dropped
-      const chunks = paginateRows(it.rows); const parts = chunks.length;
-      for (let k = 0; k < parts; k += 1) {
-        const rows = chunks[k];
-        if (k > 0 || y > 3.6) open(heading);
-        const ttl = it.title ? (parts > 1 ? `${it.title} — ${rtl ? `الجزء ${k + 1} من ${parts}` : `part ${k + 1} of ${parts}`}` : it.title) : '';
-        if (ttl) { slide.addText(ttl, { x: 0.4, y, w: 9.2, h: 0.35, fontSize: 12, bold: true, align: rtl ? 'right' : 'left', rtlMode: rtl }); y += 0.4; }
-        slide.addTable([it.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: 'EFEFEF' } } })), ...rows], { x: 0.4, y, w: 9.2, fontSize: 9, rtlMode: rtl, autoPage: false });
-        y += 0.28 * (rows.length + 1) + 0.2;
-        if (it.note && k === parts - 1) { const nh = Math.min(0.9, 0.3 + it.note.length / 150 * 0.3); slide.addText(it.note, { x: 0.4, y, w: 9.2, h: nh, fontSize: 9, italic: true, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl }); y += nh + 0.1; }
-      }
-    } else {
-      const text = it.k === 'li' ? `• ${it.text}` : it.text;
-      if (y > 5) open(heading);
-      slide.addText(text, { x: 0.4, y, w: 9.2, h: Math.min(1.2, 0.3 + text.length / 140 * 0.3), fontSize: 11, bold: !!it.bold, valign: 'top', align: rtl ? 'right' : 'left', rtlMode: rtl });
-      y += Math.min(1.2, 0.3 + text.length / 140 * 0.3) + 0.05;
-    }
-  }
-  await pptx.writeFile({ fileName: filename });
+  const bytes = await buildTemplatePptx(model, await templateBytesFor(model.lang), { rasterize: (svg, w, h) => rasterizeSvg(svg, w, h, 2) });
+  download(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' }), filename);
 }
 
 
@@ -179,42 +167,28 @@ export function buildCsv(model) {
 }
 export function exportModelToCsv(model, filename = reportFileName(model, 'csv')) { download(new Blob([buildCsv(model)], { type: 'text/csv;charset=utf-8' }), filename); }
 
-/* ---------------------------- PDF (the browser's print-to-PDF) ---------------------------- */
-// A browser cannot write a PDF without a PDF library; this builds a clean printable document (charts included) and opens the print dialog:
-// choose «Save as PDF». The button says so. Nothing else is claimed.
-const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-export function modelToHtml(model) {
-  const lang = model.lang; const rtl = lang === 'ar'; const L = (a, e) => (rtl ? a : e);
-  const body = [`<h1>${esc(model.title)}</h1>`, `<p class="sub">${esc(model.subtitle)}</p>`, `<p class="note">${esc(dataLine(model, lang))}</p>`];
-  let open = false;
-  for (const it of modelToLines(model)) {
-    if (it.k === 'h2') { if (open) body.push('</section>'); body.push(`<section><h2>${esc(it.text)}</h2>`); open = true; }
-    else if (it.k === 'h3') body.push(`<h3>${esc(it.text)}</h3>`);
-    else if (it.k === 'p') body.push(`<p${it.bold ? ' class="b"' : ''}>${esc(it.text)}</p>`);
-    else if (it.k === 'li') body.push(`<p class="li">• ${esc(it.text)}</p>`);
-    else if (it.k === 'table') {
-      if (it.title) body.push(`<h4>${esc(it.title)}</h4>`);
-      if (it.chart) body.push(`<div class="chart">${chartSvg(it.chart, { lang })}</div>`);
-      body.push(`<table><thead><tr>${it.headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${it.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`);
-      if (it.note) body.push(`<p class="note">${esc(it.note)}</p>`);
-    }
-  }
-  if (open) body.push('</section>');
-  body.push(`<p class="foot">${esc(L('أُعدّ في', 'Prepared'))} ${esc(fmtRiyadh(model.generatedAt))} — ${esc(L('بتوقيت الرياض', 'Riyadh time'))}</p>`);
-  return `<!doctype html><html lang="${lang}" dir="${rtl ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${esc(model.title)}</title><style>
-@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Tahoma,Arial,sans-serif;color:#1d2939;font-size:11.5px;line-height:1.7;margin:0}
-h1{font-size:21px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 6px;border-bottom:2px solid #194185;padding-bottom:3px;color:#194185}h3{font-size:13px}h4{font-size:12.5px;margin:14px 0 4px}
-.sub{color:#475467;margin:0 0 4px}.note{color:#667085;font-size:10.5px;margin:2px 0 6px}.b{font-weight:700}.li{margin:2px 0}.foot{color:#667085;font-size:10px;margin-top:20px}
-table{width:100%;border-collapse:collapse;margin:4px 0 10px;font-size:10.5px}th,td{border:1px solid #d0d5dd;padding:4px 6px;text-align:${rtl ? 'right' : 'left'};vertical-align:top}th{background:#f2f4f7}tr{page-break-inside:avoid}
-.chart{page-break-inside:avoid;margin:4px 0}.chart svg{width:100%;height:auto}section{break-inside:auto}
-</style></head><body>${body.join('')}</body></html>`;
-}
-export function printHtml(html) {
+/* ---------------------------- PDF (a deliberately formatted print document → «Save as PDF») ---------------------------- */
+// The document itself (A4, margin-box header/footer with page X of Y, repeating table headers, embedded IBM Plex Sans Arabic, KPI grid, charts with their data tables)
+// is built by src/utils/pdfReport.js — see the «PDF» section of docs/smart-reports-export.md. A browser cannot write a PDF file without a PDF library, so the document opens in an
+// isolated window (not the app UI) and the print dialog is raised; the verified PDF files are produced from this same builder by scripts/make-report-pdf.mjs.
+export const modelToHtml = (model, opts) => buildPdfHtml(model, opts);
+// the file name the browser proposes when saving: reportFileName(model, 'pdf') without the extension (the window title decides it)
+const pdfTitle = (model) => reportFileName(model, 'pdf').replace(/\.pdf$/, '');
+// hidden-iframe fallback (pop-up blocked): same isolated document, printed from an off-screen frame
+function printInFrame(html) {
   const f = document.createElement('iframe'); f.setAttribute('aria-hidden', 'true'); f.style.cssText = 'position:fixed;inset-inline-end:0;bottom:0;width:0;height:0;border:0';
   document.body.appendChild(f); const d = f.contentDocument; d.open(); d.write(html); d.close();
-  window.setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { window.setTimeout(() => f.remove(), 120000); } }, 350);
+  const go = async () => { try { await f.contentWindow.document.fonts?.ready; } catch { /* print anyway */ } try { f.contentWindow.focus(); f.contentWindow.print(); } finally { window.setTimeout(() => f.remove(), 120000); } };
+  window.setTimeout(go, 250);
 }
-export function exportModelToPdf(model) { printHtml(modelToHtml(model)); }
+export async function exportModelToPdf(model) {
+  const w = window.open('', '_blank'); // opened first, inside the click, so a pop-up blocker lets it through; filled once the fonts are ready
+  let fonts = {}; try { const mod = await Object.values(import.meta.glob('./pdfFonts.js'))[0](); fonts = await mod.loadPdfFontUris(); } catch (e) { console.warn('[pdf] fonts unavailable, using system fonts:', e); } // import.meta.glob: Vite-only, so the Node test / script bundles never resolve the .woff2 imports
+  if (!w) return printInFrame(buildPdfHtml(model, { fonts, title: pdfTitle(model) }));
+  w.document.open(); w.document.write(buildPdfHtml(model, { fonts, title: pdfTitle(model), toolbar: true })); w.document.close();
+  try { await w.document.fonts.ready; } catch { /* print anyway */ }
+  window.setTimeout(() => { try { w.focus(); w.print(); } catch (e) { console.warn('[pdf] print failed:', e); } }, 300);
+}
 
 /* ---------------------------- one entry point ---------------------------- */
 export const EXPORT_FORMATS = [

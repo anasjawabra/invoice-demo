@@ -5,30 +5,32 @@
 
 /* ---------- Entities (Amanahs + the Housing sector) ---------- */
 export const ENTITIES = [
-  { en: 'Riyadh Amanah', ar: 'أمانة منطقة الرياض', zh: '利雅得' },
-  { en: 'Jeddah Amanah', ar: 'أمانة محافظة جدة', zh: '吉达' },
-  { en: 'Eastern Province Amanah', ar: 'أمانة المنطقة الشرقية', zh: '东部省' },
-  { en: 'Makkah Amanah', ar: 'أمانة منطقة مكة المكرمة', zh: '麦加' },
-  { en: 'Al Madinah Amanah', ar: 'أمانة المدينة المنورة', zh: '麦地那' },
-  { en: 'Asir Amanah', ar: 'أمانة منطقة عسير', zh: '阿西尔' },
-  { en: 'Taif Amanah', ar: 'أمانة محافظة الطائف', zh: '塔伊夫' },
-  { en: 'Al-Qassim Amanah', ar: 'أمانة منطقة القصيم', zh: '卡西姆' },
-  { en: 'Al-Ahsa Amanah', ar: 'أمانة محافظة الأحساء', zh: '哈萨' },
-  { en: 'Jazan Amanah', ar: 'أمانة منطقة جازان', zh: '吉赞' },
-  { en: 'Tabuk Amanah', ar: 'أمانة منطقة تبوك', zh: '塔布克' },
-  { en: "Ha'il Amanah", ar: 'أمانة منطقة حائل', zh: '哈伊勒' },
-  { en: 'Northern Borders Amanah', ar: 'أمانة منطقة الحدود الشمالية', zh: '北部边境' },
-  { en: 'Najran Amanah', ar: 'أمانة منطقة نجران', zh: '纳季兰' },
-  { en: 'Hafr Al-Batin Amanah', ar: 'أمانة محافظة حفر الباطن', zh: '哈费尔巴廷' },
-  { en: 'Al Bahah Amanah', ar: 'أمانة منطقة الباحة', zh: '巴哈' },
-  { en: 'Al Jawf Amanah', ar: 'أمانة منطقة الجوف', zh: '焦夫' },
-  { en: 'Housing Sector', ar: 'قطاع الإسكان', zh: '住房部门' }
+  { en: 'Riyadh Amanah', ar: 'أمانة منطقة الرياض' },
+  { en: 'Jeddah Amanah', ar: 'أمانة محافظة جدة' },
+  { en: 'Eastern Province Amanah', ar: 'أمانة المنطقة الشرقية' },
+  { en: 'Makkah Amanah', ar: 'أمانة منطقة مكة المكرمة' },
+  { en: 'Al Madinah Amanah', ar: 'أمانة المدينة المنورة' },
+  { en: 'Asir Amanah', ar: 'أمانة منطقة عسير' },
+  { en: 'Taif Amanah', ar: 'أمانة محافظة الطائف' },
+  { en: 'Al-Qassim Amanah', ar: 'أمانة منطقة القصيم' },
+  { en: 'Al-Ahsa Amanah', ar: 'أمانة محافظة الأحساء' },
+  { en: 'Jazan Amanah', ar: 'أمانة منطقة جازان' },
+  { en: 'Tabuk Amanah', ar: 'أمانة منطقة تبوك' },
+  { en: "Ha'il Amanah", ar: 'أمانة منطقة حائل' },
+  { en: 'Northern Borders Amanah', ar: 'أمانة منطقة الحدود الشمالية' },
+  { en: 'Najran Amanah', ar: 'أمانة منطقة نجران' },
+  { en: 'Hafr Al-Batin Amanah', ar: 'أمانة محافظة حفر الباطن' },
+  { en: 'Al Bahah Amanah', ar: 'أمانة منطقة الباحة' },
+  { en: 'Al Jawf Amanah', ar: 'أمانة منطقة الجوف' },
+  { en: 'Housing Sector', ar: 'قطاع الإسكان' }
 ];
 export const N_AMANAH = 17;
 export const ENT_HOUSING = 17;
 export const ENTITY_INDEX = Object.fromEntries(ENTITIES.map((e, i) => [e.en, i]));
 export const AMANAH_CATALOG = ENTITIES.slice(0, N_AMANAH);
 
+// LEGACY demo municipality scheme (three invented directions per Amanah). It is kept ONLY because the optional `mu` component of the invoice composite key reads it (invoiceIdentity.demoMunicipalityId):
+// keys must never move. It is NOT shown anywhere and NOT used for filtering any more — the municipality of an invoice is the REFERENCE municipality (src/data/amanahHierarchy.js, src/data/municipalityModel.js).
 const MUNI_DIRS = [{ en: 'North', ar: 'الشمالية' }, { en: 'Central', ar: 'المركزية' }, { en: 'South', ar: 'الجنوبية' }];
 const shortAr = (s) => s.replace(/^أمانة\s*(منطقة|محافظة)?\s*/, '');
 const shortEn = (s) => s.replace(/ Amanah$/, '');
@@ -40,12 +42,8 @@ export function municipalityOf(ent, muni) {
   const d = MUNI_DIRS[muni];
   return { key: `${e.en}|${d.en}`, en: `${shortEn(e.en)} ${d.en} Municipality`, ar: `بلدية ${shortAr(e.ar)} ${d.ar}` };
 }
-export function municipalitiesOf(entityEn) {
-  const ent = ENTITY_INDEX[entityEn];
-  if (ent == null) return [];
-  if (ent === ENT_HOUSING) return [municipalityOf(ent, 0)];
-  return [0, 1, 2].map((m) => municipalityOf(ent, m));
-}
+// The municipalities of an Amanah = its REFERENCE municipalities (the Amanah's own row excluded): [{ refId, key: '<Amanah key>|<MREF-…>', ar, en, … }]
+export { municipalitiesOf } from './amanahHierarchy.js';
 
 /* ---------- Revenue sources ---------- */
 export const SOURCES = [

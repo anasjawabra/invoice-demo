@@ -2,17 +2,14 @@
 // numbers in the ONE unit stated in each header, charts use one unit per chart.
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Bar, Line, Pie } from 'react-chartjs-2';
 import { useL } from '../../utils/bi';
-import { fmtMoney, fmtSar } from '../../utils/money';
-import { tableToText, chartInfo, fillTokens, fmtEvidence } from '../../data/reportFormat';
+import { fmtSar } from '../../utils/money';
+import { tableToText, fillTokens, fmtEvidence } from '../../data/reportFormat';
+import ReportChart from './ReportChart';
+import ChartFrame from '../charts/ChartFrame';
+import { chartBlocks } from '../../data/chartIds';
 import FinancialRelations from '../revenue/FinancialRelations';
 import { fmtRiyadh, fmtRangeText } from '../../data/clock';
-
-ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend);
-
-const COLORS = ['rgba(25, 65, 133, 0.8)', 'rgba(27, 131, 84, 0.8)', 'rgba(253, 176, 34, 0.85)', 'rgba(180, 35, 24, 0.7)'];
 
 function Insight({ it }) {
   const { B, lang, ar } = useL(); const L = (a, e) => (ar ? a : e);
@@ -65,47 +62,32 @@ function Table({ b }) {
   );
 }
 
-function Chart({ b }) {
-  const { lang, isRtl } = useL();
-  const kind = b.kind || 'bar'; const { cu } = useMemo(() => chartInfo(b, lang), [b, lang]);
-  const data = useMemo(() => {
-    if (kind === 'pie') { const s = b.series[0]; return { labels: b.labels, datasets: [{ label: s.label, data: s.values, backgroundColor: b.labels.map((_, i) => COLORS[i % COLORS.length]) }] }; }
-    return { labels: b.labels, datasets: b.series.map((s, i) => ({ label: s.label, data: s.values, backgroundColor: COLORS[i % COLORS.length], borderColor: COLORS[i % COLORS.length], borderWidth: kind === 'line' ? 2.5 : 0, pointRadius: kind === 'line' ? 3 : 0, tension: 0.2, borderRadius: kind === 'line' ? 0 : 4 })) };
-  }, [b, kind]);
-  const value = (c) => (kind === 'hbar' ? c.parsed.x : kind === 'pie' ? c.parsed : c.parsed.y);
-  const tip = { rtl: isRtl, callbacks: { label: (c) => `${kind === 'pie' ? c.label : c.dataset.label}: ${value(c) == null ? '—' : cu.fmt(value(c))}`, afterLabel: (c) => (b.plain || value(c) == null ? '' : fmtSar(value(c), lang)) } };
-  const legend = { position: 'bottom', rtl: isRtl, labels: { boxWidth: 12, font: { size: 11 } } };
-  const options = useMemo(() => (kind === 'pie'
-    ? { responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip } }
-    : kind === 'hbar'
-      ? { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip }, scales: { y: { reverse: false, grid: { display: false }, ticks: { font: { size: 11 } } }, x: { beginAtZero: true, position: isRtl ? 'top' : 'bottom', reverse: isRtl, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }
-      : { responsive: true, maintainAspectRatio: false, plugins: { legend, tooltip: tip }, scales: { x: { reverse: isRtl, grid: { display: false }, ticks: { font: { size: 11 } } }, y: { beginAtZero: true, title: { display: true, text: cu.title, font: { size: 11 } }, ticks: { callback: (v) => cu.tick(v) } } } }), [cu, isRtl, kind]); // eslint-disable-line react-hooks/exhaustive-deps
-  const Cmp = kind === 'line' ? Line : kind === 'pie' ? Pie : Bar;
-  return (
-    <div>
-      {b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}</h4>}
-      <div className="rv-chart" style={{ height: kind === 'pie' ? 300 : 260 }} role="img" aria-label={b.title}><Cmp key={kind} role="presentation" data={data} options={options} /></div>
-    </div>
-  );
+// A KPI value never breaks inside a number or between the number and its unit: the leading number keeps its own left-to-right order, the unit follows in the reading direction.
+function KpiValue({ v }) {
+  const m = /^([+\-\u2212]?\s?[\d][\d.,]*%?)(.*)$/.exec(String(v ?? ''));
+  return <div className="rv-tile__value" style={{ fontSize: 18 }}>{m ? <><bdi dir="ltr">{m[1]}</bdi>{m[2]}</> : <bdi dir="auto">{v}</bdi>}</div>;
 }
 
-function Block({ b }) {
+// `chartCtx` = { pre: Map(chartId → the chart block the saved config is applied to), view, onChartView } — present only on the open result, which makes its charts editable (the toolbar of src/components/charts/ChartFrame.jsx)
+function Block({ b, chartCtx = null }) {
   const { ar, lang } = useL(); const L = (a, e) => (ar ? a : e); // eslint-disable-line no-unused-vars
   if (b.type === 'text') return <p style={{ lineHeight: 1.9, fontSize: 14 }} dir="auto">{b.text}</p>;
   if (b.type === 'kpis') return (
-    <div className="rv-tiles">{b.items.map((m) => <div key={m.label} className="rv-tile" title={m.raw != null && typeof m.raw === 'number' && m.raw > 1 ? fmtSar(m.raw, lang) : undefined}><div className="rv-tile__label">{m.label}</div><div className="rv-tile__value" dir="ltr" style={{ fontSize: 18 }}>{m.value}</div><div className="rv-tile__sub">{m.sub}</div></div>)}</div>
+    <div className="rv-tiles rv-tiles--n" style={{ '--cols': b.items.length <= 4 ? b.items.length : b.items.length <= 6 ? 3 : 4 }}>{b.items.map((m) => <div key={m.label} className="rv-tile" title={m.raw != null && typeof m.raw === 'number' && m.raw > 1 ? fmtSar(m.raw, lang) : undefined}><div className="rv-tile__label">{m.label}</div><KpiValue v={m.value} /><div className="rv-tile__sub">{m.sub}</div></div>)}</div>
   );
   if (b.type === 'relations') return <div className="card card-pad"><FinancialRelations totals={b.totals} /></div>;
   if (b.type === 'table') return <Table b={b} />;
-  if (b.type === 'chart') return <Chart b={b} />;
+  if (b.type === 'chart') { const pre = chartCtx && b.id ? chartCtx.pre.get(b.id) : null; return pre ? <ChartFrame block={pre} displayBlock={b} chartId={b.id} view={chartCtx.view} onViewChange={chartCtx.onChartView} lang={lang} picker="full" /> : <ReportChart block={b} />; }
   if (b.type === 'insights') return <div style={{ display: 'grid', gap: 14 }}>{b.title && <h4 className="rv-sec-title" style={{ fontSize: 14 }}>{b.title}</h4>}{b.items.map((it) => <Insight key={it.id} it={it} />)}</div>;
   if (b.type === 'callout') return <div className={`rv-callout ${b.tone === 'warn' ? 'rv-callout--warn' : ''}`}>{b.text}</div>;
   if (b.type === 'list') return <ul className="res__list res__list--plain">{b.items.map((x, i) => <li key={i} dir="auto">{x}</li>)}</ul>;
   return null;
 }
 
-export default function ReportView({ model }) {
+// `base` (the model the view is applied to, ids assigned), `view` and `onChartView(newView, meta)` switch the per-chart toolbar on; without them the charts are plain
+export default function ReportView({ model, base = null, view = null, onChartView = null }) {
   const { ar, lang } = useL(); const L = (a, e) => (ar ? a : e);
+  const chartCtx = useMemo(() => (base && onChartView ? { pre: new Map(chartBlocks(base).filter((c) => c.id).map((c) => [c.id, c])), view, onChartView } : null), [base, view, onChartView]);
   const hum = (v) => String(v ?? '').replace(/(\d{4}-\d{2}-\d{2}) → (\d{4}-\d{2}-\d{2})/g, (_, a, b) => fmtRangeText(a, b, lang));
   const ctx = (k) => model.context.find((c) => c.k === k)?.value;
   const summaryLine = [hum(ctx('period')), ctx('amanah'), ctx('source'), ctx('basis') ? hum(ctx('basis')) : null].filter(Boolean).join(' · ') || model.subtitle;
@@ -121,17 +103,17 @@ export default function ReportView({ model }) {
           <div className="sr-note"><b>{L('أساس التقرير', 'Basis')}:</b> {hum(model.context.find((c) => c.k === 'basis')?.value)} · <b>{L('البيانات', 'Data')}:</b> {model.context.find((c) => c.k === 'data')?.value} · {L('أُعدّ في', 'Prepared')} {fmtRiyadh(model.generatedAt)} ({L('بتوقيت الرياض', 'Riyadh time')})</div>
         </details>
       </div>
-      {model.headline.map((b, i) => <Block key={`h${i}`} b={b} />)}
+      {model.headline.map((b, i) => <Block key={`h${i}`} b={b} chartCtx={chartCtx} />)}
       {model.sections.map((sec) => FOLD.includes(sec.key) ? (
         <details key={sec.key} className="sr-section rv-more">
           <summary>{sec.title}</summary>
-          <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} />)}</div>
+          <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} chartCtx={chartCtx} />)}</div>
         </details>
       ) : (
         <section key={sec.key} className="sr-section" aria-label={sec.title}>
           <h3 className="sr-section__title">{sec.title}</h3>
           {sec.purpose && <div className="muted" style={{ fontSize: 13 }}>{sec.purpose}</div>}
-          <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} />)}</div>
+          <div style={{ display: 'grid', gap: 14, marginTop: 8 }}>{sec.blocks.map((b, i) => <Block key={i} b={b} chartCtx={chartCtx} />)}</div>
         </section>
       ))}
     </div>

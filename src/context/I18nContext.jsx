@@ -1,34 +1,35 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { translations } from '../data/i18n';
+import { normalizeLang, readStoredLang, pickText, LANG_KEY } from '../data/lang';
 
 const I18nContext = createContext();
 
+// Arabic and English are the only interface languages. A stored, URL or programmatic value that is anything else (a removed language, a typo, a corrupted value)
+// is read as Arabic and the stored value is rewritten once (readStoredLang), so an old session never lands on a blank or half-translated screen.
 export function I18nProvider({ children }) {
-  const [lang, setLangState] = useState(() => sessionStorage.getItem('ib_lang') || 'ar');
+  const [lang, setLangState] = useState(() => readStoredLang());
 
   const setLang = useCallback((l) => {
-    setLangState(l);
-    sessionStorage.setItem('ib_lang', l);
+    const next = normalizeLang(l);
+    setLangState(next);
+    try { sessionStorage.setItem(LANG_KEY, next); } catch { /* storage unavailable */ }
   }, []);
 
   useEffect(() => {
     const html = document.documentElement;
-    html.lang = lang === 'zh' ? 'zh-CN' : lang === 'ar' ? 'ar' : 'en';
+    html.lang = lang === 'ar' ? 'ar' : 'en';
     html.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, [lang]);
 
   const t = useCallback((key) => {
     if (translations[lang] && translations[lang][key] != null) return translations[lang][key];
     if (translations.en[key] != null) return translations.en[key];
+    if (translations.ar[key] != null) return translations.ar[key];
     return key;
   }, [lang]);
 
-  const T = useCallback((obj, field) => {
-    if (!obj) return '';
-    const suffix = lang === 'zh' ? '' : lang.charAt(0).toUpperCase() + lang.slice(1);
-    const key = field + suffix;
-    return obj[key] || obj[field] || '';
-  }, [lang]);
+  // T(record, 'name') -> record.nameAr in Arabic, record.nameEn in English; falls back Ar <-> En <-> record.name; '' only when none of the three exists
+  const T = useCallback((obj, field) => pickText(obj, field, lang), [lang]);
 
   const isRtl = lang === 'ar';
 

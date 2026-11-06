@@ -5,6 +5,7 @@
 // completeness. The numbers themselves always come from computeSnapshot().
 // ============================================================================
 import { METRIC_DEFINITIONS, EXCLUSION_RULE_SET_VERSION, ratio } from './revenueMetrics';
+import { PLANNING_METRICS } from './planningMetricDocs';
 
 const BI = (ar, en) => ({ ar, en });
 
@@ -58,12 +59,12 @@ const ENTRIES = [
     formula: BI('المحصّل ÷ صافي المفوتر × 100', 'Collected ÷ net billed × 100'),
     period: BI('الفترة المحددة', 'Selected period'), dateBasis: BI('فواتير صادرة في الفترة', 'Invoices issued in the period') },
   { key: 'revenueAppropriation', kind: 'plan', sources: ['tahseel'], label: BI('الاعتماد مقابل الإيراد', 'Revenue appropriation'),
-    definition: BI('المبلغ المفترض تحصيله خلال العام المالي مقابل نفقات الأبواب 1–3، بعد التعديل (والأصلي يُعرض بجانبه). هو المستهدف السنوي في «التخطيط المالي والاستراتيجي». أرقامه في هذا العرض توضيحية على هيكل ملف وزارة المالية، وتُحمَّل للعام المالي 2026 فقط.', 'The amount expected to be collected during the fiscal year against chapters 1–3 expenditure, after adjustment (the original is shown beside it). It is the annual target on the Strategic Dashboard. Its figures in this demo are illustrative, on the structure of the Ministry of Finance file, and loaded for fiscal year 2026 only.'),
+    definition: BI('المبلغ المفترض تحصيله خلال العام المالي مقابل نفقات الأبواب 1–3، بعد التعديل (والأصلي يُعرض بجانبه). هو مرجع «نسبة تحقيق الاعتماد مقابل الإيراد» في لوحة المعلومات، وهو مقياس مستقل عن «المستهدف السنوي للإيراد» في «تخطيط إيرادات التحصيل» (مستهدف التغطية × الميزانية). أرقامه في هذا العرض توضيحية على هيكل ملف وزارة المالية، وتُحمَّل للعام المالي 2026 فقط.', 'The amount expected to be collected during the fiscal year against chapters 1–3 expenditure, after adjustment (the original is shown beside it). It is the reference of the dashboard’s «appropriation attainment», a measure independent of the «annual revenue target» of the planning page (coverage target × budget). Its figures in this demo are illustrative, on the structure of the Ministry of Finance file, and loaded for fiscal year 2026 only.'),
     formula: BI('الاعتماد مقابل الإيراد بعد التعديل (مُدخل من وزارة المالية، لا يُحسب من الفواتير)', 'Revenue appropriation after adjustment (an input from the Ministry of Finance, not calculated from invoices)'),
     period: BI('العام المالي', 'Fiscal year'), dateBasis: BI('العام المالي (1 يناير – 31 ديسمبر)', 'Fiscal year (1 January – 31 December)'),
     caveat: BI('لا يوجد مستهدف دون اعتماد موجب صالح: لا تُحتسب نسبة ولا يُعدّ التحصيل الصفري نجاحاً.', 'There is no target without a valid positive appropriation: no rate is calculated and zero collection is never success.') },
   { key: 'targetCollection', kind: 'plan', sources: ['tahseel'], label: BI('نسبة المحصّل من الاعتماد', 'Share of the appropriation collected'),
-    definition: BI('المحصّل من مدفوعات «تحصيل» (بتاريخ الدفع على أي فاتورة، حتى تاريخ التقرير) مقسوماً على الاعتماد مقابل الإيراد بعد التعديل. المستهدف موزّع بالتساوي على 12 شهراً وفق توجيه الأعمال، والخطة المحفوظة مسودة وليست معتمدة. هذا أساس تاريخ الدفع، وهو غير «المحصّل» على فواتير الفترة في صفحات الفواتير.', 'Collected Tahseel payments (by payment date, on any invoice, up to the reporting date) divided by the revenue appropriation after adjustment. The target is spread evenly over 12 months as the business directed, and a saved plan is a draft, not an approved plan. This is the payment-date basis, which differs from «collected» on the period\'s invoices on the invoice pages.'),
+    definition: BI('المحصّل من مدفوعات «تحصيل» (بتاريخ الدفع على أي فاتورة، حتى تاريخ التقرير) مقسوماً على الاعتماد مقابل الإيراد بعد التعديل. هذه «نسبة تحقيق الاعتماد مقابل الإيراد» في لوحة المعلومات (مقياس مستقل عن المستهدف السنوي في صفحة التخطيط)؛ والتوزيع المتساوي على 12 شهراً افتراض لا خطة معتمدة. هذا أساس تاريخ الدفع، وهو غير «المحصّل» على فواتير الفترة في صفحات الفواتير.', 'Collected Tahseel payments (by payment date, on any invoice, up to the reporting date) divided by the revenue appropriation after adjustment. This is the dashboard’s «appropriation attainment» (a measure independent of the planning page’s annual target); the even 12-month split is an assumption, not an approved plan. This is the payment-date basis, which differs from «collected» on the period\'s invoices on the invoice pages.'),
     formula: BI('المحصّل ÷ الاعتماد مقابل الإيراد بعد التعديل', 'Collected ÷ revenue appropriation after adjustment'),
     period: BI('العام المالي حتى تاريخ التقرير', 'Fiscal year to the reporting date'), dateBasis: BI('تاريخ الدفع (تحصيل)', 'Payment date (Tahseel)') },
   { key: 'remainingToTarget', kind: 'plan', sources: ['tahseel'], label: BI('المتبقي للوصول إلى الاعتماد', 'Remaining to the appropriation'),
@@ -78,7 +79,9 @@ const ENTRIES = [
   { key: 'budgetCh13', kind: 'plan', sources: [], label: BI('الميزانية المبلغة للأبواب الثلاثة الأولى', 'Communicated budget, chapters 1–3'),
     definition: BI('الميزانية التي تبلّغها وزارة المالية في بداية العام للأبواب الثلاثة الأولى، على مستوى الوزارة وكل أمانة / جهة. رقم ثابت للعام وليس محسوباً من الفواتير. أرقامه هنا توضيحية.', 'The budget the Ministry of Finance communicates at the start of the year for chapters 1–3, for the Ministry and each Amanah / entity. A fixed figure for the year, not calculated from invoices. The figures here are illustrative.'),
     formula: BI('مُدخل من وزارة المالية', 'An input from the Ministry of Finance'),
-    period: BI('العام المالي', 'Fiscal year'), dateBasis: BI('العام المالي (1 يناير – 31 ديسمبر)', 'Fiscal year (1 January – 31 December)') }
+    period: BI('العام المالي', 'Fiscal year'), dateBasis: BI('العام المالي (1 يناير – 31 ديسمبر)', 'Fiscal year (1 January – 31 December)') },
+  // the planning metrics of the Collection Revenue Planning page (planning review, Phase 4): one definition each, in planningMetricDocs.js
+  ...PLANNING_METRICS.map((m) => ({ key: m.key, kind: 'plan', sources: m.sources, label: m.label, definition: m.definition, formula: m.formula, period: m.period, dateBasis: m.dateBasis, caveat: m.caveat || null, category: 'planning' }))
 ];
 
 const SOURCE_LABEL = {
@@ -117,4 +120,10 @@ export function metricDictionary(snapshot) {
   }));
 }
 
+// the dictionary CATEGORIES (the filter above the cards of /settings/metrics): «تخطيط إيرادات التحصيل» = every plan-kind entry (the dashboard's appropriation measures and the 14 planning definitions) + the coverage ratio the page
+// reads. ONE category object: the page link (?category=planning), the cards and the tests all read it from here.
+export const PLANNING_CATEGORY = 'planning';
+export const categoryOf = (e) => (e.category === PLANNING_CATEGORY || e.kind === 'plan' || e.key === 'coverageRatio' ? PLANNING_CATEGORY : null);
 export const METRIC_KEYS = ENTRIES.map((e) => e.key);
+// the static text of every entry (no snapshot, no numbers) — used by the Metrics and Glossary directory, which shows definitions and formulas only
+export const metricEntries = () => ENTRIES.map((e) => ({ ...e, sourceLabels: e.sources.map((s) => SOURCE_LABEL[s] || BI(s, s)) }));

@@ -48,8 +48,9 @@ export function usePageLabel() {
   const rec = /^\/(invoices|enforcement-orders|contracts)\/([^/]+)/.exec(p);
   if (rec) return decodeURIComponent(rec[2]);
   if (p.startsWith('/invoices')) return L('Collected invoices list', 'قائمة الفواتير المحصّلة');
-  if (p.startsWith('/enforcement')) return L('Enforcement management', 'إدارة التنفيذ');
+  if (p.startsWith('/enforcement')) return L('Enforcement orders management', 'إدارة أوامر التنفيذ');
   if (p.startsWith('/contracts')) return L('Contracts', 'العقود');
+  if (p.startsWith('/exclusions')) return L('Exclusions management', 'إدارة الاستبعادات');
   if (p.startsWith('/collection')) return L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة');
   if (p.startsWith('/settings/metrics')) return L('Metric dictionary', 'قاموس المقاييس');
   if (p.startsWith('/settings')) return L('System settings', 'إعدادات النظام');

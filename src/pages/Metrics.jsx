@@ -1,80 +1,75 @@
-import React, { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useRevenue } from '../context/RevenueContext';
-import { useL, ratioText } from '../utils/bi';
-import { ProvenanceBadge, ScopeBar } from '../components/revenue/RevenueUI';
-import { metricDictionary } from '../data/metricDictionary';
+import React, { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useL } from '../utils/bi';
 import SettingsNav from '../components/settings/SettingsNav';
-import { ExclusionsTab, FormulasTab, DevelopersTab } from '../components/settings/DictionaryTabs';
-import ExclusionsReference from '../components/settings/ExclusionsReference';
-import SadadExample from '../components/settings/SadadExample';
+import { DIRECTORY, SCHEMA_STATES, CATEGORIES, categoryEntries } from '../data/dictionaryDirectory';
+import '../components/settings/dictionaryTools.css';
 
-const KIND = {
-  flow: { ar: 'تدفق لفترة', en: 'Period flow' },
-  stock: { ar: 'رصيد قائم', en: 'Standing balance' },
-  ratio: { ar: 'نسبة', en: 'Ratio' },
-  plan: { ar: 'تخطيط', en: 'Plan' }
+// «قاموس المقاييس والمصطلحات» — a reference directory: one brief card per metric or term (definition, short formula, source systems, schema availability) that opens its own detail page.
+// It shows no filters and no live KPI value: the page explains the rules; the numbers belong to the dashboards.
+export const SchemaBadge = ({ state }) => {
+  const { B } = useL(); const s = SCHEMA_STATES[state];
+  return <span className={`gl-schema gl-schema--${state}`} title={B(s.full)}><span className="gl-schema__dot" aria-hidden="true" />{B(s)}</span>;
 };
 
+function Card({ e }) {
+  const { L, B, ar } = useL();
+  return (
+    <li className="gl-card">
+      <div className="gl-card__top"><h3 className="gl-card__name">{B(e.name)}</h3><span className="gl-card__type">{e.type === 'metric' ? L('Metric', 'مقياس') : L('Term', 'مصطلح')}</span></div>
+      <p className="gl-card__def">{B(e.brief)}</p>
+      {e.formula && <p className="gl-card__formula" dir="auto"><span className="gl-card__formula-h">{L('Formula', 'المعادلة')}</span>{B(e.formula)}</p>}
+      <p className="gl-card__src"><span className="gl-card__src-h">{L('Sources', 'المصادر')}</span>{e.sourceLabels.length ? e.sourceLabels.map((s) => B(s)).join(ar ? '، ' : ', ') : <span className="muted">{L('Defined in the application', 'معرَّف في التطبيق')}</span>}</p>
+      <div className="gl-card__foot">
+        <SchemaBadge state={e.schema.state} />
+        <Link className="gl-card__link" to={`/settings/metrics/${e.id}`} aria-label={`${L('View details', 'عرض التفاصيل')} — ${B(e.name)}`}>{L('View details', 'عرض التفاصيل')}<span aria-hidden="true" className="gl-card__arrow">→</span></Link>
+      </div>
+    </li>
+  );
+}
+
+// the search reads the visible text of a card (name, brief, formula, id) in the current language and the other one, so «forecast» finds «التوقع» too
+const hay = (e) => [e.id, e.name?.ar, e.name?.en, e.brief?.ar, e.brief?.en, e.formula?.ar, e.formula?.en, e.symbolic].filter(Boolean).join(' ').toLowerCase();
+
 export default function Metrics() {
-  const rev = useRevenue();
-  const { L, B, ar, short } = useL();
-  const { snapshot } = rev;
-  const [sp, setSp] = useSearchParams(); const tab = ['metrics', 'exclusions', 'formulas', 'developers'].includes(sp.get('tab')) ? sp.get('tab') : 'metrics';
-  const TABS = [['metrics', L('Metrics', 'المقاييس')], ['exclusions', L('Exclusions', 'الاستبعادات')], ['formulas', L('Formulas and rules', 'المعادلات والقواعد')], ['developers', L('For developers', 'للمطورين')]];
-  const dict = useMemo(() => metricDictionary(snapshot), [snapshot]);
-  const T = snapshot.totals; const S = snapshot.stock;
-  const value = {
-    gross: short(T.gross), adjustments: short(T.adjustments), cancelled: short(T.cancelled), exclusions: short(T.exclusions), net: short(T.net),
-    collected: short(T.collected), uncollected: short(T.outstanding), netUncollected: short(S.netUncollected), overdue: short(S.overdue), notYetDue: short(S.notYetDue),
-    collectedOverNet: ratioText(T.collectedOverNet, ar),
-    adjustedTotal: '—', targetCollection: '—', remainingToTarget: '—'
-  };
+  const { L, B } = useL();
+  const [sp] = useSearchParams(); const cat = CATEGORIES[sp.get('category')] ? sp.get('category') : null; // ?category=planning → the planning category page
+  const [q, setQ] = useState('');
+  const needle = q.trim().toLowerCase();
+  const match = (e) => !needle || hay(e).includes(needle);
+  const all = useMemo(() => DIRECTORY, []);
+  const shown = (type) => all.filter((e) => e.type === type && match(e));
+  const inCat = cat ? categoryEntries(cat).filter(match) : [];
+  const section = (id, title, list, intro) => (
+    <section aria-labelledby={`gl-h-${id}`} id={`gl-${id}`}>
+      <h2 className="h3 gl-section" id={`gl-h-${id}`}>{title}</h2>
+      {intro && <p className="gl-intro" dir="auto">{intro}</p>}
+      {list.length ? <ul className="gl-grid">{list.map((e) => <Card key={e.id} e={e} />)}</ul> : <p className="muted" role="status">{L('No entries match the search.', 'لا توجد مدخلات مطابقة للبحث.')}</p>}
+    </section>
+  );
   return (
     <div className="rv-page">
       <SettingsNav current="/settings/metrics" />
       <div className="page-head">
         <div>
-          <h1 className="page-title">{L('Metric dictionary', 'قاموس المقاييس')}</h1>
-          <div className="page-sub">{L('The full reference for the business and for developers: every metric, every exclusion and how it is computed, and every formula — one definition, used by the dashboard, reports, the assistant, charts and alerts.', 'المرجع الكامل للأعمال وللمطورين: كل مقياس، وكل استبعاد وكيف يُحسب وعلى ماذا يُبنى، وكل المعادلات — تعريف واحد تستخدمه لوحة المعلومات والتقارير والمساعد والرسوم والتنبيهات.')}</div>
+          <h1 className="page-title">{L('Metrics and Glossary Dictionary', 'قاموس المقاييس والمصطلحات')}</h1>
+          <div className="page-sub">{L('What each metric and term means, how it is calculated and where its data comes from. Reference only: no live figures.', 'ما يعنيه كل مقياس ومصطلح، وكيف يُحسب، ومن أين تأتي بياناته. مرجع فقط: دون أرقام حيّة.')}</div>
         </div>
       </div>
-      <div className="rv-chips" role="tablist" aria-label={L('Dictionary sections', 'أقسام القاموس')} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '4px 0 12px' }}>
-        {TABS.map(([k, label]) => <button key={k} type="button" role="tab" aria-selected={tab === k} className={`btn btn-sm${tab === k ? ' btn-primary' : ''}`} onClick={() => setSp(k === 'metrics' ? {} : { tab: k })}>{label}</button>)}
+      <div className="gl-tools">
+        <nav className="gl-cats" aria-label={L('Dictionary categories', 'تصنيفات القاموس')}>
+          <Link to="/settings/metrics" className={`gl-cat${cat ? '' : ' is-on'}`} aria-current={cat ? undefined : 'page'}>{L('All', 'الكل')} <span className="gl-cat__n">{all.length}</span></Link>
+          {Object.entries(CATEGORIES).map(([id, c]) => (
+            <Link key={id} to={`/settings/metrics?category=${id}`} className={`gl-cat${cat === id ? ' is-on' : ''}`} aria-current={cat === id ? 'page' : undefined}>{B(c)} <span className="gl-cat__n">{categoryEntries(id).length}</span></Link>
+          ))}
+        </nav>
+        <label className="gl-search"><span className="sr-only">{L('Search the dictionary', 'بحث في القاموس')}</span>
+          <input type="search" className="input" value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('Search a metric or a term', 'ابحث عن مقياس أو مصطلح')} aria-label={L('Search the dictionary', 'بحث في القاموس')} />
+        </label>
       </div>
-      {tab === 'exclusions' && <><ScopeBar hideStatus /><ExclusionsTab /></>}
-      {tab === 'formulas' && <FormulasTab />}
-      {tab === 'developers' && <DevelopersTab />}
-      {tab === 'metrics' && <>
-      <ScopeBar />
-      <div className="rv-callout">
-        <b>{L('Two things that are not the same', 'أمران مختلفان')}</b>{' '}
-        {L('Net billed is a flow for an issue period; net uncollected is a standing balance at the cutoff. The collection rate is collected ÷ net billed × 100 within the selected scope.', 'صافي المفوتر تدفق لفترة إصدار؛ والرصيد القائم رصيد قائم عند القطع. ونسبة التحصيل = المحصّل ÷ صافي المفوتر ضمن النطاق المحدد؛ وأي نسبة على إجمالي المفوتر تُسمّى بوضوح وتُفصل.')}
-      </div>
-      <div className="rv-metric-list">
-        {dict.map((m) => (
-          <article key={m.key} className="card card-pad" aria-label={B(m.label)}>
-            <div className="rv-card__head">
-              <h2 className="rv-sec-title">{B(m.label)} <span className="rv-tag">{B(KIND[m.kind])}</span></h2>
-              <div className="rv-metric-value" dir="ltr">{value[m.key]}</div>
-            </div>
-            <dl className="rv-dl">
-              <dt>{L('Definition', 'التعريف')}</dt><dd dir="auto">{B(m.definition)}</dd>
-              <dt>{L('Formula', 'المعادلة')}</dt><dd dir="auto">{B(m.formula)}</dd>
-              <dt>{L('Period', 'الفترة')}</dt><dd>{B(m.period)}</dd>
-              <dt>{L('Date basis', 'أساس التاريخ')}</dt><dd>{B(m.dateBasis)}</dd>
-              <dt>{L('Scope', 'النطاق')}</dt><dd dir="auto">{B(m.scope)}</dd>
-              <dt>{L('Sources', 'المصادر')}</dt><dd>{m.sourceLabels.map((x) => B(x)).join(ar ? '، ' : ', ')}</dd>
-              <dt>{L('Updated', 'آخر تحديث')}</dt><dd dir="ltr">{m.updatedAt}</dd>
-              <dt>{L('Rule version', 'إصدار القاعدة')}</dt><dd dir="ltr">{m.ruleVersion}</dd>
-              <dt>{L('Data completeness', 'اكتمال البيانات')}</dt><dd>{m.completeness.calculable ? `${Math.round(m.completeness.value * 100)}%` : L('Not calculable', 'غير قابل للاحتساب')}</dd>
-              {m.caveat && (<><dt>{L('Caution', 'تنبيه')}</dt><dd dir="auto">{B(m.caveat)}</dd></>)}
-            </dl>
-          </article>
-        ))}
-      </div>
-      <SadadExample />
-      <ExclusionsReference />
+      {cat ? section(cat, B(CATEGORIES[cat]), inCat, B(CATEGORIES[cat].intro)) : <>
+        {section('metric', L('Metrics', 'المقاييس'), shown('metric'))}
+        {section('term', L('Terms', 'المصطلحات'), shown('term'))}
       </>}
     </div>
   );

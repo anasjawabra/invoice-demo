@@ -3,6 +3,12 @@
 import { gfsCodeOf, gfsIndexOf, objectionStatusIndex } from '../src/data/iim.js';
 import { ITEMS, ENTITY_INDEX, SOURCE_INDEX, ITEM_INDEX, RULE_BIT, CR_STATUS, CHANNELS, CSTAT, F, dayNum } from '../src/data/catalog.js';
 
+import { compositeKey, demoAmanahId } from '../src/data/invoiceIdentity.js';
+import { classifySourceValues } from '../src/data/municipalityModel.js';
+/** the composite key of a record object (a fixture or an upload) — null when a required component is missing (an incomplete key is never an identity) */
+export function recordCompositeKey(rec) {
+  const e = ENTITY_INDEX[rec.amanahEn]; return compositeKey({ invoiceId: rec.invoiceNo || rec.sadadNo, gfsCode: rec.gfsCode, amanahId: e == null ? null : demoAmanahId(e) }).key;
+}
 export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   const i = st.addInvoice();
   const e = ENTITY_INDEX[rec.amanahEn];
@@ -10,7 +16,9 @@ export function appendRecord(st, rec, { owner = 0, kind = 'fixture' } = {}) {
   st.idKey[i] = 0; st.issue[i] = dayNum(rec.issueDate); st.due[i] = dayNum(rec.dueDate); st.gross[i] = rec.grossAmount;
   const adj = (rec.adjustments || [])[0];
   st.adjAmt[i] = adj ? adj.amount : 0; st.adjDay[i] = adj ? dayNum(adj.date) : 0;
-  st.ent[i] = e; st.muni[i] = 255; st.scope[i] = rec.scopeType === 'internal' ? 1 : 0;
+  st.ent[i] = e; st.muni[i] = 255;
+  st.mref[i] = classifySourceValues(e, rec.municipalitySourceValues || (rec.municipalityAr ? [rec.municipalityAr] : [])).code; // the municipality the record's source(s) named, classified against the reference (nothing is inferred)
+  st.scope[i] = rec.scopeType === 'internal' ? 1 : 0;
   st.src[i] = SOURCE_INDEX[rec.revenueSource] ?? SOURCE_INDEX.municipal_fees;
   st.item[i] = rec.revenueItem?.key && ITEM_INDEX[rec.revenueItem.key] !== undefined ? ITEM_INDEX[rec.revenueItem.key] : 0;
   st.lines[i] = Math.max(1, (rec.lineItems || []).length);

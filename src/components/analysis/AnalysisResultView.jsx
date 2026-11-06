@@ -3,6 +3,7 @@ import { RecordLink as Link } from '../../utils/returnContext';
 import { invoicePath, contractPath, orderPath } from '../../utils/paths';
 import { useL } from '../../utils/bi';
 import { describeScope } from '../../data/revenueInsights';
+import NcResult from './nc/NcResult';
 
 const KIND = {
   fact: { en: 'Source fact', ar: 'حقيقة من المصدر', cls: 'rtag--fact' },
@@ -47,6 +48,11 @@ function impactText(impact, B, L) {
 export default function AnalysisResultView({ result, task, stale, compact = false }) {
   const { L, B, lang } = useL();
   if (!result) return null;
+  // «تحليل أسباب عدم التحصيل» has its own report layout (tabs, drill-down, saved versions): see components/analysis/nc
+  if (result.kind === 'noncollection') {
+    const v = { n: 1, generatedAt: result.generatedAt, cutoff: result.cutoff, taskScope: task?.scope || null, dataVersion: task?.dataVersion ?? null };
+    return <NcResult analysis={result.analysis} version={v} versions={[v]} saveState={{ saved: false }} stale={!!stale} />;
+  }
   return (
     <div className={`res${compact ? ' res--compact' : ''}`}>
       <div className="res__head">

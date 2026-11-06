@@ -13,6 +13,8 @@ import { measure, basisLabel, hasToDateVariant, BASIS } from '../../data/measure
 import { checkRange, rangeMessage, coverageLine } from '../../data/dateRange';
 import { PRESETS } from '../../data/periodPresets';
 import { fmtDateText } from '../../data/clock';
+import ScopeFilters from '../filters/ScopeFilters';
+import { FILTER_PAGES } from '../filters/filterConfig';
 
 /* ---------- Provenance / status badges ---------- */
 export function ProvenanceBadge({ kind = 'demo', size = 'md' }) {
@@ -189,84 +191,16 @@ export function ProductPicker({ value, onChange }) {
   );
 }
 
+// ScopeBar — kept for the pages that have not been given an explicit configuration yet: a thin wrapper around the platform toolbar (src/components/filters).
+// Props: compact (no «N invoices issued» line), hideStatus (no invoice-status select), hideStatuses (status values not offered).
 export function ScopeBar({ compact = false, hideStatuses = [], hideStatus = false }) {
-  const { scope, setPreset, setCustomRange, setAmanah, setSource, setMuni, setStatus, setScopeType, setProduct, setMainClass, org, snapshot, cfg, meta } = useRevenue();
-  const { L, B, lang, T, count } = useL();
-  const amanahs = useMemo(() => amanahFilterOptions().filter((a) => !org.amanahKeys || org.amanahKeys.includes(a.key)), [org]);
-  const label = (o) => (lang === 'ar' ? o.ar : lang === 'zh' ? o.zh : o.en);
-  const munis = useMemo(() => (scope.amanah === 'all' || Array.isArray(scope.amanah) ? [] : municipalitiesOf(scope.amanah).filter(Boolean)), [scope.amanah]);
-  const presets = PRESETS.map((p) => [p.key, lang === 'ar' ? p.ar : p.en]);
-
-  return (
-    <div className="rv-scope card" role="region" aria-label={L('Analysis scope', 'نطاق التحليل')}>
-      <div className="rv-scope__row">
-        <div className="rv-scope__group" role="group" aria-label={L('Period', 'الفترة')}>
-          <span className="rv-scope__lbl">{L('Period', 'الفترة')}</span>
-          {presets.map(([k, text]) => (
-            <button key={k} type="button" className={`btn btn-sm ${scope.preset === k ? 'btn-primary' : 'btn-ghost'}`} aria-pressed={scope.preset === k} onClick={() => setPreset(k)}>{text}</button>
-          ))}
-          <DateRangeFields from={scope.from} to={scope.to} today={cfg.cutoff} lang={lang} idPrefix="rv" onChange={(r) => { if (r) setCustomRange(r.from, r.to); }} /></div>
-        <div className="rv-scope__group">
-          <label className="rv-scope__lbl" htmlFor="rv-amanah">{L('Amanah', 'الأمانة / الجهة')}</label>
-          <select id="rv-amanah" className="select" value={Array.isArray(scope.amanah) ? 'all' : scope.amanah} onChange={(e) => setAmanah(e.target.value)}>
-            <option value="all">{L('All Amanahs', 'جميع الأمانات والجهات')}{org.amanahKeys ? ` (${L('your access', 'ضمن صلاحيتك')})` : ''}</option>
-            {amanahs.map((a) => <option key={a.key} value={a.key}>{label(a)}</option>)}
-          </select>
-          <label className="rv-scope__lbl" htmlFor="rv-source">{L('Revenue source', 'مصدر الإيراد')}</label>
-          <select id="rv-source" className="select" value={scope.source} onChange={(e) => setSource(e.target.value)}>
-            <option value="all">{L('All revenue sources', 'جميع مصادر الإيراد')}</option>
-            {REVENUE_SOURCE_KEYS.map((k) => <option key={k} value={k}>{lang === 'ar' ? REVENUE_SOURCES[k].ar : REVENUE_SOURCES[k].en}</option>)}
-            {UNAVAILABLE_REVENUE_SOURCES.map((s) => <option key={s.id} value="__na" disabled>{(lang === 'ar' ? s.ar : s.en)} — {L('no records', 'لا سجلات')}</option>)}
-          </select>
-          {!hideStatus && (<>
-          <label className="rv-scope__lbl" htmlFor="rv-status">{L('Invoice status', 'حالة الفاتورة')}</label>
-          <select id="rv-status" className="select" value={scope.status || 'all'} onChange={(e) => setStatus(e.target.value)}>
-            <option value="all">{L('All statuses', 'كل الحالات')}</option>
-            {[['collected', L('Collected in full', 'محصّلة بالكامل')], ['open', L('Still owing (open)', 'قائمة (غير مسددة)')], ['overdue', L('Overdue', 'متأخرة')], ['partial', L('Partially collected', 'محصّلة جزئياً')], ['not_due', L('Not yet due', 'لم يحن استحقاقها')], ['cancelled', L('Cancelled', 'ملغاة')], ['excluded', L('Excluded', 'مستبعدة')]].filter(([k]) => !hideStatuses.includes(k)).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-          </select>
-          </>)}
-          <label className="rv-scope__lbl" htmlFor="rv-origin">{L('Invoice origin', 'مصدر الفاتورة')}</label>
-          <select id="rv-origin" className="select" value={scope.scopeType || 'all'} onChange={(e) => setScopeType(e.target.value)}>
-            <option value="all">{L('All', 'الكل')}</option>
-            <option value="central">{lang === 'ar' ? 'مركزي' : 'Central'}</option>
-            <option value="internal">{lang === 'ar' ? 'داخلي' : 'Internal'}</option>
-          </select>
-          <ProductPicker value={scope.product || []} onChange={setProduct} />
-          <label className="rv-scope__lbl" htmlFor="rv-mainclass">{L('Main revenue class', 'تصنيف الإيراد الرئيسي')}</label>
-          <select id="rv-mainclass" className="select" value={scope.mainClass || 'all'} onChange={(e) => setMainClass(e.target.value)}>
-            <option value="all">{L('All classes', 'كل التصنيفات')}</option>
-            {MAIN_LIST.filter((m) => m !== OTHER_CLASS && m !== UNCLASSIFIED).map((m) => <option key={m} value={m}>{lang === 'ar' ? m : MAIN_EN[m]}</option>)}
-            <option value={UNCLASSIFIED}>{lang === 'ar' ? UNCLASSIFIED : MAIN_EN[UNCLASSIFIED]}</option>
-          </select>
-          {munis.length > 0 && (<>
-            <label className="rv-scope__lbl" htmlFor="rv-muni">{L('Municipality', 'البلدية')}</label>
-            <select id="rv-muni" className="select" value={scope.muni || 'all'} onChange={(e) => setMuni(e.target.value)}>
-              <option value="all">{L('All municipalities', 'كل البلديات')}</option>
-              {munis.map((m) => <option key={m.key} value={m.key}>{lang === 'ar' ? m.ar : m.en}</option>)}
-            </select>
-          </>)}
-        </div>
-      </div>
-      {!compact && (
-        <div className="rv-scope__meta">
-          <span className="rv-line">{L(`${count(snapshot.population.issuedInPeriod)} invoices issued in the period. `, `${count(snapshot.population.issuedInPeriod)} فاتورة صدرت في الفترة. `)}<b>{basisLabel(scope, BASIS.PERIOD_END, cfg.cutoff, lang)}</b></span>
-          {snapshot.equation && !snapshot.equation.ok && <span className="rv-chip rv-chip--bad" role="alert">{L('The reconciliation checks failed for this selection', 'تعذّر التحقق من علاقات المطابقة لهذا الاختيار')}</span>}
-          {snapshot.exclusionsApproval?.unapprovedAmount > 0 && <span className="rv-chip">{L('Exclusions under unapproved rules affect', 'استبعادات بقواعد غير معتمدة تؤثر على')} <b dir="ltr">{fmtMoney(snapshot.exclusionsApproval.unapprovedAmount, { lang })}</b></span>}
-          <details className="rv-more">
-            <summary>{L('Data status', 'حالة البيانات')}</summary>
-            <ul className="rv-status-list">
-              <li>{B(meta?.label) || L('Demo data', 'بيانات تجريبية')} {snapshot.quality.kinds.uploaded ? <ProvenanceBadge kind="uploaded" size="sm" /> : null}</li>
-              <li>{L('Today (Riyadh)', 'اليوم (الرياض)')}: <b>{fmtDateText(snapshot.cutoff, lang)}</b></li>
-              {snapshot.basis && <li title={L('Invoices are selected by issue date; collections count payments up to the stated date.', 'تُختار الفواتير بتاريخ الإصدار؛ ويُحتسب المحصّل بالمدفوعات حتى التاريخ المذكور.')}>{L('Invoices are selected by issue date', 'تُختار الفواتير بتاريخ الإصدار')}</li>}
-              {snapshot.equation && snapshot.equation.ok && <li>{L('Reconciliation checks passed', 'فحوص المطابقة سليمة')}</li>}
-              <li>{L('Exclusion rules', 'قواعد الاستبعاد')}: <span dir="ltr">{snapshot.ruleSetVersion}</span></li>
-              <li>{L('Grace period: none applied (the policy is not yet decided)', 'فترة السماح: لا تُطبَّق حالياً (السياسة غير محسومة)')}</li>
-            </ul>
-          </details>
-        </div>
-      )}
-    </div>
+  const { snapshot, cfg, scope } = useRevenue();
+  const { L, lang, count } = useL();
+  const page = FILTER_PAGES.default;
+  const line = compact ? null : (
+    <span className="rv-line">{L(`${count(snapshot.population.issuedInPeriod)} invoices issued in the period. `, `${count(snapshot.population.issuedInPeriod)} فاتورة صدرت في الفترة. `)}<b>{basisLabel(scope, BASIS.PERIOD_END, cfg.cutoff, lang)}</b></span>
   );
+  return <ScopeFilters primary={page.primary} secondary={page.secondary.filter((k) => !(hideStatus && k === 'status'))} dateBasis={page.dateBasis} hideStatuses={hideStatuses} resultCount={line} />;
 }
 
 /* ---------- Data freshness & completeness ---------- */

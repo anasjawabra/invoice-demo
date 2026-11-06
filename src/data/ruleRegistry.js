@@ -19,7 +19,7 @@ export const RULE_APPROVAL_LABEL = {
 
 export const RULE_DETAILS = {
   'SND-1': {
-    definition: BI('أي فاتورة في سند لها رقم تنفيذ تُستبعد مهما كانت حالة الأمر. تنطبق على غير المحصّلة فقط.', 'Any invoice in Sanad with an execution number is excluded, whatever the order status. Uncollected invoices only.'),
+    definition: BI('«مرتبطة بأمر تنفيذ مؤكد»: أي فاتورة غير محصّلة لها رقم تنفيذ في سند، أو ربط أمر تنفيذ أكّده مراجع، تُستبعد مهما كانت حالة الأمر. الاستخراج والربط المقترح لا يطبّقان الاستبعاد. تنطبق على غير المحصّلة فقط، وأساس المبلغ هو المتبقي غير المحصّل.', '«Linked to a confirmed enforcement order»: any uncollected invoice with an execution number in Sanad, or a link to an order that a reviewer confirmed, is excluded whatever the order status. Extraction and a proposed link never apply it. Uncollected invoices only; the amount basis is the uncollected remainder.'),
     sources: [BI('سند — أوامر التنفيذ', 'Sanad — enforcement orders')], fields: ['رقم التنفيذ', 'رقم الفاتورة'],
     scope: BI('كل المصادر', 'All sources'), evidence: BI('رابط تنفيذ مؤكد', 'Confirmed enforcement link')
   },

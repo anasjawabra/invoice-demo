@@ -26,12 +26,13 @@
 //                       approval rules are unresolved, so it is NOT labelled "official".
 //   Collected / gross = analytical view before any exclusion.
 // ============================================================================
-import { appropriationTotal } from './appropriations';
+import { APPROPRIATION_YEAR } from './appropriations';
+import { referenceTargets, targetCoversScope, targetSourceText, targetUnavailableText } from './referenceTarget';
 import { DATA_CUTOFF, DATA_START, addDays, daysBetween, monthOf, REVENUE_SOURCE_KEYS, accessibleLedger } from './revenueLedger';
 
 /* ---------- Not-calculable handling ---------- */
 import { EXCLUSIONS_AUTO_APPLY } from './iim.js';
-export const NOT_CALCULABLE_LABEL = { en: 'Not available', ar: 'غير متاحة', zh: '不可用' };
+export const NOT_CALCULABLE_LABEL = { en: 'Not available', ar: 'غير متاحة' };
 
 // Ratio that refuses zero / invalid denominators instead of returning 0 or Infinity.
 export function ratio(num, den) {
@@ -94,7 +95,7 @@ export const EXCLUSION_RULES = [
     note: { en: 'Not applied: a source-cancelled invoice referred to enforcement stays cancelled (conditions and approver unconfirmed); enforcement is reported as a separate dimension.', ar: 'غير مطبّقة: الفاتورة الملغاة في المصدر والمحالة للتنفيذ تبقى ملغاة (الشروط وجهة الاعتماد غير مؤكدة)؛ ويُعرض الإنفاذ بُعداً منفصلاً.' } }
 ,
   { id: 'SND-1', category: 'executed_against_sanad', version: 1, priority: 1, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-18', owner: { en: 'Revenue management (meeting 18 Oct)', ar: 'إدارة الإيرادات (اجتماع 18 أكتوبر)' },
-    label: { en: 'Executed against – cases (Sanad)', ar: 'منفذ ضده – قضايا (سند)' },
+    label: { en: 'Linked to a confirmed enforcement order', ar: 'مرتبطة بأمر تنفيذ مؤكد' },
     note: { en: 'Any UNCOLLECTED invoice found in Sanad (new cases) is excluded, whatever its Sanad status (D12). Applies only to uncollected invoices.', ar: 'أي فاتورة غير محصّلة تظهر في سند (قضايا جديدة) تُستبعد مهما كانت حالتها في سند (D12). تنطبق على الفواتير غير المحصّلة فقط.' } }
 ,
   { id: 'ATT-1', category: 'amanah_statements', version: 1, priority: 10, defaultEnabled: true, locked: false, basis: 'stated_in_meeting', approval: 'approved', effectiveFrom: '2026-10-19', owner: { en: 'Revenue management (meeting 19 Oct)', ar: 'إدارة الإيرادات (اجتماع 19 أكتوبر)' },
@@ -459,7 +460,7 @@ export function computeStock(ledgerInScope, cfg) {
     collected: a.collected,
     // everything issued up to the cutoff, regardless of the selected issue period — used by ageing and concentration views
     derived,
-    byAmanah: grouped((d) => d.rec.amanahEn, (d) => ({ en: d.rec.amanahEn, ar: d.rec.amanahAr, zh: d.rec.amanah })),
+    byAmanah: grouped((d) => d.rec.amanahEn, (d) => ({ en: d.rec.amanahEn, ar: d.rec.amanahAr })),
     bySource: grouped((d) => d.rec.revenueSource, () => null)
   };
 }
@@ -503,7 +504,7 @@ export function computeSnapshot(ledger, scope = {}, cfgIn = {}, decisions = {}) 
   }
 
   const byAmanah = [...groupBy(derived, (d) => d.rec.amanahEn).entries()].map(([k, list]) => ({
-    key: k, label: { en: list[0].rec.amanahEn, ar: list[0].rec.amanahAr, zh: list[0].rec.amanah }, ...aggregate(list)
+    key: k, label: { en: list[0].rec.amanahEn, ar: list[0].rec.amanahAr }, ...aggregate(list)
   })).sort((a, b) => b.outstanding - a.outstanding || b.gross - a.gross);
   const bySource = [...groupBy(derived, (d) => d.rec.revenueSource).entries()].map(([k, list]) => ({
     key: k, ...aggregate(list)
@@ -638,38 +639,37 @@ export function monthlyFromCumulative(series) {
 }
 
 /* ---------- Targets ---------- */
-export const TARGET_STATUS = { demo: 'demo', approved: 'approved', unresolved: 'unresolved' };
-
-// Approved management target — an INPUT, never computed from data. These
-// defaults are labelled illustrative; no approved target was supplied.
-export const DEFAULT_TARGETS = {
-  fiscalYear: Number(DATA_CUTOFF.slice(0, 4)),
-  collectionRate: { value: 0.6, status: 'demo', provenance: { en: 'Illustrative demo input — no approved collection-rate target was supplied. Replace via configuration.', ar: 'مُدخل توضيحي — لم يُزوَّد بهدف معتمد لمعدل التحصيل. استبدله عبر الإعدادات.' }, version: 1 },
-  // the annual collection target of the reports IS the revenue appropriation (the same figure as the Strategic Dashboard) — one target, not two
-  collectionAmountAnnual: { value: appropriationTotal().revAdjusted, status: 'demo', provenance: { en: 'Revenue appropriation after adjustment (chapters 1–3) — illustrative demo figure on the structure of the Ministry of Finance file; the same target as the Strategic Dashboard.', ar: 'الاعتماد مقابل الإيراد بعد التعديل (الأبواب 1–3) — رقم توضيحي على هيكل ملف وزارة المالية؛ وهو نفسه مستهدف لوحة التخطيط المالي والاستراتيجي.' }, version: 1 },
-  // Monthly weights summing to 1: the meeting says the annual target is curved low early in the year and
-  // rising toward year end; exact weights were not supplied, so this is a configurable demo shape.
-  // curveMode 'equal' reproduces the pro-rata (annual ÷ 12) basis printed in the monthly revenue reports;
-  // 'curved' follows the meeting's description. Which one is the approved basis is unresolved.
-  monthlyCurve: { curveMode: 'curved', weights: [0.05, 0.06, 0.07, 0.08, 0.09, 0.09, 0.09, 0.09, 0.09, 0.09, 0.10, 0.10], equalWeights: Array(12).fill(1 / 12), status: 'demo' }
-};
+// The annual revenue target — an INPUT, never computed from data. There is ONE target per (calendar year, scope, plan version): the CONFIGURED REFERENCE PLAN of the revenue plans («خطط الإيرادات»,
+// docs/revenue-plans-spec.md §2) read at its in-force version through the plan store — src/data/referenceTarget.js. Smart Reports, the assistant, the fixed reports, the analysis tasks, the exports and the
+// Decision Room therefore read the SAME plan and can never show two targets; a plan that is ambiguous / missing / invalid is an explicit UNAVAILABLE state (value null — never 0, never a silent pick).
+// Every surface that prints the target prints its source (plan name + version): `targets.reference`. The status of a plan target is never «approved» (plans have draft / active / archived states only).
+// The monthly shape is the plan's explicit monthly distribution (equal distribution is labelled an assumption). The collection-rate target stays an illustrative input (no approved target was supplied).
+// The appropriation attainment of the dashboard (revAdjusted) is a DIFFERENT measure with its own name and basis (revenueAnalysis.js) — it is not "the target".
+export const DEFAULT_TARGETS = referenceTargets(null, {
+  year: APPROPRIATION_YEAR,
+  base: { fiscalYear: Number(DATA_CUTOFF.slice(0, 4)), collectionRate: { value: 0.6, status: 'demo', provenance: { en: 'Illustrative demo input — no approved collection-rate target was supplied. Replace via configuration.', ar: 'مُدخل توضيحي — لم يُزوَّد بهدف معتمد لمعدل التحصيل. استبدله عبر الإعدادات.' }, version: 1 } }
+});
 
 export function curveWeights(targets) {
   const c = targets.monthlyCurve;
   return c.curveMode === 'equal' ? c.equalWeights : c.weights;
 }
 
-export function cumulativeTargetToDate(targets, throughMonth) {
+// The cumulative target through a month (end of that month) or — given a full date — through that DATE: the closed months in full + the current month prorated by calendar days (the plan basis' planned-to-date).
+export function cumulativeTargetToDate(targets, through) {
   const year = String(targets.fiscalYear);
-  if (!throughMonth.startsWith(year)) return null;
-  const m = Number(throughMonth.slice(5, 7));
-  const w = curveWeights(targets).slice(0, m).reduce((s, x) => s + x, 0);
-  return targets.collectionAmountAnnual.value * w;
+  if (!through.startsWith(year)) return null;
+  if (targets.collectionAmountAnnual.value == null) return null; // an unavailable target is not 0
+  const m = Number(through.slice(5, 7));
+  const w = curveWeights(targets);
+  const cum = (k) => w.slice(0, k).reduce((s, x) => s + x, 0);
+  const frac = through.length >= 10 ? Number(through.slice(8, 10)) / new Date(Date.UTC(Number(year), m, 0)).getUTCDate() : 1;
+  return targets.collectionAmountAnnual.value * (cum(m - 1) + (cum(m) - cum(m - 1)) * frac);
 }
 
 export function monthlyTargetSeries(targets, months) {
   return months.map((mo) => {
-    if (!mo.startsWith(String(targets.fiscalYear))) return null;
+    if (!mo.startsWith(String(targets.fiscalYear)) || targets.collectionAmountAnnual.value == null) return null;
     const idx = Number(mo.slice(5, 7)) - 1;
     return targets.collectionAmountAnnual.value * curveWeights(targets)[idx];
   });
@@ -677,30 +677,36 @@ export function monthlyTargetSeries(targets, months) {
 
 // Target achievement: cumulative receipts (Population A, fiscal year to date) vs cumulative approved target.
 // `fyReceipts` is the monthly-receipts series ({ months, values }) for the fiscal year to date, supplied by the data service.
+const sameKeys = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((k) => b.includes(k));
 export function targetAchievementFrom(fyReceipts, scope, cfgIn, targets = DEFAULT_TARGETS) {
   const cfg = normalizeConfig(cfgIn);
   const sc = normalizeScope(scope, cfg);
   const through = sc.to < cfg.cutoff ? sc.to : cfg.cutoff;
   const ytd = fyReceipts.values.reduce((s, v) => s + v, 0);
-  const tgt = cumulativeTargetToDate(targets, through.slice(0, 7));
+  const tgt = cumulativeTargetToDate(targets, through);
+  const ref = targets.reference || null;
+  const unavailable = targets.collectionAmountAnnual.value == null ? (targets.collectionAmountAnnual.unavailable || ref?.targetState || 'no_target') : null; // the target cannot be used: never printed as 0
+  const annual = targets.collectionAmountAnnual.value;
   return {
     receiptsYtd: ytd,
     targetYtd: tgt,
     gap: tgt == null ? null : tgt - ytd,
-    achievement: tgt == null ? ratio(NaN, 0) : ratio(ytd, tgt),
-    annualTarget: targets.collectionAmountAnnual.value,
+    achievement: tgt == null ? ratio(NaN, 0) : ratio(ytd, tgt), // actual ÷ planned to date («نسبة الإنجاز مقابل المخطط»)
+    deviation: tgt == null ? null : ytd - tgt,                   // signed: actual − planned to date
+    annualTarget: annual,
     through,
     status: targets.collectionAmountAnnual.status,
-    // An annual national target cannot be compared with a narrowed scope without an approved allocation.
-    scopeCaveat: sc.amanah !== 'all' || sc.source !== 'all' || !!sc.org?.amanahKeys,
+    unavailable,
+    reference: ref,
+    sourceLine: ref ? { ar: targetSourceText(targets, 'ar'), en: targetSourceText(targets, 'en') } : null,
+    unavailableText: ref && unavailable ? { ar: targetUnavailableText(targets, 'ar'), en: targetUnavailableText(targets, 'en') } : null,
+    viewScope: targets.viewScope || null,
+    // An annual target cannot be compared with a narrower scope than the one it describes: the Ministry / viewer target with one Amanah is context only; a target bound to the view (one Amanah / one municipality — referenceTarget.targetsForScope) covers it.
+    // (a restricted viewer's targets are the plan target of THEIR entities, so an organisation narrowing alone is no caveat when the target covers exactly those entities)
+    scopeCaveat: sc.source !== 'all' || !targetCoversScope(targets, sc) || (!targets.viewScope || targets.viewScope.amanah === 'all' ? (!!sc.org?.amanahKeys && !sameKeys(sc.org.amanahKeys, targets.scopeEntityKeys)) : false),
+    targetScope: targets.scopeKind || 'ministry',
     accessShare: null
   };
-}
-export function computeTargetAchievement(ledger, scope, cfgIn, targets = DEFAULT_TARGETS, decisions = {}) {
-  const cfg = normalizeConfig(cfgIn);
-  const sc = normalizeScope(scope, cfg);
-  const through = sc.to < cfg.cutoff ? sc.to : cfg.cutoff;
-  return targetAchievementFrom(monthlyReceipts(ledger, { ...sc, from: `${targets.fiscalYear}-01-01`, to: through }, cfg, decisions), scope, cfgIn, targets);
 }
 
 /* ---------- Metric definitions shown in the UI ---------- */
@@ -770,11 +776,11 @@ export const METRIC_DEFINITIONS = {
     notes: { en: 'Analytical view before any exclusion. Not labelled official.', ar: 'عرض تحليلي قبل أي استبعاد. لا يُوصف بأنه رسمي.' }
   },
   targetAchievement: {
-    label: { en: 'Collection target achievement', ar: 'تحقيق مستهدف التحصيل' },
-    numerator: { en: 'Receipts, fiscal year to date (Population A)', ar: 'الإيرادات المحصلة منذ بداية السنة المالية (المجتمع A)' },
-    denominator: { en: 'Cumulative approved monthly target (annual target × monthly curve)', ar: 'المستهدف الشهري التراكمي المعتمد (المستهدف السنوي × المنحنى الشهري)' },
-    dateBasis: { en: 'Fiscal year to the data cutoff', ar: 'السنة المالية حتى تاريخ قطع البيانات' },
+    label: { en: 'Achievement against the plan to date', ar: 'نسبة الإنجاز مقابل المخطط حتى تاريخه' },
+    numerator: { en: 'Receipts, from the start of the plan year to the cut-off (Population A)', ar: 'الإيرادات المحصلة منذ بداية السنة حتى تاريخ القطع (المجتمع A)' },
+    denominator: { en: 'The reference plan’s cumulative planned amount to the same date (plan target × the plan’s monthly distribution)', ar: 'المخطط التراكمي للخطة المرجعية حتى التاريخ نفسه (مستهدف الخطة × التوزيع الشهري للخطة)' },
+    dateBasis: { en: 'The plan year to the data cutoff', ar: 'سنة الخطة حتى تاريخ قطع البيانات' },
     population: 'A',
-    notes: { en: 'Target is an input, never derived from data. ', ar: 'المستهدف مُدخل وليس مشتقاً من البيانات. يُعرض منفصلاً عن التغطية.' }
+    notes: { en: 'The target is an input from the configured reference plan (its name and version are printed with the figure); it is never derived from data and is unavailable — not zero — when there is no usable reference plan.', ar: 'المستهدف مُدخل من الخطة المرجعية المحددة (يُطبع اسمها وإصدارها مع الرقم) وليس مشتقاً من البيانات؛ وهو غير متاح — وليس صفراً — عند غياب خطة مرجعية صالحة.' }
   }
 };

@@ -13,11 +13,16 @@ import { reviewStatusOf, statusGroupCounts } from '../data/orderSummary';
 import { useDocFiles } from '../components/record/PdfPreview';
 import { amanahName } from '../data/catalog';
 import OrdersView from './EnforcementOrders';
+import { SourceKpis, AllView, EefaaView, DataSourceNote, ListToolbar, useListFilters } from '../components/revenue/EnforcementSources';
+import { ScopeFilters } from '../components/filters';
+import { referredFields, referredMatches } from '../components/filters/localPages';
+import { useSourceRecords } from '../context/SourceRecordsContext';
 import { Section } from '../components/record/RecordPage';
 import { loadPreparedSamples, SIM_LABEL } from '../data/ocrSimulation';
 import { SHOW_INTERNAL_NOTES } from '../data/uiFlags';
+import '../styles/enforcement-lists.css';
 
-const VIEWS = ['orders', 'eligible', 'invoices', 'contracts'];
+const VIEWS = ['all', 'sanad', 'eefaa', 'eligible', 'invoices', 'contracts']; // (the old ?view=imports falls back to «الكل»: there is no upload any more)
 const EXC_LABEL = {
   no_references: { en: 'Invoice numbers not identified — needs review', ar: 'لم يتم تحديد أرقام الفواتير — تحتاج مراجعة', def: { en: 'No invoice reference in the structured fields, the description, the notes or any document added. This is NOT «no related invoices».', ar: 'لا مرجع فاتورة في الحقول المهيكلة ولا الوصف ولا الملاحظات ولا أي مستند مضاف. وهذا ليس «لا فواتير مرتبطة».' } },
   corrupted_reference: { en: 'Corrupted invoice number (scientific notation)', ar: 'رقم فاتورة مشوّه (صيغة علمية)', def: { en: 'The structured invoice number arrived as scientific notation (digits lost): it cannot be matched. The description or a document may carry the full number.', ar: 'وصل رقم الفاتورة المهيكل بصيغة علمية (ضاعت أرقامه): لا يمكن مطابقته. وقد يحمل الوصف أو مستند الرقم الكامل.' } },
@@ -31,13 +36,14 @@ const EXC_LABEL = {
   contract_level_only: { en: 'Contract-level request, invoices not identified', ar: 'طلب على مستوى العقد، فواتيره غير محددة', def: { en: 'Sanad names a contract number but no invoice; it is not spread over the contract’s invoices.', ar: 'تذكر سند رقم عقد دون فاتورة؛ ولا يُوزَّع على فواتير العقد.' } }
 };
 
-// «إدارة التنفيذ» — the landing of enforcement management: clearly defined counts, then four views over the SAME relationships used everywhere else
+// «إدارة أوامر التنفيذ» — the landing of enforcement management: clearly defined counts, then four views over the SAME relationships used everywhere else
 // (orders · referred invoices · related contracts · matching-review exceptions). It owns no data of its own.
 export default function EnforcementHome() {
   const rev = useRevenue();
   const { L, B, ar, sar, count: fmt } = useL();
   const [sp, setSp] = useSearchParams();
-  const view = VIEWS.includes(sp.get('view')) ? sp.get('view') : 'orders';
+  const rawView = sp.get('view'); const view = rawView === 'orders' ? 'sanad' : VIEWS.includes(rawView) ? rawView : 'all'; // «orders» (older links) is the Sanad list
+  const sr = useSourceRecords();
   const cases = rev.cases;
   const idx = useMemo(() => buildIndex(cases), [cases]);
   const comps = useMemo(() => cases.map((c) => { const comp = orderCompleteness(c); const ex = orderExceptions(c); return { c, ex, comp, review: reviewStatusOf(comp, c, ex) }; }), [cases]);
@@ -70,25 +76,21 @@ export default function EnforcementHome() {
   useEffect(() => { let off = false; loadPreparedSamples().then((x) => { if (!off) setSamples(x); }); return () => { off = true; }; }, []);
 
   const go = (v, extra = {}) => setSp({ view: v, ...extra });
-  const card = (n, label, unit, o = {}) => {
-    const body = <><span className={`oj-card__n${o.warn && n ? ' rp-warn' : ''}`} dir="ltr">{typeof n === 'number' ? fmt(n) : n}</span><span className="oj-card__l">{label}</span><span className="oj-card__u">{unit}</span></>;
-    return o.onClick ? <button type="button" className="oj-card" onClick={o.onClick}>{body}</button> : <div className="oj-card">{body}</div>;
-  };
+  const SOURCES_NAV = [['all', L('All', 'الكل'), null], ['sanad', L('Sanad', 'سند'), cases.length], ['eefaa', L('Eefaa', 'إيفاء'), sr.groups.length]]; // «الكل» carries NO number: Sanad requests and Eefaa violations are different units
+  const RELATED_NAV = [['eligible', L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), eligibleN ?? 0], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length]];
   return (
     <div className="rp">
-      <header className="rp-head"><div className="rp-titlebar"><div className="rp-title"><h1 className="page-title">{L('Enforcement management', 'إدارة التنفيذ')}</h1>
-        <div className="page-sub">{L('Sanad enforcement requests, the invoices they refer to and what needs your review.', 'طلبات التنفيذ في سند، والفواتير التي تشير إليها، وما يحتاج مراجعتك.')}</div></div></div></header>
-      <IntegrationNotice />
-      {missing > 0 && <div className="rp-limit rp-limit--warn" role="status">{L(`${missing} document(s) have no original file in this browser (backups keep the extracted evidence but not the files). Open the order to add the file again.`, `${missing} مستند بلا ملف أصلي في هذا المتصفح (تحتفظ النسخ الاحتياطية بالأدلة المستخرجة دون الملفات). افتح الأمر لإضافة الملف من جديد.`)}</div>}
+      <header className="rp-head"><div className="rp-titlebar"><div className="rp-title"><h1 className="page-title">{L('Enforcement orders management', 'إدارة أوامر التنفيذ')}</h1>
+        <div className="page-sub">{L('Sanad enforcement requests and Eefaa violations, the invoices they refer to and what needs your review.', 'طلبات التنفيذ في سند ومخالفات إيفاء، والفواتير التي تشير إليها، وما يحتاج مراجعتك.')}</div></div>
+        <div className="ef-head-actions">
+          <IntegrationNotice />
+        </div></div></header>
+      <DataSourceNote />
+      {missing > 0 && <details className="ef-note ef-note--warn"><summary>{L(`${missing} document(s) have no original file in this browser.`, `${missing} مستند بلا ملف أصلي في هذا المتصفح.`)} <b>{L('Details', 'تفاصيل')}</b></summary><div className="ef-note__body"><p role="status">{L(`${missing} document(s) have no original file in this browser (backups keep the extracted evidence but not the files). Open the order to add the file again.`, `${missing} مستند بلا ملف أصلي في هذا المتصفح (تحتفظ النسخ الاحتياطية بالأدلة المستخرجة دون الملفات). افتح الأمر لإضافة الملف من جديد.`)}</p></div></details>}
       <LegacyRecords />
 
       <section aria-label={L('Summary', 'الملخص')}>
-        <div className="oj-cards">
-          {card(cases.length, L('Enforcement requests', 'طلبات التنفيذ'), L('count of requests', 'عدد الطلبات'), { onClick: () => go('orders') })}
-          {card(needing, L('Need action', 'تحتاج إجراء'), L('requests', 'طلب'), { warn: true, onClick: () => go('orders', { review: 'open' }) })}
-          {card(inv.ever, L('Referred invoices', 'فواتير محالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('invoices') })}
-          {card(eligibleN == null ? '…' : eligibleN, L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), L('count of invoices', 'عدد الفواتير'), { onClick: () => go('eligible') })}
-        </div>
+        <SourceKpis onGo={(v, extra) => go(v, extra)} />
         {SHOW_INTERNAL_NOTES && <div className="muted" style={{ fontSize: 12, marginBlockStart: 6 }}>{L('Requests and invoices are different units: the counts are not added together.', 'الطلبات والفواتير وحدتا عدّ مختلفتان: لا تُجمع الأعداد معاً.')}</div>}
         {SHOW_INTERNAL_NOTES && (<details className="oj-more" style={{ marginBlockStart: 6 }}>
           <summary>{L('Breakdown of the counts', 'تفاصيل الأعداد')}</summary>
@@ -109,12 +111,18 @@ export default function EnforcementHome() {
         </details>)}
       </section>
 
-      <nav className="rp-tabs" aria-label={L('Enforcement views', 'عروض الإنفاذ')}>
-        {[['orders', L('Requests', 'الطلبات'), cases.length], ['eligible', L('Invoices eligible for referral', 'الفواتير القابلة للإحالة'), eligibleN ?? 0], ['invoices', L('Referred invoices', 'الفواتير المحالة'), inv.ever], ['contracts', L('Related contracts', 'العقود ذات الصلة'), contracts.length]].map(([k, label, n]) => (
-          <button key={k} type="button" className={`rp-tab${view === k ? ' rp-tab--on' : ''}`} aria-current={view === k ? 'page' : undefined} onClick={() => go(k)}>{label} <span className="rp-count">{fmt(n)}</span></button>
-        ))}
-      </nav>
-      {view === 'orders' && <OrdersView />}
+      {(<div className="ef-nav">
+          <div className="ef-seg" role="group" aria-label={L('Source', 'المصدر')}>
+            {SOURCES_NAV.map(([k, label, n]) => <button key={k} type="button" className="ef-seg__b" aria-pressed={view === k} onClick={() => go(k)}>{label}{n != null && <span className="ef-seg__n" dir="ltr">{fmt(n)}</span>}</button>)}
+          </div>
+          <nav className="ef-related" aria-label={L('Related views', 'عروض ذات صلة')}>
+            <span className="ef-related__t">{L('Related:', 'عروض ذات صلة:')}</span>
+            {RELATED_NAV.map(([k, label, n]) => <button key={k} type="button" className="ef-rtab" aria-current={view === k ? 'page' : undefined} onClick={() => go(k)}>{label} <span className="rp-count" dir="ltr">{fmt(n)}</span></button>)}
+          </nav>
+        </div>)}
+      {view === 'all' && <AllView />}
+      {view === 'sanad' && <OrdersView />}
+      {view === 'eefaa' && <EefaaView />}
       {view === 'eligible' && <EligibleInvoices />}
       {view === 'invoices' && <ReferredInvoices idx={idx} />}
       {view === 'contracts' && <RelatedContracts items={contracts} />}
@@ -144,7 +152,7 @@ function LegacyRecords() {
       <ul style={{ margin: '6px 0 0', paddingInlineStart: 18 }}>{ids.map((id) => { const r = rev.legacyRecords[id]; const docs = Object.values(r.docs || {}); const links = Object.values(r.links || {}); return (
         <li key={id} style={{ marginBlockEnd: 6 }}><b dir="ltr">{id}</b> · {L(`${docs.length} document(s), ${links.length} link(s)`, `${docs.length} مستند، ${links.length} رابط`)}{docs[0] ? <span dir="ltr" className="muted"> · {docs[0].name}</span> : null}
           <div className="oj-row" style={{ marginBlockStart: 3 }}><label style={{ fontSize: 12 }}>{L('Restore to', 'استعادة إلى')} <select className="input" value={target[id] || ''} onChange={(e) => setTarget((m) => ({ ...m, [id]: e.target.value }))}><option value="">—</option>{targets.map((c) => <option key={c.enforceNum} value={c.enforceNum}>{c.source?.requestNo || ''} · {c.enforceNum}</option>)}</select></label>
-            <button type="button" className="btn btn-sm" disabled={!target[id] || !rev.canReview} onClick={() => { const r = rev.enforcement.restoreLegacy(id, target[id]); setMsg(r.ok ? { ok: true, t: L('Restored.', 'تمت الاستعادة.') } : { ok: false, t: L('Could not restore (the order already has its own record).', 'تعذّرت الاستعادة (للأمر سجل خاص به بالفعل).') }); }}>{L('Restore', 'استعادة')}</button></div></li>); })}</ul>
+            <button type="button" className="btn btn-sm" disabled={!target[id] || !rev.canDo.enforcementReview} onClick={() => { const r = rev.enforcement.restoreLegacy(id, target[id]); setMsg(r.ok ? { ok: true, t: L('Restored.', 'تمت الاستعادة.') } : { ok: false, t: L('Could not restore (the order already has its own record).', 'تعذّرت الاستعادة (للأمر سجل خاص به بالفعل).') }); }}>{L('Restore', 'استعادة')}</button></div></li>); })}</ul>
     </details>
   );
 }
@@ -159,6 +167,8 @@ function EligibleInvoices() {
   useRestoreScroll(rows.length > 0);
   return (
     <section className="rp-section" aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
+      {/* this list follows the SHARED revenue scope (Amanah, source, …) across all dates up to the cutoff: it is shown here so nothing narrows it invisibly */}
+      <ScopeFilters primary={['amanah', 'source']} secondary={['municipality', 'invoiceOrigin', 'product', 'mainClass']} dateBasis="issue" onChange={() => setPage(0)} resultCount={<><b>{data?.total ?? '…'}</b> {L('invoices', 'فاتورة')}</>} />
       {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Overdue, uncollected invoices that are not excluded or cancelled, have complete data and no execution order yet. They can be referred now.', 'فواتير متأخرة وغير محصّلة، غير مستبعدة ولا ملغاة، بياناتها مكتملة، وليس لها أمر تنفيذ بعد. يمكن إحالتها الآن.')}</div>}
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Invoices eligible for referral', 'الفواتير القابلة للإحالة')}>
         <thead><tr><th>{L('Invoice', 'رقم الفاتورة')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Product', 'اسم المنتج')}</th><th className="num">{L('Amount', 'المبلغ')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th><th className="num">{L('Days overdue', 'أيام التأخر')}</th></tr></thead>
@@ -175,9 +185,11 @@ function EligibleInvoices() {
 function ReferredInvoices({ idx }) {
   const rev = useRevenue(); const { L, B, sar } = useL();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('enf-invoices', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [page, setPage] = useState(mem.page ?? 0); const [f, setF] = useState(mem.f ?? 'all'); const [q, setQ] = useState(mem.q ?? '');
-  useEffect(() => { writeListMemory('enf-invoices', { page, f, q }); }, [page, f, q]);
-  const all = useMemo(() => [...idx.entries()].filter(([, e]) => e.referredEver).map(([id, e]) => ({ id, e })).filter((x) => (f === 'all' || (f === 'inexec' && x.e.current === 'in_execution') || (f === 'suspended' && x.e.current === 'suspended') || (f === 'closed' && x.e.closedOnly)) && (!q.trim() || x.id.toLowerCase().includes(q.trim().toLowerCase()))).sort((a, b) => a.id.localeCompare(b.id)), [idx, f, q]);
+  const [page, setPage] = useState(mem.page ?? 0);
+  useEffect(() => { writeListMemory('enf-invoices', { page }); }, [page]);
+  const fields = useMemo(() => referredFields(), []);
+  const F = useListFilters('invoices', fields, () => setPage(0)); const fv = F.values;
+  const all = useMemo(() => [...idx.entries()].filter(([, e]) => e.referredEver).map(([id, e]) => ({ id, e })).filter((x) => referredMatches(x.id, x.e, fv)).sort((a, b) => a.id.localeCompare(b.id)), [idx, fv]);
   const view = all.slice(page * 25, (page + 1) * 25); const key = view.map((x) => x.id).join('|');
   const { data } = useAsync(() => (view.length ? rev.enforcement.resolve(view.map((x) => ({ kind: 'invoice_id_exact', value: x.id }))) : Promise.resolve({ results: [] })), [key, rev.dataVersion]);
   const by = useMemo(() => new Map((data?.results || []).map((r) => [r.ref.value, r.candidates[0]])), [data]);
@@ -185,10 +197,7 @@ function ReferredInvoices({ idx }) {
   return (
     <section className="rp-section" aria-label={L('Referred invoices', 'الفواتير المحالة')}>
       {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Invoices with at least one CONFIRMED order. Payment status and remaining balance are the invoice’s own; the enforcement columns are separate.', 'فواتير عليها أمر مؤكد واحد على الأقل. حالة السداد والمتبقي من الفاتورة نفسها؛ وأعمدة الإنفاذ منفصلة.')}</div>}
-      <div className="rv-form" role="search" style={{ margin: '8px 0' }}>
-        <label style={{ flex: '1 1 200px' }}>{L('Search invoice number', 'بحث برقم الفاتورة')}<input className="input" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} dir="ltr" placeholder="177-2200000123" /></label>
-        <label>{L('Enforcement', 'الإنفاذ')}<select className="input" value={f} onChange={(e) => { setF(e.target.value); setPage(0); }}><option value="all">{L('Ever referred', 'سبقت إحالتها')}</option><option value="inexec">{L('An order that is not closed', 'أمر غير مغلق')}</option><option value="closed">{L('All orders closed', 'كل الأوامر مغلقة')}</option></select></label>
-      </div>
+      <ListToolbar fields={fields} values={fv} onChange={F.set} onClear={F.clear} onQ={(x) => F.set({ q: x })} qPlaceholder="177-2200000123" count={<><b>{all.length}</b> {L('invoices', 'فاتورة')}</>} />
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Referred invoices', 'الفواتير المحالة')}>
         <thead><tr><th>{L('Invoice', 'الفاتورة')}</th><th>{L('Payer', 'الدافع')}</th><th>{L('Payment status', 'حالة السداد')}</th><th className="num">{L('Remaining', 'المتبقي')}</th><th>{L('Enforcement status', 'حالة الإنفاذ')}</th><th>{L('Orders', 'الأوامر')}</th></tr></thead>
         <tbody>{view.map(({ id, e }) => { const k = by.get(id); return (
@@ -199,7 +208,7 @@ function ReferredInvoices({ idx }) {
             <td><EnforcementChips enf={e} /></td>
             <td style={{ fontSize: 12 }}>{e.confirmed.map((o) => <div key={o.enforceNum}><RecordLink to={orderPath(o.enforceNum)} dir="ltr">{o.enforceNum}</RecordLink> <OrderStatusChip status={o.orderStatus} /></div>)}</td>
           </tr>); })}
-          {!view.length && <tr><td colSpan={6} className="muted">{L('No invoice matches.', 'لا فاتورة مطابقة.')}</td></tr>}</tbody>
+          {!view.length && <tr><td colSpan={6} className="muted">{L('No invoice matches.', 'لا فاتورة مطابقة.')} {idx.size > 0 && <button type="button" className="rv-link" onClick={F.clear}>{L('Clear filters', 'مسح الفلاتر')}</button>}</td></tr>}</tbody>
       </table></div>
       <Pager page={page} total={all.length} size={25} onPage={setPage} />
     </section>
@@ -207,11 +216,13 @@ function ReferredInvoices({ idx }) {
 }
 
 function RelatedContracts({ items }) {
-  const { L, B, ar, sar, short } = useL();
+  const rev = useRevenue(); const { L, B, ar, sar, short } = useL();
+  const am = rev.scopeEff.amanah; const amLabel = Array.isArray(am) ? am.map((k) => amanahName(k, ar)).join(', ') : am !== 'all' ? amanahName(am, ar) : '';
   const [page, setPage] = useState(0);
   const view = items.slice(page * 25, (page + 1) * 25);
   return (
     <section className="rp-section" aria-label={L('Related contracts', 'العقود ذات الصلة')}>
+      {amLabel && <div className="ft-notice" role="status">{L(`Limited to the Amanah selected in the platform scope: ${amLabel}.`, `مقيّدة بالأمانة المختارة في نطاق المنصة: ${amLabel}.`)} <button type="button" className="rv-link" onClick={() => rev.setAmanah('all')}>{L('Clear filters', 'مسح الفلاتر')}</button></div>}
       {SHOW_INTERNAL_NOTES && <div className="rp-limit">{L('Three different facts, never merged: «mentioned» (an order’s text or a document names the contract, unreviewed); «directly referred» (Sanad’s structured field, or a mention a reviewer confirmed from a document); «invoices referred» (the contract’s own invoices that carry a confirmed order). None implies another, and a contract is never linked by an amount or a payer name.', 'ثلاث حقائق مختلفة لا تُدمج: «مذكورة» (نص أمر أو مستند يذكر العقد دون مراجعة)؛ و«محالة مباشرة» (حقل سند المهيكل أو ذكر أكّده مراجع من مستند)؛ و«فواتير محالة» (فواتير العقد نفسه التي عليها أمر مؤكد). لا تدل إحداها على أخرى، ولا يُربط عقد بمبلغ أو اسم دافع.')}</div>}
       <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('Related contracts', 'العقود ذات الصلة')}>
         <thead><tr><th>{L('Contract', 'العقد')}</th><th>{L('Tenant', 'المستأجر')}</th><th>{L('Order and the contract', 'الأمر والعقد')}</th><th>{L('Invoices referred', 'فواتير محالة')}</th></tr></thead>

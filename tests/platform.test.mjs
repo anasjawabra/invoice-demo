@@ -31,10 +31,15 @@ import { appropriationOf, appropriationTotal, appropriationKeys, HQ_KEY } from '
 import { paymentFacts } from '../src/data/invoicePayments.js';
 import { overdueDays, paymentLateness } from '../src/data/lateness.js';
 import { handleApi } from '../server/api.js';
+import { setAuthenticator } from '../server/api.js';
+import { PERMISSION_IDS } from '../src/data/permissions.js';
+// these tests call the HTTP handler directly: authenticate them as a full administrator (the authorization behaviour itself is covered by tests/authz-server.test.mjs)
+setAuthenticator(() => ({ user: { id: 'usr-test-admin' }, access: { permissions: new Set(PERMISSION_IDS), scopes: Object.fromEntries(PERMISSION_IDS.map((p) => [p, { all: true }])) }, accessVersion: 1 }));
+
 import { ENTITIES as ENT_LIST } from '../src/data/catalog.js';
 const ENT_NAME = (i) => ENT_LIST[i % ENT_LIST.length].en;
 import { buildAnalysis, focusBreakdown, mapValue, trendOf, direction, concentration, needsFollowUp, decompose } from '../src/data/revenueAnalysis.js';
-import { computeGoal, evenPlan, plannedToDate, monthsLeft, reportingDateFor, savePlan, rebasePlan, emptyGoalStore, planKey } from '../src/data/collectionGoal.js';
+import { evenPlan, plannedToDate } from '../src/data/planningBasis.js';
 import { normalizeConfig as normalizeCfgG, EXCLUSION_RULES as RULES_G } from '../src/data/revenueMetrics.js';
 import { amanahOptionsOf as amanahsG, amanahFilterOptions } from '../src/data/revenueLedger.js';
 import nodeFs from 'node:fs';
@@ -586,7 +591,7 @@ await test('smart reports: ambiguous requests get ONE focused clarification insi
 
 /* ------------------------------------------------------------ Phase 0 · batch 1 (F-02, F-03, F-09, F-10, F-11) */
 await test('F-02: report totals carry the rates and the cancelled share, so the relations block and every export show them (never «غير متاحة» for a calculable rate)', () => {
-  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['executive'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS });
+  const m = buildReportModel({ spec: { ...defaultSpec(TODAY), sections: ['exclusions'] }, lang: 'ar', out: mkOut(cYtd), targets: DEFAULT_TARGETS });
   const rel = m.sections.flatMap((s) => s.blocks).find((b) => b.type === 'relations');
   assert.ok(rel.totals.collectedOverNet.calculable && rel.totals.exclusionRate.calculable && typeof rel.totals.cancelled === 'number');
   assert.equal(rel.totals.cancelled, cYtd.totals.cancelled);
@@ -873,7 +878,7 @@ await test('Reference resolution: exact invoice numbers match; a bare serial is 
   const typo = orderOf('multi_typo_ref'); const rt = resolveFor(typo.refs); assert.deepEqual(rt.results.map((x) => x.status), ['matched', 'unmatched']); assert.equal(rt.results[1].candidates.length, 0, 'no “similar” invoice is substituted');
   const some = idOfInv(multi.covers[0]); const i0 = lookupId(st, some); const sad = resolveFor([{ kind: 'sadad_no', value: sadadOf(st.idKey[i0]) }, { kind: 'violation_no', value: '00000000000001' }, { kind: 'contract_no', value: 'CT-2026-0087' }, { kind: 'invoice_id_exact', value: '177-882607220000' }]);
   assert.equal(sad.results[0].status, 'matched'); assert.equal(sad.results[0].candidates[0].invoiceId, some); assert.equal(sad.results[1].status, 'unmatched'); assert.equal(sad.results[2].status, 'contract_not_found'); assert.equal(sad.results[2].candidates.length, 0, 'a contract number never resolves to invoices'); assert.equal(sad.results[3].status, 'matched'); assert.equal(sad.results[3].candidates[0].invoiceId, '177-882607220000', 'an exact id (a hand-anchored 4-digit one) is looked up as written, never padded to another invoice');
-  const sum = r.results[0].candidates[0]; assert.ok(['overdue', 'partial', 'collected', 'not_due', 'cancelled', 'excluded'].includes(sum.paymentStatus) && sum.grossAmount > 0 && sum.payerName);
+  const sum = r.results[0].candidates[0]; assert.ok(['overdue', 'partial', 'collected', 'not_due', 'cancelled'].includes(sum.paymentStatus) && sum.grossAmount > 0 && sum.payerName);
 });
 
 await test('Amount alone never matches: the same-debtor list is information only, the order amount is only compared with invoices matched by reference, and a discrepancy is reported — never closed by inventing a match', () => {
@@ -935,7 +940,7 @@ await test('Engine: the collection category and the payment status follow the FI
   assert.ok(snapshot(st, { scope: sc, cfg, links: { [id]: 'open' } }).equation.ok, 'the approved identities still hold');
   // an invoice cancelled in the source but referred to enforcement stays an uncollected invoice — also after the order closes
   let ci = -1; for (let k = 0; k < st.nGen; k += 1) if (st.cancelDay[k] && st.cancelDay[k] <= dayNum(TODAY)) { ci = k; break; }
-  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'candidate' } })).derived.payStatus, 'cancelled', 'a proposal changes nothing'); for (const s of ['open', 'suspended', 'closed']) { const d = detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived; assert.equal(d.cancelled, false, `${s}: S9 — a cancellation caused by a referral is not a cancellation`); assert.equal(d.payStatus, 'excluded'); assert.equal(d.gross, x0.derived.gross, 'the invoice stays billed'); } }
+  if (ci >= 0) { const cid = idOfInv(ci); const x0 = detail(st, ci, makeCtx(st, { cfg, links: {} })); assert.equal(x0.derived.payStatus, 'cancelled'); assert.equal(detail(st, ci, makeCtx(st, { cfg, links: { [cid]: 'candidate' } })).derived.payStatus, 'cancelled', 'a proposal changes nothing'); for (const s of ['open', 'suspended', 'closed']) { const d = detail(st, ci, makeCtx(st, { cfg, links: { [cid]: s } })).derived; assert.equal(d.cancelled, false, `${s}: S9 — a cancellation caused by a referral is not a cancellation`); assert.equal(d.excluded, true); assert.notEqual(d.payStatus, 'excluded', 'excluded is not a payment status'); assert.equal(d.gross, x0.derived.gross, 'the invoice stays billed'); } }
   assert.equal(list(st, { scope: sc, cfg, filters: { exec: 'inexec' }, links: { [id]: 'open' }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), true);
   for (const [f, s2, expect] of [['suspended', 'suspended', true], ['inexec', 'suspended', false], ['closed', 'closed', true], ['ever', 'closed', true], ['none', 'closed', false], ['ever', 'candidate', false]]) assert.equal(list(st, { scope: sc, cfg, filters: { exec: f }, links: { [id]: s2 }, page: 0, pageSize: 1000 }).rows.some((r) => r.id === id), expect, `filter ${f} with ${s2}`);
 });
@@ -1184,17 +1189,17 @@ await test('Matching 4 · a genuine conflicting reference (an invoice of ANOTHER
   const bad2 = rows2.find((r) => r.candidates[0].invoiceId === eInv(other)); assert.ok(bad2.resolved[eInv(other)].some((x) => x.by === 'document_names_payer'), 'a document that names the payer’s identity IS evidence'); assert.equal(rowState(bad2).selectable, true);
 });
 
-await test('Cancelled 1 · S9 (19 Oct): an invoice cancelled in Sadad because it was referred (an order of the Sanad feed) stays billed and is excluded as «منفذ ضده – قضايا (سند)»; the identities hold; «ملغاة ومحالة» is gone', () => {
+await test('Cancelled 1 · S9 (19 Oct): an invoice cancelled in Sadad because it was referred (an order of the Sanad feed) stays billed and is excluded as «مرتبطة بأمر تنفيذ مؤكد» and flagged «تعارض بين المصدر والتنفيذ — يحتاج مراجعة»; the identities hold', () => {
   for (const q of [eo('cancelled_open'), eo('cancelled_closed')]) {
     const i = q.covers[0]; const id = eInv(i); const det = (links) => detail(est, i, makeCtx(est, { cfg: ecfg, links })).derived;
     for (const links of [{}, { [id]: 'candidate' }, { [id]: 'open' }, { [id]: 'closed' }, { [id]: 'withdrawn' }]) {
       const d = det(links); assert.equal(d.sourceCancelled, true, 'the source fact is kept'); assert.equal(d.cancelled, false, 'a cancellation caused by a referral is not a cancellation');
-      assert.equal(d.excluded, true); assert.equal(d.payStatus, 'excluded'); assert.equal(d.enfConflict, false); assert.equal(d.net, d.collected, 'excluded from net billed'); assert.ok(d.gross > 0, 'stays in إجمالي المفوتر');
+      assert.equal(d.excluded, true); assert.ok(['partial', 'overdue', 'not_due'].includes(d.payStatus), 'an excluded invoice keeps its own payment status: «excluded» is not a payment status'); assert.equal(d.enfConflict, true, 'a source-cancelled invoice with a confirmed order is flagged for review; every amount above is unchanged'); assert.equal(d.net, d.collected, 'excluded from net billed'); assert.ok(d.gross > 0, 'stays in إجمالي المفوتر');
     }
   }
   const q = eo('cancelled_open'); const ids = q.covers.map(eInv); const base = snapshot(est, { scope: ESC, cfg: ecfg, links: {} }); const links = Object.fromEntries(ids.map((x) => [x, 'open'])); const withL = snapshot(est, { scope: ESC, cfg: ecfg, links });
-  assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold'); assert.equal(withL.totals.gross, base.totals.gross); assert.equal(withL.stock.enforcement.sourceConflict.count, 0, '«ملغاة ومحالة» no longer exists');
-  const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.equal(rows.length, 0);
+  assert.ok(base.equation.ok && withL.equation.ok, 'the approved identities hold'); assert.equal(withL.totals.gross, base.totals.gross); assert.ok(withL.stock.enforcement.sourceConflict.count >= 2, 'the flagged invoices are reported as «تعارض بين المصدر والتنفيذ»'); assert.equal(withL.stock.enforcement.sourceConflict.outstanding, 0, 'flag only: they are excluded, so no uncollected amount is attached to them');
+  const rows = list(est, { scope: ESC, cfg: ecfg, filters: { exec: 'conflict', allPeriods: true }, links, page: 0, pageSize: 100 }).rows; assert.ok(rows.length >= 1 && rows.some((r) => ids.includes(r.id)), 'the review list shows the flagged invoices');
   const closedQ = eo('cancelled_closed'); assert.equal(closedQ.status, 'مغلق'); const wd = removeLink(confirmLink(emptyStore(), 'EN-X', ids[0], { ...NOW, input: { invoiceId: ids[0], origin: 'sanad_structured', gross: 1, conflicts: [], resolvedConflicts: [], evidence: [] } }).store, 'EN-X', ids[0], { ...NOW, note: 'withdrawn by the issuer' }).store;
   assert.equal(invoiceStatusMap(buildEffectiveCases([{ enforceNum: 'EN-X', amount: 1, requestStatus: 'قيد التنفيذ', links: [] }], wd))[ids[0]], 'withdrawn', 'withdrawing keeps the review flag (code “withdrawn”) and moves no amount');
   assert.ok(validStoreShape({ v: 1, orders: {}, enf1: { [ids[0]]: { decision: 'apply', by: 'T', at: 'x' } }, enf1History: [{ invoiceId: ids[0], decision: 'apply' }] }), 'a store holding an earlier decision is still valid (kept as history)');
@@ -1248,7 +1253,7 @@ await test('Prepared samples: eight scenarios, each tied to ONE existing demo or
 
 await test('OCR simulation: deterministic, tied to the sample’s own content (transcript → the SAME reference extraction as real text), labelled, never inferred from a file name', () => {
   const x = prep('multi_pages'); const o = est.requests.find((r) => r.enforceNum === x.orderNo); const a = extractionFromSample(x, { orderNo: x.orderNo }); const b = extractionFromSample(x, { orderNo: x.orderNo });
-  assert.deepEqual(a.refs, b.refs, 'the same sample always gives the same result (no randomness)'); assert.equal(a.method, 'ocr_simulated'); assert.equal(a.simulation.label, 'محاكاة OCR — للعرض التجريبي'); assert.equal(SIM_LABEL.ar, 'محاكاة OCR — للعرض التجريبي');
+  assert.deepEqual(a.refs, b.refs, 'the same sample always gives the same result (no randomness)'); assert.equal(a.method, 'ocr_simulated'); assert.equal(a.simulation.label, 'محاكاة OCR — بيانات تجريبية'); assert.equal(SIM_LABEL.ar, 'محاكاة OCR — بيانات تجريبية');
   assert.deepEqual(refsOf(a), sortedIds([...o.covers, ...(o.hidden || [])].map(eInv)), 'the references are exactly the invoices written on the pages'); assert.deepEqual(a.pages.map((p) => p.needsOcr), [false, false, true], 'the stamp page has no text: reported as NOT read'); assert.equal(a.pages[2].reason, 'simulated_no_text');
   assert.equal(a.orderNumberMismatch, false); assert.equal(extractionFromSample(x, { orderNo: 'EN-9999' }).orderNumberMismatch, true, 'a sample used on another order is flagged, not silently accepted');
   const renamed = { ...x, file: 'whatever-12345.pdf', id: x.id }; assert.deepEqual(extractionFromSample(renamed, { orderNo: x.orderNo }).refs, a.refs, 'the file name plays no part');
@@ -1417,55 +1422,16 @@ await test('Review status and alerts: ONE matching-review value per order; unrea
   assert.equal(enforcementCounts([e3]).everReferred, ids.length - 1, 'the count drops when a link is withdrawn'); assert.equal(orderCompleteness(e3).references.confirmedLinks, ids.length - 1); assert.equal(e3.history.some((h) => h.action === 'removed'), true, 'the withdrawal is kept in the history');
 });
 
-/* ------------------------------------------------------------------ Strategic Dashboard: the annual collection goal */
-const NOW26 = '2026-10-11';
-const mk = (o = {}) => ({ year: 2026, today: NOW26, target: 54, monthlyCollected: [2, 3, 3, 3, 3, 3, 3, 3, 3, 4], plan: null, ...o });
-await test('goal: the formulas — share of the revenue appropriation collected, remaining (progress below the target)', () => {
-  const g = computeGoal(mk());
-  assert.equal(g.state, 'ok'); assert.equal(g.target, 54);
-  assert.equal(g.collected, 30); assert.ok(Math.abs(g.collectionRate - 30 / 54) < 1e-12); assert.ok(Math.abs(g.remaining - 24) < 1e-9);
-  assert.equal(g.achieved, false); assert.equal(g.exceededBy, 0);
-  assert.ok(g.versusPlan < 0, 'behind the plan'); // plan to date: 40.5 at the end of September + 11/31 of October's 4.5
-  assert.ok(Math.abs(g.plannedToDate - (40.5 + 4.5 * (11 / 31))) < 1e-9);
-});
-await test('goal: target reached or exceeded — remaining is zero, never negative', () => {
-  const exact = computeGoal(mk({ monthlyCollected: [54] })); assert.equal(exact.achieved, true); assert.equal(exact.remaining, 0); assert.equal(exact.exceededBy, 0);
-  const over = computeGoal(mk({ monthlyCollected: [30, 30] })); assert.equal(over.achieved, true); assert.equal(over.remaining, 0); assert.ok(Math.abs(over.exceededBy - 6) < 1e-9);
-  assert.ok(over.collectionRate > 1); assert.equal(over.pace.requiredPerMonth, 0);
-});
-await test('goal: no valid revenue appropriation — no rate, no remainder, nothing achieved, zero collection is never success', () => {
-  for (const target of [0, null, undefined, NaN, -5, '']) { const g = computeGoal(mk({ target, monthlyCollected: [0] })); assert.equal(g.state, 'no_target', String(target)); assert.equal(g.achieved, undefined); assert.equal(g.target, undefined); assert.equal(g.remaining, undefined); assert.equal(g.collectionRate, undefined); assert.equal(g.collected, 0); }
-  const withPayments = computeGoal(mk({ target: 0 })); assert.equal(withPayments.state, 'no_target'); assert.equal(withPayments.collected, 30, 'the money collected is still reported'); assert.equal(withPayments.achieved, undefined);
-  assert.equal(computeGoal(mk({ monthlyCollected: [0] })).achieved, false, 'valid target, zero collected: not achieved');
-  assert.equal(computeGoal(mk({ target: 1e12, monthlyCollected: [1] })).achieved, false);
-  assert.equal(computeGoal(mk({ monthlyCollected: [54] })).achieved, true);
-  assert.equal(computeGoal(mk({ year: 2027 })).state, 'future_year');
-});
-await test('goal: actual stops at the reporting date (future months have no value, not zero); a closed year is measured at its end', () => {
-  const g = computeGoal(mk()); assert.equal(g.reportingDate, NOW26); assert.equal(g.actual.length, 12);
-  assert.ok(g.actual.slice(0, 10).every((v) => typeof v === 'number')); assert.ok(g.actual.slice(10).every((v) => v === null));
-  assert.ok(g.actual.every((v, i, a) => i === 0 || v === null || v >= a[i - 1]), 'cumulative never falls');
-  const past = computeGoal(mk({ year: 2025, monthlyCollected: Array(12).fill(4) })); assert.equal(past.reportingDate, '2025-12-31'); assert.equal(past.yearEnded, true);
-  assert.equal(past.actual[11], 48); assert.ok(Math.abs(past.plannedToDate - past.plan.cumulative[11]) < 1e-9); assert.equal(past.pace.monthsLeft, 0); assert.equal(past.pace.requiredPerMonth, 0);
-});
-await test('goal: even monthly plan is labelled an assumption; the partial month is prorated the same way for progress and for the pace', () => {
+/* ------------------------------------------------------------------ the 12-month plan primitives (the dashboard's appropriation attainment) */
+// The former computeGoal / collection-goal wrapper was retired in the cleanup phase: a goal is now a PLAN, calculated by planningBasisFromPlan (tests/planning-plan-basis.test.mjs and tests/planning-basis.test.mjs
+// cover: no/zero target = nothing achieved, a target reached is never negative, the actual stops at the cut-off (null, not 0), a closed period is measured at its end, the even profile is labelled an assumption).
+await test('plan primitives: the even monthly plan, and the planned-to-date = the closed months in full + the partly elapsed month prorated by calendar days (the ONE implementation)', () => {
   assert.deepEqual(evenPlan(120).map(Math.round), [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120]);
-  const g = computeGoal(mk()); assert.equal(g.plan.source, 'assumed'); assert.equal(g.plan.drift, null);
-  assert.ok(Math.abs(monthsLeft('2026-10-11') - (20 / 31 + 2)) < 1e-9); assert.ok(Math.abs(monthsLeft('2026-10-31') - 2) < 1e-9); assert.equal(monthsLeft('2026-12-31'), 0);
-  assert.ok(Math.abs(g.pace.requiredPerMonth - g.remaining / (20 / 31 + 2)) < 1e-9);
+  const custom = Array.from({ length: 12 }, (_, i) => 54 * Math.min(1, (i + 1) / 6)); // the whole target planned by June
+  assert.ok(Math.abs(plannedToDate(custom, '2026-10-11') - 54) < 1e-9, 'a custom cumulative plan is honoured: all planned by October');
+  const cum = [4.5, 9, 13.5, 18, 22.5, 27, 31.5, 36, 40.5, 45, 49.5, 54]; // 54 spread evenly
+  assert.ok(Math.abs(plannedToDate(cum, '2026-10-11') - (40.5 + 4.5 * (11 / 31))) < 1e-9, 'plan to date: 40.5 at the end of September + 11/31 of October’s 4.5');
   assert.ok(Math.abs(plannedToDate(evenPlan(120), '2026-01-31') - 10) < 1e-9 && Math.abs(plannedToDate(evenPlan(120), '2026-12-31') - 120) < 1e-9);
-  assert.equal(reportingDateFor(2026, NOW26), NOW26); assert.equal(reportingDateFor(2025, NOW26), '2025-12-31'); assert.equal(reportingDateFor(2027, NOW26), null);
-});
-await test('goal: a saved (draft) plan is never recalculated silently; an explicit update keeps the closed months', () => {
-  let store = savePlan(emptyGoalStore(), { year: 2026, amanah: 'all', annualTarget: 54, at: 't0', by: 'x' });
-  const key = planKey(2026, 'all'); const before = store.plans[key].months.slice();
-  const changed = computeGoal(mk({ target: 190, plan: store.plans[key] })); // the appropriation was adjusted after the plan was saved
-  assert.deepEqual(changed.plan.cumulative, before, 'the saved months are untouched'); assert.equal(changed.plan.source, 'saved');
-  assert.ok(changed.plan.drift && changed.plan.drift.saved === 54 && changed.plan.drift.live === 190, 'the change is reported, not applied');
-  const live = changed.target; store = rebasePlan(store, { year: 2026, amanah: 'all', annualTarget: live, today: NOW26, at: 't1', by: 'x' });
-  const after = store.plans[key].months; assert.deepEqual(after.slice(0, 9), before.slice(0, 9), 'closed months (Jan–Sep) keep their figures'); assert.ok(Math.abs(after[11] - live) < 1e-9);
-  assert.ok(after.every((v, i, a) => i === 0 || v >= a[i - 1]), 'the plan still rises');
-  assert.equal(rebasePlan(savePlan(emptyGoalStore(), { year: 2025, amanah: 'all', annualTarget: 54, at: 't', by: 'x' }), { year: 2025, amanah: 'all', annualTarget: 99, today: NOW26, at: 't2', by: 'x' }).plans[planKey(2025, 'all')].annualTarget, 54, 'a closed year is never rebased');
 });
 await test('appropriations: structure (chapters 1–3 only), the Ministry is the sum of its entities, an unknown year or entity has none', () => {
   const keys = appropriationKeys(); assert.ok(keys.includes(HQ_KEY) && keys.length === 19, 'headquarters + 18 entities');
@@ -1702,75 +1668,34 @@ await test('D27 · licence fees are prepaid: 100 % collected, nothing uncollecte
   assert.ok(sn.totals.collectedOverNet.value >= 0.999 && sn.totals.collectedOverNet.value <= 1, 'collection rate 100 % (never above)');
 });
 
-import { targetsOf, setTargets, emptyTargetStore, applyOverallCoverage, totalTargets, normalizeWeights, targetError } from '../src/data/planTargets.js';
-import { forecastYear, focusRanking, normalCdf } from '../src/data/planForecast.js';
-await test('IIM-14 · targets: coverage × budget = the revenue target (66 % × 30 bn = 19.8 bn), split by month; defaults reproduce the appropriation; saved values carry «آخر تعديل»', () => {
-  const a = { revAdjusted: 12e9, expAdjusted: 30e9 };
-  const d = targetsOf(emptyTargetStore(), 2026, 'X', a); assert.equal(d.source, 'default'); assert.ok(Math.abs(d.revenueTarget - 12e9) < 1, 'by default the revenue target is the appropriation');
-  const st1 = setTargets(emptyTargetStore(), 2026, 'X', { coverage: 0.66 }, { at: '2026-10-19T10:00:00Z', by: 'Tester' });
-  const t = targetsOf(st1, 2026, 'X', a); assert.equal(t.source, 'saved'); assert.equal(t.savedAt, '2026-10-19T10:00:00Z');
-  assert.ok(Math.abs(t.revenueTarget - 19.8e9) < 1, '66 % × 30 bn = 19.8 bn'); assert.ok(Math.abs(t.cumulative[11] - 19.8e9) < 1 && Math.abs(t.monthly[0] - 19.8e9 / 12) < 1, 'split evenly by default');
-  const w = setTargets(st1, 2026, 'X', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9] }); const tw = targetsOf(w, 2026, 'X', a); assert.ok(Math.abs(tw.monthly[11] - 19.8e9 * 9 / 20) < 1 && Math.abs(tw.cumulative[11] - 19.8e9) < 1, 'unequal months still add up to the year');
-  assert.equal(normalizeWeights([0, 0]).length, 12);
-  const rows = [targetsOf(emptyTargetStore(), 2026, 'A', { revAdjusted: 6e9, expAdjusted: 10e9 }), targetsOf(emptyTargetStore(), 2026, 'B', { revAdjusted: 4e9, expAdjusted: 20e9 }), targetsOf(emptyTargetStore(), 2026, 'HQ', { revAdjusted: 0, expAdjusted: 0 })];
-  const applied = applyOverallCoverage(emptyTargetStore(), 2026, 0.66, rows); const after = ['A', 'B', 'HQ'].map((k, j) => targetsOf(applied, 2026, k, [{ revAdjusted: 6e9, expAdjusted: 10e9 }, { revAdjusted: 4e9, expAdjusted: 20e9 }, { revAdjusted: 0, expAdjusted: 0 }][j]));
-  const tot = totalTargets(after); assert.ok(Math.abs(tot.revenueTarget - 0.66 * 30e9) < 1, 'the overall target is the coverage × the total budget'); assert.ok(Math.abs(tot.coverage - 0.66) < 1e-9);
-});
-await test('planning targets · billing is DERIVED (target ÷ collection rate), so coverage, collection rate and billing can never contradict each other; invalid typed targets are refused; the colour scale has no tier above 100 %', async () => {
-  const a = { revAdjusted: 12e9, expAdjusted: 30e9 };
-  const st = setTargets(emptyTargetStore(), 2026, 'X', { coverage: 0.5, collectionRate: 0.8, billing: 99e9 }); const t = targetsOf(st, 2026, 'X', a);
-  assert.ok(Math.abs(t.revenueTarget - 15e9) < 1); assert.ok(Math.abs(t.billing - 15e9 / 0.8) < 1, 'a stale saved billing value is ignored: billing = target ÷ collection rate');
-  assert.ok(Math.abs(t.revenueTarget - t.collectionRate * t.billing) < 1, 'target = collection rate × billing, always');
-  const t2 = targetsOf(setTargets(st, 2026, 'X', { coverage: 0.6 }), 2026, 'X', a); assert.ok(Math.abs(t2.billing - 18e9 / 0.8) < 1 && t2.collectionRate === 0.8, 'changing the coverage re-derives the billing and keeps the collection rate');
-  assert.equal(targetError({ collectionRate: 1.2 }), 'collection_rate'); assert.equal(targetError({ collectionRate: 0 }), 'collection_rate'); assert.equal(targetError({ coverage: -0.1 }), 'coverage'); assert.equal(targetError({ coverage: NaN }), 'coverage');
-  assert.equal(targetError({ coverage: 0.66, collectionRate: 0.6 }), null);
-  const { PCT_COLORS, PCT_CUTS, pctColor } = await import('../src/components/strategic/EntityMap.jsx');
-  assert.equal(PCT_COLORS.length, 4); assert.equal(pctColor('share', 1.5), pctColor('share', 0.85), 'above 100 % is the same top tier as 80 % and above');
+await test('the colour scale of percentages has no tier above 100 % (the same top tier at 80 % and above)', async () => {
+  const { PCT_COLORS, PCT_CUTS, pctColor } = await import('../src/components/strategic/PctScale.jsx');
+  assert.equal(PCT_COLORS.length, 4); assert.equal(PCT_CUTS.length, 3); assert.equal(pctColor('share', 1.5), pctColor('share', 0.85), 'above 100 % is the same top tier as 80 % and above');
 });
 await test('product «فرص» is NOT every investment invoice: investment billed centrally is Furas; investment of the Amanahs and municipalities from their internal systems is «الأنظمة الداخلية»; advertising sites stay the electronic-screen product', () => {
   assert.equal(productOf('investment', 'land_lease', 0), 'foras'); assert.equal(productOf('investment', 'land_lease', 1), 'internal');
   assert.equal(productOf('investment', 'ad_sites', 0), 'screen'); assert.equal(productOf('investment', 'ad_sites', 1), 'screen');
   assert.equal(productOf('fines', 'x', 1), 'mumtathil', 'other sources do not depend on the origin');
 });
-await test('IIM-15 · forecast: a low target gives a high probability and «reasons to reach it»; an unrealistic one gives a low probability and «billing is insufficient»; the closed months are the actuals', () => {
-  const months = [100, 100, 100, 100, 100, 100, 100, 100, 100, 100]; const base = { monthlyCollected: months, reportingMonth: 10, yearEnded: false, dayFraction: 1, billedMonthly: months.map(() => 110), standingUncollected: 300 };
-  const cum = (t) => Array.from({ length: 12 }, (_, k) => (t * (k + 1)) / 12);
-  const easy = forecastYear({ ...base, target: 1000, cumTarget: cum(1000) });
-  assert.ok(easy.probability > 0.8, 'reachable'); assert.ok(easy.reasons.some((r) => r.kind === 'reach')); assert.equal(easy.actualCum[9], 1000);
-  const hard = forecastYear({ ...base, target: 5000, cumTarget: cum(5000) });
-  assert.ok(hard.probability < 0.05, 'unrealistic'); assert.ok(hard.reasons.some((r) => r.code === 'billing_insufficient'), 'even collecting everything owed plus the billing still expected cannot reach it');
-  assert.equal(hard.deviation, hard.collected - hard.plannedToDate); assert.ok(hard.deviation < 0 && hard.deviationPct < 0);
-  assert.ok(hard.estCum[11] > hard.estCum[9] && easy.estCum[8] === easy.actualCum[8], 'closed months equal the actuals; later months are the estimate');
-  assert.equal(forecastYear({ ...base, target: 800, cumTarget: cum(800) }).probability, 1, 'already reached → 100 %');
-  assert.ok(Math.abs(normalCdf(0) - 0.5) < 1e-6);
-  const f = focusRanking([{ amanah: 'A', source: 'x', net: 100, collected: 20, outstanding: 80 }, { amanah: 'B', source: 'y', net: 100, collected: 95, outstanding: 5 }, { amanah: 'C', source: 'z', net: 10, collected: 10, outstanding: 0 }], 0.6, 5);
-  assert.deepEqual(f.map((x) => x.amanah), ['A', 'B'], 'ranked by what is owed × the shortfall; nothing-owed cells are left out');
-});
-// ---- IIM-28 (v3) ----
-await test('IIM-28 · overall targets: coverage 66 % and collection 68 % by default, INDEPENDENT; required billing = target ÷ collection; per-Amanah values are an override that is OFF by default', async () => {
-  const P = await import('../src/data/planTargets.js'); const { appropriationOf, appropriationKeys, appropriationTotal } = await import('../src/data/appropriations.js');
+await test('legacy device record (was IIM-14 / IIM-28 targets): read-only mapping — coverage 66 % × the communicated budget = the Ministry target, collection 68 % independent, the headquarters keeps zero, a typed per-entity value turns the override on; a plan is created from it, nothing in the app edits it', async () => {
+  const L = await import('../src/data/plans/legacyStore.js'); const { appropriationOf, appropriationKeys, appropriationTotal } = await import('../src/data/appropriations.js');
   const items = appropriationKeys().map((k) => ({ key: k, a: appropriationOf(k, 2026) })); const totalBudget = appropriationTotal(appropriationKeys(), 2026).expAdjusted;
-  const st0 = P.emptyTargetStore(); const ov0 = P.overallOf(st0, 2026); assert.equal(ov0.coverage, 0.66); assert.equal(ov0.collectionRate, 0.68); assert.equal(ov0.billing, null); assert.equal(P.overrideOn(st0, 2026), false);
-  const rows0 = P.entityTargets(st0, 2026, items); const tot0 = P.totalTargets(rows0);
-  assert.ok(Math.abs(tot0.revenueTarget - 0.66 * totalBudget) < 1, 'the Ministry target = overall coverage × the communicated budget'); assert.ok(Math.abs(tot0.coverage - 0.66) < 1e-9);
-  assert.ok(rows0.every((r) => r.collectionRate === 0.68), 'the overall collection rate applies to every entity'); assert.ok(Math.abs(tot0.requiredBilling - tot0.revenueTarget / 0.68) < 1, 'required billing = revenue target ÷ collection rate');
-  assert.equal(rows0.find((r) => r.key === '__HQ__').revenueTarget, 0, 'headquarters collects no revenue: it keeps zero');
+  const empty = L.emptyLegacyStore(); const ov0 = L.overallOf(empty, 2026); assert.equal(ov0.coverage, 0.66); assert.equal(ov0.collectionRate, 0.68); assert.equal(ov0.billing, null); assert.equal(L.overrideOn(empty, 2026), false);
+  const rows0 = L.entityTargets(empty, 2026, items); const tot0 = rows0.reduce((t, r) => t + r.revenueTarget, 0); const bill0 = rows0.reduce((t, r) => t + r.billing, 0);
+  assert.ok(Math.abs(tot0 - 0.66 * totalBudget) < 1, 'the Ministry target = overall coverage × the communicated budget'); assert.ok(rows0.every((r) => r.collectionRate === 0.68), 'the overall collection rate applies to every entity');
+  assert.ok(Math.abs(bill0 - tot0 / 0.68) < 1, 'required billing = revenue target ÷ collection rate'); assert.equal(rows0.find((r) => r.key === '__HQ__').revenueTarget, 0, 'headquarters collects no revenue: it keeps zero');
+  assert.ok(rows0.every((r) => Math.abs(r.cumulative[11] - r.revenueTarget) < 1e-6 && r.monthly.length === 12), 'the monthly split adds up to the entity target');
   // the two percentages are independent: only the collection rate changes → the required billing moves, the revenue target does not
-  const st1 = P.setOverall(st0, 2026, { collectionRate: 0.5 }); const tot1 = P.totalTargets(P.entityTargets(st1, 2026, items));
-  assert.ok(Math.abs(tot1.revenueTarget - tot0.revenueTarget) < 1e-6, 'the revenue target does not move'); assert.ok(Math.abs(tot1.requiredBilling - tot0.revenueTarget / 0.5) < 1, 'the required billing does');
-  const st2 = P.setOverall(st0, 2026, { coverage: 0.7 }); const tot2 = P.totalTargets(P.entityTargets(st2, 2026, items)); assert.ok(Math.abs(tot2.revenueTarget - 0.7 * totalBudget) < 1 && P.overallOf(st2, 2026).collectionRate === 0.68, '70 % → 0.7 × the budget; the collection rate is untouched');
-  // per-Amanah override: OFF → a typed per-entity value is ignored (kept); ON → it wins for that entity only
-  const typed = P.setTargets(P.setOverride(st0, 2026, false), 2026, 'Riyadh Amanah', { coverage: 0.9, collectionRate: 0.4 });
-  const off = P.entityTargets(typed, 2026, items).find((r) => r.key === 'Riyadh Amanah'); assert.equal(off.collectionRate, 0.68); assert.ok(Math.abs(off.revenueTarget - rows0.find((r) => r.key === 'Riyadh Amanah').revenueTarget) < 1e-6);
-  const on = P.entityTargets(P.setOverride(typed, 2026, true), 2026, items); const r1 = on.find((r) => r.key === 'Riyadh Amanah');
-  assert.ok(Math.abs(r1.coverage - 0.9) < 1e-9 && r1.collectionRate === 0.4 && r1.source === 'saved'); assert.equal(on.find((r) => r.key === 'Jeddah Amanah').collectionRate, 0.68, 'the other entities keep the overall values');
-  // back-compat: a v2 store that already holds typed per-entity targets keeps them (override inferred ON); weights alone do not switch it on
-  assert.equal(P.overrideOn(P.setTargets(st0, 2026, 'X', { coverage: 0.5 }), 2026), true); assert.equal(P.overrideOn(P.setTargets(st0, 2026, 'X', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2] }), 2026), false);
-  assert.equal(P.overrideOn(P.setOverride(P.setTargets(st0, 2026, 'X', { coverage: 0.5 }), 2026, false), 2026), false, 'an explicit choice wins');
-  // the billing target check
-  assert.equal(P.billingCheck(null, 10e9), null); assert.equal(P.billingCheck(20e9, 22.9e9).below, true); assert.equal(P.billingCheck(30e9, 22.9e9).below, false); assert.equal(P.billingError(-1), 'billing'); assert.equal(P.billingError(null), null);
-  // the monthly split survives and adds up to the entity's target
-  const w = P.entityTargets(P.setTargets(st0, 2026, 'Jeddah Amanah', { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9] }), 2026, items).find((r) => r.key === 'Jeddah Amanah'); assert.ok(Math.abs(w.cumulative[11] - w.revenueTarget) < 1 && w.monthly[11] > w.monthly[0]);
+  const st1 = { ...empty, overall: { 2026: { collectionRate: 0.5 } } }; const rows1 = L.entityTargets(st1, 2026, items);
+  assert.ok(Math.abs(rows1.reduce((t, r) => t + r.revenueTarget, 0) - tot0) < 1e-6, 'the revenue target does not move'); assert.ok(Math.abs(rows1.reduce((t, r) => t + r.billing, 0) - tot0 / 0.5) < 1, 'the required billing does');
+  const st2 = { ...empty, overall: { 2026: { coverage: 0.7 } } }; assert.ok(Math.abs(L.entityTargets(st2, 2026, items).reduce((t, r) => t + r.revenueTarget, 0) - 0.7 * totalBudget) < 1 && L.overallOf(st2, 2026).collectionRate === 0.68, '70 % → 0.7 × the budget; the collection rate is untouched');
+  // per-Amanah override: OFF → a typed per-entity value is ignored; ON (or inferred from a typed coverage / collection rate) → it wins for that entity only
+  const typed = { ...empty, years: { 2026: { 'Riyadh Amanah': { coverage: 0.9, collectionRate: 0.4 } } } };
+  const off = L.entityTargets({ ...typed, override: { 2026: false } }, 2026, items).find((r) => r.key === 'Riyadh Amanah'); assert.equal(off.collectionRate, 0.68); assert.ok(Math.abs(off.revenueTarget - rows0.find((r) => r.key === 'Riyadh Amanah').revenueTarget) < 1e-6);
+  assert.equal(L.overrideOn(typed, 2026), true, 'a store that already holds typed per-entity targets keeps them');
+  const on = L.entityTargets(typed, 2026, items); const r1 = on.find((r) => r.key === 'Riyadh Amanah'); assert.ok(Math.abs(r1.coverage - 0.9) < 1e-9 && r1.collectionRate === 0.4 && r1.source === 'saved'); assert.equal(on.find((r) => r.key === 'Jeddah Amanah').collectionRate, 0.68, 'the other entities keep the overall values');
+  assert.equal(L.overrideOn({ ...empty, years: { 2026: { X: { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2] } } } }, 2026), false, 'weights alone do not switch it on'); assert.equal(L.normalizeWeights([0, 0]).length, 12);
+  const w = L.entityTargets({ ...empty, years: { 2026: { 'Jeddah Amanah': { weights: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 9] } } } }, 2026, items).find((r) => r.key === 'Jeddah Amanah'); assert.ok(Math.abs(w.cumulative[11] - w.revenueTarget) < 1 && w.monthly[11] > w.monthly[0]);
 });
 
 // ---- IIM-32 (v3) ----
@@ -1789,7 +1714,7 @@ import { objectionStatusKey as objKey_V3 } from '../server/engine.js';
 await test('v3 · R1–R11: the labels, codes and sources are exactly those of the meeting; one precedence R3 > R6 > R7 > R4 > R5 > R2 > R1 > R10 > R8 > R9 > R11; «متوفى» is gone', () => {
   assert.deepEqual(EXCLUSION_REASONS.map((r) => `R${r.n}`), ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9', 'R10', 'R11']);
   assert.deepEqual(EXCLUSION_REASONS.map((r) => r.code), ['NO_CONTRACT', 'SERVICE_CO_STAY', 'SANAD_EXECUTED', 'EEFAA_INCOMPLETE', 'OUTSIDE_EEFAA', 'EEFAA_EXECUTED', 'OPEN_OBJECTION', 'ENCROACHMENT', 'AMANAH_STATEMENT', 'STRUCK_OFF_CR', 'DUPLICATE']);
-  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ar), ['فواتير لا تستند على عقود', 'إيقاف التنفيذ – الشركات الخدمية', 'منفذ ضده – قضايا (سند)', 'غير مكتمل', 'خارج إيفاء', 'منفذ ضده – إيفاء', 'اعتراضات قائمة', 'التعديات واستغلال المواقع (محضر التعدي)', 'إفادات الأمانات', 'سجلات مشطوبة', 'فاتورة مكررة']);
+  assert.deepEqual(EXCLUSION_REASONS.map((r) => r.ar), ['فواتير لا تستند على عقود', 'إيقاف التنفيذ – الشركات الخدمية', 'مرتبطة بأمر تنفيذ مؤكد', 'غير مكتمل', 'خارج إيفاء', 'منفذ ضده – إيفاء', 'اعتراضات قائمة', 'التعديات واستغلال المواقع (محضر التعدي)', 'إفادات الأمانات', 'سجلات مشطوبة', 'فاتورة مكررة']);
   const byPriority = RULES_V3.filter((r) => r.priority < 99).sort((a, b) => a.priority - b.priority).map((r) => EXCLUSION_REASONS.find((x) => x.ruleId === r.id).n);
   assert.deepEqual(byPriority, [3, 6, 7, 4, 5, 2, 1, 10, 8, 9, 11]);
   assert.ok(RSV_V3.includes('21 Oct')); assert.ok(!RULE_IDS_V3.includes('DEC-1') && !RULES_V3.some((r) => r.id === 'DEC-1') && DEC_DEFERRED_V3 === true);
@@ -1951,9 +1876,9 @@ await test('Group A · «due — no invoice linked» is a proposed rule over the
   const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg });
   const R = buildItems_A({ today: TODAY, snapshot: sn, labels: { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) }, targetRate: () => 0.6, plan: null, contracts: { count: 3, arrears: 1, overdueInstallments: 1, futureNotInvoiced: 1, unlinkedInstallments: 4, unlinkedAmount: 9e5 }, noContractCount: 0, orders: null, matching: null });
   const it = R.items.find((x) => x.key === 'contracts:unlinked'); assert.ok(it, 'the item exists');
-  const text = JSON.stringify([it.title, it.problem, it.cause, it.recommendation, it.figures]);
+  const text = JSON.stringify([it.title, it.what, it.facts, it.unknown, it.proposed, it.calculated, it.missing]); // Decision Room redesign: the item contract (docs/decision-room-redesign.md)
   assert.ok(text.includes(PR_A.en) && text.includes(PR_A.ar)); assert.match(text, /generated/i); for (const p of RULE_A.prerequisites) assert.ok(text.includes(p.en) && text.includes(p.ar), `Decision Room names «${p.key}»`);
-  assert.ok(it.cause.status === 'hypothesis' && !/found in the Furas extract/i.test(text), 'never presented as an extract finding');
+  assert.ok(it.verification === 'needs_verification' && !/found in the Furas extract/i.test(text), 'never presented as an extract finding');
   // the pages: no page prints the phrase without the candidate-rule wording (they all read it from contractRules)
   for (const f of ['src/data/decisionRoom.js', 'src/data/contracts.js']) {
     const src = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/L\('Due — no invoice linked'/.test(src), `${f}: the old unlabelled wording is gone`); assert.ok(/UNLINKED_RULE|CandidateRuleNote/.test(src), `${f}: reads the shared candidate-rule text`);
@@ -2022,10 +1947,10 @@ await test('Data accuracy · the Decision Room says which contract items are gen
   const { buildDecisionItems: bi_A } = await import('../src/data/decisionRoom.js');
   const sn = snapshot(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg });
   const R = bi_A({ today: TODAY, snapshot: sn, labels: { amanah: (k) => ({ ar: k, en: k }), source: (k) => ({ ar: k, en: k }) }, targetRate: () => 0.6, plan: null, contracts: { count: 3, arrears: 5, overdueInstallments: 2, futureNotInvoiced: 7, unlinkedInstallments: 4, unlinkedAmount: 9e5 }, noContractCount: 2, orders: null, matching: null });
-  const by = (k) => R.items.find((x) => x.key === k); const txt = (it) => JSON.stringify([it.title, it.problem, it.cause, it.recommendation]);
-  assert.ok(txt(by('contracts:arrears')).includes('no grace period') && txt(by('contracts:arrears')).includes(PR_A.en) && /generated/i.test(txt(by('contracts:arrears'))));
-  assert.equal(by('contracts:future').cause.status, 'hypothesis', 'a generated schedule is not a confirmed cause'); assert.ok(txt(by('contracts:future')).includes(NA_A.en) && /generated/i.test(txt(by('contracts:future'))));
-  assert.ok(/not proof that no contract exists/.test(txt(by('contracts:no_contract'))) && by('contracts:no_contract').cause.status === 'hypothesis');
+  const by = (k) => R.items.find((x) => x.key === k); const txt = (it) => JSON.stringify([it.title, it.what, it.facts, it.unknown, it.proposed]);
+  assert.ok(!by('contracts:arrears') && !by('contracts:future'), 'only the «due without a verified invoice link» framing is an item; arrears are context inside it');
+  assert.ok(by('contracts:unlinked').facts.some((f) => /context only/.test(f.en)) && /generated/i.test(txt(by('contracts:unlinked'))) && txt(by('contracts:unlinked')).includes(NA_A.en), 'a generated schedule cannot be checked against the source');
+  assert.ok(/not proof that no contract exists/.test(txt(by('contracts:no_contract'))) && by('contracts:no_contract').verification === 'needs_verification');
   assert.ok(by('contracts:unlinked').title.en.includes(PR_A.en) && by('contracts:unlinked').title.ar.includes(PR_A.ar));
 });
 import { FORMULA_GROUPS as FG_C, DEV_REFERENCE as DEVREF_C } from '../src/data/dictionaryDocs.js';
@@ -2076,8 +2001,8 @@ const fx = (() => {
   const q = (v) => { const t = String(v ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
   const write = (view, extra, rows) => { const heads = [...FURAS_KEEP[view], ...extra]; const text = [heads.join(','), ...rows.map((r) => heads.map((h) => q({ source_pt: '20261025', etl_time: '2026-10-27 18:00:00', ...r }[h] ?? '')).join(','))].join('\r\n') + '\r\n'; nodeFs.writeFileSync(nodePath.join(dir, `ads_furas_schema_${view}_df_20261102.csv`), '﻿' + text); };
   const M = 'أمانة العاصمة المقدسة';
-  write('contract', ['opportunityname'], [
-    { pzinskey: 'PZ-1', contractnumber: 'CN-1', opportunitynumber: 'O-1', investorid: 'I-1111111', contracttype: 'T1', opportunitystatus: 'S1', contractvalue: '100.000000000', annualcontractvalue: '10.0', startdate: '20200101', enddate: '20300101', municipalityid: '002', municipality: M, opportunityname: SENT.name },
+  write('contract', [], [
+    { pzinskey: 'PZ-1', contractnumber: 'CN-1', opportunitynumber: 'O-1', investorid: 'I-1111111', contracttype: 'T1', opportunitystatus: 'S1', contractvalue: '100.000000000', annualcontractvalue: '10.0', startdate: '20200101', enddate: '20300101', municipalityid: '002', municipality: M, opportunityname: 'OPP NAME 1' },
     { pzinskey: 'PZ-2', contractnumber: 'CN-1', opportunitynumber: 'O-2', investorid: 'I-2222222', contracttype: 'T1', opportunitystatus: 'S2', contractvalue: '100', annualcontractvalue: '10', enddate: '20310101', municipalityid: '002', municipality: M },
     { pzinskey: 'PZ-3', contractnumber: 'CN-2', opportunitynumber: 'O-3', investorid: 'I-1111111', contracttype: 'T2', opportunitystatus: 'S1', contractvalue: '50', municipalityid: '002', municipality: M },
     { pzinskey: 'PZ-4', contractnumber: 'CN-2', opportunitynumber: 'O-3', investorid: 'I-1111111', contracttype: 'T2', opportunitystatus: 'S1', contractvalue: '60', municipalityid: '003', municipality: 'أمانة منطقة المدينة المنورة' },
@@ -2128,10 +2053,10 @@ await test('Furas mode · a contract number lists its records and its payment ro
   await withFuras(async () => {
     const d = await furasContract('cn-1'); assert.equal(d.contractNumber, 'CN-1'); assert.equal(d.recordCount, 2); assert.equal(d.currentRecordDetermined, false, 'no record is declared current');
     assert.deepEqual(d.differingFields.sort(), ['endDate', 'investorId', 'opportunityNumber', 'startDate', 'status'], 'a date present on one record and missing on the other counts as a difference'); assert.equal(d.records.length, 2);
-    assert.equal(d.payments.rowsInExtract, 3, 'three payment rows, listed once — not six (3 rows × 2 records)'); assert.deepEqual(d.payments.rows.map((r) => r.batchNumber), [1, 2, 3]); assert.deepEqual(d.payments.rows.map((r) => r.amount), [100, 100, 100]);
+    assert.equal(d.payments.rowsInExtract, 3, 'three payment rows, listed once — not six (3 rows × 2 records)'); assert.deepEqual(d.payments.rows.map((r) => r.batchNumber), [1, 2, 3]); assert.deepEqual(d.payments.rows.map((r) => r.payable), [100, 100, 100]);
     assert.deepEqual(d.payments.rows[2].dateFlags, { invoiceDate: 'after_extract' }); assert.equal(d.payments.rows[0].paymentDate, '2026-01-03'); assert.equal(d.payments.rows[1].invoiceDate, null, 'a missing date stays missing');
     const keys = JSON.stringify(Object.keys(d)) + JSON.stringify(Object.keys(d.payments)) + JSON.stringify(Object.keys(d.payments.rows[0])) + JSON.stringify(Object.keys(d.records[0]));
-    assert.ok(!/collected|unpaid|outstanding|schedule|nOfN|invoiceNo|sadad|total|rate/i.test(keys), 'nothing generated: ' + keys);
+    assert.ok(!/collected|unpaid|schedule|nOfN|invoiceNo|total|rate/i.test(keys), 'nothing generated: ' + keys); assert.ok(!('balance' in d.payments.rows[0]), 'BALANCEAMOUNT (unconfirmed meaning) is not exposed'); assert.equal(d.payments.rows[0].paid, null, 'an empty BATCHAMOUNTPAID is not available, never zero');
     assert.equal(d.caseRows.count, 2, 'case rows are counted by contract number or opportunity number (not payments)'); assert.equal((await furasContract('DROCN-9')).records[0].renewalLink.selfReference, true); assert.equal(await furasContract('NOPE'), null);
     assert.equal((await furasContract('CN-404')), null, 'a payment-only number has no contract record page'); assert.equal(d.records[0].investorId.startsWith('••'), true, 'investor ids are masked'); assert.equal(maskId_F('I-1111111'), '•••••1111'); assert.equal(dateFlag_F('2090-01-01 00:00:00', '2026-10-25'), null);
   });
@@ -2206,7 +2131,7 @@ await test('Furas mode · structure of a contract number: records grouped by opp
     assert.ok(!JSON.stringify(m).includes('SENTINEL'), 'no personal value reaches the card');
   });
   const page = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8');
-  for (const t of ['id="structure"', 'fu-tree', 'fu-opp', 'COL = {', 'CONTRACTVALUE', 'Within one opportunity (versions)', 'Between opportunities']) assert.ok(page.includes(t), `missing: ${t}`);
+  for (const t of ['fu-matrix', 'differs between records', 'no record is chosen as current', 'opportunityNumber']) assert.ok(page.includes(t), `missing: ${t}`); // the page keeps the records of a repeated number side by side, without a separate structure section
 });
 await test('Furas mode · approved contracts only: records of other statuses and rows that belong only to other contracts are outside the scope; unmatched rows stay; the file row counts are kept', async () => {
   assert.equal(scope_F(), 'Contract-Approved', 'the product default is the stored status Contract-Approved'); assert.equal(APPROVED_F, 'Contract-Approved');
@@ -2224,7 +2149,7 @@ await test('Furas mode · approved contracts only: records of other statuses and
   await withFuras(async () => { const S = await furasSummary(); assert.equal(S.dataset.scope, null); assert.equal(S.contracts.records, 7); assert.equal(S.dataset.files[0].rows, S.dataset.files[0].fileRows); }, fx, '');
   await withFuras(async () => assert.equal((await furasSummary()).dataset.scope, null), fx, 'all');
   const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(parts.includes('Approved contracts only') && parts.includes('The exports hold no invoices'), 'the banner and the limits say it, and that no invoice is linked');
-  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes('withInvoiceDate') && list.includes('not a validated link to an installment'));
+  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes('role="table"') && !list.includes('withInvoiceDate'), 'the rework list carries no invoice-date filter (the server signal remains)');
 });
 await test('Furas mode · the invoice-date signal counts payment rows that carry an invoice date, per number, and never claims an invoice link', async () => {
   await withFuras(async () => {
@@ -2240,23 +2165,22 @@ await test('Furas mode · local only: nothing is written, logged, committed, bui
   if (nodeFs.existsSync('furas-exports.local')) { const dir = nodeFs.readFileSync('furas-exports.local', 'utf8').trim(); const outs = ['api/_handler.mjs', 'dist-server/server.mjs', ...nodeFs.readdirSync('dist/assets').map((f) => `dist/assets/${f}`), 'dist/index.html']; for (const f of outs) assert.ok(!nodeFs.readFileSync(f, 'utf8').includes(dir), `${f} holds no local path`); }
   const api = nodeFs.readFileSync('server/api.js', 'utf8'); assert.ok(api.includes("path.startsWith('/furas/')") && api.includes("furas_unavailable"), 'the endpoints answer 404 when the mode is off');
 });
-await test('Investment contracts · the contract pages always read the Databank-schema exports (no generated contract page, no data-mode switch); the data-requests view sits in the contracts page; no generated engine is used', () => {
-  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); for (const r of ['path="contracts" element={<FurasContracts />}', 'path="contracts/:no" element={<FurasContract />}', 'path="decisions" element={<DecisionRoom />}', 'path="products/:key" element={<ProductRoute']) assert.ok(app.includes(r), r);
+await test('Investment contracts · the contract pages always read the Databank-schema exports (no generated contract page, no data-mode switch); the contracts page carries no data-requests / diagnostics view; no generated engine is used', () => {
+  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); for (const r of ["page('contracts', <FurasContracts />)", "page('contracts/:no', <FurasContract />)", "page('decisions', <DecisionRoom />)", "page('products/:key', <ProductRoute"]) assert.ok(app.includes(r), r); // access control: every page route goes through the permission guard (src/App.jsx page())
   assert.ok(/key === 'foras' \? <FurasProduct \/> : <ProductPage \/>/.test(app), 'the Furas product page is built on the exports, every other product on the generated invoices');
   for (const gone of ['src/pages/Contracts.jsx', 'src/pages/ContractPage.jsx', 'src/context/DataModeContext.jsx']) assert.ok(!nodeFs.existsSync(gone), `${gone} was removed`);
   const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); assert.ok(!lay.includes('useDataMode') && !lay.includes('data-mode') && !lay.includes('furasSupported'), 'no data-mode switch');
-  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes("furasUnavailable(sErr)") && list.includes("key: 'requests'") && list.includes('<FurasDecisionRoom embedded />'), 'an unconfigured server shows the unavailable state; data requests are a tab of the contracts page');
+  const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); assert.ok(list.includes("furasUnavailable(sErr)") && !list.includes('FurasDecisionRoom'), 'an unconfigured server shows the unavailable state; no data-requests view in the contracts page');
   for (const f of ['src/pages/furas/FurasContract.jsx', 'src/pages/furas/FurasProduct.jsx']) assert.ok(nodeFs.readFileSync(f, 'utf8').includes('furasUnavailable('), `${f}: unavailable state`);
   for (const f of nodeFs.readdirSync('src/pages/furas').map((x) => `src/pages/furas/${x}`).concat(nodeFs.readdirSync('src/components/furas').map((x) => `src/components/furas/${x}`))) { const t = nodeFs.readFileSync(f, 'utf8'); assert.ok(!/useRevenue|rev\.data|contractCards|buildDecisionItems|\/api\/client/.test(t), `${f}: no generated-demo source`); }
   const di = { dataset: {}, repeated: { numbers: 2, records: 4, conflicts: { status: 1 } }, conflictingValues: 1, payments: { rows: 10000, capped: true, distinctNumbers: 5, rowsMatchingSeveralRecords: 2, rowsNotFound: 1, contractsWithThreePlusRows: 3, contiguous: 1 }, dateIssues: { due: 1, invoice: 1, payment: 1 }, startDateFilled: 1, records: 7, statusValues: 3, renewal: { links: 1, selfReference: 1, sameContractNumber: 1 } };
   const keys = furasItems(di).map((i) => i.key); assert.deepEqual(keys.sort(), ['furas:capped', 'furas:dates', 'furas:renewal', 'furas:repeated', 'furas:startdate', 'furas:status', 'furas:unmatched']); assert.ok(furasItems(di).every((i) => i.amount === null && !/overdue|aged|target|unlinked/.test(i.key)), 'no generated insight and no money amount');
   const ui = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8'); assert.ok(ui.includes('NOT_AVAILABLE') && ui.includes('Not available in the current data') === false || ui.includes('UnavailableList'));
 });
-await test('Furas UI · the task comes first: the list is a labelled table behind three tabs with filters and signals, the contract-number page compares records side by side, and «Not available in the current data» is spelled out wherever a dash stands for it', () => {
+await test('Furas UI · the task comes first: the list is one labelled table with filters and an export, the contract page shows information, investor, installments and invoices, and «Not available in the current data» is spelled out wherever a dash stands for it', () => {
   const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); const one = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8'); const css = nodeFs.readFileSync('src/styles/furas.css', 'utf8'); const ui = nodeFs.readFileSync('src/components/furas/FurasUI.jsx', 'utf8');
-  assert.ok(list.includes('role="table"') && list.includes('role="columnheader"') && list.includes('<Tabs') && list.includes("'overview'") && list.includes("'limits'") && list.includes('aria-pressed') && list.includes('aria-live="polite"'), 'list: table semantics, tabs, filters, live result count');
-  assert.ok(list.indexOf('fu-list') < list.indexOf('<FurasOverview') , 'the list comes before the evidence');
-  assert.ok(one.includes('fu-matrix') && one.includes('Show only differences') && one.includes('scope="col"') && one.includes('scope="row"') && one.includes('is-diff') && one.includes('differs between records'), 'details: a comparison matrix with accessible headers; differences marked in text as well as colour');
+  assert.ok(list.includes('role="table"') && list.includes('role="columnheader"') && !list.includes('<Tabs') && (list.includes('aria-live="polite"') || list.includes('resultCount=')) && list.includes('exportAll'), 'list: table semantics, no tabs, live result count, export');
+  assert.ok(one.includes('fu-matrix') && one.includes('scope="col"') && one.includes('scope="row"') && one.includes('is-diff') && one.includes('differs between records'), 'details: a comparison matrix with accessible headers; differences marked in text as well as colour');
   assert.ok(ui.includes('fu-sr') && ui.includes('NOT_AVAILABLE') && list.includes('= Not available in the current data') && one.includes('= Not available in the current data'), 'a dash always has the full wording for screen readers and a legend');
   assert.ok(css.includes('prefers-reduced-motion') && css.includes('inset-inline-start') && css.includes('@media (max-width: 860px)') && !/margin-left|margin-right|padding-left|padding-right|text-align:\s*(left|right)/.test(css), 'responsive, reduced-motion and RTL-safe (logical properties only)');
 });
@@ -2269,7 +2193,7 @@ await test('Furas UI · stored statuses follow the language setting: English as 
   assert.deepEqual(STORED_KINDS_F.sort(), ['payStatus', 'renewal', 'rental', 'status', 'type']);
   const src = nodeFs.readFileSync('src/data/furasLabels.js', 'utf8'); assert.ok(!/null,|''\s*[,}]/.test(src.split('const T')[1].split('export')[0]) , 'no empty translation');
   const list = nodeFs.readFileSync('src/pages/furas/FurasContracts.jsx', 'utf8'); const one = nodeFs.readFileSync('src/pages/furas/FurasContract.jsx', 'utf8'); const parts = nodeFs.readFileSync('src/components/furas/FurasParts.jsx', 'utf8');
-  assert.ok(list.includes("storedOption('status'") && list.includes("storedOption('type'") && list.includes("chips(r.statuses") && one.includes("STORED_FIELD") && one.includes("'payStatus'") && parts.includes("storedText('payStatus'"), 'list, filters, overview and details all use the stored-value wording');
+  assert.ok(list.includes("storedOption('status'") && list.includes("storedOption('type'") && list.includes("storedOption('rental'") && one.includes("STORED_FIELD") && one.includes("'payStatus'"), 'list, filters, overview and details all use the stored-value wording');
 });
 await test('Wording · the proposed-rule summary no longer repeats «قاعدة مقترحة» in Arabic', () => {
   const op = nodeFs.readFileSync('src/components/record/OriginParts.jsx', 'utf8'); assert.ok(!op.includes("'لماذا «مستحقة — لا فاتورة مرتبطة» قاعدة مقترحة'")); assert.ok(op.includes('«مستحقة — لا فاتورة مرتبطة»: ما القاعدة وما تحتاجه'));
@@ -2281,6 +2205,191 @@ await test('Group A · the 20-row findings are marked superseded in the active d
   assert.equal((doc.match(/Superseded \(historical evidence kept above\)/g) || []).length, 2); assert.ok(doc.includes('furas-export-reassessment.md'));
   assert.ok(nodeFs.existsSync('docs/furas-export-reassessment.md')); const re = nodeFs.readFileSync('docs/furas-export-reassessment.md', 'utf8'); assert.ok(re.includes('Furas_v2_Review_and_Plan') && re.includes('Superseded'));
   assert.ok(!/\d{1,3},\d{3} (?:of|rows|records)/.test(re), 'no real export figure is copied into the repository');
+});
+
+import { DATA_SOURCES as DS_T, SOURCE_MESSAGE as DS_MSG } from '../src/data/dataSources.js';
+await test('Data Sources directory (/products): one card per source with its services inside, the exact click message, no filters, no figures, no invented or tool sources', () => {
+  assert.deepEqual(DS_T.map((s) => s.id), ['balady-licences', 'balady-tobacco', 'balady-accommodation', 'furas', 'mumtathil', 'sanad', 'sadad', 'tahseel', 'efaa', 'naqd', 'alshamel'], 'Balady split into three cards; Sanad keeps its services inside its card');
+  assert.equal(new Set(DS_T.map((s) => s.id)).size, DS_T.length); assert.deepEqual(DS_T.find((s) => s.id === 'balady-licences').services.length, 3); assert.equal(DS_T.find((s) => s.id === 'sanad').services.length, 2);
+  for (const s of DS_T) { assert.ok(s.name.ar && s.name.en && s.desc.ar && s.desc.en, `${s.id}: bilingual name and description`); assert.ok(!/\d/.test(s.desc.en + s.desc.ar), `${s.id}: no figure in the description`); }
+  const all = JSON.stringify(DS_T); assert.ok(!/makeen|incorta|bayanat|databank|data bank|مكين|إنكورتا|بنك البيانات/i.test(all), 'no tool or technology is listed as a source');
+  assert.equal(DS_MSG.en, 'Data will be displayed once the integration is connected.'); assert.equal(DS_MSG.ar, 'سيتم عرض البيانات عند الربط');
+  const page = nodeFs.readFileSync('src/pages/Products.jsx', 'utf8'); assert.ok(!/ScopeBar|useRevenue|catalogTotals|Figures|<select|<input|navigate|<Link/.test(page), 'no filter bar, no figures, no navigation on this page');
+  assert.ok(page.includes("L('Close', 'إغلاق')") && page.includes('showModal') && page.includes('<button type="button" className="ds-card"'), 'cards are buttons; the message dialog has a Close button');
+  const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); assert.ok(lay.includes("'مصادر البيانات'") && lay.includes("'Data Sources'") && !lay.includes('إدارة المنتجات'), 'navigation item renamed');
+});
+
+await test('Navigation: a sidebar replaces the top bar and the «Operational Units» dropdown; grouped «Daily operations» (overview · collection management · planning & reports · data), every destination its own item, same routes', () => {
+  const lay = nodeFs.readFileSync('src/components/Layout.jsx', 'utf8'); const css = nodeFs.readFileSync('src/styles/global.css', 'utf8');
+  assert.ok(!/وحدات تشغيلية|tab-menu|className="tabbar"|opsTabs|opsOpen/.test(lay), 'no dropdown, no top tab bar');
+  // the destinations and group names live in the permission-aware navigation model (src/data/accessModel.js NAV_GROUPS); the Layout filters them by what the person may open and appends the settings item
+  const model = nodeFs.readFileSync('src/data/accessModel.js', 'utf8'); const navSrc = model.slice(model.indexOf('export const NAV_GROUPS'), model.indexOf('export const SETTINGS_ROUTES'));
+  const order = [...navSrc.matchAll(/\{ to: '(\/[a-z-]+)', icon: '([a-z-]+)'/g)].map((m) => m[1]); assert.deepEqual(order, ['/insights', '/decisions', '/collection', '/invoices', '/enforcement', '/exclusions', '/contracts', '/planning', '/smart-reports', '/products']);
+  assert.ok(lay.includes("to: '/settings', icon: 'settings'") && lay.includes('filterNav(access.can)'), 'the settings item follows the groups; the groups are filtered by permission');
+  for (const g of ['نظرة عامة', 'إدارة التحصيل', 'التخطيط والتقارير', "'البيانات'"]) assert.ok(navSrc.includes(g), `group «${g}»`);
+  assert.ok(!/<(a|button)[^>]*sb-group__label/.test(lay), 'group labels are headings, not controls');
+  assert.ok((lay.includes('aria-expanded={drawer}') || (lay.includes('drawerOpen={drawer}') && nodeFs.readFileSync('src/components/header/AppHeader.jsx', 'utf8').includes('aria-expanded={drawerOpen}'))) && lay.includes("e.key === 'Escape'") && lay.includes('aria-pressed={collapsed}'), 'drawer and collapse are keyboard-accessible');
+  assert.ok(!/margin-left|margin-right|padding-left|padding-right|text-align:\s*(left|right)/.test(css.slice(css.indexOf('Sidebar (main navigation)'))), 'sidebar CSS uses logical properties only (right in Arabic, left in English)');
+  assert.ok(css.includes('grid-template-columns: var(--sb-w, 264px) minmax(0, 1fr)') && css.includes('@media (max-width: 900px)') && css.includes('visibility: hidden'), 'grid layout; off-canvas drawer is not focusable while closed');
+});
+
+import { DIRECTORY as DIR_T, entryById as entryById_T, SCHEMA_STATES as SS_T } from '../src/data/dictionaryDirectory.js';
+import { METRIC_KEYS as MK_T, metricEntries as mEntries_T } from '../src/data/metricDictionary.js';
+import { DICTIONARY_SCHEMA as DS_SCHEMA_T } from '../src/data/dictionarySchema.js';
+await test('Metrics and Glossary Dictionary: every metric and term has a card and a detail page; definitions and formulas are the approved ones; schema states are honest; no filters or live values', () => {
+  const ids = DIR_T.map((e) => e.id); assert.equal(new Set(ids).size, ids.length); for (const k of MK_T) assert.ok(ids.includes(k), `metric ${k} is in the directory`);
+  for (const e of DIR_T) { assert.ok(e.name.ar && e.name.en && e.brief.ar && e.brief.en && e.definition.ar && e.definition.en, `${e.id}: bilingual name, brief and definition`); assert.ok(SS_T[e.schema.state], `${e.id}: a known schema state`); assert.equal(entryById_T(e.id), e); }
+  for (const m of mEntries_T()) { const e = entryById_T(m.key); assert.deepEqual(e.definition, m.definition, `${m.key}: the approved definition is reused`); assert.deepEqual(e.formula, m.formula, `${m.key}: the approved formula is reused`); }
+  assert.equal(entryById_T('collectedOverNet').formula.en, 'Collected ÷ net billed × 100'); assert.equal(entryById_T('net').formula.en, 'Gross billed − exclusions = collected + uncollected'); assert.equal(entryById_T('uncollected').formula.en, 'Net billed − collected');
+  assert.ok(/zero/i.test(entryById_T('collectedOverNet').notes.map((n) => n.en).join(' ')) && /denominator/i.test(entryById_T('collectedOverNet').notes.map((n) => n.en).join(' ')), 'zero-denominator handling and the denominator label are explained');
+  for (const k of ['cutoff', 'grace', 'invoiceKey', 'dueDate', 'amanah']) assert.equal(entryById_T(k).type, 'term'); assert.equal(entryById_T('cutoff').formula, null, 'a glossary term gets no forced formula');
+  // honesty about the schema: nothing is «verified» unless the specification marks a mapping Business-confirmed; an entry with no source column is «none»
+  for (const e of DIR_T) { const rows = e.schema.rows; assert.equal(e.schema.state === 'verified', rows.some((r) => r.verified)); if (rows.length === 0) assert.equal(e.schema.state, 'none'); else if (rows.every((r) => !r.schema)) assert.equal(e.schema.state, 'none'); }
+  assert.equal(DS_SCHEMA_T.remainingToTarget.state, 'none'); assert.equal(entryById_T('budgetCh13').schema.state, 'none');
+  const all = JSON.stringify([DIR_T.map((e) => e.sourceLabels), DIR_T.map((e) => e.schema.rows.map((r) => r.sources))]); assert.ok(!/makeen|incorta|databank|bayanat|بنك البيانات/i.test(all), 'no tool or technology is listed as a source system');
+  const page = nodeFs.readFileSync('src/pages/Metrics.jsx', 'utf8'); assert.ok(!/ScopeBar|LocalFilterToolbar|useRevenue|snapshot|<select|type="date"|type="number"|DictionaryTabs/.test(page), 'no filters, no live snapshot values'); assert.deepEqual([...page.matchAll(/<input[^>]*>/g)].map((m) => /type="search"/.test(m[0])), [true], 'PD1: the only input is the dictionary’s text search (no financial filter)');
+  assert.ok(page.includes("'قاموس المقاييس والمصطلحات'") && page.includes("'Metrics and Glossary Dictionary'") && page.includes("'View details'") && page.includes("'عرض التفاصيل'"));
+  const app = nodeFs.readFileSync('src/App.jsx', 'utf8'); assert.ok(app.includes("page('settings/metrics/:id'"));
+  assert.ok(SS_T.none.ar === 'مخطط البيانات غير متاح حالياً' && SS_T.none.en === 'Data schema is not currently available');
+});
+
+import { compositeKey as ck_T, parseCompositeKey as pck_T, isCompositeKey as isck_T, sameInvoice as same_T, migrateReference as migRef_T, resolveByNumber as rbn_T, demoAmanahId as dAm_T, demoMunicipalityId as dMu_T, KEY_VERSION as KV_T } from '../src/data/invoiceIdentity.js';
+import { lookupRef as lookupRef_T, lookupComposite as lookupComp_T } from '../server/engine.js';
+import { iimFields as iimF_T } from '../server/iimRow.js';
+import { invoiceCandidates as invCand_T } from '../server/lists.js';
+import { migrateLinkIdentity as migLink_T } from '../src/data/orderMatching.js';
+await test('Invoice Composite Key: built from invoice number + GFS code + Amanah id [+ municipality id]; text-safe, explicit about what is missing, never equal when incomplete', () => {
+  const a = ck_T({ invoiceId: '0012345678', gfsCode: '1140101', amanahId: '001', municipalityId: '002' });
+  assert.ok(a.complete && a.key.startsWith(`${KV_T}|`)); assert.deepEqual(pck_T(a.key), { invoiceId: '0012345678', gfsCode: '1140101', amanahId: '001', municipalityId: '002' }, 'round trip keeps leading zeros');
+  assert.equal(ck_T({ invoiceId: '0012345678', gfsCode: '1140101', amanahId: '001' }).complete, true, 'the municipality id is optional');
+  // the same number under another Amanah or another GFS code is a different invoice
+  const other = ck_T({ invoiceId: '0012345678', gfsCode: '1140101', amanahId: '002', municipalityId: '002' }); const otherGfs = ck_T({ invoiceId: '0012345678', gfsCode: '1140102', amanahId: '001', municipalityId: '002' });
+  assert.notEqual(a.key, other.key); assert.notEqual(a.key, otherGfs.key);
+  // municipality ids repeat across Amanahs: «001» under two Amanahs does not make two invoices one, and never replaces the Amanah id
+  assert.notEqual(ck_T({ invoiceId: '7', gfsCode: 'G', amanahId: '001', municipalityId: '001' }).key, ck_T({ invoiceId: '7', gfsCode: 'G', amanahId: '002', municipalityId: '001' }).key);
+  // missing components: reported, no key, never equal (not even to itself)
+  const m = ck_T({ invoiceId: '55', gfsCode: '', amanahId: null, municipalityId: '001' }); assert.equal(m.key, null); assert.deepEqual(m.missing, ['gfsCode', 'amanahId']); assert.equal(same_T({ invoiceId: '55' }, { invoiceId: '55' }), false);
+  assert.ok(same_T({ invoiceId: '1', gfsCode: 'G', amanahId: 'A' }, { invoiceId: '1', gfsCode: 'G', amanahId: 'A', municipalityId: '' }), 'an absent optional component is the same as an empty one');
+  // precision: a number that cannot be held exactly is rejected; text is kept as given
+  assert.deepEqual(ck_T({ invoiceId: 409280122502123456789, gfsCode: 'G', amanahId: 'A' }).invalid, ['invoiceId']); assert.ok(ck_T({ invoiceId: '409280122502123456789', gfsCode: 'G', amanahId: 'A' }).complete);
+  // separators inside a value can never forge another key
+  const tricky = ck_T({ invoiceId: 'a|gfs=B', gfsCode: 'G', amanahId: 'A' }); assert.deepEqual(pck_T(tricky.key), { invoiceId: 'a|gfs=B', gfsCode: 'G', amanahId: 'A', municipalityId: null });
+  for (const bad of ['', '177-409280122502', '409280122502', 'ick1|inv=1', 'ick1|inv=1|gfs=G|am=A|am=B', 'ick1|gfs=G|am=A']) assert.equal(isck_T(bad), false, `«${bad}» is not a composite key`);
+  assert.equal(dAm_T(0), '001'); assert.equal(dMu_T(0), '001'); assert.equal(dMu_T(255), null);
+});
+await test('Invoice Composite Key: legacy references migrate only when they resolve to exactly one invoice; ambiguous and unresolved ones are flagged, never reassigned', () => {
+  const one = [{ compositeKey: 'ick1|inv=1|gfs=G|am=A', id: 'x' }]; const two = [{ compositeKey: 'ick1|inv=1|gfs=G|am=A', id: 'x', amanahEn: 'A' }, { compositeKey: 'ick1|inv=1|gfs=G|am=B', id: 'y', amanahEn: 'B' }];
+  assert.deepEqual(migRef_T('177-1', one), { status: 'migrated', key: 'ick1|inv=1|gfs=G|am=A' }); assert.equal(migRef_T('1', two).status, 'ambiguous'); assert.equal(migRef_T('1', two).keep, '1', 'the original reference is kept'); assert.equal(migRef_T('1', []).status, 'unresolved');
+  assert.equal(migRef_T('ick1|inv=1|gfs=G|am=A', two).status, 'already_composite'); assert.equal(rbn_T(two).status, 'ambiguous'); assert.equal(rbn_T(one).status, 'unique');
+  const store = { orders: { 'EN-1': { links: { a: { invoiceId: 'a', status: 'confirmed' }, b: { invoiceId: 'b', status: 'confirmed' }, c: { invoiceId: 'c', status: 'proposed' }, d: { invoiceId: 'd', snapshot: { compositeKey: 'ick1|inv=9|gfs=G|am=A' } } } } } };
+  const r = migLink_T(store, (id) => ({ a: { status: 'unique', compositeKey: 'ick1|inv=a|gfs=G|am=A' }, b: { status: 'ambiguous' }, c: { status: 'none' } }[id]));
+  const L = r.store.orders['EN-1'].links; assert.equal(L.a.snapshot.compositeKey, 'ick1|inv=a|gfs=G|am=A'); assert.equal(L.a.status, 'confirmed', 'decisions and history are kept'); assert.equal(L.b.identityStatus, 'needs_review_ambiguous'); assert.equal(L.b.invoiceId, 'b', 'never pointed at another invoice'); assert.equal(L.c.identityStatus, 'needs_review_unresolved'); assert.equal(L.d.snapshot.compositeKey, 'ick1|inv=9|gfs=G|am=A'); assert.deepEqual([r.changed, r.flagged], [1, 2]);
+});
+await test('Invoice Composite Key in the system: every invoice has a unique key; a number several invoices carry is ambiguous (candidates, never the first); keys, legacy ids and old links resolve exactly', () => {
+  const small = loadStore(TODAY, { size: 'compact' }); const keys = new Map(); const byNo = new Map(); let incomplete = 0;
+  for (let i = 0; i < small.n; i += 1) { if (small.owner[i] === 65535) continue; const im = iimF_T(small, i); if (!im.compositeKey) { incomplete += 1; continue; } keys.set(im.compositeKey, (keys.get(im.compositeKey) || 0) + 1); (byNo.get(im.invoiceNo) || byNo.set(im.invoiceNo, []).get(im.invoiceNo)).push(i); }
+  assert.equal(incomplete, 0); assert.ok([...keys.values()].every((v) => v === 1), 'no composite key repeats');
+  const shared = [...byNo.entries()].filter(([, v]) => v.length > 1); assert.ok(shared.length >= 1, 'the demo carries numbers that repeat across Amanahs');
+  for (const [no, idx] of shared) {
+    const r = lookupRef_T(small, no); assert.equal(r.status, 'ambiguous'); assert.deepEqual([...r.indexes].sort(), [...idx].sort());
+    assert.equal(new Set(idx.map((i) => iimF_T(small, i).amanahId)).size, idx.length, 'they differ by Amanah'); const c = invCand_T(small, { cfg: { cutoff: TODAY } }, idx); assert.ok(c.every((x) => x.compositeKey && x.gfsCode && x.amanahId && x.invoiceNo === no && x.source), 'a candidate carries what tells it apart');
+    for (const i of idx) { const k = iimF_T(small, i).compositeKey; assert.deepEqual(lookupRef_T(small, k), { status: 'unique', kind: 'composite', indexes: [i] }); assert.equal(lookupComp_T(small, k), i); assert.equal(lookupRef_T(small, idOfI(small, i)).indexes[0], i, 'the legacy id still opens its invoice'); }
+  }
+  const alone = [...byNo.entries()].find(([, v]) => v.length === 1); assert.equal(lookupRef_T(small, alone[0]).status, 'unique'); assert.equal(lookupRef_T(small, '000000000000').status, 'none');
+  assert.equal(lookupComp_T(small, 'ick1|inv=1|gfs=G|am=001'), -1, 'an unknown key resolves to nothing');
+});
+await test('Invoice Composite Key: the CSV export carries the key, its components and the separate invoice / SADAD / biller fields', () => {
+  const head = [...exportChunks(st, { scope: { from: '2026-01-01', to: TODAY, amanah: 'all', source: 'all', scopeType: 'all', muni: 'all', status: 'all' }, cfg: { cutoff: TODAY } })][0].split('\n')[1].split(',');
+  for (const c of ['invoice_id', 'sadad_no', 'invoice_number', 'gfs_code', 'amanah_id', 'municipality_id', 'invoice_composite_key']) assert.ok(head.includes(c), `export column ${c}`);
+});
+
+import JSZip_T from 'jszip';
+import * as XLSX_T from 'xlsx';
+import { chartShapes as chartShapes_T } from '../src/utils/pptxTemplate.js';
+import { reportFileName as fileName_T, buildTemplatePptx as buildPptx_T } from '../src/utils/exportReportModel.js';
+// a small synthetic report model (every block kind the deck handles); no real figures
+const pptxModel = (lang, meta) => {
+  const ar = lang === 'ar'; const L = (a, e) => (ar ? a : e); const B = 1e9;
+  const rows = Array.from({ length: 30 }, (_, i) => [`R${i + 1}`, i * 3, 0.125]);
+  return { id: 'rpt-t', title: L('تقرير اختبار', 'Test report'), subtitle: L('الفترة', 'Period'), generatedAt: '2026-11-05T10:00:00.000Z', cutoff: '2026-10-09', lang, depth: 'detailed', synthetic: true,
+    context: [{ label: L('الفترة', 'Period'), value: '2026-01-01 → 2026-10-09' }], ...(meta ? { meta } : {}),
+    headline: [{ type: 'kpis', unit: { key: 'B', div: 1e9 }, items: [{ label: L('إجمالي المفوتر', 'Gross billed'), value: `14.7 ${L('مليار ريال', 'bn SAR')}`, raw: 14.7 * B, sub: L('قبل الاستبعادات', 'before exclusions') }, { label: L('نسبة التحصيل', 'Collection rate'), value: '66.3%', raw: 0.663, sub: '' }] }],
+    sections: [
+      { key: 'executive', title: L('الملخص التنفيذي', 'Executive summary'), purpose: '', blocks: [{ type: 'text', text: L('ملخص قصير.', 'A short summary.') },
+        { type: 'chart', kind: 'waterfall', title: L('من الإجمالي إلى الصافي', 'Gross to net'), labels: ['G', 'X', 'N'], series: [{ label: L('المبلغ', 'Amount'), values: [14.7 * B, -3.27 * B, 11.43 * B] }], totals: [true, false, true] },
+        { type: 'chart', kind: 'stacked_hbar', title: L('المحصّل وغير المحصّل', 'Collected and uncollected'), labels: ['Net'], series: [{ label: L('المحصّل', 'Collected'), values: [7.58 * B] }, { label: L('غير المحصّل', 'Uncollected'), values: [3.85 * B] }] }] },
+      { key: 'trends', title: L('الاتجاه', 'Trend'), purpose: L('هدف القسم.', 'Section purpose.'), blocks: [
+        { type: 'callout', tone: 'info', text: L('أساسان لا يُخلطان.', 'Two bases never mixed.') },
+        { type: 'chart', kind: 'line', basis: 'cumulative', title: L('التراكمي', 'Cumulative'), labels: ['2026-01', '2026-02', '2026-03'], series: [{ label: 'Net', values: [1 * B, 2 * B, 3 * B] }, { label: 'Target', values: [1 * B, null, 2.5 * B], dashed: true }] },
+        { type: 'chart', kind: 'bar', title: L('شهري', 'Monthly'), labels: ['a', 'b', 'c'], series: [{ label: 'S', values: [4 * B, null, 0] }] },
+        { type: 'chart', kind: 'heatmap', valueKind: 'rate', title: L('خريطة حرارية', 'Heat map'), labels: ['c1', 'c2'], series: [{ label: 'r1', values: [0.5, null] }, { label: 'r2', values: [0.9, 0.1] }] },
+        { type: 'table', id: 'long', title: L('جدول طويل', 'Long table'), headers: [{ label: L('البند', 'Item'), kind: 'text' }, { label: L('العدد', 'Count'), kind: 'count' }, { label: L('النسبة', 'Rate'), kind: 'pct' }], rows, total: null, note: null },
+        { type: 'insights', title: L('الرؤى', 'Insights'), items: [{ title: { ar: 'رؤية', en: 'Insight one' }, body: { ar: 'شرح', en: 'Detail' }, evidence: [], basis: { ar: 'أساس', en: 'Basis' }, caveat: null }] }] }
+    ] };
+};
+await test('PowerPoint on the MOMAH template: concise main deck + appendix, native charts with embedded workbooks, template layouts/fonts/RTL, every table row kept, version stamp only when present', async () => {
+  for (const lang of ['en', 'ar']) {
+    const tpl = nodeFs.readFileSync(`public/templates/momah-${lang}.pptx`);
+    const bytes = await buildPptx_T(pptxModel(lang, { version: 3, generatedAt: '2026-11-05T10:00:00.000Z', cutoff: '2026-10-09' }), tpl);
+    const zip = await JSZip_T.loadAsync(bytes); const names = Object.keys(zip.files); const rd = (n) => zip.file(n).async('string');
+    const content = names.filter((n) => /^ppt\/slides\/slide1\d\d\.xml$/.test(n)).sort();
+    const xmls = await Promise.all(content.map(rd)); const xml = xmls.join('');
+    const rels = await Promise.all(content.map((n) => rd(n.replace('slides/', 'slides/_rels/') + '.rels')));
+    assert.ok(rels.every((r) => r.includes('slideLayout2.xml') || r.includes('slideLayout5.xml')), 'content slides use «Title Only»; the appendix divider uses «Section header box»');
+    assert.equal(rels.filter((r) => r.includes('slideLayout5.xml')).length, 1, 'one appendix divider');
+    for (let i = 1; i <= 30; i += 1) assert.ok(xml.includes(`>R${i}<`), `row R${i} is on a slide`);
+    const headerCount = (xml.match(new RegExp(`>${lang === 'ar' ? 'العدد' : 'Count'}<`, 'g')) || []).length; assert.ok(headerCount >= 1, 'the long table has its header');
+    assert.ok(xml.includes(lang === 'ar' ? 'Sakkal Majalla' : 'Trebuchet MS')); assert.equal(xml.includes('rtl="1"'), lang === 'ar');
+    const pres = await rd('ppt/presentation.xml'); assert.equal((pres.match(/<p:sldId /g) || []).length, content.length + 2, 'title + content + end');
+    assert.ok(!names.some((n) => /^ppt\/slides\/slide[235]\.xml$/.test(n)), 'the template sample slides are removed');
+    const kpiLabel = lang === 'ar' ? 'إجمالي المفوتر' : 'Gross billed'; assert.equal((xml.match(new RegExp(`>${kpiLabel}<`, 'g')) || []).length, 1, 'the indicators appear once (no repeated KPI slides)');
+    assert.ok(xml.includes(lang === 'ar' ? 'الملحق أ' : 'Appendix A'), 'appendix tables are titled'); assert.ok(xml.includes(lang === 'ar' ? 'أ-1' : 'A.1'), 'appendix tables are numbered');
+    const s1 = await rd('ppt/slides/slide1.xml'); assert.ok(s1.includes(lang === 'ar' ? 'الإصدار' : 'Version') && s1.includes('2026-10-09'), 'version · generated · cut-off on the title slide'); assert.ok(xml.includes(lang === 'ar' ? 'الإصدار' : 'Version'), '… and in the footer');
+    // native charts: waterfall, stacked bar, line, bar (the heat map is a table)
+    const charts = names.filter((n) => /^ppt\/charts\/chart\d+\.xml$/.test(n)).sort(); assert.equal(charts.length, 4, 'waterfall + stacked bar + line + bar are native charts');
+    const ct = await rd('[Content_Types].xml'); assert.ok(ct.includes('Extension="xlsx"'));
+    for (const c of charts) {
+      const cx = await rd(c); assert.ok(ct.includes(`PartName="/${c}"`), 'content-type override'); assert.ok(cx.includes('<c:externalData r:id="rId1">'));
+      const crel = await rd(c.replace('charts/', 'charts/_rels/') + '.rels'); const emb = /Target="\.\.\/(embeddings\/[^"]+)"/.exec(crel)[1]; assert.ok(zip.file(`ppt/${emb}`), 'the embedded workbook exists');
+      const ids = [...cx.matchAll(/<c:idx val="(\d+)"\/><c:order val="(\d+)"\/>/g)].map((m) => `${m[1]}/${m[2]}`); assert.equal(new Set(ids).size, ids.length, 'series idx/order are unique');
+      assert.ok(cx.indexOf('<c:chart>') < cx.indexOf('<c:externalData'), 'chartSpace element order');
+    }
+    const cxs = await Promise.all(charts.map(rd)); const wf = cxs.find((x) => x.includes('<c:overlap val="100"/>') && x.includes('<c:barDir val="col"/>') && x.includes('<a:noFill/><a:ln><a:noFill/></a:ln></c:spPr><c:invertIfNegative'));
+    assert.ok(wf, 'the waterfall is a stacked column chart with an invisible base series');
+    const bar = cxs.find((x) => x.includes('<c:grouping val="clustered"/>')); assert.ok(bar.includes('<c:min val="0"/>'), 'a bar chart starts at zero');
+    const barSheet = XLSX_T.read(await zip.file(`ppt/${/Target="\.\.\/(embeddings\/[^"]+)"/.exec(await rd(charts[charts.length - 1].replace('charts/', 'charts/_rels/') + '.rels'))[1]}`).async('uint8array'), { type: 'array' }).Sheets.Sheet1;
+    assert.ok(barSheet.A2 && barSheet.B2 && barSheet.B2.v === 4 && !barSheet.B3, 'the embedded workbook holds the data; a missing value is an EMPTY cell'); assert.ok(barSheet.B4 && barSheet.B4.v === 0, 'a zero stays a zero');
+    const line = cxs.find((x) => x.includes('<c:lineChart>')); assert.ok(line.includes('<a:prstDash val="dash"/>'), 'a dashed series');
+    assert.equal(cxs.some((x) => x.includes('<c:orientation val="maxMin"/>')), true); // category axis reversed (Arabic columns / lines; horizontal bars list top to bottom)
+    assert.equal(cxs.filter((x) => x.includes('<a:pPr rtl="1">')).length === charts.length, lang === 'ar', 'chart text is right-to-left in the Arabic deck only');
+    assert.ok(xml.includes('wdUpDiag'), 'the heat map marks a missing cell with a hatch');
+  }
+  // without meta the stamp is simply absent (nothing invented); with a model that has no build inputs the deck is built all the same
+  const noMeta = await JSZip_T.loadAsync(await buildPptx_T(pptxModel('en', null), nodeFs.readFileSync('public/templates/momah-en.pptx'))); assert.ok(!(await noMeta.file('ppt/slides/slide1.xml').async('string')).includes('Version '));
+  // the vector-shape drawing stays as the fallback for an unknown chart kind: a column starts at zero, draws nothing for a missing value, a zero value has no visible height
+  const c = chartShapes_T({ x: 1, y: 1, w: 8, h: 3, kind: 'bar', labels: ['a', 'b', 'c'], series: [{ label: 'S', values: [4, null, 0] }], lang: 'en', fmt: (v) => String(v) });
+  assert.equal((c.xml.match(/name="Bar /g) || []).length, 2, 'the missing value draws no bar'); assert.ok(/cy="1"/.test(c.xml), 'a zero value has no visible height');
+  const fm = fileName_T({ title: 'Revenue report', lang: 'ar', generatedAt: '2026-11-05T10:00:00Z', _inputs: { spec: { scope: { from: '2026-01-01', to: '2026-11-05' } } } }, 'pdf'); assert.equal(fm, 'Revenue-report_2026-01-01_2026-11-05_ar.pdf');
+});
+
+test('Exclusions register · the shared invoice list shows each excluded invoice ONCE under its effective reason, and the reasons add up to the excluded total', () => {
+  const snap = snapshot(st, { scope: YTD, cfg });
+  const all = list(st, { scope: YTD, cfg, filters: { primary: 'any' }, sort: { key: 'exclusionAmount', dir: 'desc' }, page: 0, pageSize: 500 });
+  assert.equal(all.total, snap.totals.excludedCount, 'the list count equals the excluded-invoice count of the KPI');
+  const exclTotal = Object.values(snap.ruleStats || {}).reduce((t, x) => t + (x.primaryAmount || 0), 0);
+  assert.ok(Math.abs(all.sums.exclusionAmount - exclTotal) < 1, 'the amount excluded by the list equals the sum of the reasons');
+  let n = 0; let amt = 0;
+  for (const [ruleId, x] of Object.entries(snap.ruleStats || {})) {
+    const l = list(st, { scope: YTD, cfg, filters: { primary: ruleId }, page: 0, pageSize: 5 });
+    assert.equal(l.total, x.primaryCount || 0, `${ruleId}: the filtered list has the reason's invoice count`); n += l.total; amt += l.sums.exclusionAmount;
+    assert.ok(l.rows.every((r) => r.exclusionReason?.ruleId === ruleId && r.exclusionReasons[0].ruleId === ruleId && r.exclusionReasons[0].primary), `${ruleId}: every row carries it as its effective (first) reason`);
+  }
+  assert.equal(n, all.total, 'no invoice is listed under two reasons'); assert.ok(Math.abs(amt - exclTotal) < 1, 'no amount is excluded twice');
+  const multi = all.rows.filter((r) => r.exclusionReasons.length > 1);
+  for (const r of multi) assert.equal(new Set(r.exclusionReasons.map((x) => x.ruleId)).size, r.exclusionReasons.length, 'a reason is listed once on a row');
+  for (const r of all.rows) { assert.ok(r.exclusionAmount <= r.gross + 0.01, 'the excluded amount never exceeds the invoice amount'); assert.equal(r.outstanding, 0); assert.ok(['partial', 'overdue', 'not_due'].includes(r.payStatus), 'the payment status stays as the source states it (an exclusion does not change it)'); assert.equal(r.payStatus === 'partial', r.received > 0, 'partly paid only when money was received'); }
+  const sorted = all.rows.map((r) => r.exclusionAmount); assert.deepEqual(sorted, [...sorted].sort((a, b) => b - a), 'sorted by the excluded amount');
+  const keys = new Set(all.rows.map((r) => r.compositeKey || r.id)); assert.equal(keys.size, all.rows.length, 'each excluded invoice appears once (by its composite identity)');
 });
 
 console.log(`\n${passed} tests passed${process.exitCode ? ' — WITH FAILURES' : ''}`);

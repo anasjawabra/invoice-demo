@@ -1,0 +1,81 @@
+/* Sanad document + OCR simulation (components/revenue/SanadDocument*.jsx). Logical properties only, so RTL and LTR both work. */
+.sd-sim { display: grid; gap: 2px; border: 1px solid rgba(181, 71, 8, 0.45); background: rgba(181, 71, 8, 0.07); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; }
+.sd-sim b { color: var(--warning); font-size: 13px; }
+.sd-tag-sim { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 99px; color: var(--warning); border: 1px solid rgba(181, 71, 8, 0.45); background: rgba(181, 71, 8, 0.07); }
+.sd-missing { display: grid; gap: 10px; border: 1px dashed var(--danger-text); border-radius: var(--radius-sm); padding: 10px 12px; background: rgba(240, 68, 56, 0.05); }
+.sd-missing__flag { color: var(--danger-text); font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.sd-doc { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--bg-0); min-width: 0; }
+.sd-doc__name { font-weight: 600; overflow-wrap: anywhere; }
+.sd-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sd-attach { display: grid; gap: 8px; min-width: 0; }
+.sd-attach__grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.sd-attach__box { display: grid; gap: 6px; align-content: start; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface); }
+.sd-attach__box label { display: grid; gap: 4px; font-size: 12px; color: var(--txt-mute); }
+.sd-progress { display: grid; gap: 4px; }
+.sd-progress progress { width: 100%; height: 8px; }
+.sd-notice { border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 8px 12px; font-size: 13px; background: var(--bg-0); }
+.sd-notice--warn { border-color: rgba(181, 71, 8, 0.45); background: rgba(181, 71, 8, 0.06); }
+.sd-notice--bad { border-color: rgba(240, 68, 56, 0.45); background: rgba(240, 68, 56, 0.05); }
+.sd-review { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1100px) { .sd-review { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); } .sd-left { position: sticky; inset-block-start: 8px; } }
+.sd-left { display: grid; gap: 10px; min-width: 0; }
+.sd-text { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface); display: grid; gap: 6px; }
+.sd-text h4 { margin: 0; font-size: 12px; color: var(--txt-mute); font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sd-text pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 13px; line-height: 1.7; }
+.sd-mark { background: rgba(23, 92, 211, 0.12); border-radius: 3px; padding: 0 2px; }
+.sd-mark--active { background: #FEDF89; outline: 1px solid #B54708; }
+.sd-fields { display: grid; gap: 8px; min-width: 0; }
+.sd-field { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface); display: grid; gap: 6px; min-width: 0; }
+.sd-field--active { border-color: var(--secondary); box-shadow: 0 0 0 1px var(--secondary); }
+.sd-field--conflict { border-color: rgba(240, 68, 56, 0.55); }
+.sd-field__head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: space-between; }
+.sd-field__head b { font-size: 13px; }
+.sd-vals { display: grid; gap: 6px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.sd-val { display: grid; gap: 1px; font-size: 13px; min-width: 0; }
+.sd-val small { color: var(--txt-mute); font-size: 11px; }
+.sd-val span.v { overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.sd-val--final { border-inline-start: 3px solid var(--ink-ok); padding-inline-start: 6px; }
+.sd-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sd-editor { display: grid; gap: 6px; border-block-start: 1px dashed var(--line); padding-block-start: 6px; }
+.sd-editor label { display: grid; gap: 3px; font-size: 12px; color: var(--txt-mute); }
+.sd-history { font-size: 12px; }
+.sd-history summary { cursor: pointer; color: var(--txt-mute); }
+.sd-history ol { margin: 4px 0 0; padding-inline-start: 18px; display: grid; gap: 2px; }
+.sd-linkbtn { background: none; border: 0; padding: 0; color: var(--secondary); cursor: pointer; font: inherit; font-size: 12px; text-decoration: underline; }
+.sd-img { max-width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+.sd-fields-col { display: grid; gap: 10px; min-width: 0; }
+.sd-refs { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; background: var(--surface); display: grid; gap: 6px; font-size: 13px; }
+.sd-refs ol { margin: 0; padding-inline-start: 20px; display: grid; gap: 6px; }
+.sd-ref--active { background: rgba(254, 223, 137, 0.35); border-radius: 4px; }
+/* review table additions (OrderJourney step 3) */
+.oj-found { display: grid; gap: 2px; margin-block-start: 3px; }
+.oj-snip { background: #FEDF89; color: var(--txt); border-radius: 3px; padding: 0 4px; font-size: 12px; overflow-wrap: anywhere; }
+.oj-flags { display: grid; gap: 3px; margin-block-start: 4px; }
+.oj-flags .rv-tag { white-space: normal; text-align: start; }
+.oj-linkev { margin-block-start: 4px; border-inline-start: 3px solid var(--ink-ok); padding-inline-start: 6px; display: grid; gap: 2px; }
+.oj-pending { display: grid; gap: 2px; font-size: 13px; }
+.oj-effect { font-size: 13px; font-weight: 600; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 6px 10px; background: var(--bg-0); }
+/* the status banner, manual search, confirmation summary and outcome («من المستند إلى الربط») — green = done, amber = needs attention, red only for conflict / failure; every state carries text */
+.wf-banner { display: grid; gap: 8px; border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 12px 14px; background: var(--bg-0); border-inline-start-width: 5px; }
+.wf-banner--ok { border-color: rgba(27, 131, 84, 0.45); border-inline-start-color: var(--ink-ok); background: rgba(27, 131, 84, 0.06); }
+.wf-banner--warn { border-color: rgba(181, 71, 8, 0.45); border-inline-start-color: var(--warning); background: rgba(181, 71, 8, 0.06); }
+.wf-banner__head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 16px; }
+.wf-banner__icon { display: inline-grid; place-items: center; inline-size: 24px; block-size: 24px; border-radius: 50%; font-weight: 700; color: #fff; background: var(--warning); }
+.wf-banner--ok .wf-banner__icon { background: var(--ink-ok); }
+.wf-banner__nums { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 13px; }
+.wf-banner__nums b { font-variant-numeric: tabular-nums; }
+.wf-banner__guide { font-size: 13px; }
+.wf-banner__now { font-size: 13px; border-block-start: 1px dashed var(--line); padding-block-start: 6px; }
+.wf-manual--rec { border-color: rgba(181, 71, 8, 0.45); }
+.wf-results { display: grid; gap: 6px; }
+.wf-sum { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); }
+.wf-sum h4, .wf-outcome h4 { margin: 0; font-size: 14px; }
+.wf-ack { display: grid; gap: 6px; border: 1px solid rgba(181, 71, 8, 0.45); border-radius: var(--radius-sm); padding: 8px 10px; background: rgba(181, 71, 8, 0.06); }
+.wf-ack__check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; font-weight: 600; }
+.wf-ack__check input { inline-size: 20px; block-size: 20px; accent-color: var(--primary); flex: none; }
+.wf-outcome { display: grid; gap: 6px; border: 1px solid var(--ink-ok); border-radius: var(--radius-sm); padding: 10px 12px; background: var(--surface); margin-block-start: 8px; }
+.wf-outcome__list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.wf-fix { display: grid; gap: 6px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); padding: 8px; background: var(--bg-0); margin-block-start: 4px; min-inline-size: 240px; }
+.wf-corr { border-inline-start: 3px solid var(--warning); padding-inline-start: 6px; margin-block-start: 4px; }
+.sd-missing--optional { border-color: var(--line-strong); background: var(--bg-0); }
+.sd-missing--optional .sd-missing__flag { color: var(--txt); }

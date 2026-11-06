@@ -25,7 +25,7 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
   const { L, B, ar } = useL();
   const [sel, setSel] = useState(0); const [page, setPage] = useState(1);
   const [sup, setSup] = useState({});
-  const docs = order.docs || []; const canReview = rev.canReview;
+  const docs = order.docs || []; const canReview = rev.canDo.enforcementUpload; // reading/extracting the order's documents = enforcement.upload
   const files = useDocFiles(docs.map((d) => d.id), tick);
   const d = docs[Math.min(sel, docs.length - 1)] || null;
   React.useEffect(() => { if (focus) { const i = docs.findIndex((x) => x.id === focus.docId); if (i >= 0) { setSel(i); setPage(focus.page || 1); } } }, [focus]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,6 +80,17 @@ export default function OrderDocuments({ order, rev, onMessage, focus = null, ti
               </table></div>
             )}
             {ex && <div className="muted" style={{ fontSize: 12 }}>{L(`${ex.refs?.length || 0} invoice reference(s) in this document`, `${ex.refs?.length || 0} مرجع فاتورة في هذا المستند`)}{ex.statedAmount != null && <> · {L('the document states a total of', 'يذكر المستند إجمالياً')} <span dir="ltr">{ex.statedAmount.toLocaleString('en-US')}</span>{Math.abs(ex.statedAmount - order.amount) > 1 && <span className="rv-tag rv-tag--bad"> {L('differs from the order amount in Sanad', 'يختلف عن مبلغ الأمر في سند')}</span>}</>}</div>}
+            {ex && (ex.refs || []).length > 0 && (
+              <div className="rp-tablewrap" tabIndex={0}><table aria-label={L('References and where they were found', 'المراجع وموضعها في المستند')}>
+                <thead><tr><th>{L('Reference', 'المرجع')}</th><th>{L('Page', 'الصفحة')}</th><th>{L('Passage it was read from', 'المقطع الذي قُرئ منه')}</th></tr></thead>
+                <tbody>{ex.refs.flatMap((r) => r.occurrences.map((o, i) => (
+                  <tr key={`${r.kind}|${r.value}|${i}`}>
+                    <td dir="ltr"><b>{r.value}</b>{r.kind === 'invoice_serial' && <div><span className="rv-tag rv-tag--warn">{L('incomplete number', 'رقم ناقص')}</span></div>}</td>
+                    <td>{exact && o.page ? <button type="button" className="rv-link" onClick={() => setPage(o.page)}>{o.page}</button> : <span className="muted">—</span>}</td>
+                    <td dir="rtl">{o.snippet ? <mark style={{ background: '#FEDF89', color: 'inherit', borderRadius: 3, padding: '0 4px' }}>{o.snippet}</mark> : <span className="muted">—</span>}</td>
+                  </tr>)))}</tbody>
+              </table></div>
+            )}
             {ex?.orderNumberMismatch && <div className="rp-limit rp-limit--warn" role="alert"><b>{L('This document names a different order', 'يذكر هذا المستند أمراً مختلفاً')}</b> ({(ex.orderNumbersInDocument || []).join(', ')}). {L('A link found only in it cannot be confirmed.', 'ولا يمكن تأكيد رابط ورد فيه وحده.')}</div>}
             {unread.length > 0 && <div className="rp-limit rp-limit--warn" role="alert"><b>{exact ? L(`${unread.length} page(s) not read: ${unread.map((p) => p.page).join(', ')}`, `${unread.length} صفحة لم تُقرأ: ${unread.map((p) => p.page).join('، ')}`) : L('The file was not read', 'لم يُقرأ الملف')}</b></div>}
             {canReview && unread.length > 0 && (

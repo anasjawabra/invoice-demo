@@ -5,10 +5,18 @@ import { billerOf, originOf, originIdxOf, productOf, entityTypeOf, ENTITY_TYPE_A
 import { sadadOf, subscriptionOf, REQUEST, facilityKeyOf, personName, nationalIdOf, mobileOf, payerName, beneficiaryIdOf } from './names.js';
 import { MAIN } from '../src/data/iim.js';
 import { isoOf } from '../src/data/catalog.js';
+import { compositeKey, demoAmanahId, demoMunicipalityId } from '../src/data/invoiceIdentity.js';
+import { municipalityFields } from '../src/data/municipalityModel.js';
 
 const hashOf = (n) => Math.imul((n % 2147483629) | 0, 0x9e3779b1) >>> 0;
 export const DIFFERENCES_SHARE = 14; // % of tobacco / accommodation invoices that are audit differences (فروقات) rather than declared occupancy (إشغالات) — illustrative
 
+/** the municipality fields of row i (see src/data/municipalityModel.js): the reference municipality + its status + the source value and system. Fixtures keep the text their source gave; generated invoices carry the SYNTHETIC stand-in. */
+export function municipalityOfRow(st, i) {
+  const fx = i >= st.nGen ? st.fixtures.get(i) : null;
+  const sourceValue = fx ? (fx.municipalitySourceValues ? fx.municipalitySourceValues.join(' / ') : fx.municipalityAr || null) : null;
+  return municipalityFields({ ent: st.ent[i], code: st.mref[i], sourceKey: SOURCES[st.src[i]].key, sourceValue, synthetic: !fx });
+}
 export function iimFields(st, i) {
   const fx = i >= st.nGen ? st.fixtures.get(i) : null;
   const ent = st.ent[i]; const sc = st.scope[i];
@@ -18,7 +26,13 @@ export function iimFields(st, i) {
   const cls = classOfRow(st.gfs[i], origin === 'central' ? 0 : 1);
   const disclosure = DISCLOSURE_PRODUCTS.includes(pk);
   const kind = disclosure && !fx ? (hashOf(st.idKey[i]) % 100 < DIFFERENCES_SHARE ? 'differences' : 'occupancy') : null;
+  // the INVOICE COMPOSITE KEY (src/data/invoiceIdentity.js): invoice identifier + GFS code + Amanah id [+ municipality id]. The invoice number, the SADAD number and the biller number stay three separate fields.
+  const invoiceNo = fx ? (fx.invoiceNo || fx.sadadNo || '') : sadadOf(st.idKey[i]); // demo world: the generated invoice number (the source ACCOUNT_NO ↔ SADAD equivalence is NOT verified)
+  const amanahId = demoAmanahId(ent); const municipalityId = fx ? null : demoMunicipalityId(st.muni[i]);
+  const ck = compositeKey({ invoiceId: invoiceNo, gfsCode: cls.code, amanahId, municipalityId });
   return {
+    invoiceNo, amanahId, municipalityId /* LEGACY demo component of the composite key — NOT the reference municipality (see municipalityRefId) */, compositeKey: ck.key,
+    ...municipalityOfRow(st, i), keyComplete: ck.complete, keyMissing: ck.missing,
     sadadNo: fx ? fx.sadadNo || '' : sadadOf(st.idKey[i]),
     billerId: b.id, billerAr: b.ar, billerEn: b.en, origin, originAr: ORIGIN_AR[origin], originIdx: oIdx,
     productKey: pk, productAr: PRODUCTS[pk].ar, productEn: PRODUCTS[pk].en,
@@ -35,6 +49,14 @@ export function exclusionOf(D) {
   const ruleId = RULE_IDS[Math.round(Math.log2(D.primaryBit))];
   const r = EXCLUSION_REASON_OF_RULE[ruleId]; const s = EXCLUSION_SOURCE_OF_RULE[ruleId];
   return r ? { ruleId, n: r.n, code: r.code, reasonAr: r.ar, reasonEn: r.en, sourceAr: s?.ar || null, sourceEn: s?.en || null } : null;
+}
+/** every effective reason of an excluded invoice (primary first). The invoice is still ONE row and its amount leaves gross ONCE: the extra reasons are information only. */
+export function exclusionReasonsOf(D) {
+  if (!D.excluded || !D.primaryBit) return [];
+  const pb = Math.round(Math.log2(D.primaryBit)); const out = [];
+  const add = (b) => { const ruleId = RULE_IDS[b]; const r = EXCLUSION_REASON_OF_RULE[ruleId]; if (r) out.push({ ruleId, reasonAr: r.ar, reasonEn: r.en, primary: b === pb }); };
+  add(pb); for (let b = 0; b < RULE_IDS.length; b += 1) if (b !== pb && (D.mask & (1 << b))) add(b);
+  return out;
 }
 void ENTITIES; void gfsCodeAt;
 

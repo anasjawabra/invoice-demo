@@ -9,12 +9,14 @@
 // «Proposed rule — requires confirmation» (`proposedRules`): 'unlinked' (due, no invoice linked), «term ended» and overdue-with-no-grace-period are rules of this demo applied to the generated
 // schedule and ledger. 'unlinked' needs a complete schedule, a reliable contract identity, validated invoice linkage and an agreed due-date / grace rule, none of which a capped Furas
 // extract provides — so none of them is a finding about real contracts.
-import { ENTITIES, ITEMS, CR_STATUS, CHANNELS, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, ITEMS, CR_STATUS, CHANNELS, isoOf } from '../src/data/catalog.js';
+import { municipalityFields, demoMunicipalityCode } from '../src/data/municipalityModel.js';
 import { ratio } from '../src/data/revenueMetrics.js';
 import { openOverdueDays, paymentLateness } from '../src/data/lateness.js';
 import { makeCtx, derive, idOf, contractsByNumber } from './engine.js';
 import { demoOrigin, proposedRules } from '../src/data/contractRules.js';
 import { payerName, sadadOf, beneficiaryIdOf } from './names.js';
+import { ALL_TABLE, isVisible, visibleCode, entityReachable } from './accessMask.js';
 
 const METHOD = ['structured', 'ocr'];
 
@@ -39,6 +41,8 @@ function paymentEvents(st, inv, dueN, asOfN, grace) {
   return out;
 }
 
+// the municipality of a generated contract = the one its invoices get (demoMunicipalityCode keyed by the contract index) — a synthetic stand-in, see src/data/municipalityModel.js
+const contractMunicipality = (ct) => { const f = municipalityFields({ ent: ct.ent, code: demoMunicipalityCode(ct.ent, 0x40000000 + ct.idx, 'investment'), sourceKey: 'investment' }); return { municipalityKey: f.municipalityKey, municipalityAr: f.municipalityAr, municipalityEn: f.municipalityEn, municipalityRefId: f.municipalityRefId, municipalityStatus: f.municipalityStatus }; };
 function cardOf(st, ctx, ct) {
   const D = ctx.D; const today = ctx.cutoffN; const dataStart = st.dataStartN || 0;
   const schedule = ct.sched.map((d) => {
@@ -61,7 +65,7 @@ function cardOf(st, ctx, ct) {
   });
   const sum = (f) => schedule.reduce((s, x) => s + (f(x) || 0), 0);
   const count = (f) => schedule.filter(f).length;
-  const reqs = st.requests.filter((q) => q.contractIdx === ct.idx).map((q) => {
+  const reqs = st.requests.filter((q) => q.contractIdx === ct.idx && requestVisible(st, q, ctx.acc)).map((q) => {
     const ids = q.identified.map((i) => idOf(st, i));
     return { enforceNum: q.enforceNum, system: 'sanad', amount: q.amount, openedDate: isoOf(q.openedDay), closedDate: null, closedDateStatus: 'not_recorded', status: q.status, contractNo: ct.contractNo, identifiedInvoices: ids, identified: ids.length > 0, crViewStatusRaw: CR_STATUS[ct.crSt], addedToNetUncollected: false, documents: [{ type: 'فاتورة', item: `بند ١ — ${payerName(ct.payer).ar}`, crNo: q.crNo, method: METHOD[q.method], confidence: q.confidence }] };
   });
@@ -78,7 +82,7 @@ function cardOf(st, ctx, ct) {
   const collectedOfDue = sum((x) => (dueRows(x) ? x.collected : 0));
   const termEnded = ct.end < today;
   return {
-    contractNo: ct.contractNo, idx: ct.idx, amanahEn: ENTITIES[ct.ent].en, amanahAr: ENTITIES[ct.ent].ar, municipalityKey: municipalityOf(ct.ent, ct.muni)?.key, municipalityAr: municipalityOf(ct.ent, ct.muni)?.ar,
+    contractNo: ct.contractNo, idx: ct.idx, amanahEn: ENTITIES[ct.ent].en, amanahAr: ENTITIES[ct.ent].ar, ...contractMunicipality(ct),
     tenantAr: payerName(ct.payer).ar, tenantEn: payerName(ct.payer).en, itemKey: ITEMS[ct.item].key, itemAr: ITEMS[ct.item].ar, itemEn: ITEMS[ct.item].en, start: isoOf(ct.start), end: isoOf(ct.end), intervalMonths: ct.intervalMonths,
     status: ct.status, termEnded, crNo: ct.crNo, crStatusRaw: CR_STATUS[ct.crSt] || null, annualValue: ct.annualValue, totalValue: ct.totalValue,
     origin: demoOrigin(), proposedRules: proposedRules(),
@@ -104,18 +108,39 @@ function cardOf(st, ctx, ct) {
   };
 }
 
-// scope = the same Amanah / organisation restriction for the list and for a single contract
-const inScope = (req, ct) => {
+// GEOGRAPHIC ACCESS (docs/access-control.md §5). A contract carries the Amanah of its entity and the municipality its invoices get (`contractMunicipality`: the same demoMunicipalityCode seed as its invoices), so it is visible exactly when the
+// user may see that Amanah/municipality AND every invoice linked to it: a contract with even one invoice outside the access is NOT visible (fail closed) — not as a card, a rollup member, a search hit nor a count.
+const contractCode = (ct) => demoMunicipalityCode(ct.ent, 0x40000000 + ct.idx, 'investment');
+export function contractVisible(st, ct, tab = ALL_TABLE) {
+  if (!ct) return false; if (tab.all) return true;
+  if (!visibleCode(tab, ct.ent, contractCode(ct))) return false;
+  for (const d of ct.sched || []) if (d.inv >= 0 && !isVisible(st, d.inv, tab)) return false;
+  for (const i of ct.invs || []) if (!isVisible(st, i, tab)) return false;
+  return true;
+}
+/** a Sanad / white-lands request is visible when its contract (if any) and EVERY invoice it identifies or covers are visible; a request that names neither is read as «Amanah known, municipality not specified» */
+export function requestVisible(st, q, tab = ALL_TABLE) {
+  if (!q) return false; if (tab.all) return true;
+  if (!entityReachable(tab, q.ent)) return false;
+  const ct = q.contractIdx >= 0 ? st.contracts[q.contractIdx] : null;
+  if (ct && !contractVisible(st, ct, tab)) return false;
+  const inv = [...(q.identified || []), ...(q.covers || [])];
+  for (const i of inv) if (!isVisible(st, i, tab)) return false;
+  if (!ct && !inv.length) return visibleCode(tab, q.ent, 0);
+  return true;
+}
+// scope = the same Amanah / organisation restriction for the list and for a single contract, then the user's own geographic access
+const inScope = (st, req, ct, tab) => {
   const allowed = req.scope?.org?.amanahKeys || req.scope?.orgKeys || null;
   const am = req.scope?.amanah; const picked = am && am !== 'all' ? new Set([].concat(am)) : null;
   const en = ENTITIES[ct.ent].en;
-  return !(allowed && !allowed.includes(en)) && !(picked && !picked.has(en));
+  return !(allowed && !allowed.includes(en)) && !(picked && !picked.has(en)) && contractVisible(st, ct, tab);
 };
 export function contractCards(st, req, { summary = true } = {}) {
   const ctx = makeCtx(st, req);
   const out = [];
   for (const ct of st.contracts) {
-    if (!ct || !inScope(req, ct)) continue;
+    if (!ct || !inScope(st, req, ct, ctx.acc)) continue;
     const c = cardOf(st, ctx, ct);
     if (summary) { c.schedule = undefined; }
     out.push(c);
@@ -123,11 +148,13 @@ export function contractCards(st, req, { summary = true } = {}) {
   return out;
 }
 // one card for a contract NUMBER (trimmed, case-folded). A number that carries several records in scope identifies none of them: the answer is {ambiguous, matches}, never the first record.
+// Only the records the user may see are counted: a contract outside the access answers exactly like a missing one and never raises the match count.
 export function contractCard(st, req, no) {
-  const found = contractsByNumber(st, no).filter((ct) => inScope(req, ct));
+  const ctx = makeCtx(st, req);
+  const found = contractsByNumber(st, no).filter((ct) => inScope(st, req, ct, ctx.acc));
   if (!found.length) return null;
   if (found.length > 1) return { ambiguous: true, matches: found.length };
-  return cardOf(st, makeCtx(st, req), found[0]);
+  return cardOf(st, ctx, found[0]);
 }
 export function contractRollup(cards) {
   const add = (f) => cards.reduce((s, c) => s + f(c.totals), 0);
@@ -144,8 +171,9 @@ export function contractRollup(cards) {
 }
 
 // Sanad requests in the shape the enforcement workspace keeps its cases
-export function sanadCases(st) {
-  return st.requests.map((q) => {
+export function sanadCases(st, req = {}) {
+  const tab = makeCtx(st, req).acc;
+  return st.requests.filter((q) => requestVisible(st, q, tab)).map((q) => {
     const wl = q.system === 'white_lands';
     return {
       enforceNum: q.enforceNum, system: q.system || 'sanad', amanahEn: ENTITIES[q.ent].en, amount: q.amount, openedDate: isoOf(q.openedDay), contractNo: q.contractNo || null, requestStatus: q.status,

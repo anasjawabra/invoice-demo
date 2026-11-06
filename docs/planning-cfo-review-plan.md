@@ -1,5 +1,8 @@
 # التخطيط المالي والاستراتيجي — مراجعة المدير المالي وخطة التحديث (مبسّطة)
 
+> **Successor note (7 Nov 2026).** هذه الوثيقة سبقت مراجعة `/planning` الكاملة. المرجع الحالي هو `docs/planning-review/` (الخطة `08-implementation-plan.md`، الحالة `11-implementation-status.md`): مستهدف واحد (تغطية × ميزانية، توضيحي غير معتمد، بإصدار وحالة ومالك)، **المخطط حتى تاريخه** دالة واحدة (افتراض توزيع متساوٍ موسوم)، **التوقع بنهاية السنة** خط أساس واحد `runrate3_v2` (آخر 3 أشهر مكتملة، غير مُواءَم مع فرق التوقع)، **بلا احتمالية** (بيانات غير كافية، D-09)، وجدول إجراءات مرتَّب بدل نص «أين نركز». ما بقي هنا صالحًا: استثناء السيناريوهات وسجل التعديلات وسير الاعتماد (قرار D-07/D-08). الجدول أدناه تاريخي؛ عند التعارض يغلب `planning-review/`.
+> *This document predates the full `/planning` review. The current reference is `docs/planning-review/`: one target, one planned-to-date function (an even-split assumption), one baseline forecast, no probability, a ranked action table. The table below is historical; `planning-review/` wins on any conflict.*
+
 الصفحة: `/planning` (`PlanningArea.jsx`، `TargetsPanel.jsx`، `PlanForecast.jsx`، `EntityMap.jsx`، `planTargets.js`).
 المبدأ: **إصلاح ما يربك الأرقام وترتيب الصفحة فقط**. لا ميزات جديدة (لا سجل تعديلات، ولا موافقات، ولا سيناريوهات، ولا توزيع موسمي).
 

@@ -1,0 +1,107 @@
+/* «خطط الإيرادات» — the ONE plan page (docs/revenue-plans-spec.md §10). New classes are prefixed .pln-*; the page also reuses the planning page's .pl-* classes (src/components/strategic/planning.css), the MOMAH tokens
+   (--primary, --line, --heading, --txt-mute …), the shared tiles (.rv-tile), callouts and the filter bar. Logical properties only (RTL Arabic and LTR English from the same rules); a state is always text, never colour alone. */
+.pln-page { display: grid; gap: 14px; }
+.pln-page > * { min-width: 0; }
+
+/* selector */
+.pln-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.pln-selector__label { font-size: 12.5px; color: var(--txt-mute); font-weight: 600; }
+.pln-selector__btn { display: inline-flex; gap: 10px; align-items: center; justify-content: space-between; min-inline-size: 220px; max-inline-size: 100%; }
+.pln-options { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 52vh; overflow: auto; }
+.pln-option { display: grid; gap: 2px; inline-size: 100%; text-align: start; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-1); cursor: pointer; font: inherit; color: var(--txt); }
+.pln-option:hover { border-color: var(--primary); }
+.pln-option:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.pln-option.is-selected { border-color: var(--primary); background: rgba(27, 131, 84, 0.06); }
+.pln-option__name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+
+/* header */
+.pln-header { gap: 10px; }
+.pln-header__top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 10px 16px; }
+.pln-header__title { display: grid; gap: 6px; min-width: 0; }
+.pln-header__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pln-assume { color: #8A3B06; }
+.pln-more { position: relative; }
+.pln-menu { position: absolute; inset-block-start: calc(100% + 4px); inset-inline-end: 0; z-index: 30; list-style: none; margin: 0; padding: 6px; min-inline-size: 240px; background: var(--bg-1); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14); display: grid; gap: 2px; }
+.pln-menu__item { inline-size: 100%; text-align: start; padding: 8px 10px; border: 0; background: none; border-radius: 6px; font: inherit; color: var(--txt); cursor: pointer; display: grid; gap: 2px; }
+.pln-menu__item:hover:not(:disabled) { background: var(--bg-0); }
+.pln-menu__item:disabled { color: var(--txt-mute-2); cursor: not-allowed; }
+.pln-menu__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+
+/* legacy import notice */
+.pln-legacy-wrap { display: grid; gap: 8px; }
+.pln-legacy { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; }
+.pln-legacy__act { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+
+/* unsaved bar */
+.pln-unsaved { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; padding: 10px 14px; border: 1px solid rgba(181, 71, 8, 0.5); background: rgba(181, 71, 8, 0.08); border-radius: var(--radius-sm); font-size: 13.5px; position: sticky; inset-block-start: 8px; z-index: 12; }
+.pln-unsaved__act { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+.pln-summary .rv-tile__sub { line-height: 1.7; }
+
+/* position · breakdown */
+.pln-pos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px 18px; margin: 0; }
+.pln-pos dt { font-size: 12.5px; color: var(--txt-mute); margin-block-end: 2px; }
+.pln-pos dd { margin: 0; font-weight: 600; color: var(--heading); display: grid; gap: 2px; }
+.pln-break th[scope='row'] { font-weight: 600; text-align: start; }
+.pln-break tr.pln-unalloc th, .pln-break tr.pln-unalloc td { background: rgba(25, 65, 133, 0.05); }
+.pln-break tr.pln-notarget td { color: var(--txt-mute); }
+.pln-break tr.is-selected th, .pln-break tr.is-selected td { background: rgba(27, 131, 84, 0.1); }
+.pln-break tfoot .pln-total th, .pln-break tfoot .pln-total td { border-block-start: 2px solid var(--line-strong); font-weight: 700; }
+/* the contribution section: entity bars | revenue-source bars side by side on wide screens (stacked on narrow ones), the bullets below */
+.pln-contrib { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); align-items: start; }
+.pln-contrib > .pl-block { min-inline-size: 0; }
+#plan-bullets { min-inline-size: 0; margin-block-start: 14px; }
+.pln-reconcile { padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-1); }
+
+/* dialogs */
+.pln-overlay { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 16px; background: rgba(13, 18, 28, 0.45); }
+.pln-dialog { display: flex; flex-direction: column; inline-size: 100%; max-height: calc(100vh - 32px); background: var(--bg-1); color: var(--txt); border: 1px solid var(--line-strong); border-radius: var(--radius); box-shadow: 0 16px 48px rgba(16, 24, 40, 0.25); }
+.pln-dialog:focus { outline: none; }
+.pln-dialog--sm { max-inline-size: 460px; } .pln-dialog--md { max-inline-size: 640px; } .pln-dialog--lg { max-inline-size: 860px; }
+.pln-dialog__head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; padding: 14px 18px; border-block-end: 1px solid var(--line); }
+.pln-dialog__title { margin: 0; font-size: 17px; font-weight: 700; color: var(--heading); }
+.pln-dialog__sub { margin-block-start: 4px; font-size: 12.5px; color: var(--txt-mute); line-height: 1.7; }
+.pln-dialog__body { padding: 16px 18px; overflow: auto; display: grid; gap: 12px; align-content: start; flex: 1; }
+.pln-dialog__foot { display: flex; gap: 8px; justify-content: flex-end; align-items: center; flex-wrap: wrap; padding: 12px 18px; border-block-start: 1px solid var(--line); background: var(--bg-0); border-radius: 0 0 var(--radius) var(--radius); }
+.pln-x { border: 0; background: none; font-size: 24px; line-height: 1; cursor: pointer; color: var(--txt-mute); padding: 2px 8px; border-radius: 6px; }
+.pln-x:hover { background: var(--bg-0); }
+.pln-form { display: grid; gap: 12px; }
+.pln-field { display: grid; gap: 4px; border: 0; padding: 0; margin: 0; min-width: 0; font-size: 13px; }
+.pln-field > span, .pln-field > legend { font-weight: 600; color: var(--heading); padding: 0; }
+.pln-input { font: inherit; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-1); color: var(--txt); min-inline-size: 0; inline-size: 100%; }
+.pln-input--sm { inline-size: auto; padding: 5px 8px; }
+.pln-input:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.pln-input[aria-invalid='true'] { border-color: var(--danger); }
+.pln-check { display: flex; gap: 8px; align-items: center; font-size: 13.5px; }
+.pln-problems { margin: 0; padding-inline-start: 18px; color: var(--danger-text); font-size: 13px; line-height: 1.8; }
+
+@media (max-width: 767px) {
+  .pln-overlay { padding: 0; place-items: stretch; }
+  .pln-dialog { max-height: none; block-size: 100%; border-radius: 0; }
+  .pln-selector__btn { min-inline-size: 0; flex: 1 1 200px; }
+  .pln-header__actions .btn { flex: 1 1 auto; }
+  .pln-unsaved { position: static; }
+  .pln-menu { inset-inline-end: auto; inset-inline-start: 0; }
+}
+
+.pln-created { margin-block-start: 2px; font-size: 12.5px; color: var(--txt-mute); }
+.pln-act { display: inline-flex; align-items: center; gap: 4px; }
+
+/* the frozen baseline of a derived plan (the remaining-2026 plan) and the upcoming / illustrative strip of a system plan */
+.pln-upcoming { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 0 0 12px; }
+.pln-baseline { margin: 0 0 14px; padding: 12px 14px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-1); }
+.pln-baseline .pl-h3 small { margin-inline-start: 8px; font-weight: 400; color: var(--txt-mute); }
+.pln-baseline__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); gap: 8px 18px; margin: 8px 0 0; }
+.pln-baseline__grid dt { font-size: 12.5px; color: var(--txt-mute); margin-block-end: 2px; }
+.pln-baseline__grid dd { margin: 0; font-weight: 600; color: var(--heading); }
+
+/* upcoming plan · schedule · notified budget · target / schedule / forecast */
+.pln-budget { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 14px 0 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-1); }
+.pln-budget__k { font-weight: 600; color: var(--heading); }
+.pln-budget__v { font-size: 1.05rem; color: var(--heading); }
+.pln-budget[data-state='unavailable'] .pln-budget__k { color: var(--txt-mute); }
+.pln-three { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 12px 18px; margin: 0 0 12px; }
+.pln-three > div { padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-1); }
+.pln-three dt { font-size: 12.5px; color: var(--txt-mute); margin-block-end: 4px; }
+.pln-three dd { margin: 0; font-weight: 600; color: var(--heading); line-height: 1.6; }
+.pln-three dd.pl-sub2 { font-weight: 400; }
+#plan-schedule-table tr.pln-partial th, #plan-schedule-table tr.pln-partial td { background: rgba(176, 111, 0, 0.06); }

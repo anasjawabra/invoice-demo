@@ -38,7 +38,7 @@ export function reasonRuleOf(text) {
 /** the Amanah column → the entity index, or -1 */
 export function entityIndexOf(text) {
   const t = normText(text); if (!t) return -1;
-  return ENTITIES.findIndex((e) => [e.ar, e.en, e.zh].some((x) => normText(x) === t));
+  return ENTITIES.findIndex((e) => [e.ar, e.en].some((x) => normText(x) === t));
 }
 export const isHousing = (idx) => idx === ENT_HOUSING;
 
@@ -116,6 +116,7 @@ export const REJECTIONS = {
   cancelled: { ar: 'الفاتورة ملغاة.', en: 'The invoice is cancelled.' },
   amount_mismatch: { ar: 'المبلغ غير مطابق لمبلغ الفاتورة.', en: 'The amount does not match the invoice.' },
   date_mismatch: { ar: 'تاريخ الفاتورة غير مطابق.', en: 'The invoice date does not match.' },
+  invoice_ambiguous: { ar: 'عدة فواتير بهذا الرقم داخل الأمانة نفسها؛ أضف رقم حساب الإيراد لتحديد الفاتورة.', en: 'Several invoices carry this number inside the same Amanah; add the revenue account number to identify the invoice.' },
   account_mismatch: { ar: 'رقم حساب الإيراد غير مطابق.', en: 'The revenue account number does not match.' },
   not_investment: { ar: 'التعديات واستغلال المواقع تخص فواتير الاستثمار فقط.', en: 'Encroachments apply to investment invoices only.' },
   duplicate_in_file: { ar: 'الفاتورة مكررة في الملف.', en: 'The invoice appears twice in the file.' }

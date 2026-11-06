@@ -3,6 +3,8 @@ import { sha256Hex } from '../../data/pdfText';
 import { extractDocument, detectFormat, MAX_DOC_BYTES } from '../../data/docText';
 import { putFile, getFile } from '../../data/enforcementStore';
 import { loadPreparedSamples, sampleByHash, simulateOcr, manualExtraction, SIM_LABEL } from '../../data/ocrSimulation';
+import { orderDocumentRecord } from '../../data/sanadDocs/orderFeed';
+import { readDocBytes } from '../../data/sanadDocs/service';
 
 // The order's work in three steps — add documents · analyse them · review and confirm — kept out of the page so every step is one plain action:
 //  * a document is stored when it is ADDED (kind: uploaded | prepared_sample); nothing is read until ANALYSIS;
@@ -76,4 +78,14 @@ export function useOrderWork({ order, rev, onMessage, L, B }) {
   }, [docs, samples, rev, order.enforceNum, say, L]);
 
   return { samples, progress, busy, addFile, addSample, addManual, analyze, SIM_LABEL, B };
+}
+
+// A COMPLETED simulated extraction of a Sanad document (components/revenue/SanadDocumentPanel) flows into the order the same way a prepared sample does in `analyze`: the file is kept in the
+// hash-keyed file store and the document is recorded with its extraction (ocr_simulated). Returns { ok, refs }. Never called for an unread / unrecognised file.
+export async function recordSanadDocument({ order, rev, doc, pages }) {
+  let stored = false;
+  try { const bytes = await readDocBytes(doc); stored = await putFile(doc.sha256, { name: doc.name, size: bytes.length, type: 'application/pdf', bytes: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), at: Date.now() }); } catch { stored = false; }
+  const rec = orderDocumentRecord(doc, pages, order.enforceNum, { fileStored: stored });
+  const r = rev.enforcement.recordDocument(order.enforceNum, rec);
+  return { ok: !!r?.ok, refs: rec.extraction.refs.length };
 }

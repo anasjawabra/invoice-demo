@@ -1,75 +1,110 @@
-// «لوحة المعلومات» — monitoring view: works immediately, no prompt. ONE copy of the headline indicators; detail lives in the fixed reports
-// (every card links to its report or to the supporting invoices).
-import React, { useMemo } from 'react';
-import { Link } from 'react-router-dom';
+// «لوحة المعلومات» /insights — the redesigned monitoring page (docs/insights-redesign-spec.md). Each section answers a DIFFERENT question, in this order:
+//   KPI strip (what are the figures?) → performance summary (what changed / where is the gap / what is urgent?) → «الأداء حسب المنطقة» (where?) → «أبرز ما يحتاج مراجعة» (what should I check?)
+// + ONE details panel on demand and the OPTIONAL heatmap. Every section reads the SAME page scope and the SAME authorised entities — nothing is reset to the Ministry. The dashboard is INDEPENDENT of the collection plans
+// (no plan store, no reference plan, no targets): it is invoice-based only (docs/insights-redesign-spec.md «Implementation notes — S (decoupling)»).
+// The removed content (the «من الإجمالي إلى المحصّل» charts, «الأداء عبر الزمن», the old «تحليل تفصيلي» container) lives on in the comparison panel and in the export model, which is unchanged.
+import React, { useMemo, useState, useCallback } from 'react';
 import { useRevenue } from '../../context/RevenueContext';
+import { useAccess } from '../../context/AuthContext';
 import { useAr } from '../../utils/useAr';
-import { fmtMoney, fmtInt, unitOfValues, scaled, unitLabel } from '../../utils/money';
-import { MetricTile, PpDelta, ToDateFigure } from '../revenue/RevenueUI';
-import { basisLabel, BASIS } from '../../data/measure';
-import FinancialRelations from '../revenue/FinancialRelations';
-import { AmanahMap } from '../revenue/ExecutiveParts';
-import RevenueAnalysis from './RevenueAnalysis';
-import UnitLines from '../strategic/UnitLines';
 import { useAsync } from '../../utils/useAsync';
-import DecisionSummary from '../decisions/DecisionSummary';
-import { fmtRangeText, fmtMonthText } from '../../data/clock';
-import { CATEGORY_LABELS } from '../../data/revenueMetrics';
+import { useDashboardDecisions } from '../../data/useDecisions';
+import { geoScopeKey } from '../../data/geoScope';
+import { basisLabel, BASIS } from '../../data/measure';
+import { fmtRangeText } from '../../data/clock';
+import { unitOfValues, scaled, unitLabel } from '../../utils/money';
+import { PpDelta, ToDateFigure } from '../revenue/RevenueUI';
+import KpiStrip from '../invoices/KpiStrip';
+import { AsyncBlock } from '../strategic/AsyncState';
+import { loadRegionalDataset, authorisedEntityKeys } from '../../data/regional/regionalPerformance';
+import { buildPerformanceSummary } from '../../data/regional/performanceSummary';
+import { buildReviewPriorities, subsumedKeys } from '../../data/regional/reviewPriorities';
+import PerformanceSummary from './PerformanceSummary';
+import RegionalPerformance from './RegionalPerformance';
+import RegionDetailPanel, { TOTAL_SEL } from './RegionDetailPanel';
+import HeatmapDialog from './HeatmapDialog';
+import ReviewPriorities from './ReviewPriorities';
 
 const pct = (v, na) => (v == null ? na : `${(v * 100).toFixed(1)}%`);
 
-export default function InsightsDashboard() {
-  const rev = useRevenue(); const { L, B, ar, lang, count } = useAr();
-  const { snapshot, prevSnapshot, comparison, data, cfg, targets } = rev; const T = snapshot.totals; const s = rev.scopeEff; const today = cfg.cutoff;
-  const comparable = comparison?.comparable;
-  // D30 — «الأداء الشهري للإيرادات»: CUMULATIVE year to date. Net billed accrues by issue month; collected accrues in the month the payment happened (so a closed month never moves, a later payment adds to its own month).
-  const seriesScope = useMemo(() => ({ from: s.from, to: s.to, amanah: s.amanah, source: s.source, scopeType: s.scopeType, muni: s.muni, status: s.status, product: s.product, mainClass: s.mainClass, issuedFrom: s.from, issuedTo: s.to }), [s]);
-  const { data: ser } = useAsync(() => data.series(seriesScope, { capped: true }), [data, seriesScope]);
-  const perf = useMemo(() => {
-    if (!ser) return null;
-    const netBy = new Map(snapshot.byMonth.map((m) => [m.month, m.net])); let cn = 0; let cc = 0;
-    const net = ser.months.map((m) => { cn += netBy.get(m) || 0; return cn; });
-    const col = ser.values.map((v) => { cc += v; return cc; });
-    return { months: ser.months, net, col };
-  }, [ser, snapshot]);
-  const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, ar ? 'ar' : 'en') : '';
-  const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
-  if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div></div>;
+/** the Decision Room items WITHOUT any plan lookup (useDashboardDecisions), read ONLY for a person who holds the `decisions` module (the hook is mounted only then) */
+function DecisionsFeed({ children }) { const D = useDashboardDecisions(); return children({ items: D.items, ready: D.ready && !D.error }); }
+/** a failure of the Decision Room feed removes only the cases that depend on it (the priority finding and the review list), never the dashboard */
+class FeedBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e) { console.error('[insights] the Decision Room feed failed:', e); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 
-  const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const kp = (v) => fmtMoney(v, { lang, unit: u });
-  const months = snapshot.byMonth;
+export default function InsightsDashboard() {
+  const access = useAccess(); const canDecide = access.can('decisions');
+  const inner = (d) => <Body items={d.items} decisionsReady={d.ready} canDecide={canDecide} />;
+  return canDecide ? <FeedBoundary fallback={inner({ items: null, ready: true })}><DecisionsFeed>{inner}</DecisionsFeed></FeedBoundary> : inner({ items: null, ready: true });
+}
+
+function Body({ items, decisionsReady, canDecide }) {
+  const rev = useRevenue(); const { L, lang } = useAr(); const access = useAccess(); const [retry, setRetry] = useState(0);
+  const { snapshot, prevSnapshot, comparison, cfg } = rev; const T = snapshot.totals; const s = rev.scopeEff;
+  const comparable = comparison?.comparable;
+
+  /* the authorised entities: the account's dashboard scope (the data service already narrows; this is the client-side guarantee) */
+  const dashScope = access.effectiveScope('dashboard');
+  const authKey = geoScopeKey(dashScope);
+  const authorisedKeys = useMemo(() => authorisedEntityKeys({ geoScope: dashScope }), [authKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* the ONE dataset (page scope, authorised entities): invoice-based only */
+  const bundle = useAsync(() => loadRegionalDataset(rev, { authorisedKeys }), [snapshot, prevSnapshot, comparison, authKey, retry]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dataset = bundle.data || null;
+  const summary = useMemo(() => (dataset ? buildPerformanceSummary({ dataset, items, canSeeDecisions: canDecide }) : null), [dataset, items, canDecide]);
+  // the highest-priority issue is already the summary's third finding: the review list continues AFTER it (no repetition; aggregates already subsumed by their entity cases stay out)
+  const prioKey = summary?.findings.find((f) => f.id === 'priority')?.basis?.itemKey || null;
+  const review = useMemo(() => {
+    if (!canDecide) return null;
+    const sub = subsumedKeys(items || []);
+    return buildReviewPriorities({ items: (items || []).filter((i) => !sub.has(i.key) && i.key !== prioKey), canSeeDecisions: true });
+  }, [items, canDecide, prioKey]);
+
+  const [detail, setDetail] = useState(null); const [heat, setHeat] = useState(false);
+  const openDetail = useCallback((t) => setDetail(t && t.level ? { level: t.level, key: t.key } : TOTAL_SEL), []);
+  const closeDetail = useCallback(() => setDetail(null), []);
+  const closeHeat = useCallback(() => setHeat(false), []);
+
+  if (T.count === 0) return <div className="rv-empty" role="status"><b>{L('لا فواتير في هذا الاختيار.', 'There are no invoices in this selection.')}</b><div>{L('البيانات غير متاحة لهذه التصفية؛ وسّع الفترة أو أزل مرشحاً. لا تُعرض أصفار بدلاً من الغياب.', 'No data for these filters — widen the period or remove a filter. Absence is not shown as zero.')}</div><button type="button" className="btn btn-sm btn-ghost" style={{ marginTop: 8 }} onClick={rev.resetScope}>{L('مسح الفلاتر', 'Clear filters')}</button></div>;
+
+  /* ---- the ONE KPI strip ---- */
+  const u = unitOfValues([T.gross, T.exclusions, T.net, T.collected, T.outstanding]); const unit = unitLabel(u, lang); const val = (v) => scaled(v, u);
+  const cutoffInfo = basisLabel(s, BASIS.PERIOD_END, cfg.cutoff, lang);
+  const cmpRange = prevSnapshot ? fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, lang) : '';
+  const cmpLabel = comparison?.basis === 'same_period_last_year' ? L(`عن العام الماضي (${cmpRange})`, `vs last year (${cmpRange})`) : L(`عن الفترة السابقة (${cmpRange})`, `vs the previous period (${cmpRange})`);
+  const na = L('غير متاحة', 'Not available');
+  const kpis = [
+    { key: 'gross', label: L('إجمالي المفوتر', 'Gross billed'), value: val(T.gross), unit, info: L('إجمالي فواتير الفترة قبل الاستبعادات.', 'All invoices of the period before exclusions.') },
+    { key: 'exclusions', label: L('الاستبعادات', 'Exclusions'), value: val(T.exclusions), unit, sub: `${L('من الإجمالي', 'of gross')} ${pct(T.exclusionRate.calculable ? T.exclusionRate.value : null, na)}`, info: L('المبالغ المستبعدة من الإجمالي وفق قواعد الاستبعاد المعتمدة.', 'Amounts excluded from gross under the approved exclusion rules.') },
+    { key: 'net', label: L('صافي المفوتر', 'Net billed'), value: val(T.net), unit, info: L('الإجمالي − الاستبعادات.', 'Gross − exclusions.') },
+    { key: 'collected', label: L('المحصّل', 'Collected'), value: val(T.collected), unit, tone: 'collected', info: <>{L('المحصّل من صافي فواتير الفترة.', 'Collected on the period’s net billed.')} <b>{cutoffInfo}</b></> },
+    { key: 'uncollected', label: L('غير المحصّل', 'Uncollected'), value: val(T.outstanding), unit, tone: 'unpaid', info: L('الصافي − المحصّل.', 'Net − collected.') },
+    { key: 'rate', label: L('نسبة التحصيل', 'Collection rate'), value: pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, na), sub: <PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />, info: <>{L('المحصّل ÷ صافي المفوتر.', 'Collected ÷ net billed.')} <b>{cutoffInfo}</b></> }
+  ];
+  const bundleState = { ...bundle, data: bundle.data, loading: bundle.loading };
 
   return (
-    <div className="st-page" style={{ gap: 14 }}>
-      <p className="rv-line" role="status">{L(`${fmtInt(T.count)} فاتورة صدرت في هذه الفترة. `, `${fmtInt(T.count)} invoices issued in this period. `)}<b>{basisLabel(rev.scopeEff, BASIS.PERIOD_END, rev.cfg.cutoff, lang)}</b></p>
-
-      <div className="rv-tiles">
-        <MetricTile metric="gross" to="/invoices" label={L('إجمالي المفوتر', 'Gross billed')} value={kp(T.gross)} sub={L('قبل الاستبعادات', 'before exclusions')} />
-        <MetricTile metric="exclusions" label={L('الاستبعادات', 'Exclusions')} value={kp(T.exclusions)} sub={`${L('نسبة الاستبعاد', 'Exclusion rate')} ${pct(T.exclusionRate.calculable ? T.exclusionRate.value : null, L('غير متاحة', 'n/a'))}`} />
-        <MetricTile metric="net" label={L('صافي المفوتر', 'Net billed')} value={kp(T.net)} sub={L('بعد الاستبعادات', 'after exclusions')} />
-        <MetricTile metric="collected" label={L('المحصّل', 'Collected')} value={kp(T.collected)} sub={L('من الصافي', 'of net billed')} />
-        <MetricTile metric="uncollected" label={L('غير المحصّل', 'Uncollected')} value={kp(T.outstanding)} sub={L('من فواتير الفترة', 'on the period’s invoices')} />
-        <MetricTile metric="collectedOverNet" label={L('نسبة التحصيل', 'Collection rate')} value={pct(T.collectedOverNet.calculable ? T.collectedOverNet.value : null, L('غير متاحة', 'Not available'))} delta={<PpDelta change={comparison?.collectedOverNetPp} comparable={comparable} label={cmpLabel} />} sub={L('من الصافي', 'of net billed')} />
+    <div className="st-page ins-page" style={{ gap: 16 }}>
+      <div className="ins-kpis" aria-busy={rev.loading ? 'true' : undefined}>
+        <KpiStrip items={kpis} label={L('المؤشرات المالية', 'Financial indicators')} />
+        <ToDateFigure snapshot={snapshot} />
       </div>
-      <div className="card st-card"><FinancialRelations totals={T} /></div>
-      <ToDateFigure snapshot={snapshot} />
-
-      <DecisionSummary />
-
-      <div className="card st-card">
-        <b>{L('الأداء الشهري للإيرادات', 'Monthly revenue performance')}</b> <small className="muted">{L('تراكمي منذ بداية الفترة', 'cumulative from the start of the period')}</small>
-        {perf ? <UnitLines labels={perf.months.map((m) => fmtMonthText(m, ar ? 'ar' : 'en'))} series={[{ label: L('صافي المفوتر (تراكمي)', 'Net billed (cumulative)'), values: perf.net }, { label: L('المحصّل (تراكمي)', 'Collected (cumulative)'), values: perf.col }]} label={L('الأداء الشهري للإيرادات', 'Monthly revenue performance')} /> : <div className="muted" role="status">{L('جارٍ الحساب…', 'Calculating…')}</div>}
-        <div className="muted" style={{ fontSize: 12 }}>{L('الأشهر المنتهية ثابتة: التحصيل اللاحق يُضاف إلى الشهر الذي حدث فيه ولا يغيّر ما قبله. آخر نقطة تساوي بطاقات الفترة.', 'Closed months stay fixed: a later collection is added to the month it happened in and never changes earlier months. The last point equals the cards of the period.')}</div>
-        <div className="muted" style={{ fontSize: 12 }}>{comparable ? L(`في الفترة نفسها من العام الماضي (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'ar')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`, `Same period last year (${fmtRangeText(prevSnapshot.scope.from, prevSnapshot.scope.to, 'en')}): ${pct(prevSnapshot.totals.collectedOverNet.value, '—')}`) : ''}</div>
-      </div>
-
-      <div className="card st-card">
-          <b>{L('الأمانات / الجهات', 'Amanahs')}</b>
-          <AmanahMap snapshot={snapshot} prevSnapshot={prevSnapshot} comparable={comparable} onPick={rev.setAmanah} />
-          <div className="muted" style={{ fontSize: 12 }}><Link className="xref" to="/smart-reports?q=%D9%82%D8%A7%D8%B1%D9%86%20%D8%A3%D8%AF%D8%A7%D8%A1%20%D8%A7%D9%84%D8%AA%D8%AD%D8%B5%D9%8A%D9%84%20%D8%A8%D9%8A%D9%86%20%D8%A7%D9%84%D8%A3%D9%85%D8%A7%D9%86%D8%A7%D8%AA">{L('تقرير الأمانات والبلديات', 'Amanah and municipality report')}</Link></div>
-        </div>
-
-      <RevenueAnalysis />
+      <AsyncBlock state={bundleState} onRetry={() => setRetry((n) => n + 1)} height={280}>
+        {dataset && (
+          <>
+            <PerformanceSummary summary={summary} onSelect={openDetail} onOpenFull={() => openDetail(TOTAL_SEL)} />
+            <RegionalPerformance dataset={dataset} selected={detail} onSelect={openDetail} onOpenHeatmap={() => setHeat(true)} onOpenFull={() => openDetail(TOTAL_SEL)} loading={bundle.loading} />
+            {review ? <ReviewPriorities review={review} loading={!decisionsReady} /> : null}
+            <RegionDetailPanel dataset={dataset} sel={detail} onSelect={openDetail} onClose={closeDetail} invoicesAllowed={access.can('invoices_collected')} />
+            <HeatmapDialog dataset={dataset} open={heat} onClose={closeHeat} onSelectEntity={(k) => { setHeat(false); openDetail({ level: 'entity', key: k }); }} />
+          </>
+        )}
+      </AsyncBlock>
     </div>
   );
 }

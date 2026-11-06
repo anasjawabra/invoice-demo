@@ -1,0 +1,107 @@
+/* Detail pages of إدارة أوامر التنفيذ (Sanad order, Eefaa violation): sticky section chips, the document-to-link flow, the key-facts grid with report badges.
+   Existing tokens only (variables.css); logical properties only, so RTL and LTR both work. Scoped to .ed (the page root next to .rp). */
+
+/* ---------- sticky in-page section chips (SectionNav) ---------- */
+.sn { position: sticky; inset-block-start: var(--sn-top, 0px); z-index: 18; background: var(--bg-0); border-block-end: 1px solid var(--line); margin-inline: calc(-1 * var(--page-gutter, 0px)); padding-inline: var(--page-gutter, 0px); min-width: 0; }
+.sn__list { display: flex; gap: 6px; margin: 0; padding: 6px 3px; list-style: none; overflow-x: auto; scrollbar-width: thin; }
+.sn__list li { flex: none; }
+.sn .sn__link { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius-pill); background: var(--surface); color: var(--txt); font-weight: 600; font-size: 13px; text-decoration: none; white-space: nowrap; }
+.sn__link:hover { border-color: var(--primary); }
+.sn__link:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.sn__link[aria-current='location'] { background: var(--primary); border-color: var(--primary); color: #fff; }
+.sn__count { font-size: 11px; min-width: 18px; padding: 0 5px; border-radius: 99px; background: var(--bg-0); color: var(--txt-mute); text-align: center; }
+.sn__link[aria-current='location'] .sn__count { background: rgba(255, 255, 255, 0.9); color: var(--heading); }
+@media (max-width: 720px), (pointer: coarse) { .sn .sn__link { min-height: 44px; } }
+
+/* a jumped-to section is never hidden under the app header + the chips */
+.ed .rp-section[id], .ed .ed-anchor { scroll-margin-block-start: calc(var(--sn-bottom, 140px) + 8px); }
+.ed .rp-section[tabindex='-1']:focus, .ed .ed-anchor:focus { outline: none; }
+
+/* the result of an action stays visible under the chips while the reader is far from the control that produced it */
+.ed-msg { position: sticky; inset-block-start: calc(var(--sn-bottom, 0px) + 6px); z-index: 17; box-shadow: var(--shadow-soft); }
+
+/* ---------- status chips: always text + an icon, never colour alone (green = done, amber = needs attention, red = conflict / failure, grey = neutral) ---------- */
+.ed .rv-tag--ok::before { content: '✓\00a0'; content: '✓\00a0' / ''; }
+.ed .rv-tag--warn::before { content: '!\00a0'; content: '!\00a0' / ''; font-weight: 700; }
+.ed .rv-tag--bad::before { content: '✕\00a0'; content: '✕\00a0' / ''; }
+.ed .rv-tag { white-space: normal; text-align: start; }
+
+/* ---------- «تفاصيل»: long explanations folded behind a small disclosure ---------- */
+.ed-info { font-size: 12px; color: var(--txt-mute); }
+.ed-info > summary { cursor: pointer; display: inline-flex; align-items: center; min-height: 24px; color: var(--primary-2); font-weight: 600; font-size: 12px; }
+.ed-info > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
+.ed-info.ed-inline { display: inline-block; vertical-align: top; }
+.ed-info__body { margin-block-start: 4px; padding: 6px 10px; border: 1px dashed var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-0); line-height: 1.7; }
+@media (max-width: 720px), (pointer: coarse) { .ed-info > summary { min-height: 44px; } }
+
+/* ---------- summary: the extra request facts folded under the key figures ---------- */
+.ed-more > summary { cursor: pointer; font-weight: 600; color: var(--primary-2); min-height: 32px; display: flex; align-items: center; gap: 6px; }
+.ed-more > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 4px; }
+.ed-more > .ed-more__body { margin-block-start: 8px; }
+.ed-summary { display: grid; gap: 8px; min-width: 0; }
+@media (max-width: 720px), (pointer: coarse) { .ed-more > summary { min-height: 44px; } }
+
+/* ---------- Sanad order: from the document to the link (one flow) ---------- */
+.ed .oj-steps { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ed .oj-step { padding: 8px 10px; font-size: 14px; }
+.ed .oj-step__t { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .ed .oj-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .ed .oj-step { font-size: 13px; padding: 6px 8px; gap: 8px; }
+  .ed .oj-step__n { width: 24px; height: 24px; }
+}
+.ed-step { display: grid; gap: 10px; min-width: 0; padding-block-start: 4px; }
+.ed-step__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ed-step__head h3 { margin: 0; font-size: 15px; color: var(--heading); }
+.ed-step__n { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px; background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; }
+.ed-step + .ed-step, .ed-flow > .ed-more, .ed-flow > .ed-step { border-block-start: 1px solid var(--line); padding-block-start: 14px; }
+.ed-flow { display: grid; gap: 14px; min-width: 0; }
+.ed-flow > details.ed-more { border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 12px; background: var(--bg-0); }
+.ed-flow > details.ed-more > summary { min-height: 36px; }
+.ed-hit { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.ed-confirm { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); }
+.ed-confirm .oj-primary { min-height: 44px; }
+.ed-gap { display: grid; gap: 4px; }
+
+/* the document block (SanadDocumentPanel): the simulation label stays visible; its explanation is a disclosure */
+.ed .sd-sim { grid-template-columns: minmax(0, 1fr); }
+.ed .sd-sim .ed-info { font-size: 12px; }
+.ed .sd-missing { border-color: rgba(181, 71, 8, 0.55); background: rgba(181, 71, 8, 0.05); }
+.ed .sd-missing__flag { color: var(--warning); }
+@media (max-width: 720px), (pointer: coarse) {
+  .ed .btn, .ed .btn-sm, .ed .input, .ed select, .ed .rv-link, .ed .sd-linkbtn { min-height: 44px; }
+  .ed .rv-link, .ed .sd-linkbtn { display: inline-flex; align-items: center; }
+  .ed .oj-sample { min-height: 44px; }
+  .ed details > summary { min-height: 44px; display: flex; align-items: center; }
+}
+
+/* ---------- Eefaa: key-facts grid with numbered report badges and one legend ---------- */
+.ed-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 8px 12px; list-style: none; font-size: 12px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--bg-0); }
+.ed-legend li { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.ed-legend__off { color: var(--txt-mute); }
+.ed-group { display: grid; gap: 2px; margin-block-end: 6px; }
+.ed-group__t { margin: 8px 0 0; font-size: 13px; color: var(--txt-mute); font-weight: 700; }
+.ed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 0 24px; margin: 0; }
+.ed-cell { padding: 8px 0; border-block-end: 1px dashed var(--line); min-width: 0; }
+.ed-cell dt { font-size: 12px; color: var(--txt-mute); font-weight: 700; }
+.ed-cell dd { margin: 2px 0 0; font-size: 14px; color: var(--heading); overflow-wrap: anywhere; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; min-width: 0; }
+.ed-cell--conflict dt::after { content: ''; }
+.ed-missing { margin: 4px 0 0; font-size: 12px; color: var(--txt-mute-2); }
+.ed-rb { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; border: 1px solid var(--line-strong); background: var(--bg-0); color: var(--txt-dim); font-size: 10.5px; font-weight: 700; line-height: 1; cursor: help; flex: none; }
+.ed-rbs { display: inline-flex; gap: 3px; flex: none; }
+.ed-cand { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line-strong); border-inline-start-width: 4px; border-radius: var(--radius-sm); background: var(--bg-0); margin-block-start: 6px; min-width: 0; }
+.ed-cand--warn { border-inline-start-color: var(--warning); }
+.ed-cand--ok { border-inline-start-color: var(--ink-ok); }
+.ed-cand__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 13px; }
+.ed-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ed-rel { display: grid; gap: 8px; border-block-start: 1px solid var(--line); padding-block-start: 10px; min-width: 0; }
+.ed-sub { margin: 4px 0 0; font-size: 14px; color: var(--heading); }
+@media (max-width: 720px), (pointer: coarse) { .ed .ed-actions .btn { min-height: 44px; } }
+
+/* Sanad request data: the 20 source fields as a compact label-over-value grid (each cell keeps its source column name) */
+.ed-req { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 0; margin: 0; border: 1px solid var(--line); border-radius: var(--radius, 8px); overflow: hidden; }
+.ed-req__i { padding: 10px 12px; border-block-end: 1px solid var(--line); border-inline-end: 1px solid var(--line); min-width: 0; }
+.ed-req dt { font-size: 12px; font-weight: 700; color: var(--txt-mute); margin: 0 0 3px; }
+.ed-req dd { margin: 0; font-size: 14px; color: var(--txt); overflow-wrap: anywhere; }
+.ed-desc { margin-block-start: 12px; }
+.ed-inv td { vertical-align: top; }

@@ -35,6 +35,10 @@ Rule adopted until decided (EQ5): the two measures are **never substituted silen
 | Collection-rate target | Each deck shows one uniform target per Amanah beside the actual rate (slide «مقارنة أداء نسبة تحصيل الأمانات الفعلية بالمستهدف»); the value differs between decks | Whether it is a formally approved target, who approved it, from when, and whether it varies by Amanah/source |
 | Annual revenue targets by sector | Shown on the executive summary as «مستهدف إعتماد من إيراد» | Approval status |
 | In the platform | The target is a demo input labelled «غير معتمد»; no report says «approved» | – |
+| Annual revenue target (platform, 7 Nov 2026) | One value per (year, scope, version) = coverage target × communicated budget; status **illustrative**, version id and owner stored with it; read by the planning page, Smart Reports, the assistant, the fixed reports and the Decision Room (`planningBasis.js`). A restricted viewer sees the target of their entities (computed on the full set), labelled «إجمالي الجهات المتاحة لك». The dashboard's «نسبة تحقيق الاعتماد مقابل الإيراد» is a separate measure (appropriation basis) | Who approves the target and the monthly plan (D-01/D-03/D-07) |
+| Planned to date (platform) | An even 12-month split prorated by calendar days — an **assumption**, labelled wherever shown | The approved monthly plan / seasonality (D-03) |
+| Tolerance «وفق الخطة» (platform) | ±0.5 % of planned (display resolution), documented, not approved | Finance's business tolerance (D-04) |
+| Year-end forecast / probability (platform) | One baseline `runrate3_v2`, «غير مُواءَم …»; **probability not estimated** (record < 36 months, no earlier approved targets, no payment load date) | Forecasting teams' method (D-05); data for a probability (D-09) |
 
 Rule adopted: a target seen in a source report is recorded as **«shown in source report (date)»**, never as **«approved for the platform»**; the second status needs a document and an approver (EQ6).
 

@@ -1,5 +1,7 @@
 # Investment contracts — lifecycle page (Phase 1)
 
+> **Superseded for the pages (5 Nov 2026).** `/contracts` and `/contracts/:no` no longer render this synthetic lifecycle page: they read the Furas Databank-schema data and were reworked on `feat/furas-contracts-rework` (see `docs/furas-dataset-mode.md` §«Contract pages rework»). The generated contract engine described below is kept only for invoice features (order matching, invoice contract status) and its identities tests.
+
 Branch `feat/contracts-lifecycle-phase1` (from `main` at dd2d107). Approved plan: `IIM-Requirements-Handover/02_Investment_Contracts/Investment_Contracts_Review_and_Implementation_Plan` (D1–D21, gaps G1–G20, phases).
 Everything here runs on the **synthetic** demo data (every value on the contract pages is illustrative: see «Group A corrections» below); no Furas, Tahseel or SADAD meaning is asserted that the evidence does not support.
 

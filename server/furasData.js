@@ -9,11 +9,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseCsv } from './furasCsv.js';
+import { normalizeAccess } from './accessMask.js';
 
 const KEEP = {
   contract: ['pzinskey', 'contractnumber', 'opportunitynumber', 'investorid', 'contracttype', 'opportunitystatus', 'rentalstatus', 'renewalstatus', 'renewedcontractid', 'awardingdate', 'signingdate', 'startdate', 'enddate',
     'dateofsitehandover', 'dateofsitehandoveractual', 'contractvalue', 'calculatedcontractvalue', 'annualcontractvalue', 'totalcontractvaluewithvat', 'contractterm', 'contractdurationmonths', 'municipalityid', 'municipality',
-    'submunicipalityid', 'submunicipality', 'source_pt', 'etl_time'],
+    'submunicipalityid', 'submunicipality', 'opportunityname', 'primarycontractid', 'source_pt', 'etl_time'],
   payment: ['pyguid', 'contractid', 'opportunitynumber', 'investorid', 'batchnumber', 'batchyear', 'batchstatus', 'paymenttype', 'methodofcollectingpayments', 'batchmonths', 'paymentduedate', 'batchenddate', 'invoicedate',
     'paymentdate', 'paymentamount', 'balanceamount', 'contractvalue', 'ps_contractvalue_annual', 'vatamount', 'batchamountpaid', 'batchamountbalance', 'municipalityid', 'submunicipalityid', 'pxcreatedatetime', 'source_pt', 'etl_time'],
   contractmanagement: ['pyid', 'pylabel', 'pystatuswork', 'contractnumber', 'opportunitynumber', 'investorid', 'municipalityid', 'sadadbillnumber', 'source_pt', 'etl_time'],
@@ -29,6 +30,7 @@ export const OUTSIDE_SUBSET = 'OUTSIDE-SUBSET'; // set by scripts/make-furas-sub
 // «Approved» = the stored contract status below, taken literally; FURAS_STATUS_SCOPE overrides it ('' or 'all' turns the scope off). Rows that belong only to other contracts are outside the scope too.
 export const APPROVED_STATUS = 'Contract-Approved';
 export const scopeStatus = () => { const v = process.env.FURAS_STATUS_SCOPE; return v === undefined ? APPROVED_STATUS : (v === '' || v.toLowerCase() === 'all' ? null : v); };
+export const BILL_PLACEHOLDER = '00-00-000000'; // the subset builder keeps only the «filled» pattern of a bill number: such a value is a placeholder, never a bill number
 const CAP = 10000; // a file with exactly this many rows is treated as a capped sample (the cap rule itself is not documented)
 const FLAGGED_MUNICIPALITIES = new Set(['002']); // the data's wording differs from the generated demo's («أمانة العاصمة المقدسة» vs «أمانة منطقة مكة المكرمة»): entity scope to be confirmed
 
@@ -50,6 +52,12 @@ export function furasAvailable() {
   const files = findFiles(dir); const missing = Object.keys(KEEP).filter((k) => !files[k]);
   return missing.length ? { available: false, reason: 'incomplete' } : { available: true, reason: null };
 }
+
+// GEOGRAPHIC ACCESS. A Furas record names its entity only through the source MUNICIPALITYID / MUNICIPALITY (the Amanah-level entity of the contract), and the mapping of those codes to the Amanahs and
+// municipalities of the verified hierarchy is NOT confirmed (see FLAGGED_MUNICIPALITIES / `confirm_entity_scope`). Nothing can therefore be attributed to a geographic scope with certainty, so the dataset is served
+// ONLY to a user whose `contracts.view` access is «all Amanahs and municipalities»; any narrower access reads it as unavailable (fail closed — never a partial or guessed attribution).
+export const furasAccessAllowed = (access) => normalizeAccess(access).all === true;
+export const furasAvailableFor = (access) => (furasAccessAllowed(access) ? furasAvailable() : { available: false, reason: 'geo_scope_unmapped' });
 
 /* ---------------------------------------------------------------------------------------------- helpers */
 const num = (s) => { if (s == null) return null; const v = Number(s); return Number.isFinite(v) ? v : null; };
@@ -153,9 +161,16 @@ function numberRows(D) {
     const types = dist('contracttype'); const statuses = dist('opportunitystatus'); const codes = dist('municipalityid');
     const vals = new Set(idx.map((i) => num(C.contractvalue[i])).filter((v) => v != null).map((v) => v.toFixed(2))); const ann = new Set(idx.map((i) => num(C.annualcontractvalue[i])).filter((v) => v != null).map((v) => v.toFixed(2)));
     const ends = new Set(idx.map((i) => C.enddate[i]).filter((x) => x != null));
+    const starts = new Set(idx.map((i) => C.startdate[i]).filter((x) => x != null));
+    const rental = dist('rentalstatus'); const names = dist('opportunityname'); const withVat = new Set(idx.map((i) => num(C.totalcontractvaluewithvat[i])).filter((v) => v != null).map((v) => v.toFixed(2)));
+    const investors = [...new Set(idx.map((i) => C.investorid[i]).filter((x) => x != null))];
+    const oppNos = [...new Set(idx.map((i) => C.opportunitynumber[i]).filter((x) => x != null))];
     const oppGroups = new Set(idx.map((i) => C.opportunitynumber[i])); const opps = [...oppGroups].filter((x) => x != null).length;
     out.push({
-      no, n: idx.length, opps, groups: oppGroups.size, shape: shapeOf(idx.length, oppGroups.size), types: top(types), statuses: top(statuses), codes: [...codes.keys()], payRows: (D.payByNo.get(no) || []).length,
+      no, n: idx.length, opps, groups: oppGroups.size, oppNos, names: top(names), rental: top(rental), investors, investorsFound: investors.filter((x) => D.investors.has(x)).length,
+      startState: starts.size === 0 ? 'none' : starts.size === 1 ? 'single' : 'differs', start: starts.size === 1 ? dateOnly([...starts][0]) : null, startFlag: starts.size === 1 ? dateFlag([...starts][0], D.partition) : null,
+      endState: ends.size === 0 ? 'none' : ends.size === 1 ? 'single' : 'differs', end: ends.size === 1 ? dateOnly([...ends][0]) : null, endFlag: ends.size === 1 ? dateFlag([...ends][0], D.partition) : null,
+      vatState: withVat.size === 0 ? 'none' : withVat.size === 1 ? 'single' : 'conflict', valueWithVat: withVat.size === 1 ? Number([...withVat][0]) : null, shape: shapeOf(idx.length, oppGroups.size), types: top(types), statuses: top(statuses), codes: [...codes.keys()], payRows: (D.payByNo.get(no) || []).length,
       invRows: (D.payByNo.get(no) || []).filter((i) => D.views.payment.cols.invoicedate[i] != null).length, hidden: D.hiddenByNo.get(no) || 0,
       valueState: vals.size === 0 ? 'none' : vals.size === 1 ? 'single' : 'conflict', value: vals.size === 1 ? Number([...vals][0]) : null, valueCount: vals.size,
       annualState: ann.size === 0 ? 'none' : ann.size === 1 ? 'single' : 'conflict', annual: ann.size === 1 ? Number([...ann][0]) : null,
@@ -208,7 +223,7 @@ export async function furasSummary() {
     contracts: {
       shapes: Object.fromEntries(SHAPES.map((k) => [k, rows.filter((r) => r.shape === k).length])), records: nC, distinctNumbers: D.byNo.size, recordsWithoutNumber: D.noNumber, numbersWithSeveralRecords: repeated.length, recordsInRepeatedNumbers: repeated.reduce((t, r) => t + r.n, 0), maxRecordsPerNumber: rows.reduce((m, r) => Math.max(m, r.n), 0),
       recordKeyUnique: D.byPz.size === nC, conflictsAmongRepeated: { status: conflicts('status'), type: conflicts('type'), value: conflicts('value'), annual: conflicts('annual'), endDate: conflicts('endDate'), municipality: conflicts('municipality') },
-      byType, byStatus, byMunicipality, numbersWithSeveralTypes: rows.filter((r) => r.conflicts.type).length,
+      byType, byStatus, byRental: top(countRecords('rentalstatus')).map(([value, records]) => ({ value, records })), byMunicipality, numbersWithSeveralTypes: rows.filter((r) => r.conflicts.type).length,
       dates: { startFilled: filled('startdate'), endFilled: filled('enddate'), signingFilled: filled('signingdate'), awardingFilled: filled('awardingdate') },
       values: { numbersWithSingleValue: consistent.length, sumOfSingleValues: consistent.reduce((t, r) => t + r.value, 0), numbersWithConflictingValues: rows.filter((r) => r.valueState === 'conflict').length, numbersWithoutValue: rows.filter((r) => r.valueState === 'none').length },
       renewal: { links, resolved, outsideSubset: outside, unresolved: links - resolved - outside, selfReference: selfRef, sameContractNumber: sameNo },
@@ -234,21 +249,26 @@ export async function furasSummary() {
 export async function furasContracts(body = {}) {
   const D = await loadFuras(); let rows = numberRows(D); const f = body.filter || {};
   const q = String(body.q || '').trim().toUpperCase();
-  if (q) rows = rows.filter((r) => r.no.toUpperCase().includes(q));
+  if (q) rows = rows.filter((r) => r.no.toUpperCase().includes(q) || r.oppNos.some((o) => o.toUpperCase().includes(q)) || r.names.some(([v]) => v.toUpperCase().includes(q)));
+  if (f.rental) rows = rows.filter((r) => r.rental.some(([v]) => v === f.rental));
   if (f.type) rows = rows.filter((r) => r.types.some(([v]) => v === f.type));
   if (f.status) rows = rows.filter((r) => r.statuses.some(([v]) => v === f.status));
   if (f.municipality) rows = rows.filter((r) => r.codes.includes(f.municipality));
+  if (f.startFrom || f.startTo) rows = rows.filter((r) => r.start && (!f.startFrom || r.start >= f.startFrom) && (!f.startTo || r.start <= f.startTo)); // contract START date as stored (a number whose records disagree on it, or with none, is not guessed into a range)
   if (f.shape && SHAPES.includes(f.shape)) rows = rows.filter((r) => r.shape === f.shape);
   if (f.severalRecords) rows = rows.filter((r) => r.n > 1);
   if (f.conflicting) rows = rows.filter((r) => Object.values(r.conflicts).some(Boolean));
   if (f.inPaymentExtract) rows = rows.filter((r) => r.payRows > 0);
   if (f.withInvoiceDate) rows = rows.filter((r) => r.invRows > 0);
-  const size = Math.min(100, Math.max(1, Number(body.pageSize) || 25)); const page = Math.max(0, Number(body.page) || 0);
+  const size = body.all ? Math.max(1, rows.length) : Math.min(100, Math.max(1, Number(body.pageSize) || 25)); const page = body.all ? 0 : Math.max(0, Number(body.page) || 0); // all: the whole filtered list, for the export
   const names = D.municipalities;
   return {
     total: rows.length, page, pageSize: size,
     rows: rows.slice(page * size, (page + 1) * size).map((r) => ({
-      no: r.no, records: r.n, opportunities: r.opps, shape: r.shape, types: r.types.map(([value, n]) => ({ value, records: n })), statuses: r.statuses.map(([value, n]) => ({ value, records: n })),
+      no: r.no, records: r.n, opportunities: r.opps, shape: r.shape,
+      name: { state: r.names.length === 0 ? 'none' : r.names.length === 1 ? 'single' : 'several', value: r.names.length ? r.names[0][0] : null, distinct: r.names.length },
+      investors: r.investors.map((id) => ({ masked: maskId(id), found: D.investors.has(id) })), executionStatuses: r.rental.map(([value, n]) => ({ value, records: n })),
+      start: { state: r.startState, value: r.start, flag: r.startFlag }, end: { state: r.endState, value: r.end, flag: r.endFlag }, valueWithVat: { state: r.vatState, value: r.valueWithVat }, types: r.types.map(([value, n]) => ({ value, records: n })), statuses: r.statuses.map(([value, n]) => ({ value, records: n })),
       municipalities: r.codes.map((c) => ({ code: c, sourceName: names.get(c)?.sourceName || null })), paymentRowsInExtract: r.payRows, invoiceDateRows: r.invRows, hiddenRecords: r.hidden,
       contractValue: { state: r.valueState, value: r.value, distinct: r.valueCount }, annualValue: { state: r.annualState, value: r.annual }, conflicts: r.conflicts
     }))
@@ -263,10 +283,11 @@ export async function furasContract(no) {
   const rec = (i) => {
     const link = C.renewedcontractid[i] != null ? D.byPz.get(C.renewedcontractid[i]) : undefined;
     return {
-      recordKey: tail(C.pzinskey[i]), opportunityNumber: C.opportunitynumber[i], investorId: maskId(C.investorid[i]), contractType: C.contracttype[i], status: C.opportunitystatus[i], rentalStatus: C.rentalstatus[i], renewalStatus: C.renewalstatus[i],
+      recordKey: tail(C.pzinskey[i]), opportunityNumber: C.opportunitynumber[i], opportunityName: C.opportunityname[i], investorId: maskId(C.investorid[i]), contractType: C.contracttype[i], status: C.opportunitystatus[i], rentalStatus: C.rentalstatus[i], renewalStatus: C.renewalstatus[i],
       awardingDate: dateOnly(C.awardingdate[i]), signingDate: dateOnly(C.signingdate[i]), startDate: dateOnly(C.startdate[i]), endDate: dateOnly(C.enddate[i]), handoverPlanned: dateOnly(C.dateofsitehandover[i]), handoverActual: dateOnly(C.dateofsitehandoveractual[i]),
       contractValue: num(C.contractvalue[i]), calculatedValue: num(C.calculatedcontractvalue[i]), annualValue: num(C.annualcontractvalue[i]), valueWithVat: num(C.totalcontractvaluewithvat[i]), term: C.contractterm[i], durationMonths: C.contractdurationmonths[i],
       municipality: C.municipalityid[i] == null ? null : { code: C.municipalityid[i], sourceName: names.get(C.municipalityid[i])?.sourceName || null, nameOnRecord: C.municipality[i], flag: names.get(C.municipalityid[i])?.flag || null }, subMunicipality: C.submunicipality[i],
+      primaryLink: C.primarycontractid[i] == null ? null : D.subset && C.primarycontractid[i] === OUTSIDE_SUBSET ? { resolved: false, outsideSubset: true } : D.byPz.has(C.primarycontractid[i]) ? { resolved: true, contractNumber: C.contractnumber[D.byPz.get(C.primarycontractid[i])] } : { resolved: false },
       renewalLink: C.renewedcontractid[i] == null ? null : link == null ? (D.subset && C.renewedcontractid[i] === OUTSIDE_SUBSET ? { resolved: false, outsideSubset: true } : { resolved: false }) : { resolved: true, contractNumber: C.contractnumber[link], selfReference: link === i, sameContractNumber: C.contractnumber[link] === C.contractnumber[i] },
       dateFlags: Object.fromEntries(['startdate', 'enddate', 'signingdate', 'awardingdate'].map((c) => [c, dateFlag(C[c][i], extract)]).filter(([, v]) => v))
     };
@@ -279,15 +300,39 @@ export async function furasContract(no) {
   const differing = fields.filter((f) => new Set(records.map((r) => JSON.stringify(r[f]))).size > 1);
   const oppSet = new Set(idx.map((i) => C.opportunitynumber[i]));
   const payIdx = D.payByNo.get(key) || [];
+  // INSTALLMENTS = the actual Payment rows of this contract NUMBER (Payment.CONTRACTID holds the contract number: observed, not the record key). Nothing is generated, nothing is added up.
+  //   payable  = PAYMENTAMOUNT (what is payable for the batch; NOT a collected amount)      paid        = BATCHAMOUNTPAID (the received amount; empty = not available, never zero)
+  //   outstanding = BATCHAMOUNTBALANCE (empty = not available).  BALANCEAMOUNT is not displayed: it does not behave as «remaining after payment» in the data and its definition is unconfirmed.
+  //   vat = VATAMOUNT, shown beside the payable amount, never added to it (the VAT basis of PAYMENTAMOUNT is not confirmed).
   const payments = payIdx.map((i) => ({
     batchNumber: num(P.batchnumber[i]), batchYear: P.batchyear[i], status: P.batchstatus[i], paymentType: P.paymenttype[i], method: P.methodofcollectingpayments[i], batchMonths: P.batchmonths[i],
     dueDate: dateOnly(P.paymentduedate[i]), batchEndDate: dateOnly(P.batchenddate[i]), invoiceDate: dateOnly(P.invoicedate[i]), paymentDate: dateOnly(P.paymentdate[i]),
-    amount: num(P.paymentamount[i]), balance: num(P.balanceamount[i]), vatAmount: num(P.vatamount[i]), annualValue: num(P.ps_contractvalue_annual[i]), opportunityNumber: P.opportunitynumber[i],
+    payable: num(P.paymentamount[i]), vatAmount: num(P.vatamount[i]), paid: num(P.batchamountpaid[i]), outstanding: num(P.batchamountbalance[i]), opportunityNumber: P.opportunitynumber[i],
+    investorId: maskId(P.investorid[i]),
     recordsWithSameOpportunity: idx.filter((j) => C.opportunitynumber[j] === P.opportunitynumber[i]).length,
     dateFlags: Object.fromEntries([['dueDate', dateFlag(P.paymentduedate[i], extract)], ['batchEndDate', dateFlag(P.batchenddate[i], extract)], ['invoiceDate', dateFlag(P.invoicedate[i], extract, { noFuture: true })], ['paymentDate', dateFlag(P.paymentdate[i], extract, { noFuture: true })]].filter(([, v]) => v))
-  })).sort((a, b) => (a.batchNumber ?? 1e9) - (b.batchNumber ?? 1e9) || String(a.dueDate).localeCompare(String(b.dueDate)));
+  })).sort((a, b) => String(a.opportunityNumber).localeCompare(String(b.opportunityNumber)) || (a.batchNumber ?? 1e9) - (b.batchNumber ?? 1e9) || String(a.dueDate).localeCompare(String(b.dueDate)));
   const M = D.views.contractmanagement.cols; const cm = new Set(D.cmByNo.get(key) || []); for (const o of oppSet) for (const i of D.cmByOpp.get(o) || []) cm.add(i);
+  // CONTRACT-LEVEL bill references: SADADBILLNUMBER on the workflow views (ContractManagement, EntityManagement, IMSFW_Work), matched by contract number or opportunity number. They are listed ONCE per distinct bill
+  // (a bill that appears in several views is one bill) and are NOT tied to an installment: Payment carries no bill key, so an installment-to-invoice link is unavailable. A workflow row is a case snapshot, not an invoice.
+  const oppNos = new Set(idx.map((i) => C.opportunitynumber[i]).filter((x) => x != null));
+  const billMap = new Map(); let placeholderRows = 0; let caseRowsWithBill = 0;
+  for (const [view, label] of [['contractmanagement', 'ContractManagement'], ['entitymanagement', 'EntityManagement'], ['imsfw_work', 'IMSFW_Work']]) {
+    const X = D.views[view].cols; const n = D.views[view].rows;
+    for (let i = 0; i < n; i += 1) {
+      const b = X.sadadbillnumber[i]; if (b == null) continue; const o = X.opportunitynumber[i]; const cn = X.contractnumber[i];
+      const mine = cn === key || (cn == null && o != null && oppNos.has(o)); // a row that names ANOTHER contract number is not this contract's, even if its opportunity number matches
+      if (!mine) continue;
+      caseRowsWithBill += 1;
+      if (b === BILL_PLACEHOLDER) { placeholderRows += 1; continue; }
+      const e = billMap.get(b) || { number: b, views: [] }; if (!e.views.includes(label)) e.views.push(label); billMap.set(b, e);
+    }
+  }
+  const bills = { refs: [...billMap.values()].sort((a, b) => (a.number < b.number ? -1 : 1)), caseRowsWithBill, numbersNotRetained: placeholderRows, installmentLink: 'unavailable' };
+  const investorIds = [...new Set(idx.map((i) => C.investorid[i]).filter((x) => x != null))];
   return {
+    investor: { ids: investorIds.map((id) => ({ masked: maskId(id), found: D.investors.has(id) })), nameAvailable: false },
+    bills,
     scope: D.scope ? { status: D.scope.status, hiddenRecords: D.hiddenByNo.get(key) || 0 } : null,
     contractNumber: key, records, recordCount: records.length, shape: shapeOf(records.length, groups.length), opportunityCount: groups.filter((g) => g.opportunityNumber != null).length, groups, differingFields: differing, currentRecordDetermined: false,
     payments: { rows: payments, rowsInExtract: payments.length, extractIsCapped: D.views.payment.capped },

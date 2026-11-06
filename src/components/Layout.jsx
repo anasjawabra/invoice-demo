@@ -1,13 +1,12 @@
 import { trapTab } from '../utils/modalFocus';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useI18n } from '../context/I18nContext';
-import { useAuth } from '../context/AuthContext';
-import { useRevenue } from '../context/RevenueContext';
-import { useTheme } from '../context/ThemeContext';
-import { ORGS } from '../data/mock';
+import { useAccess } from '../context/AuthContext';
+import { filterNav, canOpenSettings } from '../data/accessModel';
 import { riyadhToday, DEMO_TODAY, IS_TIME_TRAVEL } from '../data/clock';
-import { ToastProvider, useToast } from './Toast';
+import { ToastProvider } from './Toast';
+import AppHeader from './header/AppHeader';
 import FloatingAssistantButton from './FloatingAssistantButton';
 import AnalysisHost from './analysis/AnalysisHost';
 import { useFitTables } from '../utils/fitTables';
@@ -62,6 +61,45 @@ function Icon({ name }) {
           <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8z" />
         </svg>
       );
+    case 'enforcement':
+      return (
+        <svg {...common}>
+          <path d="M12 3v18M7 21h10M5 7h14" />
+          <path d="M5 7l-3 7a3 3 0 0 0 6 0L5 7zM19 7l-3 7a3 3 0 0 0 6 0l-3-7z" />
+        </svg>
+      );
+    case 'invoice-paid':
+      return (
+        <svg {...common}>
+          <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" />
+          <path d="M9 10l2 2 4-4" />
+          <path d="M9 16h6" />
+        </svg>
+      );
+    case 'invoice-open':
+      return (
+        <svg {...common}>
+          <path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2z" />
+          <circle cx="12" cy="10" r="2.5" />
+          <path d="M12 9v1.2l.8.5M9 16h6" />
+        </svg>
+      );
+    case 'contracts':
+      return (
+        <svg {...common}>
+          <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7l-5-5z" />
+          <path d="M14 2v5h5M9 13h6M9 17h4" />
+        </svg>
+      );
+    case 'chevrons':
+      return (<svg {...common} className="sb-chev"><path d="M13 17l-5-5 5-5M18 17l-5-5 5-5" /></svg>);
+    case 'data-sources':
+      return (
+        <svg {...common}>
+          <ellipse cx="12" cy="6" rx="8" ry="3" />
+          <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" />
+        </svg>
+      );
     case 'smart-reports':
       return (
         <svg {...common}>
@@ -86,26 +124,6 @@ function Icon({ name }) {
           <circle cx="12" cy="12" r="1" fill="currentColor" />
         </svg>
       );
-    case 'bell':
-      return (
-        <svg {...common}>
-          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      );
-    case 'sun':
-      return (
-        <svg {...common}>
-          <circle cx="12" cy="12" r="4" />
-          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
-        </svg>
-      );
-    case 'moon':
-      return (
-        <svg {...common}>
-          <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
-        </svg>
-      );
     default:
       return (
         <svg {...common}>
@@ -117,16 +135,10 @@ function Icon({ name }) {
 }
 
 function LayoutInner() {
-  const { t, lang, setLang, T, isRtl } = useI18n();
-  const rev = useRevenue();
+  const { t, lang } = useI18n();
   // D-12: «today» is read once when the page loads; a tab left open past midnight (Riyadh) says so instead of silently showing yesterday
   const [dayChanged, setDayChanged] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false); // phones: language, theme, organisation, notifications and the account sit behind one button
   useEffect(() => { const check = () => { if (!IS_TIME_TRAVEL && riyadhToday() !== DEMO_TODAY) setDayChanged(true); }; check(); const id = setInterval(check, 300000); document.addEventListener('visibilitychange', check); window.addEventListener('focus', check); return () => { clearInterval(id); document.removeEventListener('visibilitychange', check); window.removeEventListener('focus', check); }; }, []);
-  const { user, orgScoped, logout, switchOrg } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const toast = useToast();
-  const nav = useNavigate();
   const loc = useLocation();
   // after a route change, keyboard / screen-reader focus moves to the new page's heading (not on the first load, and not when only the query changes)
   const firstRoute = useRef(true);
@@ -140,53 +152,59 @@ function LayoutInner() {
   useFitTables(); // a table that cannot fit the page becomes stacked cards instead of scrolling sideways
   useEffect(() => { document.addEventListener('keydown', trapTab); return () => document.removeEventListener('keydown', trapTab); }, []);
 
-  const org = user?.org || ORGS[0];
-
-  const tabs = useMemo(
-    () => [
-      { to: '/insights', icon: 'dashboard', label: t('nav_insights') },
-      { to: '/smart-reports', icon: 'smart-reports', label: lang === 'ar' ? 'التقارير الذكية' : 'Smart reports' },
-      { to: '/planning', icon: 'decision-room', label: t('nav_planning') },
-      { to: '/enforcement', icon: 'collection', label: lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management' },
-      { to: '/exclusions', icon: 'risk', label: lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management' },
-      { to: '/products', icon: 'dashboard', label: lang === 'ar' ? 'إدارة المنتجات' : 'Product management' },
-      { to: '/invoices', icon: 'invoices', label: t('invoices') },
-      { to: '/collection', icon: 'collection', label: t('nav_collection_worklist') },
-      { to: '/contracts', icon: 'invoices', label: t('nav_contracts') }
-    ],
-    [t, lang]
-  );
-  // system configuration and administration (metric definitions) is its own, rarely used area — not one of the daily operational pages
+  // main navigation: «Daily operations» grouping — group labels are plain headings (not links, not collapsible); every page is its own row.
+  // Only the pages the person may open are listed (the module of each page: src/data/accessModel.js ROUTE_PERMISSIONS); a group with no page disappears.
+  const access = useAccess();
+  const groups = useMemo(() => {
+    const labels = {
+      '/insights': t('nav_insights'), '/decisions': lang === 'ar' ? 'غرفة القرارات' : 'Decision room',
+      '/collection': t('nav_collection_worklist'), '/invoices': t('invoices'), '/enforcement': lang === 'ar' ? 'إدارة أوامر التنفيذ' : 'Enforcement orders management',
+      '/exclusions': lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management', '/contracts': t('nav_contracts'),
+      '/planning': t('nav_planning'), '/smart-reports': lang === 'ar' ? 'التقارير الذكية' : 'Smart reports', '/products': lang === 'ar' ? 'مصادر البيانات' : 'Data Sources'
+    };
+    return filterNav(access.can).map((g) => ({ key: g.key, label: lang === 'ar' ? g.ar : g.en, items: g.items.map((it) => ({ to: it.to, icon: it.icon, label: labels[it.to] || it.to })) }));
+  }, [t, lang, access.can]);
+  // system configuration and administration (metric definitions, users, roles) is its own, rarely used area — not one of the daily operational pages
   const settingsTab = { to: '/settings', icon: 'settings', label: t('nav_system_settings') };
-  const settingsActive = loc.pathname === '/settings' || loc.pathname.startsWith('/settings/');
+  const showSettings = canOpenSettings(access.can);
 
-  const primaryTabs = tabs.slice(0, 6); const opsTabs = tabs.slice(6); // the management areas: dashboards & reports · planning · enforcement · exclusions · products
-  const opsActive = opsTabs.some((t2) => loc.pathname === t2.to || loc.pathname.startsWith(`${t2.to}/`));
-  const [opsOpen, setOpsOpen] = useState(false); const opsRef = React.useRef(null); const opsBtn = React.useRef(null);
-  useEffect(() => { setOpsOpen(false); }, [loc.pathname]);
+  // sidebar: collapsible on desktop (the choice is remembered), a drawer on phones (closes on navigation, Escape or a tap outside; focus goes in and back to the button)
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('ib_sidebar_collapsed') === '1'; } catch { return false; } });
+  const [drawer, setDrawer] = useState(false); const menuBtn = useRef(null); const sbRef = useRef(null);
+  const toggleCollapsed = () => setCollapsed((v) => { const n = !v; try { localStorage.setItem('ib_sidebar_collapsed', n ? '1' : '0'); } catch { /* storage unavailable: the choice is just not remembered */ } return n; });
+  useEffect(() => { setDrawer(false); }, [loc.pathname]);
   useEffect(() => {
-    if (!opsOpen) return undefined;
-    const onDoc = (e) => { if (opsRef.current && !opsRef.current.contains(e.target)) setOpsOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') { setOpsOpen(false); opsBtn.current?.focus(); } };
-    document.addEventListener('mousedown', onDoc); document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDoc); document.removeEventListener('keydown', onKey); };
-  }, [opsOpen]);
-  const opsLabel = lang === 'ar' ? 'وحدات تشغيلية' : lang === 'zh' ? '运营模块' : 'Operations';
+    if (!drawer) return undefined;
+    const first = sbRef.current?.querySelector('a'); first?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') { setDrawer(false); menuBtn.current?.focus(); } };
+    document.addEventListener('keydown', onKey); return () => document.removeEventListener('keydown', onKey);
+  }, [drawer]);
+  // an invoice page keeps the menu item of the list it was opened from (the exclusion register, the uncollected list); opened any other way it stays under the collected list
+  const fromList = loc.pathname.startsWith('/invoices/') && ['/exclusions', '/collection'].includes(loc.state?.from?.path) ? loc.state.from.path : null;
+  const isActive = (tab, a) => fromList ? tab.to === fromList : a || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) || (tab.to === '/insights' && loc.pathname.startsWith('/decisions') && access.can('dashboard'));
+  const navItem = (tab) => (
+    <NavLink key={tab.to} to={tab.to} end={tab.end} title={collapsed ? tab.label : undefined} className={({ isActive: a }) => `sb-item${isActive(tab, a) ? ' active' : ''}`} aria-current={isActive(tab, loc.pathname === tab.to || loc.pathname.startsWith(`${tab.to}/`)) ? 'page' : undefined}>
+      <span className="sb-item__icon"><Icon name={tab.icon} /></span>
+      <span className="sb-item__text">{tab.label}</span>
+    </NavLink>
+  );
 
   const pageTitle = useMemo(() => {
     const p = loc.pathname.replace(/\/+$/, '');
     if (p === '' || p === '/' || p.startsWith('/insights')) return t('nav_insights');
     if (p.startsWith('/settings/metrics')) return t('nav_metrics');
+    if (p.startsWith('/settings/users')) return lang === 'ar' ? 'إدارة المستخدمين' : 'User management';
+    if (p.startsWith('/settings/roles')) return lang === 'ar' ? 'الأدوار والصلاحيات' : 'Roles and permissions';
     if (p.startsWith('/settings')) return t('nav_system_settings');
     if (p.startsWith('/contracts')) return t('nav_contracts');
     if (p.startsWith('/invoices')) return t('invoices');
     if (p.startsWith('/collection')) return t('nav_collection_worklist');
     if (p.startsWith('/exclusions')) return lang === 'ar' ? 'إدارة الاستبعادات' : 'Exclusions management';
-    if (p.startsWith('/products')) return lang === 'ar' ? 'إدارة المنتجات' : 'Product management';
+    if (p.startsWith('/products')) return lang === 'ar' ? 'مصادر البيانات' : 'Data Sources';
     if (p.startsWith('/decisions')) return lang === 'ar' ? 'غرفة القرارات' : 'Decision room';
     if (p.startsWith('/smart-reports')) return lang === 'ar' ? 'التقارير الذكية' : 'Smart reports';
     if (p.startsWith('/planning')) return t('nav_planning');
-    if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة التنفيذ' : lang === 'zh' ? '执行管理' : 'Enforcement management';
+    if (p.startsWith('/enforcement')) return lang === 'ar' ? 'إدارة أوامر التنفيذ' : 'Enforcement orders management';
     if (p.startsWith('/analysis')) return lang === 'ar' ? 'نتيجة التحليل' : 'Analysis result';
     return 'INTELLIBILL';
   }, [loc.pathname, t, lang]);
@@ -196,199 +214,50 @@ function LayoutInner() {
   useEffect(() => { document.title = pageTitle && pageTitle !== 'INTELLIBILL' ? `${pageTitle} | ${baseTitle}` : baseTitle; }, [pageTitle, baseTitle]);
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-collapsed={collapsed ? 'true' : undefined}>
       <a className="skip-link" href="#main-content" onClick={(e) => { e.preventDefault(); const el = document.getElementById('main-content'); el?.focus(); el?.scrollIntoView(); }}>{lang === 'ar' ? 'تخطَّ إلى المحتوى' : 'Skip to content'}</a>
       {IS_TIME_TRAVEL && <div className="day-banner" role="status" data-testid="demo-date-banner">{lang === 'ar' ? `وضع العرض: التاريخ مثبّت على ${DEMO_TODAY} (عبر demoToday — للعرض والمراجعة فقط، وليس تاريخ اليوم الفعلي).` : `Demo mode: the date is pinned to ${DEMO_TODAY} (via demoToday — for demonstration and review only, not today's real date).`} <a href="?demoToday=reset">{lang === 'ar' ? 'إلغاء التثبيت' : 'Unpin'}</a></div>}
       {dayChanged && <div className="day-banner" role="status">{lang === 'ar' ? 'تغيّر التاريخ منذ فتح الصفحة؛ الأرقام تخص اليوم السابق.' : 'The date has changed since this page was opened; figures belong to the previous day.'} <button type="button" className="btn btn-sm" onClick={() => window.location.reload()}>{lang === 'ar' ? 'تحديث الآن' : 'Refresh now'}</button></div>}
       <div className="bg-fx" />
       <div className="bg-grid" />
 
-      <main className="main">
-        <header className="topbar">
-          <div className="topbar-left">
-            <NavLink to="/insights" className="side-brand">
-              <div className="side-brand__logo">IB</div>
-              <div className="side-brand__text">
-                <b>{t('side_brand')}</b>
-                <span>{t('brand_tagline')}</span>
-              </div>
-            </NavLink>
-            <details className="demo-note">
-              <summary>{lang === 'ar' ? 'بيانات تجريبية' : 'Demo data'}</summary>
-              <div role="note">{lang === 'ar' ? `بيانات اصطناعية وليست بيانات الوزارة الفعلية${rev.meta?.size === 'compact' ? ` (عينة مضغوطة: ${rev.meta.counts?.invoicesTotal ?? ''} فاتورة)` : ''}. التواريخ والأوقات بتوقيت الرياض.` : `Synthetic data, not the Ministry’s actual data${rev.meta?.size === 'compact' ? ` (compact sample: ${rev.meta.counts?.invoicesTotal ?? ''} invoices)` : ''}. Dates and times are Asia/Riyadh.`}</div>
-            </details>
+      <aside id="app-sidebar" ref={sbRef} className="sidebar" data-open={drawer ? 'true' : undefined}>
+        <NavLink to="/" className="side-brand" title={collapsed ? t('side_brand') : undefined}>
+          <div className="side-brand__logo">IB</div>
+          <div className="side-brand__text">
+            <b>{t('side_brand')}</b>
+            <span>{t('brand_tagline')}</span>
           </div>
-
-          <button type="button" className="btn btn-sm topbar-toggle" aria-expanded={moreOpen} aria-controls="topbar-controls" onClick={() => setMoreOpen((v) => !v)}>{lang === 'ar' ? 'التفضيلات والحساب' : 'Preferences and account'} <span aria-hidden="true">{moreOpen ? '▴' : '▾'}</span></button>
-          <div className="topbar-right" id="topbar-controls" data-open={moreOpen ? 'true' : undefined}>
-            <button
-              type="button"
-              className="btn btn-ghost btn-sm theme-toggle"
-              onClick={toggleTheme}
-              aria-label={t('theme_toggle')}
-              title={t('theme_toggle')}
-            >
-              <Icon name={theme === 'dark' ? 'sun' : 'moon'} />
-            </button>
-
-            <div className="pill" aria-label="Language">
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'en' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setLang('en');
-                  toast.info(t('switched_en'));
-                }}
-              >
-                EN
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'zh' ? 'btn-primary' : 'btn-ghost'}`}
-                title="中文（不完整）：大部分页面以英文显示 · Chinese (incomplete): most pages are shown in English"
-                onClick={() => {
-                  setLang('zh');
-                  toast.info(t('switched_zh'));
-                }}
-              >
-                中文
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${lang === 'ar' ? 'btn-primary' : 'btn-ghost'}`}
-                onClick={() => {
-                  setLang('ar');
-                  toast.info(t('switched_ar'));
-                }}
-              >
-                العربية
-              </button>
+        </NavLink>
+        <nav className="sb-nav" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
+          {groups.map((g) => (
+            <div key={g.key} className="sb-group" role="group" aria-labelledby={`sb-g-${g.key}`}>
+              <p className="sb-group__label" id={`sb-g-${g.key}`}>{g.label}</p>
+              {g.items.map(navItem)}
             </div>
-
-            {orgScoped ? (
-              <select
-                className="select"
-                style={{ width: 270 }}
-                value={org.id}
-                onChange={(e) => {
-                  switchOrg(e.target.value);
-                  toast.success(t('org_switched'));
-                }}
-                aria-label={t('org_label')}
-              >
-                {ORGS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {T(o, 'name')} · {t(o.tier === 'central' ? 'tier_central' : 'tier_local')}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <div
-                className="pill org-consolidated"
-                role="group"
-                tabIndex={0}
-                aria-label={t('data_scope_consolidated')}
-                title={t('data_scope_consolidated')}
-                style={{ maxWidth: 340, gap: 8 }}
-              >
-                <span className="badge badge--indigo">{org.code}</span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    maxWidth: 200
-                  }}
-                >
-                  {T(org, 'name')}
-                </span>
-                <span className="badge badge--teal" style={{ whiteSpace: 'nowrap' }}>
-                  {t('all_orgs')}
-                </span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="btn"
-              onClick={() => toast.info(t('notif_msg'))}
-              aria-label={t('notif')}
-              title={t('notif')}
-            >
-              <Icon name="bell" />
-              <span style={{ fontSize: 12 }}>{t('notif')}</span>
-            </button>
-
-            <div className="pill" style={{ gap: 10 }}>
-              <div
-                className="badge badge--teal"
-                style={{ width: 34, height: 34, borderRadius: 12, paddingInline: 0, display: 'grid', placeItems: 'center' }}
-                title={T(user, 'name')}
-              >
-                {user?.avatar || 'U'}
-              </div>
-              <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontWeight: 700, fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                  {T(user, 'name')}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--txt-mute)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 180 }}>
-                  {T(user, 'role')}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  logout();
-                  nav('/login', { replace: true });
-                }}
-                title={t('logout')}
-              >
-                {t('logout')}
-              </button>
-            </div>
-
-          </div>
-        </header>
-
-        <nav className="tabbar" aria-label={lang === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'}>
-          {primaryTabs.map((tab) => (
-            <NavLink key={tab.to} to={tab.to} end={tab.end} className={({ isActive }) => `tab${isActive || (tab.to === '/enforcement' && loc.pathname.startsWith('/enforcement-orders')) || (tab.to === '/insights' && loc.pathname.startsWith('/decisions')) ? ' active' : ''}`}>
-              <span className="tab__icon"><Icon name={tab.icon} /></span>
-              <span className="tab__text">{tab.label}</span>
-            </NavLink>
           ))}
-          <div className="tab-menu" ref={opsRef}>
-            <button type="button" ref={opsBtn} className={`tab${opsActive ? ' active' : ''}`} aria-expanded={opsOpen} aria-controls="ops-menu" onClick={() => setOpsOpen((v) => !v)}>
-              <span className="tab__icon"><Icon name="invoices" /></span>
-              <span className="tab__text">{opsLabel}</span>
-              <span aria-hidden="true" className="tab__chev">▾</span>
-            </button>
-            {opsOpen && (
-              <ul id="ops-menu" className="tab-menu__list">
-                {opsTabs.map((tab) => (
-                  <li key={tab.to}><NavLink to={tab.to} className={({ isActive }) => `tab-menu__item${isActive ? ' active' : ''}`}>{tab.label}</NavLink></li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <NavLink to={settingsTab.to} className={`tab tab--settings${settingsActive ? ' active' : ''}`} aria-current={settingsActive ? 'page' : undefined}>
-            <span className="tab__icon"><Icon name={settingsTab.icon} /></span>
-            <span className="tab__text">{settingsTab.label}</span>
-          </NavLink>
+          <div className="sb-spacer" />
+          {showSettings && navItem(settingsTab)}
         </nav>
+        <button type="button" className="sb-collapse" onClick={toggleCollapsed} aria-pressed={collapsed} title={collapsed ? (lang === 'ar' ? 'توسيع القائمة' : 'Expand menu') : (lang === 'ar' ? 'طيّ القائمة' : 'Collapse menu')}>
+          <span className="sb-item__icon"><Icon name="chevrons" /></span>
+          <span className="sb-item__text">{collapsed ? (lang === 'ar' ? 'توسيع القائمة' : 'Expand menu') : (lang === 'ar' ? 'طيّ القائمة' : 'Collapse menu')}</span>
+        </button>
+      </aside>
+      {drawer && <div className="sidebar-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />}
 
-        <section className="content" id="main-content" tabIndex={-1}>
-          {lang === 'zh' && <div className="rv-callout" role="note" data-testid="zh-notice"><span lang="zh-CN">中文翻译不完整：当前大部分页面、导航和报告尚未翻译，以英文显示（仅部分旧版文本为中文）。</span> <span lang="en">The Chinese translation is incomplete: most current pages, navigation and reports are not translated and are shown in English (only some legacy text is Chinese). Arabic and English are the fully authored languages.</span></div>}
-          <div lang={lang === 'zh' ? 'en' : undefined}><Outlet /></div>
-        </section>
+      <div className="main">
+        <AppHeader drawerOpen={drawer} onToggleDrawer={() => setDrawer((v) => !v)} menuBtnRef={menuBtn} />
+
+
+        <main className="content" id="main-content" tabIndex={-1}>
+          <Outlet />
+        </main>
         <footer className="app-footer">{lang === 'ar' ? 'بيانات تجريبية اصطناعية — وليست بيانات فعلية للوزارة، عدا صفحات العقود الاستثمارية فتقرأ نسخة محلية من تصديرات بنك البيانات · التواريخ والأوقات بتوقيت الرياض' : 'Synthetic demo data — not the Ministry’s actual data, except the Investment contracts pages, which read a local copy of the Databank exports · dates and times are Asia/Riyadh'}</footer>
 
         <FloatingAssistantButton />
         <AnalysisHost />
-      </main>
+      </div>
     </div>
   );
 }

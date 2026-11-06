@@ -89,7 +89,7 @@ bad = 0
 for n in sample:
     d = api('/furas/contract', {'no': n}); pr = P[P['contractid'] == n]; rc = C[C['contractnumber'] == n]
     okk = d['recordCount'] == len(rc) and d['payments']['rowsInExtract'] == len(pr) and sorted(x['status'] or '' for x in d['records']) == sorted(rc['opportunitystatus'].fillna('')) and \
-        sorted(x['amount'] for x in d['payments']['rows'] if x['amount'] is not None) == sorted(pd.to_numeric(pr['paymentamount']).dropna()) and d['currentRecordDetermined'] is False
+        sorted(x['payable'] for x in d['payments']['rows'] if x['payable'] is not None) == sorted(pd.to_numeric(pr['paymentamount']).dropna()) and d['currentRecordDetermined'] is False
     bad += 0 if okk else 1
 check(f'Contract detail pages (sample of {len(sample)}): records, payment rows, statuses, amounts', bad, 0)
 L = api('/furas/contracts', {'pageSize': 1}); check('List total = distinct numbers', L['total'], int(no.nunique()))

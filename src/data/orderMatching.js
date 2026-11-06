@@ -141,6 +141,9 @@ export function orderTextRefs(order) {
 
 // EVERY source is read — never "the first match wins": the structured invoice-reference field, the description, the notes and every attached document (each page, each table).
 // One record per distinct reference (the canonical value; the text as originally typed is kept in each origin) with every place it was found.
+// The structured Sanad invoice field is ONE numeric identifier (a string: leading zeros kept, never padded or guessed). The importer files it as an `invoice_no`, but a bare 12-digit value is a SADAD number
+// and a bare 14-digit value a violation number (the lengths the system already knows); matching a Sadad number returns every invoice that carries it (several → ambiguous, never chosen).
+const structuredKind = (kind, value) => { const v = String(value).trim(); if (kind !== 'invoice_no') return kind; if (/^\d{12}$/.test(v)) return 'sadad_no'; if (/^\d{14}$/.test(v)) return 'violation_no'; return kind; };
 export function collectReferences(order, docs = []) {
   const m = new Map();
   const add = (kind, value, origin) => {
@@ -149,7 +152,7 @@ export function collectReferences(order, docs = []) {
     m.get(k).origins.push(origin);
   };
   for (const r of order.refs || []) {
-    if (!isCorruptedNumber(r.value)) { add(r.kind, r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) }); continue; }
+    if (!isCorruptedNumber(r.value)) { add(structuredKind(r.kind, r.value), r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) }); continue; }
     const id = recoverableIdentifier(r.value); // exact notation: the complete identifier, from the string — the raw value is kept as the evidence; anything rounded stays UNRELIABLE and is never matched
     if (id) add(id.length === 14 ? 'violation_no' : 'sadad_no', id, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value), recoveredFromNotation: true });
     else add('invoice_corrupted', r.value, { type: 'sanad_structured', field: 'invoice_reference', raw: String(r.value) });
@@ -184,11 +187,12 @@ export const ORIGIN_LABEL = {
   sanad_description: { en: 'Sanad description (free text)', ar: 'وصف سند (نص حر)' },
   sanad_notes: { en: 'Sanad notes (free text)', ar: 'ملاحظات سند (نص حر)' },
   document_docx_text: { en: 'Word document (paragraphs and tables, read by this system)', ar: 'مستند Word (الفقرات والجداول، قرأها النظام)' },
-  document_ocr_simulated: { en: 'OCR simulation — demo only (prepared sample)', ar: 'محاكاة OCR — للعرض التجريبي (عينة معدّة)' },
+  document_ocr_simulated: { en: 'OCR simulation — synthetic demo data (prepared sample)', ar: 'محاكاة OCR — بيانات تجريبية (عينة معدّة)' },
   document_ocr_system: { en: 'OCR engine of this system (not connected)', ar: 'محرك OCR في هذا النظام (غير متصل)' },
   document_text_layer: { en: 'Order PDF (text layer)', ar: 'ملف الأمر (طبقة النص)' },
   document_ocr_import: { en: 'Order document (OCR text imported)', ar: 'مستند الأمر (نص OCR مستورد)' },
-  document_manual_entry: { en: 'Order document (typed by a person)', ar: 'مستند الأمر (أدخله شخص)' },
+  document_manual_entry: { en: 'Typed by a reviewer (manual entry)', ar: 'أدخله مراجع يدوياً' },
+  document_manual_search: { en: 'Chosen by a reviewer from the invoice search', ar: 'اختاره مراجع من البحث في الفواتير' },
   manual_selection: { en: 'Chosen by a reviewer', ar: 'اختيار المراجع' }
 };
 
@@ -204,7 +208,7 @@ export function conflictsFor(order, cand, { otherOrders = [], weak = false, ambi
   if (docMismatch) c.push('document_other_order');
   if (ambiguous) c.push('ambiguous_reference');
   if (otherOrders.length) c.push('linked_to_other_order');
-  if (cand.cancelled || cand.sourceCancelled) c.push('invoice_cancelled'); else if (cand.excluded) c.push('invoice_excluded'); else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
+  if (cand.cancelled || cand.sourceCancelled) c.push('invoice_cancelled'); else if (cand.excluded && !(order.links || []).some((l) => l.invoiceId === cand.invoiceId && l.status === 'confirmed')) c.push('invoice_excluded'); // excluded because of THIS order's confirmed link is the outcome, not a conflict; else if (cand.paymentStatus === 'collected') c.push('invoice_collected');
   if (weak && !ambiguous) c.push('weak_reference');
   return c;
 }
@@ -339,6 +343,22 @@ export function migrateIdScheme(store) {
   for (const [id, rec] of Object.entries(store.orders || {})) { if (isGeneratedRangeId(id)) legacy[id] = rec; else orders[id] = rec; }
   return { ...store, idScheme: ID_SCHEME, orders, legacy };
 }
+// INVOICE IDENTITY MIGRATION. A stored link points to an invoice by its internal id (`biller-sadad`, unique in the store), so it stays valid. This adds the invoice COMPOSITE KEY to a link only when its id resolves to exactly
+// one invoice (`resolve(invoiceId)` → { status: 'unique' | 'ambiguous' | 'none', compositeKey }). An ambiguous or unresolved link is FLAGGED for review (`identityStatus`), never reassigned and never pointed at the first match.
+export function migrateLinkIdentity(store, resolve) {
+  let changed = 0; let flagged = 0; const orders = {};
+  for (const [en, o] of Object.entries(store.orders || {})) {
+    const links = {};
+    for (const [id, l] of Object.entries(o.links || {})) {
+      if (l.snapshot?.compositeKey || l.identityStatus === 'ok') { links[id] = l; continue; }
+      const r = resolve(l.invoiceId); 
+      if (r.status === 'unique' && r.compositeKey) { links[id] = { ...l, snapshot: { ...(l.snapshot || {}), compositeKey: r.compositeKey }, identityStatus: 'ok' }; changed += 1; }
+      else { links[id] = { ...l, identityStatus: r.status === 'ambiguous' ? 'needs_review_ambiguous' : 'needs_review_unresolved' }; flagged += 1; }
+    }
+    orders[en] = { ...o, links };
+  }
+  return { store: { ...store, orders }, changed, flagged };
+}
 // restore a quarantined record to the order the person chose (refused if that order already has its own record)
 export function restoreLegacyRecord(store, oldId, targetId, { by, at }) {
   const rec = store.legacy?.[oldId]; if (!rec) return { store, error: 'legacy_not_found' };
@@ -357,7 +377,7 @@ export function buildEffectiveCases(baseCases, store) {
     const base = (c.links || []).map((l) => ({ ...l, origin: l.origin || (l.reviewedBy ? 'sanad_structured' : 'sanad_structured'), appliedStatus: orderStatusOf(c) }));
     const merged = new Map(base.map((l) => [l.invoiceId, l]));
     if (o) for (const l of Object.values(o.links)) merged.set(l.invoiceId, { ...l, status: LINK_STATUS_OUT[l.status] || l.status, ledgerStatus: l.status, appliedStatus: l.status === 'confirmed' ? orderStatusOf(c) : null });
-    const eff = { ...c, orderStatus: orderStatusOf(c), links: [...merged.values()], docs: o ? Object.values(o.docs) : [], dismissedRefs: o?.dismissedRefs || [], contractReviews: o?.contractReviews || {}, history: [...(o?.history || []), ...(c.history || [])], hasUserWork: !!o };
+    const eff = { ...c, orderStatus: orderStatusOf(c), links: [...merged.values()], docs: o ? Object.values(o.docs) : [], dismissedRefs: o?.dismissedRefs || [], corrections: o?.corrections || {}, contractReviews: o?.contractReviews || {}, history: [...(o?.history || []), ...(c.history || [])], hasUserWork: !!o };
     eff.contractFacts = contractMentions(eff, eff.docs); // contract numbers mentioned / directly referred, with their review status
     return eff;
   });
@@ -402,13 +422,17 @@ export function recordSupplementalExtraction(store, en, docId, extraction, { by,
 
 // References typed by a person (no file): one pseudo-document «manual-entry» per order that accumulates them; method manual_entry, never mixed with any extraction.
 export const MANUAL_DOC_ID = 'manual-entry';
-export function recordManualReferences(store, en, extraction, { by, at, orderStatus }) {
+export function recordManualReferences(store, en, extraction0, { by, at, orderStatus }) {
+  // `manual`: { origin: 'manual_entry' | 'manual_search', reason } — a reviewer who types a number or picks an invoice from the search must record WHY (the explanation travels with the reference as its evidence)
+  const { manual = null, ...extraction } = extraction0;
+  if (manual && !String(manual.reason || '').trim()) return { store, error: 'reason_required' };
+  const origin = manual?.origin || 'manual_entry'; const reason = String(manual?.reason || '').trim();
   let o = noteOrderStatus(ord(store, en), orderStatus, at, by); const prev = o.docs[MANUAL_DOC_ID];
   const seen = new Map((prev?.extraction?.refs || []).map((r) => [refKey(r.kind, r.value), { ...r, occurrences: [...r.occurrences] }]));
-  for (const r of extraction.refs) { const k = refKey(r.kind, r.value); if (!seen.has(k)) seen.set(k, { kind: r.kind, value: r.value, occurrences: [] }); seen.get(k).occurrences.push(...r.occurrences); }
+  for (const r of extraction.refs) { const k = refKey(r.kind, r.value); if (!seen.has(k)) seen.set(k, { kind: r.kind, value: r.value, occurrences: [] }); seen.get(k).occurrences.push(...r.occurrences.map((x) => (manual ? { ...x, via: origin, snippet: reason, by, at } : x))); }
   const doc = { ...(prev || { id: MANUAL_DOC_ID, name: 'manual-entry', size: 0, kind: 'manual', format: 'manual', addedAt: at, fileStored: false }), extraction: { ...extraction, refs: [...seen.values()] } };
   o = { ...o, docs: { ...o.docs, [MANUAL_DOC_ID]: doc } };
-  o = hist(o, { at, by, action: 'manual_references_added', detail: { references: extraction.refs.map((r) => r.value), method: 'manual_entry' } });
+  o = hist(o, { at, by, action: 'manual_references_added', detail: { references: extraction.refs.map((r) => r.value), method: 'manual_entry', origin, reason: reason || null } });
   return { store: put(store, en, o), error: null };
 }
 
@@ -423,7 +447,7 @@ export function proposeLink(store, en, input, { by, at, orderStatus }) {
   return { store: put(store, en, o), error: null };
 }
 
-export function confirmLink(store, en, invoiceId, { by, at, note = '', orderStatus, input = null }) {
+export function confirmLink(store, en, invoiceId, { by, at, note = '', orderStatus, input = null, ack = null }) {
   const o0 = ord(store, en); let ex = o0.links[invoiceId];
   if (!ex && input) ex = { invoiceId, status: 'proposed', origin: input.origin, evidence: input.evidence || [], conflicts: input.conflicts || [], resolvedConflicts: input.resolvedConflicts || [], gross: input.gross ?? null, snapshot: input.snapshot || null, proposedAt: at, proposedBy: by };
   if (!ex) return { store, error: 'not_found' };
@@ -432,10 +456,17 @@ export function confirmLink(store, en, invoiceId, { by, at, note = '', orderStat
   if (input?.resolvedConflicts) ex = { ...ex, resolvedConflicts: input.resolvedConflicts };
   // a written reason never makes a conflicting link acceptable: every HARD conflict must be resolved by supporting evidence, otherwise the link stays unresolved
   if (unresolvedConflicts(ex.conflicts, ex.resolvedConflicts).length) return { store, error: 'unresolved_conflict', conflicts: unresolvedConflicts(ex.conflicts, ex.resolvedConflicts) };
+  // AMOUNT BASIS: order amount = Sanad «المبلغ» (source.amount); invoices total = the BILLED value of each distinct invoice (grossAmount: gross + approved adjustments — never the outstanding balance), tolerance 1 SAR.
+  // A remaining difference never blocks a valid link by itself, but the reviewer must ACKNOWLEDGE it AND give a reason; the acknowledgment is stored on the link and in the history.
+  const ac = input?.amountCheck || null; let amountAck = null;
+  if (ac && Math.abs(Number(ac.difference)) > AMOUNT_TOLERANCE) {
+    if (!(ack && ack.acknowledged === true && String(ack.reason || '').trim())) return { store, error: 'amount_ack_required' };
+    amountAck = { orderAmount: ac.orderAmount, invoicesTotal: ac.invoicesTotal, difference: ac.difference, reason: String(ack.reason).trim(), acknowledgedBy: by, acknowledgedAt: at };
+  }
   let o = noteOrderStatus(o0, orderStatus, at, by);
-  const link = { ...ex, status: 'confirmed', reviewedBy: by, reviewedAt: at, reviewNote: String(note).trim(), appliedStatus: orderStatus || null };
+  const link = { ...ex, status: 'confirmed', reviewedBy: by, reviewedAt: at, reviewNote: String(note).trim(), appliedStatus: orderStatus || null, amountAck };
   o = { ...o, links: { ...o.links, [invoiceId]: link } };
-  o = hist(o, { at, by, action: 'confirmed', invoiceId, detail: { origin: link.origin, evidence: link.evidence, conflicts: link.conflicts, resolvedConflicts: link.resolvedConflicts || [], appliedOrderStatus: orderStatus || null, note: link.reviewNote } });
+  o = hist(o, { at, by, action: 'confirmed', invoiceId, detail: { origin: link.origin, evidence: link.evidence, conflicts: link.conflicts, resolvedConflicts: link.resolvedConflicts || [], appliedOrderStatus: orderStatus || null, note: link.reviewNote, amountAck } });
   return { store: put(store, en, o), error: null };
 }
 
@@ -463,11 +494,18 @@ export function removeLink(store, en, invoiceId, { by, at, note = '', orderStatu
   return { store: put(store, en, o), error: null };
 }
 
-// the user decided that a reference in the document is not an invoice of this order (kept, with a reason)
-export function dismissReference(store, en, key, { by, at, note = '', orderStatus }) {
+// the user decided that a reference is not an invoice of this order (kept, with a reason). With `correctedTo` the reference is CORRECTED instead: the original value stays in the record untouched
+// (the Sanad field / the extraction is never edited); the correction is stored apart — { from, to, origin: manual_entry | manual_search | document_ocr_simulated, reason, by, at } — and the history says so.
+export function dismissReference(store, en, key, { by, at, note = '', orderStatus, correctedTo = null, origin = null, reason = '' }) {
+  const from = String(key).split('|').slice(1).join('|');
+  if (correctedTo != null && !String(reason || note).trim()) return { store, error: 'reason_required' };
   let o = noteOrderStatus(ord(store, en), orderStatus, at, by);
   o = { ...o, dismissedRefs: [...new Set([...(o.dismissedRefs || []), key])] };
-  o = hist(o, { at, by, action: 'reference_dismissed', detail: { key, note: String(note).trim() } });
+  if (correctedTo != null) {
+    const why = String(reason || note).trim(); const corr = { from, to: String(correctedTo), origin: origin || 'manual_entry', reason: why, by, at };
+    o = { ...o, corrections: { ...(o.corrections || {}), [key]: corr } };
+    o = hist(o, { at, by, action: 'reference_corrected', detail: corr });
+  } else o = hist(o, { at, by, action: 'reference_dismissed', detail: { key, note: String(note).trim() } });
   return { store: put(store, en, o), error: null };
 }
 

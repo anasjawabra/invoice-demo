@@ -1,0 +1,5 @@
+/* Page-level chart integration (agent G): only what the pages need beyond the shared chart toolbar (.cf-*, .cp-*, .cc-* in revenue.css). */
+.pc-nodrill { font-size: 12px; margin: 4px 0 0; }
+.ex-chart { margin-top: 14px; border-top: 1px solid var(--line, #e3e7ee); padding-top: 12px; }
+.ex-chart .rc-fig { margin: 0; }
+@media (min-width: 1100px) { .ex-reasons--two { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 0 20px; align-items: start; } .ex-reasons--two > .ex-reasons__head, .ex-reasons--two > .ex-rules, .ex-reasons--two > .rv-callout { grid-column: 1 / -1; } .ex-reasons--two .ex-chart { margin-top: 0; border-top: 0; padding-top: 0; } }

@@ -1,0 +1,13 @@
+/* the category links and the search box above the cards of the Metrics and Glossary Dictionary (/settings/metrics) — logical properties only (RTL Arabic / LTR English) */
+.gl-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-block: 8px 4px; }
+.gl-cats { display: flex; flex-wrap: wrap; gap: 8px; }
+.gl-cat { display: inline-flex; align-items: center; gap: 6px; min-block-size: 36px; padding: 4px 14px; border: 1px solid var(--line-strong, var(--line)); border-radius: 999px; background: var(--surface, #fff); color: var(--txt-dim); font-size: 13px; text-decoration: none; }
+.gl-cat:hover { border-color: var(--primary); }
+.gl-cat:focus-visible { outline: 2px solid var(--focus-ring, var(--primary)); outline-offset: 2px; }
+.gl-cat.is-on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 700; }
+.gl-cat__n { font-size: 11.5px; opacity: .85; }
+.gl-search { flex: 1 1 240px; max-inline-size: 360px; }
+.gl-search .input { inline-size: 100%; }
+.gl-intro { margin: 0 0 12px; font-size: 13.5px; line-height: 1.8; color: var(--txt-dim); max-inline-size: 90ch; }
+.gl-formula--sym { margin-block-start: 8px; font-weight: 500; }
+.gl-formula--sym code { font-family: var(--num); direction: ltr; unicode-bidi: isolate; background: transparent; overflow-wrap: anywhere; }

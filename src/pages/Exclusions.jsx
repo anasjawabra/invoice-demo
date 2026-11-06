@@ -1,135 +1,196 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAsync } from '../utils/useAsync';
-import { RecordLink as Link, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
+import { RecordLink as Link, useOpenRecord, readListMemory, writeListMemory, useShouldRestore, useRestoreScroll } from '../utils/returnContext';
 import { invoicePath } from '../utils/paths';
 import { useRevenue } from '../context/RevenueContext';
 import { useL } from '../utils/bi';
-import { ScopeBar, MetricTile } from '../components/revenue/RevenueUI';
+import ScopeFilters from '../components/filters/ScopeFilters';
+import NoResults from '../components/filters/NoResults';
+import ExportLink from '../components/access/ExportLink';
+import useClearStatusOnEnter from '../components/filters/useClearStatusOnEnter';
+import { FILTER_PAGES } from '../components/filters/filterConfig';
+import { exclusionsLocal, exclusionsFilters, scopeIsDefault, narrowing } from '../components/filters/pageFilters';
 import { kpiOf } from '../data/kpis';
 import { ruleById } from '../data/revenueMetrics';
 import { EXCLUSION_REASONS, EXCLUSION_SOURCE_OF_RULE } from '../data/iim';
 import ExclusionUpload from '../components/revenue/ExclusionUpload';
+import InvoiceListTable from '../components/invoices/InvoiceListTable';
+import Pager from '../components/Pager';
+import PageChart from '../components/charts/PageChart';
+import { usePageChartView } from '../components/charts/usePageChartView';
+import { exclusionsReasonChart, reasonOrder } from '../data/exclusionsChart';
+import KpiStrip from '../components/invoices/KpiStrip';
 
-// إدارة الاستبعادات (IIM-23) — one place for every exclusion: the reasons, how much each removes from the collectible base, where it comes from, and the invoices behind it.
-// The numbers come from the same KPI module as every other screen: the reasons add up exactly to إجمالي المستبعد (the uncollected part of the excluded invoices).
-// the order in which the reasons apply when an invoice meets several (the rule priority of the engine)
+// إدارة الاستبعادات (IIM-23) — the exclusion register.
+//   1. the upload of the Amanah exclusion file (the channel of R8 / R9) comes first,
+//   2. a compact summary by reason (count · excluded amount; the rule and its source are one click away),
+//   2b. beside it ONE chart of the same figures (excluded amount by effective reason) with the shared chart picker; a bar selects the reason like «View» does,
+//   3. the excluded invoices in THE shared invoice list (the same table as the collected-invoice register), filtered by the selected reason.
+// An invoice is ONE row and is counted under its effective (primary) reason, so the reasons add up to the total excluded; further reasons are information on that row.
+// The figures come from the same KPI module as every other screen; the list from the same data service as the invoice register (filter «primary»).
+const PAGE_SIZE = 25;
 const PRECEDENCE = [...EXCLUSION_REASONS].sort((a, b) => (ruleById(a.ruleId)?.priority ?? 99) - (ruleById(b.ruleId)?.priority ?? 99));
+
+function useDebounced(value, ms) {
+  const [v, setV] = useState(value);
+  useEffect(() => { const h = setTimeout(() => setV(value), ms); return () => clearTimeout(h); }, [value, ms]);
+  return v;
+}
 
 export default function Exclusions() {
   const rev = useRevenue(); const { snapshot } = rev;
-  const { L, ar, short, count, sar } = useL();
-  const [sp] = useSearchParams();
+  useClearStatusOnEnter(rev);
+  const { L, ar, short, count, sar, parts } = useL();
+  const [sp, setSp] = useSearchParams();
   const restore = useShouldRestore(); const mem = useMemo(() => readListMemory('exclusions', restore) || {}, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [reason, setReason] = useState(sp.get('reason') || mem.reason || 'all');
-  React.useEffect(() => { writeListMemory('exclusions', { reason }); }, [reason]);
+  const [search, setSearch] = useState(mem.search || '');
+  const [page, setPage] = useState(mem.page ?? 0);
+  const [sort, setSort] = useState(mem.sort || { key: 'exclusionAmount', dir: 'desc' });
+  const [pay, setPay] = useState(mem.pay || 'all'); // the PAYMENT status filter (an exclusion is not a payment status)
+  const [open, setOpen] = useState(null); // the reason whose rule / source is expanded
+  const headRef = useRef(null);
+  useEffect(() => { writeListMemory('exclusions', { reason, search, page, sort, pay }); }, [reason, search, page, sort, pay]);
+  useEffect(() => { if (sp.get('reason')) setSp((p) => { const n = new URLSearchParams(p); n.delete('reason'); return n; }, { replace: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const debouncedSearch = useDebounced(search.trim(), 350);
+
   const T = snapshot.totals; const K = kpiOf(T); const stats = snapshot.ruleStats || {};
-  const e = rev.scopeEff;
-  const scopeReq = useMemo(() => ({ from: e.from, to: e.to, amanah: e.amanah, source: e.source, scopeType: e.scopeType, muni: e.muni, status: e.status, product: e.product, mainClass: e.mainClass }), [e]);
   const rows = useMemo(() => EXCLUSION_REASONS.map((r) => ({ ...r, count: stats[r.ruleId]?.primaryCount || 0, amount: stats[r.ruleId]?.primaryAmount || 0, source: EXCLUSION_SOURCE_OF_RULE[r.ruleId] })), [stats]);
   const sum = rows.reduce((t, r) => t + r.amount, 0); const sumN = rows.reduce((t, r) => t + r.count, 0);
+  const ranked = useMemo(() => [...rows].sort(reasonOrder), [rows]); // by excluded amount — the SAME order as the chart
+  const withCount = ranked.filter((r) => r.count > 0);
+  const visible = ranked.filter((r) => r.count > 0 || r.ruleId === reason); // ALL the reasons that have invoices (a selected reason is never hidden); reasons with no invoices are counted in one quiet line
+  const noInvoices = ranked.length - ranked.filter((r) => r.count > 0).length;
+  const [chartView, onChartView] = usePageChartView('exclusions');
+  const reasonChart = useMemo(() => exclusionsReasonChart(rows, ar ? 'ar' : 'en'), [rows, ar]);
   const share = K.uncollectedTotal > 0 ? K.excluded / K.uncollectedTotal : null;
-  // the invoices behind the selected reason (the service ranks the whole population and returns the top of the list)
-  const { data: wl } = useAsync(() => rev.data.worklist(scopeReq, 100, { includeExcluded: true, reason: reason === 'all' ? 'any' : reason, category: 'excluded' }), [rev.data, scopeReq, reason]);
-  const list = wl?.rows || [];
-  useRestoreScroll(list.length > 0);
   const label = (id) => { const r = EXCLUSION_REASONS.find((x) => x.ruleId === id); return r ? (ar ? r.ar : r.en) : ''; };
 
+  // any change of filter returns to the first page
+  const filterKey = JSON.stringify([reason, debouncedSearch, pay, sort, rev.currentScopeKey, rev.dataVersion]);
+  const lastKey = useRef(filterKey);
+  useEffect(() => { if (lastKey.current !== filterKey) { lastKey.current = filterKey; setPage(0); } }, [filterKey]);
+
+  // the SAME request shape as the invoice register: the shared scope bar + this page's own filters (the effective reason and the search)
+  const request = useMemo(() => {
+    const sc = rev.scopeEff;
+    const scope = { from: sc.from, to: sc.to, amanah: sc.amanah, source: sc.source, status: 'all', scopeType: sc.scopeType, product: sc.product, mainClass: sc.mainClass, muni: sc.muni, item: 'all' };
+    const filters = exclusionsFilters({ search: debouncedSearch, reason, pay });
+    return { scope, filters };
+  }, [rev.scopeEff, debouncedSearch, reason, pay]);
+  const { data: res, loading, error } = useAsync(() => rev.data.list(request.scope, { filters: request.filters, page, pageSize: PAGE_SIZE, sort }), [rev.data, request, page, sort]);
+  const list = res?.rows || [];
+  const total = res?.total ?? 0;
+  const shownAmount = res?.sums?.exclusionAmount ?? 0;
+  useRestoreScroll(list.length > 0 && !loading);
+
+  const openRecord = useOpenRecord(); // a row opens the invoice's own page; «back» returns here with the reason, search, sorting, page and scroll as they were
+  const openDetail = useCallback((row) => openRecord(invoicePath(row.id)), [openRecord]);
+  const toggleSort = (key) => setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: key === 'id' ? 'asc' : 'desc' }));
+  const exportHref = rev.data.exportUrl(request.scope, { filters: request.filters, sort });
+  const select = (id) => { const next = reason === id ? 'all' : id; setReason(next); if (next !== 'all') window.setTimeout(() => { headRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); headRef.current?.focus({ preventScroll: true }); }, 0); };
+  const reconciles = Math.abs(sum - K.excluded) <= 1 && sumN === K.excludedCount;
+  // the toolbar: period · Amanah · REASON (the same state as the reason table) | More: municipality, revenue source, product, payment status | search | export
+  const local = useMemo(() => exclusionsLocal({ reasonCount: (id) => (stats[id]?.primaryCount ? ` · ${count(stats[id].primaryCount)}` : ''), reasonDisabled: (id) => !stats[id]?.primaryCount && reason !== id }), [stats, reason, count]);
+  const localValues = useMemo(() => ({ reason, pay }), [reason, pay]);
+  const onLocalChange = (patch) => { if ('reason' in patch) setReason(patch.reason); if ('pay' in patch) setPay(patch.pay); };
+  const clearLocal = () => { setReason('all'); setPay('all'); setSearch(''); };
+  const clearAll = () => { rev.resetScope(); clearLocal(); }; // the no-results reset: the same as «مسح الفلاتر» of the toolbar
+  const filtered = narrowing({ scopeActive: !scopeIsDefault(rev.scope, rev.cfg.cutoff), local, values: localValues, search: debouncedSearch });
+
+  // three balanced cards: the value and its unit are separate; the percentage is computed from the UNROUNDED amounts (excluded ÷ uncollected BEFORE exclusions), never from the rounded display
+  const amtParts = parts(K.excluded);
+  const netUnpaid = K.collectible; // uncollected AFTER exclusions (what remains collectible) — a different denominator, named in the tooltip
+  const kpiItems = [
+    { key: 'amt', label: L('Total excluded amount', 'إجمالي المبلغ المستبعد'), value: amtParts.num, unit: amtParts.label, title: sar(K.excluded), sub: L('unpaid part of the excluded invoices', 'الجزء غير المسدّد من الفواتير المستبعدة') },
+    { key: 'n', label: L('Excluded invoices', 'عدد الفواتير المستبعدة'), value: count(K.excludedCount), unit: L('invoices', 'فاتورة'), sub: L('each counted once, under its effective reason', 'كل فاتورة تُحتسب مرة واحدة تحت سببها الفعلي') },
+    { key: 'share', label: L('Excluded share of uncollected before exclusions', 'نسبة المستبعد من إجمالي غير المحصّل قبل الاستبعاد'), value: share == null ? '—' : `${(share * 100).toFixed(1)}%`, title: share == null ? undefined : `${sar(K.excluded)} ÷ ${sar(K.uncollectedTotal)}`,
+      sub: share == null ? L('no uncollected amount in this scope', 'لا يوجد غير محصّل في هذا النطاق') : L(`of ${short(K.uncollectedTotal)} uncollected before exclusions`, `من ${short(K.uncollectedTotal)} غير محصّل قبل الاستبعاد`),
+      infoLabel: L('How the percentage is calculated', 'كيف تُحسب النسبة'),
+      info: (<>
+        <b>{L('Excluded amount ÷ uncollected before exclusions × 100', 'المبلغ المستبعد ÷ إجمالي غير المحصّل قبل الاستبعاد × 100')}</b>
+        <span>{L(`Denominator = uncollected before exclusions = net uncollected after exclusions (${sar(netUnpaid)}) + the excluded amount (${sar(K.excluded)}) = ${sar(K.uncollectedTotal)}.`, `المقام = إجمالي غير المحصّل قبل الاستبعاد = صافي غير المحصّل بعد الاستبعاد (${sar(netUnpaid)}) + المبلغ المستبعد (${sar(K.excluded)}) = ${sar(K.uncollectedTotal)}.`)}</span>
+        <span>{L('This is NOT the net uncollected after exclusions (what remains collectible). The percentage uses the exact amounts, not the rounded figures shown.', 'وهو ليس صافي غير المحصّل بعد الاستبعاد (المتبقي للتحصيل). وتُحسب النسبة من المبالغ الدقيقة لا من الأرقام المقرّبة المعروضة.')}</span>
+      </>) }
+  ];
+
   return (
-    <div className="rv-page">
+    <div className="rv-page ex-page">
       <div className="page-head">
         <div>
           <h1 className="page-title">{L('Exclusions management', 'إدارة الاستبعادات')}</h1>
-          <div className="page-sub">{L('Every excluded invoice, the reason, where it comes from and how much it removes from the collectible base. Exclusions come only from uncollected invoices.', 'كل فاتورة مستبعدة وسببها ومصدر الاستبعاد وأثره على القابل للتحصيل. والاستبعاد يكون من الفواتير غير المحصّلة فقط.')}</div>
+          <div className="page-sub">{L('Upload exclusions and review the excluded invoices. Exclusions come only from uncollected invoices and never change an invoice’s payment status.', 'ارفع الاستبعادات وراجع الفواتير المستبعدة. والاستبعاد يكون من الفواتير غير المحصّلة فقط ولا يغيّر حالة سداد الفاتورة.')}</div>
         </div>
-        <Link className="btn btn-sm" to="/collection">{L('Uncollected invoices list', 'قائمة الفواتير غير المحصّلة')}</Link>
-      </div>
-
-      <ScopeBar hideStatus />
-
-      <div className="rv-tiles">
-        <MetricTile label={L('Total excluded', 'إجمالي المستبعد')} value={short(K.excluded)} sub={L('The uncollected part of the excluded invoices', 'الجزء غير المحصّل من الفواتير المستبعدة')} />
-        <MetricTile label={L('Excluded invoices', 'عدد الفواتير المستبعدة')} value={count(K.excludedCount)} sub={L(`of ${count(T.count)} invoices in the scope`, `من ${count(T.count)} فاتورة في النطاق`)} />
-        <MetricTile label={L('Share of total uncollected', 'نسبته من إجمالي غير المحصل')} value={share == null ? '—' : `${(share * 100).toFixed(1)}%`} sub={L(`${short(K.excluded)} of ${short(K.uncollectedTotal)}`, `${short(K.excluded)} من ${short(K.uncollectedTotal)}`)} />
-      </div>
-
-      <div className="card card-pad" role="region" aria-label={L('Exclusions by reason', 'الاستبعادات حسب السبب')}>
-        <h2 className="h3" style={{ marginTop: 0 }}>{L('Exclusions by reason', 'الاستبعادات حسب السبب')}</h2>
-        <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table">
-            <thead><tr><th>{L('Reason', 'السبب')}</th><th>{L('Rule', 'القاعدة')}</th><th>{L('Source of the exclusion', 'مصدر الاستبعاد')}</th><th className="num">{L('Invoices', 'عدد الفواتير')}</th><th className="num">{L('Amount (SAR)', 'المبلغ (ريال)')}</th><th className="num">{L('Share', 'النسبة')}</th><th /></tr></thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.ruleId} className={reason === r.ruleId ? 'is-on' : undefined}>
-                  <td>{ar ? r.ar : r.en}{r.workingLabel && <> <span className="rv-tag rv-tag--warn" title={L('A working label, to be confirmed', 'تسمية مؤقتة للتأكيد')}>{L('working label', 'تسمية مؤقتة')}</span></>}</td>
-                  <td className="muted" style={{ fontSize: 12, maxWidth: 360 }}>{ar ? r.ruleAr : r.ruleEn}</td>
-                  <td className="muted">{r.source ? (ar ? r.source.ar : r.source.en) : '—'}</td>
-                  <td className="num">{count(r.count)}</td>
-                  <td className="num" dir="ltr">{sar(r.amount)}</td>
-                  <td className="num">{K.excluded > 0 ? `${(Math.round((r.amount / K.excluded) * 1000) / 10).toFixed(1)}%` : '—'}</td>
-                  <td><button type="button" className="btn btn-sm btn-ghost" disabled={r.count === 0} aria-pressed={reason === r.ruleId} onClick={() => setReason(reason === r.ruleId ? 'all' : r.ruleId)}>{reason === r.ruleId ? L('Show all', 'عرض الكل') : L('Show the invoices', 'عرض الفواتير')}</button></td>
-                </tr>
-              ))}
-              <tr style={{ fontWeight: 700 }}><td>{L('Total', 'الإجمالي')}</td><td /><td /><td className="num">{count(sumN)}</td><td className="num" dir="ltr">{sar(sum)}</td><td className="num">{K.excluded > 0 ? '100.0%' : '—'}</td><td /></tr>
-            </tbody>
-          </table>
-        </div>
-        {Math.abs(sum - K.excluded) > 1 && <p className="muted" style={{ fontSize: 12 }}>{L('The reasons do not add up to the total: check the reconciliation.', 'مجموع الأسباب لا يطابق الإجمالي: راجع المطابقة.')}</p>}
       </div>
 
       <ExclusionUpload />
 
-      <details className="card card-pad" id="exclusion-rules">
-        <summary><b>{L('Exclusion rules', 'قواعد الاستبعاد')}</b> <span className="muted" style={{ fontSize: 12 }}>{L('— when an invoice meets several reasons, the first one in this order applies', '— إذا انطبق على الفاتورة أكثر من سبب فيُطبَّق الأول بهذا الترتيب')}</span></summary>
-        <ol style={{ margin: '8px 0 0', paddingInlineStart: 20, display: 'grid', gap: 6 }}>
-          {PRECEDENCE.map((r) => <li key={r.ruleId}><b>{ar ? r.ar : r.en}</b> — <span className="muted">{ar ? r.ruleAr : r.ruleEn}</span></li>)}
-        </ol>
-        <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>{L('Exclusions apply only to uncollected invoices. An exclusion never means the amount is uncollectible.', 'تنطبق الاستبعادات على الفواتير غير المحصّلة فقط. والاستبعاد لا يعني أن المبلغ غير قابل للتحصيل.')}</div>
-      </details>
+      <ScopeFilters {...FILTER_PAGES.exclusions} local={{ ...local, values: localValues, onChange: onLocalChange }} onClearLocal={clearLocal} onChange={() => setPage(0)}
+        search={{ value: search, onChange: setSearch, label: { ar: 'بحث', en: 'Search' }, placeholder: { ar: 'فاتورة، سداد، اشتراك، مخالفة، سجل تجاري، دافع أو عقد', en: 'Invoice, SADAD, subscription, violation, CR, payer or contract' } }}
+        actions={<ExportLink filters={request.filters} href={exportHref}>{L('Export CSV', 'تصدير CSV')}</ExportLink>} />
 
-      <div className="card card-pad" id="excluded-invoices">
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-          <label htmlFor="ex-reason" className="rv-scope__lbl">{L('Reason', 'السبب')}</label>
-          <select id="ex-reason" className="select" value={reason} onChange={(ev) => setReason(ev.target.value)}>
-            <option value="all">{L('All reasons', 'كل الأسباب')}</option>
-            {EXCLUSION_REASONS.map((r) => <option key={r.ruleId} value={r.ruleId}>{ar ? r.ar : r.en}</option>)}
-          </select>
-          <span className="muted" style={{ fontSize: 12 }}>{L(`${count(wl?.total ?? 0)} excluded invoices`, `${count(wl?.total ?? 0)} فاتورة مستبعدة`)}{reason !== 'all' ? ` — ${label(reason)}` : ''}</span>
+      <KpiStrip label={L('Exclusions summary', 'ملخص الاستبعادات')} items={kpiItems} />
+
+      <section className={`card card-pad ex-reasons${reasonChart ? ' ex-reasons--two' : ''}`} aria-label={L('Exclusions by reason', 'الاستبعادات حسب السبب')}>
+        <div className="ex-reasons__head">
+          <h2 className="ex-h">{L('Exclusions by reason', 'الاستبعادات حسب السبب')}</h2>
+          <span className="muted ex-reasons__view">{L(`All ${count(withCount.length)} reasons, by excluded amount`, `كل الأسباب (${count(withCount.length)}) بحسب المبلغ المستبعد`)}{noInvoices > 0 ? L(` · ${count(noInvoices)} other reason(s) have no invoices in this scope`, ` · ${count(noInvoices)} سبب آخر بلا فواتير في هذا النطاق`) : ''}</span>
         </div>
-        <div className="rv-table-wrap" tabIndex={0}>
-          <table className="rv-table">
-            <thead><tr>
-              <th>#</th><th>{L('Invoice number', 'رقم الفاتورة')}</th><th>{L('Sadad number', 'رقم السداد')}</th><th>{L('Biller', 'المفوتر')}</th><th>{L('Product', 'اسم المنتج')}</th><th>{L('Amanah / entity', 'الأمانة / الجهة')}</th><th>{L('Municipality', 'البلدية')}</th>
-              <th>{L('Revenue account', 'رقم حساب الإيراد')}</th><th>{L('Sub / main class', 'التصنيف الفرعي والرئيسي')}</th><th>{L('Beneficiary', 'المستفيد')}</th><th>{L('Issue date', 'تاريخ الإصدار')}</th><th>{L('Due date', 'تاريخ الاستحقاق')}</th>
-              <th className="num">{L('Invoice amount (SAR)', 'مبلغ الفاتورة (ريال)')}</th><th>{L('Exclusion source', 'مصدر الاستبعاد')}</th><th>{L('Exclusion reason', 'سبب الاستبعاد')}</th>
-            </tr></thead>
+        <div className="table-wrap" tabIndex={0}>
+          <table className="ex-rtable" data-no-stack="" aria-label={L('Exclusion reasons: invoices and excluded amount — also the data of the chart', 'أسباب الاستبعاد: عدد الفواتير والمبلغ المستبعد — وهي أيضاً بيانات الرسم')}>
+            <thead><tr><th scope="col">{L('Exclusion reason', 'سبب الاستبعاد')}</th><th scope="col" className="num">{L('Invoices', 'عدد الفواتير')}</th><th scope="col" className="num">{L('Excluded amount', 'المبلغ المستبعد')}</th><th scope="col">{L('View', 'عرض')}</th></tr></thead>
             <tbody>
-              {list.length ? list.map((w, i) => (
-                <tr key={w.id}>
-                  <td className="num">{i + 1}</td>
-                  <td><Link to={invoicePath(w.id)} dir="ltr">{w.id}</Link></td>
-                  <td dir="ltr">{w.sadadNo || '—'}</td>
-                  <td>{ar ? w.billerAr : w.billerEn} <span className="muted" dir="ltr">({w.billerId})</span></td>
-                  <td>{ar ? w.productAr : w.productEn}</td>
-                  <td>{ar ? w.amanahAr : w.amanahEn}</td>
-                  <td>{(ar ? w.municipalityAr : w.municipalityEn) || '—'}</td>
-                  <td dir="ltr">{w.gfsCode || '—'}</td>
-                  <td>{w.gfsSub ? <>{w.gfsSub}<div className="muted" style={{ fontSize: 12 }}>{w.mainClass}</div></> : <span>{w.mainClass || '—'}</span>}</td>
-                  <td>{ar ? w.payerAr : w.payerEn}</td>
-                  <td dir="ltr">{w.issueDate}</td>
-                  <td dir="ltr">{w.dueDate}</td>
-                  <td className="num" dir="ltr">{sar(w.gross)}</td>
-                  <td className="muted">{w.exclusionReason ? (ar ? w.exclusionReason.sourceAr : w.exclusionReason.sourceEn) : '—'}{w.exclusionFile && <div style={{ fontSize: 12 }} dir="ltr">{w.exclusionFile.file}</div>}</td>
-                  <td>{w.exclusionReason ? (ar ? w.exclusionReason.reasonAr : w.exclusionReason.reasonEn) : '—'}
-                    {w.exclusionReason?.ruleId === 'OBJ-1' && w.objectionStatus && <div className="muted" style={{ fontSize: 12 }}>{L('Objection status', 'حالة الاعتراض')}: {ar ? w.objectionStatus.ar : w.objectionStatus.en}</div>}
-                    {w.exclusionReason?.ruleId === 'DUP-1' && w.duplicateOf && <div style={{ fontSize: 12 }}>{L('Repeats', 'تكرار للفاتورة')}: <Link to={invoicePath(w.duplicateOf)} dir="ltr">{w.duplicateOf}</Link></div>}
-                  </td>
-                </tr>
-              )) : <tr><td colSpan={15}><div className="rv-empty">{L('No excluded invoices in this view.', 'لا توجد فواتير مستبعدة في هذا العرض.')}</div></td></tr>}
+              {visible.map((r) => (
+                <React.Fragment key={r.ruleId}>
+                  <tr className={`${reason === r.ruleId ? 'is-on' : ''}${r.count === 0 ? ' is-zero' : ''}`}>
+                    <td>
+                      <span className="ex-rname">{ar ? r.ar : r.en}</span>
+                      {r.workingLabel && <span className="rv-tag rv-tag--warn" title={L('A working label, to be confirmed', 'تسمية مؤقتة للتأكيد')}>{L('working label', 'تسمية مؤقتة')}</span>}
+                      <button type="button" className="ex-info" aria-expanded={open === r.ruleId} aria-controls={`ex-more-${r.ruleId}`} aria-label={L(`Rule, source and exact amount: ${r.en}`, `القاعدة والمصدر والمبلغ الدقيق: ${r.ar}`)} title={L('Rule, source and exact amount', 'القاعدة والمصدر والمبلغ الدقيق')} onClick={() => setOpen(open === r.ruleId ? null : r.ruleId)}>i</button>
+                    </td>
+                    <td className="num">{count(r.count)}</td>
+                    <td className="num" dir="ltr" title={sar(r.amount)}>{short(r.amount)}</td>
+                    <td className="ex-act">{r.count === 0 ? <span className="muted">—</span> : reason === r.ruleId ? <span className="ex-sel" aria-current="true">{L('Selected', 'محدّد')}</span> : <button type="button" className="rv-link" aria-pressed="false" onClick={() => select(r.ruleId)}>{L('View', 'عرض')}</button>}</td>
+                  </tr>
+                  {open === r.ruleId && (
+                    <tr className="ex-rmore" id={`ex-more-${r.ruleId}`}><td colSpan={4}>
+                      <div>{ar ? r.ruleAr : r.ruleEn}</div>
+                      <div className="muted">{L('Source of the exclusion', 'مصدر الاستبعاد')}: {r.source ? (ar ? r.source.ar : r.source.en) : '—'} · {L('Exact amount', 'المبلغ الدقيق')}: <span dir="ltr">{sar(r.amount)}</span></div>
+                    </td></tr>
+                  )}
+                </React.Fragment>
+              ))}
+              {!visible.length && <tr><td colSpan={4}><div className="rv-empty">{L('No exclusions in this scope.', 'لا استبعادات في هذا النطاق.')}</div></td></tr>}
             </tbody>
+            <tfoot><tr><th scope="row">{L(`All reasons (${count(withCount.length)})`, `كل الأسباب (${count(withCount.length)})`)}</th><td className="num">{count(sumN)}</td><td className="num" dir="ltr" title={sar(sum)}>{short(sum)}</td><td /></tr></tfoot>
           </table>
         </div>
-      </div>
+        {reasonChart && (
+          <div className="ex-chart">
+            <PageChart block={reasonChart} view={chartView} onViewChange={onChartView} picker="full" table={false} onPick={(t) => { const k = reasonChart.keys[t.i]; if (k != null) select(k); }} selected={reason !== 'all' && reasonChart.keys.indexOf(reason) >= 0 ? { i: reasonChart.keys.indexOf(reason) } : null} />
+          </div>
+        )}
+        {!reconciles && <div className="rv-callout rv-callout--bad" role="alert">{L('The reasons do not add up to the total excluded: check the reconciliation.', 'مجموع الأسباب لا يطابق إجمالي المستبعد: راجع المطابقة.')}</div>}
+        <details className="ex-rules">
+          <summary>{L('Rules and precedence', 'القواعد وترتيب الأولوية')}</summary>
+          <div className="muted" style={{ fontSize: 12, margin: '4px 0' }}>{L('When an invoice meets several reasons, the first one in this order applies; the others stay on the record. Each invoice is counted once, under its effective reason.', 'إذا انطبق على الفاتورة أكثر من سبب فيُطبَّق الأول بهذا الترتيب وتبقى الأسباب الأخرى في السجل. وتُحتسب كل فاتورة مرة واحدة تحت سببها الفعلي.')}</div>
+          <ol>{PRECEDENCE.map((r) => <li key={r.ruleId}>{ar ? r.ar : r.en}</li>)}</ol>
+        </details>
+      </section>
+
+      <section className="card card-pad" id="excluded-invoices" aria-labelledby="ex-list-h">
+        <div className="ex-list-head">
+          <h2 className="ex-h" id="ex-list-h" ref={headRef} tabIndex={-1}>{L('Excluded invoices', 'الفواتير المستبعدة')}</h2>
+          {!error && !(loading && !res) && <span className="muted" style={{ fontSize: 13 }} role="status" aria-live="polite">{L(`${count(total)} invoices · ${sar(shownAmount)} excluded`, `${count(total)} فاتورة · ${sar(shownAmount)} مستبعد`)}{reason !== 'all' ? ` — ${label(reason)}` : ''}</span>}
+        </div>
+        {error && <div className="rv-callout rv-callout--bad" role="alert">{L('The data service could not load this page.', 'تعذّر على خدمة البيانات تحميل هذه الصفحة.')} {String(error.message || '')}</div>}
+        {!loading && !error && total === 0 && filtered
+          ? <NoResults lang={ar ? 'ar' : 'en'} title={L('No excluded invoices match these filters', 'لا توجد فواتير مستبعدة مطابقة لهذه التصفية')} hint={L('The list was not widened. Clear the filters to see every excluded invoice of the default period.', 'لم تُوسَّع القائمة. امسح الفلاتر لعرض كل الفواتير المستبعدة في الفترة الافتراضية.')} onReset={clearAll} />
+          : <InvoiceListTable mode="excluded" rows={list} loading={loading} sort={sort} onSort={toggleSort} onOpen={openDetail} ariaLabel={L('Excluded invoices', 'الفواتير المستبعدة')} />}
+        <Pager page={page} total={total} size={PAGE_SIZE} onPage={setPage} />
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{L('Invoice amount is the original amount; the excluded amount is the unpaid remainder that leaves the collectible base (a partial payment stays collected). Where several reasons apply, the effective one is shown and the others are listed under it; the amount is excluded once.', 'مبلغ الفاتورة هو المبلغ الأصلي؛ والمبلغ المستبعد هو المتبقي غير المسدد الذي يخرج من القابل للتحصيل (وتبقى الدفعة الجزئية محصّلة). وإذا انطبق أكثر من سبب يُعرض السبب الفعلي وتُسرد الأسباب الأخرى تحته؛ ويُستبعد المبلغ مرة واحدة.')}</p>
+      </section>
     </div>
   );
 }

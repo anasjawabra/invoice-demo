@@ -18,8 +18,7 @@ export const PAY_STATUS_LABEL = {
   partial: { en: 'Partly paid', ar: 'مدفوعة جزئياً', cls: 'rv-cat--partial' },
   overdue: { en: 'Overdue', ar: 'متأخرة', cls: 'rv-cat--overdue' },
   not_due: { en: 'Not yet due', ar: 'غير مستحقة بعد', cls: 'rv-cat--not_due' },
-  cancelled: { en: 'Cancelled', ar: 'ملغاة', cls: 'rv-cat--excluded' },
-  excluded: { en: 'Excluded', ar: 'مستبعدة', cls: 'rv-cat--excluded' }
+  cancelled: { en: 'Cancelled', ar: 'ملغاة', cls: 'rv-cat--excluded' }
 };
 export const LINK_STATUS_LABEL = {
   confirmed: { en: 'Confirmed', ar: 'مؤكد', cls: 'rv-cat--enforcement' },
@@ -30,7 +29,7 @@ export const CONFLICT_LABEL = {
   debtor_mismatch: { en: 'The invoice payer is not the order debtor', ar: 'دافع الفاتورة ليس مدين الأمر' },
   amanah_mismatch: { en: 'Different Amanah', ar: 'أمانة مختلفة' },
   linked_to_other_order: { en: 'Also linked to another order', ar: 'مرتبطة أيضاً بأمر آخر' },
-  invoice_cancelled: { en: 'Cancelled in the source — a confirmed link raises a source/enforcement conflict to review', ar: 'ملغاة في المصدر — الرابط المؤكد يُنشئ تعارضاً بين المصدر والإنفاذ يلزم مراجعته' },
+  invoice_cancelled: { en: 'Cancelled in the source — a confirmed link raises a source/enforcement conflict to review', ar: 'ملغاة في المصدر — الرابط المؤكد يُنشئ «تعارض بين المصدر والتنفيذ — يحتاج مراجعة»' },
   invoice_excluded: { en: 'Invoice is excluded', ar: 'الفاتورة مستبعدة' },
   invoice_collected: { en: 'Invoice already collected in full', ar: 'الفاتورة محصّلة بالكامل' },
   invoice_issued_after_order: { en: 'Invoice issued after the order opened', ar: 'الفاتورة صدرت بعد فتح الأمر' },

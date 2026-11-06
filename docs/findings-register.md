@@ -1,5 +1,8 @@
 # Findings register — Phase 0 (branch `phase0-fixes`)
 
+> **Update 2026-11-06 — language scope:** the Chinese interface language has been removed from the application. Arabic (default) and English are the only supported languages (see `docs/localization-cleanup.md`). Mentions of Chinese / `zh` below describe the state at the time this document was written and are kept for history; the open points about Chinese (F-27, Q7) are closed by removal.
+
+
 Companion to `docs/platform-audit-en.md` (finding ids F-xx, D-xx, G-xx, C-xx and acceptance criteria AC-* are defined there).
 Status vocabulary: **Fixed + verified** (code change, automated test, and checked in the running app) · **Fixed (tests only)** · **Guarded** (harm removed, full correction needs a business decision) · **Open**.
 Nothing here is a claim of full platform compliance or of audit closure; only the items marked *verified* have evidence below.

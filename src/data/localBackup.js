@@ -1,6 +1,7 @@
 // Backup / restore of what the demo keeps in THIS browser (EQ10): plans and objectives, the action register and the Smart-report conversations.
 // A backup is a plain JSON file; an import is validated before anything is written and replaces the three records as a unit.
 import { validStoreShape } from './orderMatching';
+import { migrateLangFields, normalizeLang, LANG_KEY } from './lang';
 export const BACKUP_FORMAT = 'revenue-demo-local-backup';
 export const BACKUP_KEYS = ['ib_plans_v1', 'ib_actions_v1', 'ib_smart_convs_v1'];
 // Enforcement-order work (links, document records, extracted references, history). OPTIONAL: an older backup without it never removes what is in the browser.
@@ -27,10 +28,21 @@ export function validateBackup(obj) {
   return { ok: true, summary: { plans: d.ib_plans_v1?.plans.length ?? 0, objectives: d.ib_plans_v1?.objectives.length ?? 0, goalPlans: Object.keys(d.ib_collection_goal_v1?.plans || {}).length, actions: d.ib_actions_v1?.actions.length ?? 0, proposals: d.ib_actions_v1?.proposed?.length ?? 0, conversations: d.ib_smart_convs_v1?.length ?? 0, ...(d.ib_enforcement_v1 ? { enforcementOrders: Object.keys(d.ib_enforcement_v1.orders).length } : {}), createdAt: obj.createdAt } };
 }
 
+// The interface language a backup carries, if any (top-level `lang`, `preferences.lang` or `data.ib_lang`), as 'ar' | 'en'; null when it carries none.
+// A backup written when other languages existed (e.g. a Chinese preference) imports normally: the value becomes Arabic.
+export function backupLang(obj) {
+  const raw = obj?.lang ?? obj?.preferences?.lang ?? obj?.data?.ib_lang;
+  return raw == null ? null : normalizeLang(raw);
+}
+
 // replaces the three records (a key that is null in the backup is removed). Returns the validation result.
-export function applyBackup(obj, storage) {
+// Language fields inside the records are normalised to Arabic / English on the way in; nothing else in them is changed. `sessionStore` (optional, sessionStorage): receives the backup's language preference.
+export function applyBackup(obj, storage, sessionStore = null) {
   const v = validateBackup(obj); if (!v.ok) return v;
-  for (const k of BACKUP_KEYS) { const val = obj.data[k]; if (val == null) storage.removeItem(k); else storage.setItem(k, JSON.stringify(val)); }
-  for (const k of OPTIONAL_KEYS) if (k in obj.data) { const val = obj.data[k]; if (val == null) storage.removeItem(k); else storage.setItem(k, JSON.stringify(val)); }
-  return v;
+  const put = (k, val) => { if (val == null) storage.removeItem(k); else storage.setItem(k, JSON.stringify(migrateLangFields(val).value)); };
+  for (const k of BACKUP_KEYS) put(k, obj.data[k]);
+  for (const k of OPTIONAL_KEYS) if (k in obj.data) put(k, obj.data[k]);
+  const lang = backupLang(obj);
+  if (lang && sessionStore) { try { sessionStore.setItem(LANG_KEY, lang); } catch { /* storage unavailable */ } }
+  return { ...v, ...(lang ? { lang } : {}) };
 }

@@ -13,7 +13,8 @@
 //   { type:'section', text }                         the latest result is a system report: add the section (rewritten sentence for interpret())
 //   { type:'summary' }                               a short written summary of the latest result
 //   { type:'need'   , question, options }            the request needs a result / chart that does not exist: say so
-export const norm = (t) => String(t || '').toLowerCase().replace(/[ً-ٰٟ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ـ/g, '').replace(/[؟?!.,،؛:]/g, ' ').replace(/\s+/g, ' ').trim();
+import { normText } from './textNorm';
+export const norm = normText; // ONE shared normalisation (textNorm.js): digits, tashkeel, tatweel, alef / ya / ta-marbuta forms, case, punctuation
 const has = (s, re) => re.test(s);
 
 const FORMATS = [
@@ -30,7 +31,7 @@ const residue = (s, extra = []) => s.split(' ').filter((w) => w && !FILLER.has(w
 
 const CHART_NOUN = /(?:^|\s)(?:[كبل]|بال|كال)?(?:ال)?(?:رسم|رسوم|شارت|مخطط|مخططات)(?:\s+البياني)?(?=\s|$)|(?:^|\s)(?:charts?|graphs?|plot|visuali[sz]ation)(?=\s|$)/;
 const CHART_KIND = [
-  ['pie', /(?:^|\s)(?:دائري|دايري|دائره|فطيره|فطيرة|pie|donut|doughnut)(?=\s|$)/],
+  ['pie', /(?:^|\s)(?:دائري|دايري|دائره|فطيره|فطيرة|pie)(?=\s|$)/], // a donut is its own chart type (src/data/chartRequests.js): never read as a pie by the global command
   ['line', /(?:^|\s)(?:خطي|خط|خطيه|line|lines|trend line)(?=\s|$)/],
   ['hbar', /(?:^|\s)(?:افقي[هة]?|horizontal)(?=\s|$)/],
   ['bar', /(?:^|\s)(?:اعمده|عمودي|اعمدة|اعمدته|bar|bars|column|columns)(?=\s|$)/]

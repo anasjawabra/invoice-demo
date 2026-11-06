@@ -1,76 +1,43 @@
-import React, { useMemo } from 'react';
-import { RecordLink as Link } from '../utils/returnContext';
-import { useRevenue } from '../context/RevenueContext';
+import React, { useRef, useState, useEffect } from 'react';
 import { useL } from '../utils/bi';
-import { ScopeBar } from '../components/revenue/RevenueUI';
-import { PctBadge } from '../components/strategic/EntityMap';
-import { PRODUCT_CATALOG, catalogGroups } from '../data/productCatalog';
-import { catalogTotals, remainderTotals, mainChallenge } from '../data/productInsights';
+import { DATA_SOURCES, SOURCE_MESSAGE } from '../data/dataSources';
 
-// إدارة المنتجات — the catalogue of products and data systems (Balady and the other platforms). Systems that issue invoices show their figures from the shared KPI module and their main challenge; the others are
-// supporting data (no invoices of their own) and show what they provide and how far their integration is. The figures are the simulated demo data; the integration status is as listed for the real sources.
-const TONE = { ok: 'rv-tag', part: 'rv-tag rv-tag--warn', todo: 'rv-tag rv-tag--bad' };
-
-function Figures({ t, targetRate, L, short, count }) {
-  return (
-    <>
-      <dl className="prod-card__dl">
-        <div><dt>{L('Billed', 'المفوتر')}</dt><dd dir="ltr">{short(t.gross)}</dd></div>
-        <div><dt>{L('Collected', 'المحصّل')}</dt><dd dir="ltr">{short(t.collected)}</dd></div>
-        <div><dt>{L('Uncollected', 'غير المحصّل')}</dt><dd dir="ltr">{short(t.uncollectedTotal)}</dd></div>
-        <div><dt>{L('Collection rate', 'نسبة التحصيل')}</dt><dd>{t.rate == null ? '—' : <PctBadge kind="share" v={t.rate} text={`${(t.rate * 100).toFixed(1)}%`} />}</dd></div>
-      </dl>
-      <p className="prod-card__challenge"><b>{L('Main challenge', 'أهم تحدٍّ')}:</b> {mainChallenge(t, { targetRate, L })}</p>
-      <small className="muted">{count(t.count)} {L('invoices', 'فاتورة')}</small>
-    </>
-  );
-}
-
+// مصادر البيانات — the directory of data sources. Read-only: one card per source (its services inside the card) and what its data will contain once integrated.
+// Until an integration is connected, a click only shows the message below; there are no filters, figures, sample records or lists. Later, a click will open the source's own data list.
 export default function Products() {
-  const rev = useRevenue(); const { snapshot } = rev; const { L, B, short, count } = useL();
-  const targetRate = rev.targets?.collectionRate?.value ?? 0.6;
-  const groups = useMemo(() => catalogGroups(), []);
-  const totals = useMemo(() => Object.fromEntries(PRODUCT_CATALOG.filter((i) => i.filter).map((i) => [i.id, catalogTotals(snapshot, i)])), [snapshot]);
-  const rest = useMemo(() => remainderTotals(snapshot, PRODUCT_CATALOG), [snapshot]);
-  const card = (it) => {
-    const t = totals[it.id]; const inv = it.kind === 'invoices';
-    const head = (
-      <>
-        <h2 className="prod-card__name">{B(it.name)} <span className={inv ? 'rv-tag' : 'rv-tag rv-tag--warn'}>{inv ? L('Invoices', 'فواتير') : L('Supporting data', 'بيانات مساندة')}</span></h2>
-        <p className="prod-card__desc" dir="auto">{B(it.desc)}</p>
-        {it.status && <p className="prod-card__status"><span className={TONE[it.status.tone]}>{L('Integration', 'الربط')}</span> <span dir="auto">{B(it.status.text)}</span></p>}
-        {inv && t && (t.count > 0 ? <Figures t={t} targetRate={targetRate} L={L} short={short} count={count} /> : <small className="muted">{L('No invoices in this selection.', 'لا فواتير في هذا الاختيار.')}</small>)}
-      </>
-    );
-    return inv && t && t.count > 0
-      ? <Link key={it.id} to={`/products/${it.id}`} className="card card-pad prod-card" aria-label={B(it.name)}>{head}</Link>
-      : <div key={it.id} className="card card-pad prod-card prod-card--static" role="group" aria-label={B(it.name)}>{head}</div>;
-  };
+  const { L, B } = useL();
+  const [open, setOpen] = useState(null); const dlg = useRef(null);
+  useEffect(() => { const d = dlg.current; if (!d) return; if (open && !d.open) d.showModal(); if (!open && d.open) d.close(); }, [open]);
+  const src = DATA_SOURCES.find((s) => s.id === open);
   return (
     <div className="rv-page">
       <div className="page-head">
         <div>
-          <h1 className="page-title">{L('Product management', 'إدارة المنتجات')}</h1>
-          <div className="page-sub">{L('The products and data systems behind the invoices. Systems that issue invoices show their figures and main challenge; the others are supporting data.', 'المنتجات والأنظمة التي تقوم عليها الفواتير. ما يُصدر فواتير يعرض أرقامه وأهم تحدٍّ فيه، وغيره بيانات مساندة.')}</div>
+          <h1 className="page-title">{L('Data Sources', 'مصادر البيانات')}</h1>
+          <div className="page-sub">{L('The sources whose data will become available through integration.', 'المصادر التي ستتاح بياناتها عبر الربط.')}</div>
         </div>
       </div>
-      <ScopeBar hideStatus />
 
-      <h2 className="h3 prod-section">{L('Balady', 'بلدي')}</h2>
-      <div className="prod-grid">{groups.balady.map(card)}</div>
+      <ul className="ds-grid" aria-label={L('Data sources', 'مصادر البيانات')}>
+        {DATA_SOURCES.map((s) => (
+          <li key={s.id}>
+            <button type="button" className="ds-card" onClick={() => setOpen(s.id)} aria-haspopup="dialog">
+              <span className="ds-card__icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="6" rx="8" ry="3" /><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6" /></svg></span>
+              <span className="ds-card__name">{B(s.name)}</span>
+              <span className="ds-card__desc">{B(s.desc)}</span>
+              {s.services.length > 0 && <span className="ds-card__svc"><span className="ds-card__svc-h">{L('Services', 'الخدمات')}</span>{s.services.map((v) => <span key={v.en} className="ds-card__chip">{B(v)}</span>)}</span>}
+            </button>
+          </li>))}
+      </ul>
 
-      <h2 className="h3 prod-section">{L('Other platforms and systems', 'منصات وأنظمة أخرى')}</h2>
-      <div className="prod-grid">{groups.other.map(card)}</div>
-
-      {rest.count > 0 && (
-        <>
-          <h2 className="h3 prod-section">{L('Invoices not in a card above', 'فواتير خارج البطاقات أعلاه')}</h2>
-          <div className="prod-grid"><div className="card card-pad prod-card prod-card--static" role="group">
-            <p className="prod-card__desc">{L('Residential-sector sales and investment invoices issued from the Amanahs\' own systems. Shown so that the cards add up to the whole.', 'مبيعات قطاع الإسكان وفواتير الاستثمار الصادرة من الأنظمة الداخلية للأمانات. تُعرض ليكتمل مجموع البطاقات.')}</p>
-            <Figures t={rest} targetRate={targetRate} L={L} short={short} count={count} />
-          </div></div>
-        </>
-      )}
+      <dialog ref={dlg} className="ds-dialog" aria-labelledby="ds-dlg-title" onClose={() => setOpen(null)} onClick={(e) => { if (e.target === dlg.current) setOpen(null); }}>
+        {src && (
+          <div className="ds-dialog__body">
+            <h2 id="ds-dlg-title" className="ds-dialog__title">{B(src.name)}</h2>
+            <p className="ds-dialog__msg">{B(SOURCE_MESSAGE)}</p>
+            <div className="ds-dialog__actions"><button type="button" className="btn btn-primary" autoFocus onClick={() => setOpen(null)}>{L('Close', 'إغلاق')}</button></div>
+          </div>)}
+      </dialog>
     </div>
   );
 }

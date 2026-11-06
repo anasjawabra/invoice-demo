@@ -1,9 +1,9 @@
 // Rebuilds the full record object of ONE invoice from the columns (invoice details are loaded when opened, never in bulk).
 // Line items, identifiers, evidence texts and the evidence trail are deterministic functions of the invoice key.
-import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, RULE_BIT, F, isoOf, municipalityOf } from '../src/data/catalog.js';
+import { ENTITIES, SOURCES, ITEMS, CHANNELS, CSTAT, CR_STATUS, EFAA_STATUS, RULE_IDS, RULE_BIT, F, isoOf } from '../src/data/catalog.js';
 import { EXCLUSION_RULES } from '../src/data/revenueMetrics.js';
 import { Rng, mix } from './world.js';
-import { iimDetail } from './iimRow.js';
+import { iimDetail, municipalityOfRow } from './iimRow.js';
 import { invoiceIdFor, sadadOf, subscriptionOf, violationOf, payerName, beneficiaryIdOf } from './names.js';
 import { idOf, derive, makeCtx, recordRiskFlags, CLASSES, objectionStatusKey } from './engine.js';
 import { OBJECTION_STATUS_OF } from '../src/data/iim.js';
@@ -27,12 +27,12 @@ const TEMPLATES = {
 };
 
 export function materialize(st, i, ctx = null) {
-  if (i >= st.nGen) { const f = st.fixtures.get(i); return f ? structuredCloneSafe(f) : null; }
+  if (i >= st.nGen) { const f = st.fixtures.get(i); return f ? Object.assign(structuredCloneSafe(f), municipalityOfRow(st, i)) : null; } // a fixture keeps the text its source gave; the reference municipality / status are derived from it
   const c = ctx || makeCtx(st, {});
   const idKey = st.idKey[i]; const id = invoiceIdFor(st.ent[i], st.scope[i], idKey);
   const e = st.ent[i]; const ent = ENTITIES[e]; const src = SOURCES[st.src[i]]; const item = ITEMS[st.item[i]];
   const issueDate = isoOf(st.issue[i]); const dueDate = isoOf(st.due[i]);
-  const muni = municipalityOf(e, st.muni[i]);
+  const mu = municipalityOfRow(st, i);
   const payer = payerName(st.payer[i]);
   const gross = st.gross[i];
   const flags = st.flags[i];
@@ -77,8 +77,8 @@ export function materialize(st, i, ctx = null) {
   const rec = {
     id, idKey, index: i,
     entity: payer.ar, entityEn: payer.en, entityAr: payer.ar,
-    amanah: ent.zh, amanahEn: ent.en, amanahAr: ent.ar,
-    municipalityEn: muni?.en || null, municipalityAr: muni?.ar || null, municipalityKey: muni?.key || null,
+    amanah: ent.en, amanahEn: ent.en, amanahAr: ent.ar,
+    ...mu,
     beneficiaryId: flags & F.MISSING_ID ? null : beneficiaryIdOf(st.payer[i]),
     co: ct && st.cstat[i] === 1 ? ct.contractNo : null,
     sourcePlatform: src.platform, scopeType: st.scope[i] === 1 ? 'internal' : 'central', revenueSource: src.key,
@@ -112,8 +112,20 @@ export function detail(st, i, ctx) {
   const riskFlags = recordRiskFlags(st, ctx, i); // { duplicate | struck_off_registry: 'open' | 'settled' } — the rule the invoice page uses for its «needs review» findings
   rec.iim = iimDetail(st, i, rec, D);
   if (st.dupOf?.has(i)) rec.iim.duplicateOf = idOf(st, st.dupOf.get(i)); // R11: the earliest-numbered invoice this one repeats
-  // D12 — an invoice found in Sanad is excluded: the reason is shown on the invoice with the order it came from
-  if (D.excluded && rec.iim.exclusion?.ruleId === 'SND-1' && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) { const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const ev = { en: 'An uncollected invoice found in Sanad (new cases).', ar: 'فاتورة غير محصّلة ظهرت في سند (قضايا جديدة).' }; const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources: [{ system: 'سند — قضايا', field: 'رقم الأمر', value: q ? q.enforceNum : 'رابط مؤكد' }], rawValue: null, reviewStatus: 'approved', reviewer: null, reviewDate: null, effectiveFrom: isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started' }; rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e; }
+  // D12 — an invoice linked to a CONFIRMED enforcement order is excluded as «مرتبطة بأمر تنفيذ مؤكد» (rule SND-1). The reason is kept next to every other reason the invoice meets (never replaced by a higher-priority one)
+  // and carries its evidence: the order(s), their status, who confirmed the link and when, and the supporting document. A proposed link and an extraction alone never reach this point.
+  if ((D.mask & (1 << RULE_IDS.indexOf('SND-1'))) && !rec.exclusions.some((e) => e.ruleId === 'SND-1')) {
+    const q = st.exec[i] >= 0 ? st.requests[st.exec[i]] : null; const info = (ctx.linkInfo && ctx.linkInfo[idOf(st, i)]) || [];
+    const orders = [...new Set([...(q ? [q.enforceNum] : []), ...info.map((x) => x.enforceNum)])]; const first = info.find((x) => x.reviewedBy) || null;
+    const docsUsed = [...new Set(info.flatMap((x) => x.documents || []))];
+    const ev = { en: 'Linked to a confirmed enforcement order.', ar: 'مرتبطة بأمر تنفيذ مؤكد.' };
+    const sources = [{ system: 'سند — أوامر التنفيذ', field: 'رقم أمر التنفيذ', value: orders.join(' · ') || 'رابط مؤكد' }];
+    if (info.length) sources.push({ system: 'سند — أوامر التنفيذ', field: 'حالة الأمر', value: info.map((x) => `${x.enforceNum}: ${x.orderStatus}${x.closeReason ? ` (${x.closeReason})` : ''}`).join(' · ') });
+    if (first) sources.push({ system: 'مراجعة الربط', field: 'المراجع ووقت التأكيد', value: `${first.reviewedBy} · ${String(first.reviewedAt || '').slice(0, 16).replace('T', ' ')}` });
+    if (docsUsed.length) sources.push({ system: 'المستند الداعم', field: 'اسم المستند', value: docsUsed.join(' · ') });
+    const e = { category: 'executed_against_sanad', ruleId: 'SND-1', ruleVersion: 1, evidence: ev, sources, rawValue: null, reviewStatus: 'approved', reviewer: first ? { en: first.reviewedBy, ar: first.reviewedBy } : null, reviewDate: first && first.reviewedAt ? String(first.reviewedAt).slice(0, 10) : null, effectiveFrom: first && first.reviewedAt ? String(first.reviewedAt).slice(0, 10) : isoOf(st.issue[i]), effectiveTo: null, reassessment: 'not_started', orders, amountBasis: 'uncollected_remainder' };
+    rec.exclusions = [...rec.exclusions, e]; rec.exclusion = rec.exclusion || e;
+  }
   // reasons that apply without a stored record: R2 (the customer is on the list), R7 from the appeal status, and R8 / R9 loaded from an Amanah's file (the upload template)
   { const have = new Set(rec.exclusions.map((e) => e.ruleId)); const fo = ctx.ov.get(i)?.files || {};
     RULE_IDS.forEach((ruleId, b) => {

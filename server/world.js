@@ -26,7 +26,8 @@ import { grpOf, ENTITIES, N_AMANAH, ENT_HOUSING, ITEM_INDEX, SOURCE_INDEX, RULE_
 import { PARAMS } from '../src/data/sourceAssumptions.js';
 import { sadadOf, invoiceIdFor } from './names.js';
 import { gfsCodeOf, gfsIndexOf } from '../src/data/iim.js';
-import { ITEMS } from '../src/data/catalog.js';
+import { ITEMS, SOURCES } from '../src/data/catalog.js';
+import { demoMunicipalityCode } from '../src/data/municipalityModel.js';
 import { toSciNotation, exactNotation } from '../src/data/sanadSource.js';
 
 export const SEED = 20261008;
@@ -56,7 +57,7 @@ const pad = (n, w) => String(n).padStart(w, '0');
 /* ------------------------------------------------------------------ Store */
 const COLS = {
   idKey: Float64Array, issue: Int32Array, due: Int32Array, gross: Float64Array, adjAmt: Float64Array, adjDay: Int32Array,
-  ent: Uint8Array, muni: Uint8Array, scope: Uint8Array, src: Uint8Array, item: Uint8Array, lines: Uint8Array,
+  ent: Uint8Array, muni: Uint8Array /* LEGACY demo municipality (feeds only the composite key's `mu`) */, mref: Uint16Array /* reference-municipality code (src/data/municipalityModel.js MCODE) */, scope: Uint8Array, src: Uint8Array, item: Uint8Array, lines: Uint8Array,
   payStart: Int32Array, payCount: Uint8Array, cancelDay: Int32Array, exMask: Uint16Array, exAppr: Uint16Array, exRev: Uint8Array,
   flags: Uint16Array, contract: Int32Array, inst: Uint16Array, cstat: Uint8Array, crSt: Uint8Array, exec: Int16Array,
   efaa: Uint8Array, payer: Uint16Array, owner: Uint16Array, gfs: Uint8Array, objSt: Uint8Array // objSt: Mumtathil appeal status of an invoice with an objection (1…5 = OBJECTION_STATUSES, 0 none)
@@ -225,7 +226,9 @@ export function generateWorld(today, { scale = 1 } = {}) {
     const i = st.addInvoice();
     st.idKey[i] = o.idKey; st.issue[i] = o.issue; st.due[i] = o.due; st.gross[i] = o.gross;
     st.adjAmt[i] = 0; st.adjDay[i] = 0;
-    st.ent[i] = o.ent; st.muni[i] = o.muni; st.scope[i] = o.scope; st.src[i] = o.src; st.item[i] = o.item; st.lines[i] = o.lines;
+    st.ent[i] = o.ent; st.muni[i] = o.muni; st.scope[i] = o.scope;
+    // the REFERENCE municipality: a SYNTHETIC stand-in, a pure function of the stable invoice key (a contract's invoices share their contract's) — the real BALADYA_KEY values are not available
+    st.mref[i] = o.mref != null ? o.mref : demoMunicipalityCode(o.ent, (o.contract ?? -1) >= 0 ? 0x40000000 + o.contract : o.idKey, SOURCES[o.src].key); st.src[i] = o.src; st.item[i] = o.item; st.lines[i] = o.lines;
     st.payStart[i] = st.pn; let pc = 0;
     for (const p of o.pay) { if (p.day <= todayN) { st.addPayment(i, p.day, p.amt, p.ch); pc += 1; } }
     st.payCount[i] = pc;
@@ -519,7 +522,7 @@ export function generateWorld(today, { scale = 1 } = {}) {
   { const FN = SOURCE_INDEX.fines; const MFS = SOURCE_INDEX.municipal_fees; const DUPB = RULE_BIT['DUP-1']; let made = 0; let serial = 9_900_000; const open = (i) => st.payCount[i] === 0 && !st.cancelDay[i] && !st.exMask[i] && (st.src[i] === FN || st.src[i] === MFS) && st.payer[i] >= 2 && st.payer[i] < HOUSING_PAYER_BASE && st.due[i] < todayN;
     const twin = (i, issue, flagged) => { const due = issue + (st.due[i] - st.issue[i]); serial += 1;
       const j = writeInvoice({ idKey: 2026 * 1e8 + serial, issue, due, gross: st.gross[i], ent: st.ent[i], muni: st.muni[i], scope: st.scope[i], src: st.src[i], item: st.item[i], lines: st.lines[i], pay: [], cancelDay: 0, exMask: flagged ? DUPB : 0, exAppr: flagged ? DUPB : 0, exRev: 15, flags: flagged ? F.DUPLICATE_WF : 0, efaa: st.efaa[i], payer: st.payer[i]  });
-      st.gfs[j] = st.gfs[i]; if (legacyGroup.has(i)) legacyGroup.add(j); if (flagged) st.dupOf.set(j, i); return j; };
+      st.gfs[j] = st.gfs[i]; st.mref[j] = st.mref[i]; if (legacyGroup.has(i)) legacyGroup.add(j); if (flagged) st.dupOf.set(j, i); return j; };
     const n0 = st.n; const j26 = dayNum('2026-01-05'); const j25a = dayNum('2025-03-01'); const j25b = dayNum('2025-12-31');
     for (let i = Math.floor(n0 * 0.5); i < n0 && made < 3; i += 1) if (open(i) && st.issue[i] >= j26 && st.issue[i] <= todayN) { twin(i, st.issue[i], true); made += 1; }
     let rep = 0; for (let i = 0; i < n0 && rep < 1; i += 1) if (open(i) && st.issue[i] >= j25a && st.issue[i] <= j25b && st.issue[i] + 365 <= todayN) { twin(i, st.issue[i] + 365, false); rep += 1; } }

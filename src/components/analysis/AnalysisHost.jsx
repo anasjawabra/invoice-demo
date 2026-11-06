@@ -4,6 +4,7 @@ import { analysisPath } from '../../utils/paths';
 import { useRevenue } from '../../context/RevenueContext';
 import { useL } from '../../utils/bi';
 import AnalysisProgress, { AnalysisModal, isTerminal, summarizeProgress } from './AnalysisProgress';
+import { NcAutoSave } from './nc/useNcStore';
 
 /* Persistent task panel: lists running / finished analyses so longer tasks can
    continue in the background and results stay reachable. */
@@ -80,6 +81,7 @@ export default function AnalysisHost() {
         onView={() => task && viewResult(task.id)}
       />
       <ResultRouter />
+      <NcAutoSave />
       <TaskDock />
     </>
   );
