@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/:path*", "destination": "/api" },
     { "source": "/((?!api/|assets/|samples/|favicon\\.svg).*)", "destination": "/index.html" }
   ]
 }
